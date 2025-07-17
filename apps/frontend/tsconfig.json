@@ -1,11 +1,14 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": "src",
-    "outDir": "dist"
+    "rootDir": "../../",
+    "outDir": "dist",
+    "baseUrl": "../../",
+    "lib": ["ES2020", "DOM"],
+    "jsx": "react-jsx",
+    "paths": {
+      "shared": ["packages/shared/src"]
+    }
   },
-  "include": ["src"],
-  "references": [
-    { "path": "../../packages/shared" }
-  ]
+  "include": ["src", "../../packages/shared/src"]
 }
