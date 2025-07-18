@@ -13,6 +13,11 @@
       "outputs": []
     },
     "dev": {
+      "cache": false,
+      "persistent": true,
+      "outputLogs": "new-only"
+    },
+    "env:setup": {
       "cache": false
     }
   }

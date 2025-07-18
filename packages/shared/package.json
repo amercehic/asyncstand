@@ -6,6 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
+    "dev": "tsc -b --watch",
     "build": "tsc -b"
   },
   "keywords": [],

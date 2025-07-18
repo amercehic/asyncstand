@@ -10,7 +10,9 @@
     "dev": "turbo run dev --parallel",
     "lint": "turbo run lint",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "env:setup": "turbo run env:setup && ./scripts/setup-env.sh",
+    "env:setup:force": "./scripts/setup-env.sh"
   },
   "keywords": [],
   "author": "",
