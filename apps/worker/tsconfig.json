@@ -6,7 +6,8 @@
     "baseUrl": "../../",
     "lib": ["ES2020", "DOM"],
     "paths": {
-      "shared": ["packages/shared/src"]
+      "shared": ["packages/shared/src"],
+      "@/*": ["apps/worker/src/*"]
     }
   },
   "include": ["src", "../../packages/shared/src"]
