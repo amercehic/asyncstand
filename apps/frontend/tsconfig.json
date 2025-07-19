@@ -6,6 +6,8 @@
     "baseUrl": "../../",
     "lib": ["ES2020", "DOM"],
     "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "paths": {
       "shared": ["packages/shared/src"],
       "@/*": ["apps/frontend/src/*"]

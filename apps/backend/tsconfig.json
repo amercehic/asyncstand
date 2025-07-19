@@ -12,6 +12,7 @@
     "sourceMap": true,
     "outDir": "./dist",
     "baseUrl": "./",
+    "rootDir": "../../",
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": false,
@@ -24,6 +25,6 @@
       "@/*": ["src/*"]
     }
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "../../packages/shared/src"],
   "exclude": ["node_modules", "dist"]
 }
