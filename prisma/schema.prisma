@@ -1,14 +1,344 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
+// ------------------------------
+// USER AUTHENTICATION & TENANCY
+// ------------------------------
+model User {
+  id                         String       @id @default(uuid())
+  email                      String       @unique
+  passwordHash               String
+  name                       String?
+  twofaSecret                String?
+  createdAt                  DateTime     @default(now())
+  updatedAt                  DateTime     @updatedAt
+
+  // Relations
+  passwordResetTokens        PasswordResetToken[]
+  sessions                   Session[]
+  orgMembers                 OrgMember[]
+  auditLogs                  AuditLog[]       @relation("AuditLogActor")
+  integrationsInstalled      Integration[]    @relation("IntegrationInstalledBy")
+  teamMembers                TeamMember[]     @relation("TeamMemberUser")
 }
 
-model Test {
-  id        Int      @id @default(autoincrement())
-  name      String
-  createdAt DateTime @default(now())
+model PasswordResetToken {
+  token     String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  expiresAt DateTime
+
+  @@index([token])
+}
+
+model Session {
+  id          String   @id @default(uuid())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  issuedAt    DateTime @default(now())
+  lastSeenIp  String?
+  revokedAt   DateTime?
+}
+
+model Organization {
+  id               String           @id @default(uuid())
+  name             String?
+
+  // Relations
+  billingAccount   BillingAccount?
+  members          OrgMember[]
+  integrations     Integration[]
+  teams            Team[]
+  auditLogs        AuditLog[]
+}
+
+enum OrgRole {
+  owner
+  admin
+  member
+}
+
+enum OrgMemberStatus {
+  invited
+  active
+  suspended
+}
+
+model OrgMember {
+  org      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orgId    String
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId   String
+  role     OrgRole
+  status   OrgMemberStatus
+
+  @@id([orgId, userId])
+}
+
+model AuditLog {
+  id                    String       @id @default(uuid())
+  org                   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orgId                 String
+  actorUser             User?        @relation("AuditLogActor", fields: [actorUserId], references: [id])
+  actorUserId           String?
+  actorPlatformUserId   String?
+  action                String
+  payload               Json
+  createdAt             DateTime     @default(now())
+
+  @@index([orgId, createdAt])
+}
+
+// ------------------------------
+// EXTERNAL PLATFORM INTEGRATIONS
+// ------------------------------
+enum IntegrationPlatform {
+  slack
+  teams
+}
+
+enum TokenStatus {
+  ok
+  expired
+  revoked
+}
+
+model Integration {
+  id                String        @id @default(uuid())
+  org               Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orgId             String
+  platform          IntegrationPlatform
+  externalTeamId    String
+  accessToken       String
+  refreshToken      String
+  expiresAt         DateTime?
+  tokenStatus       TokenStatus
+  scopes            String[]
+  installedBy       User?         @relation("IntegrationInstalledBy", fields: [installedByUserId], references: [id], onDelete: SetNull)
+  installedByUserId String?
+
+  // Relations
+  teams             Team[]
+  syncState         IntegrationSyncState?
+  digestPosts       StandupDigestPost[]
+  tokenRefreshJobs  TokenRefreshJob[]
+
+  @@unique([orgId, platform, externalTeamId])
+  @@index([tokenStatus])
+}
+
+model IntegrationSyncState {
+  integration        Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  integrationId      String      @id
+  lastUsersSyncAt    DateTime?
+  lastChannelsSyncAt DateTime?
+  errorMsg           String?
+}
+
+// ------------------------------
+// STANDUP FEATURE DOMAINS
+// ------------------------------
+model Team {
+  id             String       @id @default(uuid())
+  org            Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orgId          String
+  integration    Integration? @relation(fields: [integrationId], references: [id], onDelete: SetNull)
+  integrationId  String?
+  channelId      String?
+  name           String?
+  timezone       String
+
+  // Relations
+  members        TeamMember[]
+  configs        StandupConfig[]
+  instances      StandupInstance[]
+
+  @@index([integrationId, channelId])
+}
+
+model TeamMember {
+  id              String        @id @default(uuid())
+  team            Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  teamId          String
+  platformUserId  String?
+  user            User?         @relation("TeamMemberUser", fields: [userId], references: [id], onDelete: SetNull)
+  userId          String?
+  name            String?
+  active          Boolean       @default(true)
+
+  // Relations
+  configMemberships StandupConfigMember[]
+  answers           Answer[]
+
+  @@unique([teamId, platformUserId])
+  @@unique([teamId, userId], map: "unique_team_user")
+}
+
+model StandupConfig {
+  id                     String        @id @default(uuid())
+  team                   Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  teamId                 String
+  questions              String[]
+  weekdays               Int[]         // 0 = Sunday
+  timeLocal              String
+  reminderMinutesBefore  Int           @default(10)
+
+  // Relations
+  configMembers          StandupConfigMember[]
+}
+
+model StandupConfigMember {
+  standupConfig    StandupConfig @relation(fields: [standupConfigId], references: [id], onDelete: Cascade)
+  standupConfigId  String
+  teamMember       TeamMember    @relation(fields: [teamMemberId], references: [id], onDelete: Cascade)
+  teamMemberId     String
+  include          Boolean
+
+  @@id([standupConfigId, teamMemberId])
+}
+
+enum StandupInstanceState {
+  pending
+  collecting
+  posted
+}
+
+model StandupInstance {
+  id             String       @id @default(uuid())
+  team           Team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  teamId         String
+  configSnapshot Json         // frozen copy at creation
+  targetDate     DateTime
+  state          StandupInstanceState
+  createdAt      DateTime     @default(now())
+
+  // Relations
+  digestPost     StandupDigestPost?
+  answers        Answer[]
+  participationSnapshots ParticipationSnapshot[]
+
+  @@index([teamId, targetDate])
+}
+
+model StandupDigestPost {
+  standupInstance    StandupInstance @relation(fields: [standupInstanceId], references: [id], onDelete: Cascade)
+  standupInstanceId  String          @unique
+  integration        Integration     @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  integrationId      String
+  channelId          String
+  messageTs          String
+
+  @@id([standupInstanceId])
+}
+
+model Answer {
+  standupInstance   StandupInstance @relation(fields: [standupInstanceId], references: [id], onDelete: Cascade)
+  standupInstanceId String
+  teamMember        TeamMember      @relation(fields: [teamMemberId], references: [id], onDelete: Cascade)
+  teamMemberId      String
+  questionIndex     Int
+  text              String
+  submittedAt       DateTime        @default(now())
+
+  @@id([standupInstanceId, teamMemberId, questionIndex])
+  @@index([teamMemberId])
+}
+
+model ParticipationSnapshot {
+  id                  String           @id @default(uuid())
+  standupInstance     StandupInstance  @relation(fields: [standupInstanceId], references: [id], onDelete: Cascade)
+  standupInstanceId   String
+  answersCount        Int
+  membersMissing      Int
+}
+
+// ------------------------------
+// BILLING MODELS
+// ------------------------------
+model BillingAccount {
+  id                   String          @id @default(uuid())
+  org                  Organization    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orgId                String          @unique
+  stripeCustomerId     String
+  billingEmail         String?
+  defaultPaymentMethod String?
+  taxId                String?
+  country              String?
+
+  // Relations
+  subscription         Subscription?
+}
+
+enum SubscriptionStatus {
+  trialing
+  active
+  past_due
+  canceled
+}
+
+model Subscription {
+  id                    String           @id @default(uuid())
+  billingAccount        BillingAccount   @relation(fields: [billingAccountId], references: [id], onDelete: Cascade)
+  billingAccountId      String           @unique
+  stripeSubscriptionId  String
+  plan                  String
+  memberQuota           Int
+  status                SubscriptionStatus
+  renewsAt              DateTime
+
+  // Relations
+  events                SubscriptionEvent[]
+  planHistory           PlanHistory[]
+
+  @@index([status])
+  @@index([renewsAt])
+}
+
+model SubscriptionEvent {
+  id             String       @id @default(uuid())
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscriptionId String
+  kind           String       // e.g. invoice.paid
+  payload        Json
+  createdAt      DateTime     @default(now())
+}
+
+model PlanHistory {
+  subscription     Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscriptionId   String
+  validFrom        DateTime
+  plan             String
+  memberQuota      Int
+
+  @@id([subscriptionId, validFrom])
+}
+
+// ------------------------------
+// OPERATIONAL HOUSEKEEPING
+// ------------------------------
+model TokenRefreshJob {
+  id              String      @id @default(uuid())
+  integration     Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  integrationId   String
+  scheduledAt     DateTime
+  status          String
+  lastAttemptAt   DateTime?
+  errorMsg        String?
+
+  @@index([integrationId])
+}
+
+model WebhookFailure {
+  id            String   @id @default(uuid())
+  webhookType   String
+  payload       Json
+  retryCount    Int      @default(0)
+  lastErrorMsg  String?
+  createdAt     DateTime @default(now())
 }
