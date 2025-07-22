@@ -11,6 +11,22 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const res = ctx.getResponse<Response>();
     const requestId = req.headers['x-request-id'] as string | undefined;
 
+    // Log the original exception with full details
+    console.error('🚨 Unhandled Exception:', {
+      timestamp: new Date().toISOString(),
+      requestId,
+      method: req.method,
+      url: req.url,
+      userAgent: req.get('User-Agent'),
+      ip: req.ip,
+      exception: {
+        name: exception instanceof Error ? exception.name : 'Unknown',
+        message: exception instanceof Error ? exception.message : String(exception),
+        stack: exception instanceof Error ? exception.stack : undefined,
+        constructor: exception?.constructor?.name,
+      },
+    });
+
     let apiErr: ApiError;
 
     if (exception instanceof ApiError) {

@@ -3,7 +3,12 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["apps/*/dist/**", "packages/shared/dist/**", "apps/frontend/dist/**"]
+      "outputs": [
+        "apps/*/dist/**",
+        "packages/shared/dist/**",
+        "apps/frontend/dist/**",
+        "apps/backend/dist/**"
+      ]
     },
     "lint": {
       "outputs": []

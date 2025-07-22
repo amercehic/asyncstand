@@ -26,7 +26,7 @@ export default [
 
   // Parser & globals
   {
-    ignores: ['node_modules', 'dist'],
+    ignores: ['node_modules', 'dist', '**/*.d.ts'],
     languageOptions: {
       parser: tsParser,
       parserOptions: { project: ['./tsconfig.json'] },

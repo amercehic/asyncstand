@@ -12,7 +12,7 @@
     "sourceMap": true,
     "outDir": "./dist",
     "baseUrl": "./",
-    "rootDir": "../../",
+    "rootDir": "./",
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": false,
@@ -21,10 +21,10 @@
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false,
     "paths": {
-      "shared": ["../../packages/shared/src"],
-      "@/*": ["src/*"]
+      "shared": ["../../packages/shared/dist"],
+      "@/*": ["src/*", "./*"]
     }
   },
-  "include": ["src/**/*", "../../packages/shared/src"],
+  "include": ["src/**/*", "prisma/**/*"],
   "exclude": ["node_modules", "dist"]
 }
