@@ -1,18 +1,21 @@
-import { IsEmail, IsString, MinLength, IsOptional, IsUUID } from 'class-validator';
+import { IsEmail, IsString, IsOptional, IsUUID, IsNotEmpty } from 'class-validator';
+import { IsStrongPassword } from '@/auth/validators/password.validator';
 
 export class SignupDto {
-  @IsEmail()
+  @IsEmail({}, { message: 'Please provide a valid email address' })
+  @IsNotEmpty({ message: 'Email is required' })
   email: string;
 
-  @IsString()
-  @MinLength(8)
+  @IsString({ message: 'Password must be a string' })
+  @IsNotEmpty({ message: 'Password is required' })
+  @IsStrongPassword()
   password: string;
 
   @IsString()
   @IsOptional()
   name?: string;
 
-  @IsUUID()
+  @IsUUID('4', { message: 'Organization ID must be a valid UUID' })
   @IsOptional()
   orgId?: string;
 

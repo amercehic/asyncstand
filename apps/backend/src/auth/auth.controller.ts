@@ -1,8 +1,10 @@
-import { Controller, Post, Body, Req, Res, HttpCode } from '@nestjs/common';
+import { Controller, Post, Body, Req, Res, HttpCode, HttpStatus } from '@nestjs/common';
 import { AuthService } from '@/auth/auth.service';
 import { SignupDto } from '@/auth/dto/signup.dto';
 import { LoginDto } from '@/auth/dto/login.dto';
 import { Request, Response } from 'express';
+import { ApiError } from '@/common/api-error';
+import { ErrorCode } from 'shared';
 
 @Controller('auth')
 export class AuthController {
@@ -28,26 +30,46 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
     @Req() req: Request,
   ) {
-    const { accessToken, refreshToken } = await this.authService.login(
-      dto.email,
-      dto.password,
-      req,
-    );
-    // Set refresh token in HttpOnly cookie (optional)
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+    const loginResponse = await this.authService.login(dto.email, dto.password, req);
+
+    // Set refresh token in HttpOnly cookie
+    res.cookie('refreshToken', loginResponse.refreshToken, {
+      httpOnly: true, // Not accessible via JavaScript (XSS protection)
+      secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+      sameSite: 'lax', // CSRF protection
       path: '/',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // e.g. 7 days
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
-    return { accessToken };
+
+    // Return response WITHOUT refresh token (it's in the cookie for security)
+    const { ...response } = loginResponse;
+    return response;
   }
 
   @HttpCode(200)
   @Post('logout')
-  async logout(@Body('refreshToken') token: string, @Req() req: Request) {
-    await this.authService.logout(token, req.ip);
-    return { success: true };
+  async logout(
+    @Body('refreshToken') bodyToken: string | undefined,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    // Get refresh token from cookie or body
+    const token = req.cookies?.refreshToken || bodyToken;
+
+    if (!token) {
+      throw new ApiError(
+        ErrorCode.VALIDATION_FAILED,
+        'Refresh token is required',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const result = await this.authService.logout(token, ip);
+
+    // Clear the refresh token cookie
+    res.clearCookie('refreshToken');
+
+    return result;
   }
 }
