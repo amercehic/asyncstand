@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "test:e2e": "jest --config ./jest-e2e.json",
     "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
     "dev": "nest start --watch",
     "start": "nest start",
@@ -20,10 +21,16 @@
     "@nestjs/cli": "^11.0.7",
     "@nestjs/common": "^11.1.4",
     "@nestjs/core": "^11.1.4",
+    "@nestjs/testing": "^11.1.5",
     "@types/express": "^5.0.3",
+    "@types/jest": "^30.0.0",
     "@types/node": "^24.0.14",
     "@types/passport-jwt": "^4.0.1",
-    "@types/passport-local": "^1.0.38"
+    "@types/passport-local": "^1.0.38",
+    "@types/supertest": "^6.0.3",
+    "jest": "^30.0.5",
+    "supertest": "^7.1.4",
+    "ts-jest": "^29.4.0"
   },
   "dependencies": {
     "@nestjs/config": "^4.0.2",
