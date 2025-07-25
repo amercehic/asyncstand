@@ -18,6 +18,23 @@ updates:
     labels:
       - 'dependencies'
       - 'automated'
+    groups:
+      # Group all dev dependencies together
+      dev-dependencies:
+        patterns:
+          - '*'
+        update-types:
+          - 'minor'
+          - 'patch'
+        exclude-patterns:
+          - '@types/*'
+      # Group TypeScript types separately
+      types-dependencies:
+        patterns:
+          - '@types/*'
+        update-types:
+          - 'minor'
+          - 'patch'
     ignore:
       # Ignore major version updates for now (you can remove this if you want them)
       - dependency-name: '*'
@@ -42,6 +59,30 @@ updates:
       - 'dependencies'
       - 'automated'
       - 'backend'
+    groups:
+      # Group all dev dependencies together
+      dev-dependencies:
+        patterns:
+          - '*'
+        update-types:
+          - 'minor'
+          - 'patch'
+        exclude-patterns:
+          - '@types/*'
+      # Group TypeScript types separately
+      types-dependencies:
+        patterns:
+          - '@types/*'
+        update-types:
+          - 'minor'
+          - 'patch'
+      # Group NestJS packages together
+      nestjs-dependencies:
+        patterns:
+          - '@nestjs/*'
+        update-types:
+          - 'minor'
+          - 'patch'
     ignore:
       - dependency-name: '*'
         update-types: ['version-update:semver-major']
@@ -65,6 +106,31 @@ updates:
       - 'dependencies'
       - 'automated'
       - 'frontend'
+    groups:
+      # Group all dev dependencies together
+      dev-dependencies:
+        patterns:
+          - '*'
+        update-types:
+          - 'minor'
+          - 'patch'
+        exclude-patterns:
+          - '@types/*'
+      # Group TypeScript types separately
+      types-dependencies:
+        patterns:
+          - '@types/*'
+        update-types:
+          - 'minor'
+          - 'patch'
+      # Group React packages together
+      react-dependencies:
+        patterns:
+          - 'react*'
+          - '@vitejs/*'
+        update-types:
+          - 'minor'
+          - 'patch'
     ignore:
       - dependency-name: '*'
         update-types: ['version-update:semver-major']
@@ -88,6 +154,23 @@ updates:
       - 'dependencies'
       - 'automated'
       - 'worker'
+    groups:
+      # Group all dev dependencies together
+      dev-dependencies:
+        patterns:
+          - '*'
+        update-types:
+          - 'minor'
+          - 'patch'
+        exclude-patterns:
+          - '@types/*'
+      # Group TypeScript types separately
+      types-dependencies:
+        patterns:
+          - '@types/*'
+        update-types:
+          - 'minor'
+          - 'patch'
     ignore:
       - dependency-name: '*'
         update-types: ['version-update:semver-major']
@@ -111,6 +194,23 @@ updates:
       - 'dependencies'
       - 'automated'
       - 'shared'
+    groups:
+      # Group all dev dependencies together
+      dev-dependencies:
+        patterns:
+          - '*'
+        update-types:
+          - 'minor'
+          - 'patch'
+        exclude-patterns:
+          - '@types/*'
+      # Group TypeScript types separately
+      types-dependencies:
+        patterns:
+          - '@types/*'
+        update-types:
+          - 'minor'
+          - 'patch'
     ignore:
       - dependency-name: '*'
         update-types: ['version-update:semver-major']
@@ -134,3 +234,11 @@ updates:
       - 'dependencies'
       - 'automated'
       - 'github-actions'
+    groups:
+      # Group all GitHub Actions updates together
+      github-actions:
+        patterns:
+          - '*'
+        update-types:
+          - 'minor'
+          - 'patch'
