@@ -5,6 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "test:e2e:backend": "jest --config ./jest-e2e.json",
+    "test:auth": "jest --config ./jest-e2e.json --testPathPatterns=auth.e2e-spec.ts",
     "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
     "dev": "nest start --watch",
     "start": "nest start",
@@ -20,16 +22,31 @@
     "@nestjs/cli": "^11.0.7",
     "@nestjs/common": "^11.1.4",
     "@nestjs/core": "^11.1.4",
+    "@nestjs/testing": "^11.1.5",
     "@types/express": "^5.0.3",
-    "@types/node": "^24.0.14"
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.0.14",
+    "@types/passport-jwt": "^4.0.1",
+    "@types/passport-local": "^1.0.38",
+    "@types/supertest": "^6.0.3",
+    "jest": "^30.0.5",
+    "supertest": "^7.1.4",
+    "ts-jest": "^29.4.0"
   },
   "dependencies": {
     "@nestjs/config": "^4.0.2",
+    "@nestjs/jwt": "^11.0.0",
+    "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.1.5",
+    "@node-rs/argon2": "^2.0.2",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "express": "^5.1.0",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
+    "passport-local": "^1.0.0",
     "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
     "shared": "workspace:*"
   }
 }

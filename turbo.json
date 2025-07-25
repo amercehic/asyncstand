@@ -3,12 +3,26 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["apps/*/dist/**", "packages/shared/dist/**", "apps/frontend/dist/**"]
+      "outputs": [
+        "apps/*/dist/**",
+        "packages/shared/dist/**",
+        "apps/frontend/dist/**",
+        "apps/backend/dist/**",
+        "apps/worker/dist/**"
+      ]
     },
     "lint": {
       "outputs": []
     },
     "test": {
+      "dependsOn": ["build"],
+      "outputs": []
+    },
+    "test:auth": {
+      "dependsOn": ["build"],
+      "outputs": []
+    },
+    "test:e2e:backend": {
       "dependsOn": ["build"],
       "outputs": []
     },
