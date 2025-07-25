@@ -43,6 +43,14 @@ export default [
     },
   },
 
+  // Shared package overrides - allow relative imports
+  {
+    files: ['packages/shared/**/*.ts'],
+    rules: {
+      'no-restricted-imports': 'off',
+    },
+  },
+
   // Frontend overrides
   {
     files: ['apps/frontend/**/*.{ts,tsx}'],
