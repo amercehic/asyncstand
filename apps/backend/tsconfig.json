@@ -27,5 +27,5 @@
   },
   "include": ["src/**/*", "prisma/**/*", "test/**/*"],
   "exclude": ["node_modules", "dist"],
-  "types": ["jest", "node"]
+  "types": ["jest", "node", "@types/node"]
 }

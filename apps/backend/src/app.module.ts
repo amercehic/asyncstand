@@ -3,10 +3,8 @@ import { ConfigModule } from '@nestjs/config';
 import { AppController } from '@/app.controller';
 import { AppService } from '@/app.service';
 import { validate } from '@/config/env';
-import { AuthController } from '@/auth/auth.controller';
-import { AuthService } from '@/auth/auth.service';
+import { AuthModule } from '@/auth/auth.module';
 import { PrismaService } from '@/prisma/prisma.service';
-import { JwtModule } from '@nestjs/jwt';
 
 @Module({
   imports: [
@@ -15,12 +13,9 @@ import { JwtModule } from '@nestjs/jwt';
       validate,
       envFilePath: '.env',
     }),
-    JwtModule.register({
-      secret: process.env.JWT_SECRET || 'default_jwt_secret',
-      signOptions: { expiresIn: '1h' },
-    }),
+    AuthModule,
   ],
-  controllers: [AppController, AuthController],
-  providers: [AppService, AuthService, PrismaService],
+  controllers: [AppController],
+  providers: [AppService, PrismaService],
 })
 export class AppModule {}

@@ -23,11 +23,21 @@
       "outputs": []
     },
     "test:e2e:backend": {
-      "dependsOn": ["build"],
+      "dependsOn": [],
       "outputs": []
     },
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [
+        "apps/*/dist/**",
+        "packages/shared/dist/**",
+        "apps/frontend/dist/**",
+        "apps/backend/dist/**",
+        "apps/worker/dist/**"
+      ],
+      "cache": false
+    },
     "dev": {
-      "cache": false,
       "persistent": true,
       "outputLogs": "new-only"
     },

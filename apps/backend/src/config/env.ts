@@ -22,6 +22,25 @@ export class EnvironmentVariables {
   @IsString()
   @IsNotEmpty()
   JWT_SECRET!: string;
+
+  @IsString()
+  FRONTEND_URL: string = 'http://localhost:3000';
+
+  @IsString()
+  FROM_EMAIL: string = 'noreply@asyncstand.com';
+
+  @IsString()
+  SMTP_HOST: string = '';
+
+  @Transform(({ value }) => parseInt(value, 10))
+  @IsNumber()
+  SMTP_PORT: number = 587;
+
+  @IsString()
+  SMTP_USER: string = '';
+
+  @IsString()
+  SMTP_PASS: string = '';
 }
 
 export function validate(config: Record<string, unknown>) {
@@ -45,4 +64,10 @@ export const envConfig = () => ({
   nodeEnv: process.env.NODE_ENV || 'development',
   databaseUrl: process.env.DATABASE_URL,
   jwtSecret: process.env.JWT_SECRET,
+  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+  fromEmail: process.env.FROM_EMAIL || 'noreply@asyncstand.com',
+  smtpHost: process.env.SMTP_HOST || '',
+  smtpPort: parseInt(process.env.SMTP_PORT || '587', 10),
+  smtpUser: process.env.SMTP_USER || '',
+  smtpPass: process.env.SMTP_PASS || '',
 });
