@@ -46,7 +46,7 @@ export default [
   // Frontend overrides
   {
     files: ['apps/frontend/**/*.{ts,tsx}'],
-    Plugins: { react: react, 'react-hooks': reactHooks },
+    plugins: { react: react, 'react-hooks': reactHooks },
     rules: {},
     languageOptions: {
       globals: { window: 'readonly', document: 'readonly' },
