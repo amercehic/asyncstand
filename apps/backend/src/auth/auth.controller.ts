@@ -1,16 +1,33 @@
-import { Controller, Post, Body, Req, Res, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, Req, Res, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from '@/auth/auth.service';
+import { PasswordResetService } from '@/auth/password-reset.service';
 import { SignupDto } from '@/auth/dto/signup.dto';
 import { LoginDto } from '@/auth/dto/login.dto';
+import { ForgotPasswordDto } from '@/auth/dto/forgot-password.dto';
+import { ResetPasswordDto } from '@/auth/dto/reset-password.dto';
 import { Request, Response } from 'express';
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
+import { ApiTags } from '@nestjs/swagger';
+import {
+  SwaggerSignup,
+  SwaggerLogin,
+  SwaggerLogout,
+  SwaggerForgotPassword,
+  SwaggerResetPassword,
+} from '@/auth/auth.swagger';
 
+@ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly passwordResetService: PasswordResetService,
+  ) {}
 
   @Post('signup')
+  @SwaggerSignup()
   async signup(@Body() dto: SignupDto) {
     const user = await this.authService.signup(
       dto.email,
@@ -25,6 +42,7 @@ export class AuthController {
 
   @HttpCode(200)
   @Post('login')
+  @SwaggerLogin()
   async login(
     @Body() dto: LoginDto,
     @Res({ passthrough: true }) res: Response,
@@ -48,6 +66,7 @@ export class AuthController {
 
   @HttpCode(200)
   @Post('logout')
+  @SwaggerLogout()
   async logout(
     @Body('refreshToken') bodyToken: string | undefined,
     @Req() req: Request,
@@ -71,5 +90,30 @@ export class AuthController {
     res.clearCookie('refreshToken');
 
     return result;
+  }
+
+  @Post('forgot-password')
+  @UseGuards(ThrottlerGuard)
+  @SwaggerForgotPassword()
+  async forgotPassword(@Body() dto: ForgotPasswordDto, @Req() req: Request) {
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    await this.passwordResetService.createPasswordResetToken(dto.email, ip);
+
+    return {
+      message: 'Password reset link has been sent to your email.',
+      success: true,
+    };
+  }
+
+  @Post('reset-password')
+  @SwaggerResetPassword()
+  async resetPassword(@Body() dto: ResetPasswordDto, @Req() req: Request) {
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    await this.passwordResetService.resetPassword(dto.token, dto.password, dto.email, ip);
+
+    return {
+      message: 'Password has been successfully reset.',
+      success: true,
+    };
   }
 }

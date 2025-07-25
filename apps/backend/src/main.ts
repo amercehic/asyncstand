@@ -3,10 +3,38 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from '@/app.module';
 import { ConfigService } from '@nestjs/config';
 import { AllExceptionsFilter } from '@/common/http-exception.filter';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, INestApplication, Logger } from '@nestjs/common';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+
+function setupSwagger(app: INestApplication) {
+  const config = new DocumentBuilder()
+    .setTitle('AsyncStand API')
+    .setDescription('API documentation for the AsyncStand backend.')
+    .setVersion('1.0')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'JWT',
+        description: 'Enter JWT token',
+        in: 'header',
+      },
+      'JWT-auth', // This name here is important for references
+    )
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, document, {
+    swaggerOptions: {
+      persistAuthorization: true,
+    },
+  });
+}
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const logger = new Logger('Bootstrap');
 
   // Configure validation pipe for DTO validation
   app.useGlobalPipes(
@@ -34,13 +62,17 @@ async function bootstrap() {
     });
   }
 
+  // Setup Swagger documentation
+  setupSwagger(app);
+
   await app.listen(port);
 
-  console.log(`🚀 AsyncStand Backend is running on port ${port} in ${nodeEnv} mode`);
-  console.log(`📖 API available at: http://localhost:${port}`);
+  logger.log(`🚀 AsyncStand Backend is running on port ${port} in ${nodeEnv} mode`);
+  logger.log(`📖 API available at: http://localhost:${port}`);
 }
 
 bootstrap().catch((error) => {
-  console.error('❌ Failed to start the application:', error);
+  const logger = new Logger('Bootstrap');
+  logger.error('❌ Failed to start the application:', error);
   process.exit(1);
 });

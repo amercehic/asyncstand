@@ -18,6 +18,12 @@ describe('AuthController (e2e)', () => {
     name: 'Test User',
   };
 
+  const passwordResetUser = {
+    email: 'reset@example.com',
+    password: 'OriginalPassword123!',
+    name: 'Reset Test User',
+  };
+
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -33,6 +39,13 @@ describe('AuthController (e2e)', () => {
     await prisma.user.deleteMany({ where: { email: testUser.email } });
     await prisma.organization.deleteMany({ where: { name: 'Test Org' } });
 
+    // Clean up password reset test data
+    await prisma.passwordResetToken.deleteMany({
+      where: { user: { email: passwordResetUser.email } },
+    });
+    await prisma.orgMember.deleteMany({ where: { user: { email: passwordResetUser.email } } });
+    await prisma.user.deleteMany({ where: { email: passwordResetUser.email } });
+
     // Create a test organization
     const org = await prisma.organization.create({
       data: { name: 'Test Org' },
@@ -46,6 +59,7 @@ describe('AuthController (e2e)', () => {
       await prisma.orgMember.deleteMany({ where: { userId } });
     }
     await prisma.user.deleteMany({ where: { email: testUser.email } });
+    await prisma.user.deleteMany({ where: { email: passwordResetUser.email } });
     if (orgId) {
       await prisma.organization.deleteMany({ where: { id: orgId } });
     }
@@ -95,5 +109,149 @@ describe('AuthController (e2e)', () => {
       .send({ refreshToken })
       .expect(200);
     expect(res.body).toEqual({ success: true });
+  });
+
+  describe('Password Reset Flow', () => {
+    let passwordResetUserId: string;
+    let resetToken: string;
+
+    it('should create a user for password reset testing', async () => {
+      const signupData = {
+        ...passwordResetUser,
+        orgId,
+        invitationToken: 'reset-test-invitation-token',
+      };
+      const res = await request(app.getHttpServer())
+        .post('/auth/signup')
+        .send(signupData)
+        .expect(201);
+      expect(res.body).toHaveProperty('id');
+      expect(res.body).toHaveProperty('email', passwordResetUser.email);
+      passwordResetUserId = res.body.id;
+    });
+
+    it('should request password reset for existing user', async () => {
+      const forgotPasswordData = {
+        email: passwordResetUser.email,
+      };
+
+      const res = await request(app.getHttpServer())
+        .post('/auth/forgot-password')
+        .send(forgotPasswordData)
+        .expect(201);
+
+      expect(res.body).toEqual({
+        message: 'Password reset link has been sent to your email.',
+        success: true,
+      });
+
+      // Verify that a password reset token was created in the database
+      const resetTokenRecord = await prisma.passwordResetToken.findFirst({
+        where: { userId: passwordResetUserId },
+        include: { user: true },
+      });
+
+      expect(resetTokenRecord).toBeDefined();
+      expect(resetTokenRecord.user.email).toBe(passwordResetUser.email);
+      expect(resetTokenRecord.expiresAt).toBeInstanceOf(Date);
+      expect(resetTokenRecord.expiresAt.getTime()).toBeGreaterThan(Date.now());
+
+      // Save the token for the reset test
+      resetToken = resetTokenRecord.token;
+    });
+
+    it('should successfully reset password with valid token', async () => {
+      const newPassword = 'NewSecurePassword456!';
+      const resetPasswordData = {
+        token: resetToken,
+        password: newPassword,
+        email: passwordResetUser.email,
+      };
+
+      const res = await request(app.getHttpServer())
+        .post('/auth/reset-password')
+        .send(resetPasswordData)
+        .expect(201);
+
+      expect(res.body).toEqual({
+        message: 'Password has been successfully reset.',
+        success: true,
+      });
+
+      // Verify that the password reset token was deleted
+      const resetTokenRecord = await prisma.passwordResetToken.findUnique({
+        where: { token: resetToken },
+      });
+      expect(resetTokenRecord).toBeNull();
+
+      // Verify that the user can now login with the new password
+      const loginData = {
+        email: passwordResetUser.email,
+        password: newPassword,
+      };
+
+      const loginRes = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send(loginData)
+        .expect(200);
+
+      expect(loginRes.body).toHaveProperty('accessToken');
+      expect(loginRes.body).toHaveProperty('user');
+      expect(loginRes.body.user).toHaveProperty('id', passwordResetUserId);
+      expect(loginRes.body.user).toHaveProperty('email', passwordResetUser.email);
+    });
+
+    it('should handle multiple password reset requests for the same user', async () => {
+      // Request another password reset
+      const forgotPasswordData = {
+        email: passwordResetUser.email,
+      };
+
+      const res = await request(app.getHttpServer())
+        .post('/auth/forgot-password')
+        .send(forgotPasswordData)
+        .expect(201);
+
+      expect(res.body).toEqual({
+        message: 'Password reset link has been sent to your email.',
+        success: true,
+      });
+
+      // Verify that a new token was created (old one should be replaced)
+      const resetTokenRecords = await prisma.passwordResetToken.findMany({
+        where: { userId: passwordResetUserId },
+      });
+
+      expect(resetTokenRecords).toHaveLength(1);
+      expect(resetTokenRecords[0].token).not.toBe(resetToken); // Should be a new token
+    });
+
+    it('should verify audit logs were created for password reset actions', async () => {
+      const auditLogs = await prisma.auditLog.findMany({
+        where: {
+          orgId,
+          actorUserId: passwordResetUserId,
+          action: { in: ['password.reset.requested', 'password.reset.completed'] },
+        },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      expect(auditLogs.length).toBeGreaterThanOrEqual(2);
+
+      // Check for password reset request log
+      const requestLog = auditLogs.find((log) => log.action === 'password.reset.requested');
+      expect(requestLog).toBeDefined();
+      expect(requestLog.payload).toHaveProperty('userId', passwordResetUserId);
+      expect(requestLog.payload).toHaveProperty('email', passwordResetUser.email);
+      expect(requestLog.payload).toHaveProperty('ipAddress');
+
+      // Check for password reset completion log
+      const completionLog = auditLogs.find((log) => log.action === 'password.reset.completed');
+      expect(completionLog).toBeDefined();
+      expect(completionLog.payload).toHaveProperty('userId', passwordResetUserId);
+      expect(completionLog.payload).toHaveProperty('email', passwordResetUser.email);
+      expect(completionLog.payload).toHaveProperty('ipAddress');
+      expect(completionLog.payload).toHaveProperty('resetAt');
+    });
   });
 });

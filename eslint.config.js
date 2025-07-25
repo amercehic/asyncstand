@@ -17,14 +17,14 @@ const compat = new FlatCompat({
 });
 
 export default [
-  // Load config from your old .eslintrc.js
+  // Base configs
   ...compat.extends(
     'eslint:recommended',
     'plugin:@typescript-eslint/recommended',
     'plugin:prettier/recommended',
   ),
 
-  // Parser & globals
+  // Parser & globals + ban of "../" imports
   {
     ignores: ['node_modules', 'dist', '**/*.d.ts'],
     languageOptions: {
@@ -32,23 +32,53 @@ export default [
       parserOptions: { project: ['./tsconfig.json'] },
       globals: { NodeJS: 'readonly' },
     },
+    rules: {
+      // Disallow any parent‑directory imports; enforce use of "@…" aliases only
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: ['../*', './*'],
+        },
+      ],
+    },
+  },
+
+  // Shared package overrides - allow relative imports
+  {
+    files: ['packages/shared/**/*.ts'],
+    rules: {
+      'no-restricted-imports': 'off',
+    },
   },
 
   // Frontend overrides
   {
     files: ['apps/frontend/**/*.{ts,tsx}'],
+    plugins: { react: react, 'react-hooks': reactHooks },
     rules: {},
     languageOptions: {
       globals: { window: 'readonly', document: 'readonly' },
     },
-    plugins: { react: react, 'react-hooks': reactHooks },
-    settings: { react: { version: '18.0' } },
+    settings: {
+      react: { version: '18.0' },
+    },
   },
 
   // Backend & Worker overrides
   {
     files: ['apps/backend/src/**/*.ts', 'apps/worker/src/**/*.ts'],
     plugins: { nestjs: nestjs },
-    rules: {},
+    rules: {
+      // Prevent console usage
+      'no-console': 'error',
+      // Prevent console methods specifically
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'CallExpression[callee.object.name="console"]',
+          message: 'Console methods are not allowed. Use the LoggerService instead.',
+        },
+      ],
+    },
   },
 ];
