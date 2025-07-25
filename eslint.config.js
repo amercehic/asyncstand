@@ -17,14 +17,14 @@ const compat = new FlatCompat({
 });
 
 export default [
-  // Load config from your old .eslintrc.js
+  // Base configs
   ...compat.extends(
     'eslint:recommended',
     'plugin:@typescript-eslint/recommended',
     'plugin:prettier/recommended',
   ),
 
-  // Parser & globals
+  // Parser & globals + ban of "../" imports
   {
     ignores: ['node_modules', 'dist', '**/*.d.ts'],
     languageOptions: {
@@ -32,17 +32,28 @@ export default [
       parserOptions: { project: ['./tsconfig.json'] },
       globals: { NodeJS: 'readonly' },
     },
+    rules: {
+      // Disallow any parent‑directory imports; enforce use of "@…" aliases only
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: ['../*', './*'],
+        },
+      ],
+    },
   },
 
   // Frontend overrides
   {
     files: ['apps/frontend/**/*.{ts,tsx}'],
+    Plugins: { react: react, 'react-hooks': reactHooks },
     rules: {},
     languageOptions: {
       globals: { window: 'readonly', document: 'readonly' },
     },
-    plugins: { react: react, 'react-hooks': reactHooks },
-    settings: { react: { version: '18.0' } },
+    settings: {
+      react: { version: '18.0' },
+    },
   },
 
   // Backend & Worker overrides

@@ -3,7 +3,34 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from '@/app.module';
 import { ConfigService } from '@nestjs/config';
 import { AllExceptionsFilter } from '@/common/http-exception.filter';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, INestApplication } from '@nestjs/common';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+
+function setupSwagger(app: INestApplication) {
+  const config = new DocumentBuilder()
+    .setTitle('AsyncStand API')
+    .setDescription('API documentation for the AsyncStand backend.')
+    .setVersion('1.0')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'JWT',
+        description: 'Enter JWT token',
+        in: 'header',
+      },
+      'JWT-auth', // This name here is important for references
+    )
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, document, {
+    swaggerOptions: {
+      persistAuthorization: true,
+    },
+  });
+}
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -33,6 +60,9 @@ async function bootstrap() {
       credentials: true,
     });
   }
+
+  // Setup Swagger documentation
+  setupSwagger(app);
 
   await app.listen(port);
 
