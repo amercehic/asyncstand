@@ -64,8 +64,6 @@ export function validateEnvironment(): void {
   if (missingVars.length > 0) {
     throw new Error(`Missing required environment variables: ${missingVars.join(', ')}`);
   }
-
-  console.log('✅ Worker environment variables validated successfully');
 }
 
 // Call validation on import

@@ -71,9 +71,7 @@ export class PasswordResetService {
           expiresAt,
         },
       });
-      console.log('Password reset token created successfully for user:', user.id);
     } catch (error) {
-      console.error('Failed to create password reset token:', error);
       throw error;
     }
 
