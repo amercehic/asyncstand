@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "turbo run test",
+    "test:auth": "turbo run test:auth",
     "preinstall": "npx only-allow pnpm",
     "build": "turbo run build --parallel",
     "dev": "turbo run dev --parallel",

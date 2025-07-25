@@ -4,8 +4,9 @@
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
   "transform": {
-    "^.+\\.(t|j)s$": "ts-jest"
+    "^.+\\.ts$": "ts-jest"
   },
+  "transformIgnorePatterns": ["node_modules/(?!.*\\.mjs$)", "../../packages/shared/dist"],
   "moduleNameMapper": {
     "^@/prisma/(.*)$": "<rootDir>/prisma/$1",
     "^@/(.*)$": "<rootDir>/src/$1"
