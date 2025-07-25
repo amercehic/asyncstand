@@ -45,6 +45,20 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: asyncstand_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -72,6 +86,16 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Setup environment
+        run: pnpm env:setup
+
+      - name: Generate Prisma client
+        run: |
+          cd apps/backend
+          npx prisma generate
+        env:
+          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/asyncstand_test'
 
       - name: Build project
         run: pnpm build
@@ -123,6 +147,9 @@ jobs:
 
       - name: Setup environment
         run: pnpm env:setup
+
+      - name: Build shared package
+        run: pnpm --filter shared build
 
       - name: Setup database
         run: |
