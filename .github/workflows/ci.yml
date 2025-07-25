@@ -81,7 +81,7 @@ jobs:
       - name: Verify database connection
         run: |
           cd apps/backend
-          npx prisma db execute --stdin <<< "SELECT 1;"
+          npx prisma db execute --url "postgresql://postgres:postgres@localhost:5432/asyncstand_test" --stdin <<< "SELECT 1;"
         env:
           DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/asyncstand_test'
           NODE_ENV: 'test'
