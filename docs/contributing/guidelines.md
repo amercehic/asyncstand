@@ -44,6 +44,7 @@ pnpm test
 
 # Run specific test suites
 pnpm test:auth
+pnpm test:e2e:backend
 
 # Check linting
 pnpm lint

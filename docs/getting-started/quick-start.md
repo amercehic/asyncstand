@@ -47,7 +47,7 @@ After running `pnpm dev`, you'll have:
 
 1. **Check backend health**: http://localhost:3000/health
 2. **Visit frontend**: http://localhost:5173
-3. **Run tests**: `pnpm test:auth`
+3. **Run tests**: `pnpm test:auth` or `pnpm test:e2e:backend`
 
 ## Next Steps
 

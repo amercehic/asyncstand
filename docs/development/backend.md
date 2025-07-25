@@ -174,7 +174,7 @@ throw new ApiError('User not found', 404);
 pnpm test
 
 # E2E tests only
-pnpm test:e2e
+pnpm test:e2e:backend
 
 # Auth tests only
 pnpm test:auth

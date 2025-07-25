@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "test:e2e": "jest --config ./jest-e2e.json",
+    "test:e2e:backend": "jest --config ./jest-e2e.json",
     "test:auth": "jest --config ./jest-e2e.json --testPathPatterns=auth.e2e-spec.ts",
     "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
     "dev": "nest start --watch",

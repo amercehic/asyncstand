@@ -58,6 +58,7 @@ pnpm dev
 # Run tests
 pnpm test
 pnpm test:auth  # Run auth-specific tests
+pnpm test:e2e:backend  # Run backend e2e tests
 
 # Build for production
 pnpm build
