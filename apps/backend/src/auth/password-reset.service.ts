@@ -5,18 +5,26 @@ import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
 import { randomBytes } from 'crypto';
 import nodemailer from 'nodemailer';
-import mjml from 'mjml';
+import { LoggerService } from '@/common/logger.service';
+import { AuditLogService } from '@/common/audit-log.service';
 
 @Injectable()
 export class PasswordResetService {
   private transporter: nodemailer.Transporter;
 
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    private readonly logger: LoggerService,
+    private readonly auditLogService: AuditLogService,
+  ) {
+    this.logger.setContext(PasswordResetService.name);
     // Initialize transporter
-    this.setupTransporter();
+    this.setupTransporter().catch((error) => {
+      this.logger.error('Failed to setup email transporter', { error });
+    });
   }
 
-  private setupTransporter() {
+  private async setupTransporter() {
     if (process.env.NODE_ENV === 'production') {
       // In production, use SendGrid or other email service
       this.transporter = nodemailer.createTransport({
@@ -30,19 +38,46 @@ export class PasswordResetService {
       });
     } else {
       // In development, use ethereal.email for testing
-      // We'll create the test account when needed
-      this.transporter = null;
+      // Create the test account once during initialization
+      try {
+        const testAccount = await nodemailer.createTestAccount();
+        this.transporter = nodemailer.createTransport({
+          host: 'smtp.ethereal.email',
+          port: 587,
+          secure: false,
+          auth: {
+            user: testAccount.user,
+            pass: testAccount.pass,
+          },
+        });
+        this.logger.info('Ethereal test account created', {
+          user: testAccount.user,
+          previewUrl: `https://ethereal.email/create?email=${testAccount.user}`,
+        });
+      } catch (error) {
+        this.logger.error('Failed to create ethereal test account', { error });
+        this.transporter = null;
+      }
     }
   }
 
   async createPasswordResetToken(email: string, ipAddress: string): Promise<void> {
+    const startTime = Date.now();
+
     // Find user by email
     const user = await this.prisma.user.findUnique({
       where: { email },
-      include: {
+      select: {
+        id: true,
+        email: true,
+        name: true,
         orgMembers: {
           where: { status: 'active' },
-          include: { org: true },
+          select: {
+            org: {
+              select: { id: true, name: true },
+            },
+          },
           take: 1,
         },
       },
@@ -62,46 +97,41 @@ export class PasswordResetService {
     // Set expiration to 24 hours from now
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    // Store the token in the database
-    try {
-      await this.prisma.passwordResetToken.create({
-        data: {
-          token,
-          userId: user.id,
-          expiresAt,
-        },
-      });
-    } catch (error) {
-      throw error;
-    }
-
     // Get user's primary organization for audit logging
     const primaryOrg = user.orgMembers[0]?.org;
 
-    // Log the password reset request
-    if (primaryOrg) {
-      try {
-        await this.prisma.auditLog.create({
-          data: {
-            orgId: primaryOrg.id,
-            actorUserId: user.id,
-            action: 'password.reset.requested',
-            payload: {
-              userId: user.id,
-              email: user.email,
-              ipAddress,
-              tokenExpiresAt: expiresAt,
-            },
-          },
-        });
-      } catch (error) {
-        console.error('Failed to create audit log:', error);
-        // Don't fail the password reset if audit logging fails
-      }
-    }
+    // Store the token in the database
+    await this.prisma.passwordResetToken.create({
+      data: {
+        token,
+        userId: user.id,
+        expiresAt,
+      },
+    });
 
-    // Send password reset email
-    await this.sendPasswordResetEmail(user.email, token, user.name);
+    // Create audit log (synchronous - important for security)
+    await this.auditLogService.log({
+      action: 'password.reset.requested',
+      actorUserId: user.id,
+      orgId: primaryOrg?.id,
+      payload: {
+        userId: user.id,
+        email: user.email,
+        ipAddress,
+        tokenExpiresAt: expiresAt,
+      },
+    });
+
+    // Send password reset email (non-blocking)
+    this.sendPasswordResetEmail(user.email, token, user.name).catch((error) => {
+      this.logger.logError(error as Error, { email: user.email, context: 'password reset email' });
+    });
+
+    const totalTime = Date.now() - startTime;
+    this.logger.info('Password reset token created', {
+      email,
+      totalTime: `${totalTime}ms`,
+    });
   }
 
   async resetPassword(
@@ -204,61 +234,36 @@ export class PasswordResetService {
   ): Promise<void> {
     const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
 
-    const mjmlTemplate = `
-      <mjml>
-        <mj-head>
-          <mj-title>Password Reset Request</mj-title>
-          <mj-font name="Roboto" href="https://fonts.googleapis.com/css?family=Roboto" />
-          <mj-attributes>
-            <mj-all font-family="Roboto, Arial, sans-serif" />
-          </mj-attributes>
-        </mj-head>
-        <mj-body background-color="#f4f4f4">
-          <mj-section background-color="#ffffff" padding="20px">
-            <mj-column>
-              <mj-text font-size="24px" font-weight="bold" color="#333333" align="center">
-                Password Reset Request
-              </mj-text>
-              
-              <mj-text font-size="16px" color="#666666" line-height="24px">
-                Hello ${userName || 'there'},
-              </mj-text>
-              
-              <mj-text font-size="16px" color="#666666" line-height="24px">
-                We received a request to reset your password. If you didn't make this request, you can safely ignore this email.
-              </mj-text>
-              
-              <mj-text font-size="16px" color="#666666" line-height="24px">
-                To reset your password, click the button below:
-              </mj-text>
-              
-              <mj-button background-color="#007bff" color="white" href="${resetUrl}" font-size="16px" padding="12px 24px">
-                Reset Password
-              </mj-button>
-              
-              <mj-text font-size="14px" color="#999999" line-height="20px">
-                This link will expire in 24 hours for security reasons.
-              </mj-text>
-              
-              <mj-text font-size="14px" color="#999999" line-height="20px">
-                If the button doesn't work, you can copy and paste this link into your browser:
-              </mj-text>
-              
-              <mj-text font-size="12px" color="#999999" word-break="break-all">
-                ${resetUrl}
-              </mj-text>
-              
-              <mj-text font-size="14px" color="#999999" line-height="20px">
-                Best regards,<br/>
-                The AsyncStand Team
-              </mj-text>
-            </mj-column>
-          </mj-section>
-        </mj-body>
-      </mjml>
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Password Reset Request</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .button { display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; }
+          .footer { margin-top: 30px; font-size: 14px; color: #666; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>Password Reset Request</h1>
+          <p>Hello ${userName || 'there'},</p>
+          <p>We received a request to reset your password. If you didn't make this request, you can safely ignore this email.</p>
+          <p>To reset your password, click the button below:</p>
+          <p><a href="${resetUrl}" class="button">Reset Password</a></p>
+          <p>This link will expire in 24 hours for security reasons.</p>
+          <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
+          <p style="word-break: break-all; font-size: 12px; color: #666;">${resetUrl}</p>
+          <div class="footer">
+            <p>Best regards,<br>The AsyncStand Team</p>
+          </div>
+        </div>
+      </body>
+      </html>
     `;
-
-    const { html } = mjml(mjmlTemplate);
 
     const mailOptions = {
       from: process.env.FROM_EMAIL || 'noreply@asyncstand.com',
@@ -268,30 +273,20 @@ export class PasswordResetService {
     };
 
     try {
-      // Setup transporter if not already done (for development)
-      if (!this.transporter && process.env.NODE_ENV !== 'production') {
-        const testAccount = await nodemailer.createTestAccount();
-        this.transporter = nodemailer.createTransport({
-          host: 'smtp.ethereal.email',
-          port: 587,
-          secure: false,
-          auth: {
-            user: testAccount.user,
-            pass: testAccount.pass,
-          },
-        });
-      }
-
       if (this.transporter) {
         const info = await this.transporter.sendMail(mailOptions);
 
         if (process.env.NODE_ENV !== 'production') {
-          console.log('Password reset email sent to:', email);
-          console.log('Preview URL:', nodemailer.getTestMessageUrl(info));
+          this.logger.info('Password reset email sent', {
+            email,
+            previewUrl: nodemailer.getTestMessageUrl(info),
+          });
         }
+      } else {
+        this.logger.warn('Email transporter not available', { email });
       }
     } catch (error) {
-      console.error('Failed to send password reset email:', error);
+      this.logger.logError(error as Error, { email });
       // Don't throw error to avoid revealing if user exists
     }
   }

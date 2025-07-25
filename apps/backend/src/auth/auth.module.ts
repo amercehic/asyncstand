@@ -7,6 +7,8 @@ import { JwtStrategy } from '@/auth/jwt.strategy';
 import { AuthController } from '@/auth/auth.controller';
 import { PasswordResetService } from '@/auth/password-reset.service';
 import { PrismaService } from '@/prisma/prisma.service';
+import { LoggerService } from '@/common/logger.service';
+import { AuditLogService } from '@/common/audit-log.service';
 
 @Module({
   imports: [
@@ -22,7 +24,14 @@ import { PrismaService } from '@/prisma/prisma.service';
       signOptions: { expiresIn: '15m' },
     }),
   ],
-  providers: [AuthService, JwtStrategy, PasswordResetService, PrismaService],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    PasswordResetService,
+    PrismaService,
+    LoggerService,
+    AuditLogService,
+  ],
   controllers: [AuthController],
 })
 export class AuthModule {}

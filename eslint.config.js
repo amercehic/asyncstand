@@ -60,6 +60,17 @@ export default [
   {
     files: ['apps/backend/src/**/*.ts', 'apps/worker/src/**/*.ts'],
     plugins: { nestjs: nestjs },
-    rules: {},
+    rules: {
+      // Prevent console usage
+      'no-console': 'error',
+      // Prevent console methods specifically
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'CallExpression[callee.object.name="console"]',
+          message: 'Console methods are not allowed. Use the LoggerService instead.',
+        },
+      ],
+    },
   },
 ];

@@ -1,4 +1,4 @@
-import { IsEnum, IsNotEmpty, IsNumber, IsString, validateSync } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsNumber, IsString, IsOptional, validateSync } from 'class-validator';
 import { plainToInstance, Transform } from 'class-transformer';
 
 enum Environment {
@@ -41,6 +41,14 @@ export class EnvironmentVariables {
 
   @IsString()
   SMTP_PASS: string = '';
+
+  @IsOptional()
+  @IsString()
+  LOG_LEVEL: string = 'debug';
+
+  @IsOptional()
+  @IsString()
+  LOG_PRETTY: string = 'true';
 }
 
 export function validate(config: Record<string, unknown>) {
@@ -70,4 +78,6 @@ export const envConfig = () => ({
   smtpPort: parseInt(process.env.SMTP_PORT || '587', 10),
   smtpUser: process.env.SMTP_USER || '',
   smtpPass: process.env.SMTP_PASS || '',
+  logLevel: process.env.LOG_LEVEL || 'debug',
+  logPretty: process.env.LOG_PRETTY || 'true',
 });

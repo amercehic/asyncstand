@@ -5,13 +5,19 @@ import { hash, verify } from '@node-rs/argon2';
 import { JwtService } from '@nestjs/jwt';
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
+import { LoggerService } from '@/common/logger.service';
+import { AuditLogService } from '@/common/audit-log.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
-  ) {}
+    private readonly logger: LoggerService,
+    private readonly auditLogService: AuditLogService,
+  ) {
+    this.logger.setContext(AuthService.name);
+  }
 
   async signup(
     email: string,
@@ -66,17 +72,14 @@ export class AuthService {
       });
 
       // Emit audit log for invited user signup
-      await this.prisma.auditLog.create({
-        data: {
-          orgId,
-          actorUserId: user.id,
-          action: 'user.signup.invited',
-          payload: {
-            userId: user.id,
-            email: user.email,
-            name: user.name,
-            invitationToken,
-          },
+      await this.auditLogService.log({
+        action: 'user.signup.invited',
+        actorUserId: user.id,
+        orgId,
+        payload: {
+          email: user.email,
+          name: user.name,
+          invitationToken,
         },
       });
 
@@ -114,20 +117,19 @@ export class AuthService {
         });
 
         // Emit audit log for self-service signup
-        await tx.auditLog.create({
-          data: {
-            orgId: org.id,
-            actorUserId: user.id,
+        await this.auditLogService.logWithTransaction(
+          {
             action: 'user.signup.self_service',
+            actorUserId: user.id,
+            orgId: org.id,
             payload: {
-              userId: user.id,
               email: user.email,
               name: user.name,
-              orgId: org.id,
               orgName: org.name,
             },
           },
-        });
+          tx,
+        );
 
         return { user, org };
       });
@@ -155,16 +157,13 @@ export class AuthService {
     });
 
     // Emit audit log for direct org join
-    await this.prisma.auditLog.create({
-      data: {
-        orgId,
-        actorUserId: user.id,
-        action: 'user.signup.direct_join',
-        payload: {
-          userId: user.id,
-          email: user.email,
-          name: user.name,
-        },
+    await this.auditLogService.log({
+      action: 'user.signup.direct_join',
+      actorUserId: user.id,
+      orgId,
+      payload: {
+        email: user.email,
+        name: user.name,
       },
     });
 
