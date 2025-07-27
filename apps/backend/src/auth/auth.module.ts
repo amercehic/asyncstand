@@ -25,7 +25,8 @@ import { AuditLogService } from '@/common/audit-log.service';
         limit: 100, // 100 requests per minute for tests
       },
     ]),
-    ScheduleModule.forRoot(),
+    // Only import ScheduleModule in non-test environments
+    ...(process.env.NODE_ENV !== 'test' ? [ScheduleModule.forRoot()] : []),
     JwtModule.register({
       secret: process.env.JWT_SECRET,
       signOptions: { expiresIn: '15m' },
@@ -37,7 +38,8 @@ import { AuditLogService } from '@/common/audit-log.service';
     OrgMembersService,
     UserUtilsService,
     RolesGuard,
-    CleanupExpiredInvitesJob,
+    // Only include CleanupExpiredInvitesJob in non-test environments
+    ...(process.env.NODE_ENV !== 'test' ? [CleanupExpiredInvitesJob] : []),
     PasswordResetService,
     PrismaService,
     LoggerService,
