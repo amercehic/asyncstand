@@ -2,10 +2,16 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ThrottlerModule } from '@nestjs/throttler';
-import { AuthService } from '@/auth/auth.service';
+import { ScheduleModule } from '@nestjs/schedule';
+import { AuthService } from '@/auth/services/auth.service';
 import { JwtStrategy } from '@/auth/jwt.strategy';
-import { AuthController } from '@/auth/auth.controller';
-import { PasswordResetService } from '@/auth/password-reset.service';
+import { AuthController } from '@/auth/controllers/auth.controller';
+import { OrgMembersController } from '@/auth/controllers/org-members.controller';
+import { OrgMembersService } from '@/auth/services/org-members.service';
+import { UserUtilsService } from '@/auth/services/user-utils.service';
+import { RolesGuard } from '@/auth/guards/roles.guard';
+import { CleanupExpiredInvitesJob } from '@/auth/jobs/cleanup-expired-invites.job';
+import { PasswordResetService } from '@/auth/services/password-reset.service';
 import { PrismaService } from '@/prisma/prisma.service';
 import { LoggerService } from '@/common/logger.service';
 import { AuditLogService } from '@/common/audit-log.service';
@@ -19,6 +25,8 @@ import { AuditLogService } from '@/common/audit-log.service';
         limit: 100, // 100 requests per minute for tests
       },
     ]),
+    // Only import ScheduleModule in non-test environments
+    ...(process.env.NODE_ENV !== 'test' ? [ScheduleModule.forRoot()] : []),
     JwtModule.register({
       secret: process.env.JWT_SECRET,
       signOptions: { expiresIn: '15m' },
@@ -27,11 +35,16 @@ import { AuditLogService } from '@/common/audit-log.service';
   providers: [
     AuthService,
     JwtStrategy,
+    OrgMembersService,
+    UserUtilsService,
+    RolesGuard,
+    // Only include CleanupExpiredInvitesJob in non-test environments
+    ...(process.env.NODE_ENV !== 'test' ? [CleanupExpiredInvitesJob] : []),
     PasswordResetService,
     PrismaService,
     LoggerService,
     AuditLogService,
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, OrgMembersController],
 })
 export class AuthModule {}

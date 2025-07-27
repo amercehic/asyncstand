@@ -1,7 +1,7 @@
 import { Controller, Post, Body, Req, Res, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
 import { ThrottlerGuard } from '@nestjs/throttler';
-import { AuthService } from '@/auth/auth.service';
-import { PasswordResetService } from '@/auth/password-reset.service';
+import { AuthService } from '@/auth/services/auth.service';
+import { PasswordResetService } from '@/auth/services/password-reset.service';
 import { SignupDto } from '@/auth/dto/signup.dto';
 import { LoginDto } from '@/auth/dto/login.dto';
 import { ForgotPasswordDto } from '@/auth/dto/forgot-password.dto';
@@ -16,7 +16,7 @@ import {
   SwaggerLogout,
   SwaggerForgotPassword,
   SwaggerResetPassword,
-} from '@/auth/auth.swagger';
+} from '@/swagger/auth.swagger';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -29,13 +29,7 @@ export class AuthController {
   @Post('signup')
   @SwaggerSignup()
   async signup(@Body() dto: SignupDto) {
-    const user = await this.authService.signup(
-      dto.email,
-      dto.password,
-      dto.name,
-      dto.orgId,
-      dto.invitationToken,
-    );
+    const user = await this.authService.signup(dto.email, dto.password, dto.name, dto.orgId);
     // Return minimal user info (no passwordHash)
     return { id: user.id, email: user.email, name: user.name };
   }
@@ -50,16 +44,14 @@ export class AuthController {
   ) {
     const loginResponse = await this.authService.login(dto.email, dto.password, req);
 
-    // Set refresh token in HttpOnly cookie
     res.cookie('refreshToken', loginResponse.refreshToken, {
-      httpOnly: true, // Not accessible via JavaScript (XSS protection)
-      secure: process.env.NODE_ENV === 'production', // HTTPS only in production
-      sameSite: 'lax', // CSRF protection
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
       path: '/',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    // Return response WITHOUT refresh token (it's in the cookie for security)
     const { ...response } = loginResponse;
     return response;
   }
@@ -72,7 +64,6 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    // Get refresh token from cookie or body
     const token = req.cookies?.refreshToken || bodyToken;
 
     if (!token) {
@@ -86,7 +77,6 @@ export class AuthController {
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
     const result = await this.authService.logout(token, ip);
 
-    // Clear the refresh token cookie
     res.clearCookie('refreshToken');
 
     return result;

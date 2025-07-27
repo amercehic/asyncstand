@@ -41,14 +41,4 @@ export class SignupDto {
   @IsUUID('4', { message: 'Organization ID must be a valid UUID' })
   @IsOptional()
   orgId?: string;
-
-  @ApiProperty({
-    description: 'Invitation token for organization invitation',
-    example: 'invitation-token-123',
-    type: String,
-    required: false,
-  })
-  @IsString()
-  @IsOptional()
-  invitationToken?: string;
 }
