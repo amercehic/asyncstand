@@ -5,6 +5,14 @@ import { AppModule } from '@/app.module';
 
 import { PrismaService } from '@/prisma/prisma.service';
 
+// Type for organization response from login endpoint
+type OrganizationResponse = {
+  id: string;
+  name: string;
+  role: string;
+  isPrimary: boolean;
+};
+
 describe('AuthController (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
@@ -46,6 +54,9 @@ describe('AuthController (e2e)', () => {
     await prisma.orgMember.deleteMany({ where: { user: { email: passwordResetUser.email } } });
     await prisma.user.deleteMany({ where: { email: passwordResetUser.email } });
 
+    // Clean up any existing refresh tokens to avoid unique constraint violations
+    await prisma.refreshToken.deleteMany({});
+
     // Create a test organization
     const org = await prisma.organization.create({
       data: { name: 'Test Org' },
@@ -63,6 +74,11 @@ describe('AuthController (e2e)', () => {
     if (orgId) {
       await prisma.organization.deleteMany({ where: { id: orgId } });
     }
+
+    // Close Prisma connection
+    await prisma.$disconnect();
+
+    // Close the app
     await app.close();
   });
 
@@ -70,7 +86,6 @@ describe('AuthController (e2e)', () => {
     const signupData = {
       ...testUser,
       orgId,
-      invitationToken: 'test-invitation-token',
     };
     const res = await request(app.getHttpServer())
       .post('/auth/signup')
@@ -83,23 +98,123 @@ describe('AuthController (e2e)', () => {
     userId = res.body.id;
   });
 
-  it('should authenticate user and return access token', async () => {
+  it('should authenticate user and return access token with organizations', async () => {
     const loginData = {
       email: testUser.email,
       password: testUser.password,
     };
     const res = await request(app.getHttpServer()).post('/auth/login').send(loginData).expect(200);
+
+    // Verify basic response structure
     expect(res.body).toHaveProperty('accessToken');
+    expect(res.body).toHaveProperty('expiresIn', 900);
+    expect(res.body).toHaveProperty('refreshToken');
     expect(res.body).toHaveProperty('user');
+    expect(res.body).toHaveProperty('organizations');
+
+    // Verify user object
     expect(res.body.user).toHaveProperty('id', userId);
     expect(res.body.user).toHaveProperty('email', testUser.email);
+    expect(res.body.user).toHaveProperty('name', testUser.name);
+    expect(res.body.user).toHaveProperty('role');
     expect(res.body.user).not.toHaveProperty('password');
+
+    // Verify primary organization
+    const primaryOrgFromArray = res.body.organizations.find(
+      (org: OrganizationResponse) => org.isPrimary,
+    );
+    expect(primaryOrgFromArray).toBeDefined();
+    expect(primaryOrgFromArray).toHaveProperty('id');
+    expect(primaryOrgFromArray).toHaveProperty('name');
+
+    // Verify organizations array
+    expect(Array.isArray(res.body.organizations)).toBe(true);
+    expect(res.body.organizations.length).toBeGreaterThan(0);
+
+    // Verify first organization has required properties
+    const firstOrg = res.body.organizations[0];
+    expect(firstOrg).toHaveProperty('id');
+    expect(firstOrg).toHaveProperty('name');
+    expect(firstOrg).toHaveProperty('role');
+    expect(firstOrg).toHaveProperty('isPrimary');
+
+    // Verify primary organization is marked correctly
+    const primaryOrg = res.body.organizations.find((org: OrganizationResponse) => org.isPrimary);
+    expect(primaryOrg).toBeDefined();
+
     // Save refresh token from cookie for logout
     const cookies = res.headers['set-cookie'];
     const cookiesArr = Array.isArray(cookies) ? cookies : [cookies];
     const refreshCookie = cookiesArr.find((c: string) => c.startsWith('refreshToken='));
     refreshToken = refreshCookie?.split(';')[0]?.split('=')[1];
     expect(refreshToken).toBeDefined();
+  });
+
+  it('should prioritize OWNER organization as primary', async () => {
+    // Create a completely new user for this test to ensure independence
+    const testUserData = {
+      email: `test-user-${Math.random().toString(36).substring(7)}@test.com`,
+      password: 'TestPassword123!',
+      name: 'Test User',
+    };
+
+    // Create user without orgId so they become OWNER of their own organization
+    const signupData = {
+      ...testUserData,
+      // Don't provide orgId - this will create a new organization where user is OWNER
+    };
+    const signupRes = await request(app.getHttpServer())
+      .post('/auth/signup')
+      .send(signupData)
+      .expect(201);
+    const testUserId = signupRes.body.id;
+
+    // Create a second organization where the user will be a member
+    const secondOrg = await prisma.organization.create({
+      data: {
+        name: 'Second Organization',
+      },
+    });
+
+    // Add user as a member to the second organization
+    await prisma.orgMember.create({
+      data: {
+        orgId: secondOrg.id,
+        userId: testUserId,
+        role: 'MEMBER',
+        status: 'active',
+      },
+    });
+
+    // Login again to test the new organization list
+    const loginData = {
+      email: testUserData.email,
+      password: testUserData.password,
+    };
+    const res = await request(app.getHttpServer()).post('/auth/login').send(loginData).expect(200);
+
+    // Verify user has multiple organizations
+    expect(res.body.organizations.length).toBe(2);
+
+    // Find the primary organization (should be the one where user is OWNER)
+    const primaryOrg = res.body.organizations.find((org: OrganizationResponse) => org.isPrimary);
+    expect(primaryOrg).toBeDefined();
+    expect(primaryOrg.role).toBe('OWNER');
+
+    // Verify the primary organization exists and has correct role
+    expect(primaryOrg).toBeDefined();
+
+    // Verify only one organization is marked as primary
+    const primaryOrgs = res.body.organizations.filter((org: OrganizationResponse) => org.isPrimary);
+    expect(primaryOrgs.length).toBe(1);
+
+    // Clean up the second organization
+    await prisma.orgMember.deleteMany({
+      where: { orgId: secondOrg.id },
+    });
+    await prisma.organization.delete({
+      where: { id: secondOrg.id },
+    });
   });
 
   it('should logout user successfully', async () => {
@@ -119,7 +234,6 @@ describe('AuthController (e2e)', () => {
       const signupData = {
         ...passwordResetUser,
         orgId,
-        invitationToken: 'reset-test-invitation-token',
       };
       const res = await request(app.getHttpServer())
         .post('/auth/signup')

@@ -1,13 +1,14 @@
 import { Injectable, HttpStatus } from '@nestjs/common';
 import { Request } from 'express';
 import { PrismaService } from '@/prisma/prisma.service';
-import { hash, verify } from '@node-rs/argon2';
+import { verify } from '@node-rs/argon2';
 import { JwtService } from '@nestjs/jwt';
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
 import { LoggerService } from '@/common/logger.service';
 import { AuditLogService } from '@/common/audit/audit-log.service';
 import { AuditActorType, AuditCategory, AuditSeverity } from '@/common/audit/types';
+import { UserUtilsService } from '@/user/services/user-utils.service';
 
 @Injectable()
 export class AuthService {
@@ -16,21 +17,13 @@ export class AuthService {
     private jwt: JwtService,
     private readonly logger: LoggerService,
     private readonly auditLogService: AuditLogService,
+    private readonly userUtilsService: UserUtilsService,
   ) {
     this.logger.setContext(AuthService.name);
   }
 
-  async signup(
-    email: string,
-    password: string,
-    name?: string,
-    orgId?: string,
-    invitationToken?: string,
-  ) {
-    const passwordHash = await hash(password, {
-      memoryCost: 1 << 14, // 16 MiB
-      timeCost: 3,
-    });
+  async signup(email: string, password: string, name?: string, orgId?: string) {
+    const passwordHash = await this.userUtilsService.hashPassword(password);
 
     // Check if user already exists
     const existingUser = await this.prisma.user.findUnique({ where: { email } });
@@ -42,60 +35,7 @@ export class AuthService {
       );
     }
 
-    // Scenario 1: Invited user joining existing organization
-    if (invitationToken) {
-      // TODO: Validate invitation token and get org details
-      // For now, we'll use orgId directly if provided
-      if (!orgId) {
-        throw new ApiError(
-          ErrorCode.ORG_ID_REQUIRED,
-          'Organization ID required for invited users',
-          HttpStatus.BAD_REQUEST,
-        );
-      }
-
-      const user = await this.prisma.user.create({
-        data: {
-          email,
-          passwordHash,
-          name,
-        },
-      });
-
-      // Create OrgMember record
-      await this.prisma.orgMember.create({
-        data: {
-          orgId,
-          userId: user.id,
-          role: 'member',
-          status: 'active',
-        },
-      });
-
-      // Emit audit log for invited user signup
-      await this.auditLogService.log({
-        orgId,
-        actorUserId: user.id,
-        actorType: AuditActorType.USER,
-        action: 'user.signup.invited',
-        category: AuditCategory.AUTH,
-        severity: AuditSeverity.MEDIUM,
-        requestData: {
-          method: 'POST',
-          path: '/auth/signup',
-          ipAddress: 'unknown',
-          body: {
-            email: user.email,
-            name: user.name,
-            invitationToken,
-          },
-        },
-      });
-
-      return user;
-    }
-
-    // Scenario 2: Self-service signup (create new organization)
+    // Scenario 1: Self-service signup (create new organization)
     if (!orgId) {
       // Create organization and user in a transaction
       const result = await this.prisma.$transaction(async (tx) => {
@@ -120,7 +60,7 @@ export class AuthService {
           data: {
             orgId: org.id,
             userId: user.id,
-            role: 'OWNER',
+            role: OrgRole.OWNER,
             status: 'active',
           },
         });
@@ -154,7 +94,7 @@ export class AuthService {
       return result.user;
     }
 
-    // Scenario 3: User joining specific organization (if orgId provided)
+    // Scenario 2: User joining specific organization (if orgId provided)
     const user = await this.prisma.user.create({
       data: {
         email,
@@ -168,7 +108,7 @@ export class AuthService {
       data: {
         orgId,
         userId: user.id,
-        role: 'member',
+        role: OrgRole.MEMBER,
         status: 'active',
       },
     });
@@ -202,6 +142,7 @@ export class AuthService {
         orgMembers: {
           where: { status: 'active' },
           include: { org: true },
+          orderBy: { org: { name: 'asc' } }, // Order by organization name
         },
       },
     });
@@ -213,10 +154,7 @@ export class AuthService {
       );
     }
 
-    // Get user's primary organization (first active org)
-    const primaryOrg = user.orgMembers[0]?.org;
-    const userRole = user.orgMembers[0]?.role;
-    if (!primaryOrg) {
+    if (user.orgMembers.length === 0) {
       throw new ApiError(
         ErrorCode.NO_ACTIVE_ORGANIZATION,
         'User is not a member of any active organization',
@@ -224,14 +162,31 @@ export class AuthService {
       );
     }
 
+    // Find primary organization (where user is OWNER)
+    const primaryOrgMember = user.orgMembers.find((member) => member.role === 'OWNER');
+    const primaryOrg = primaryOrgMember?.org || user.orgMembers[0]?.org;
+    const userRole = primaryOrgMember?.role || user.orgMembers[0]?.role;
+
+    // Sort organizations by role priority (OWNER first, then ADMIN, then MEMBER)
+    const rolePriority = { OWNER: 3, ADMIN: 2, MEMBER: 1, SUSPENDED: 0 };
+    const sortedOrgMembers = user.orgMembers.sort((a, b) => {
+      const priorityDiff = rolePriority[b.role] - rolePriority[a.role];
+      if (priorityDiff !== 0) return priorityDiff;
+      // If same role, sort by organization name
+      return a.org.name.localeCompare(b.org.name);
+    });
+
     // Generate access token (JWT) with 15 minutes expiry
     const payload = { sub: user.id, orgId: primaryOrg.id };
     const accessToken = this.jwt.sign(payload, { expiresIn: '15m' });
 
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
 
-    // Generate refresh token with 7 days expiry
-    const refreshTokenValue = this.jwt.sign({ sub: user.id }, { expiresIn: '7d' });
+    // Generate refresh token with 7 days expiry and unique identifier
+    const refreshTokenValue = this.jwt.sign(
+      { sub: user.id, jti: `${user.id}-${Date.now()}-${Math.random()}` },
+      { expiresIn: '7d' },
+    );
 
     const refreshToken = await this.prisma.refreshToken.create({
       data: {
@@ -262,6 +217,14 @@ export class AuthService {
       },
     });
 
+    // Build organizations list (using sorted members)
+    const organizations = sortedOrgMembers.map((member) => ({
+      id: member.org.id,
+      name: member.org.name,
+      role: member.role,
+      isPrimary: member.org.id === primaryOrg.id,
+    }));
+
     return {
       accessToken,
       expiresIn: 900, // 15 minutes in seconds
@@ -272,10 +235,7 @@ export class AuthService {
         name: user.name,
         role: userRole,
       },
-      organization: {
-        id: primaryOrg.id,
-        name: primaryOrg.name,
-      },
+      organizations, // List of all organizations user belongs to
     };
   }
 

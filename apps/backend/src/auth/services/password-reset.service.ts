@@ -1,4 +1,4 @@
-import { Injectable, HttpStatus } from '@nestjs/common';
+import { Injectable, HttpStatus, OnModuleDestroy } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 import { hash } from '@node-rs/argon2';
 import { ApiError } from '@/common/api-error';
@@ -10,7 +10,7 @@ import { AuditLogService } from '@/common/audit/audit-log.service';
 import { AuditActorType, AuditCategory, AuditSeverity } from '@/common/audit/types';
 
 @Injectable()
-export class PasswordResetService {
+export class PasswordResetService implements OnModuleDestroy {
   private transporter: nodemailer.Transporter;
 
   constructor(
@@ -23,6 +23,18 @@ export class PasswordResetService {
     this.setupTransporter().catch((error) => {
       this.logger.error('Failed to setup email transporter', { error });
     });
+  }
+
+  async onModuleDestroy() {
+    // Close the transporter when the module is destroyed
+    if (this.transporter) {
+      try {
+        await this.transporter.close();
+        this.logger.info('Email transporter closed');
+      } catch (error) {
+        this.logger.error('Error closing email transporter', { error });
+      }
+    }
   }
 
   private async setupTransporter() {

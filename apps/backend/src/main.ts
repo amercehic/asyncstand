@@ -20,15 +20,23 @@ function setupSwagger(app: INestApplication) {
         description: 'Enter JWT token',
         in: 'header',
       },
-      'JWT-auth', // This name here is important for references
+      'JWT-auth',
     )
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
+
+  // Setup Swagger UI
   SwaggerModule.setup('api/docs', app, document, {
     swaggerOptions: {
       persistAuthorization: true,
     },
+  });
+
+  // Expose OpenAPI JSON specification for Postman import
+  app.use('/api/docs/api-json', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.send(document);
   });
 }
 
@@ -62,13 +70,15 @@ async function bootstrap() {
     });
   }
 
-  // Setup Swagger documentation
+  // Setup Swagger documentation and OpenAPI JSON endpoint
   setupSwagger(app);
 
   await app.listen(port);
 
   logger.log(`🚀 AsyncStand Backend is running on port ${port} in ${nodeEnv} mode`);
   logger.log(`📖 API available at: http://localhost:${port}`);
+  logger.log(`📚 Swagger UI available at: http://localhost:${port}/api/docs`);
+  logger.log(`📋 Postman collection available at: http://localhost:${port}/api/docs/api-json`);
 }
 
 bootstrap().catch((error) => {

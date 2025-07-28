@@ -50,13 +50,49 @@ export const SwaggerLogin = () =>
         type: 'object',
         properties: {
           accessToken: { type: 'string', example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' },
+          expiresIn: { type: 'number', example: 900 },
+          refreshToken: { type: 'string', example: 'refresh-token-value' },
           user: {
             type: 'object',
             properties: {
               id: { type: 'string', example: '123e4567-e89b-12d3-a456-426614174000' },
               email: { type: 'string', example: 'user@example.com' },
               name: { type: 'string', example: 'John Doe' },
+              role: { type: 'string', example: 'OWNER' },
             },
+          },
+          organization: {
+            type: 'object',
+            properties: {
+              id: { type: 'string', example: '123e4567-e89b-12d3-a456-426614174000' },
+              name: { type: 'string', example: 'Primary Organization' },
+            },
+          },
+          organizations: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                id: { type: 'string', example: '123e4567-e89b-12d3-a456-426614174000' },
+                name: { type: 'string', example: 'Organization Name' },
+                role: { type: 'string', example: 'OWNER' },
+                isPrimary: { type: 'boolean', example: true },
+              },
+            },
+            example: [
+              {
+                id: '123e4567-e89b-12d3-a456-426614174000',
+                name: 'Primary Organization',
+                role: 'OWNER',
+                isPrimary: true,
+              },
+              {
+                id: '456e7890-e89b-12d3-a456-426614174000',
+                name: 'Secondary Organization',
+                role: 'MEMBER',
+                isPrimary: false,
+              },
+            ],
           },
         },
       },

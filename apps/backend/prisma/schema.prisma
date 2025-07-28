@@ -75,9 +75,10 @@ model Organization {
 }
 
 enum OrgRole {
-  owner
-  admin
-  member
+  OWNER
+  ADMIN
+  MEMBER
+  SUSPENDED
 }
 
 enum OrgMemberStatus {
@@ -87,14 +88,19 @@ enum OrgMemberStatus {
 }
 
 model OrgMember {
-  org      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  orgId    String
-  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId   String
-  role     OrgRole
-  status   OrgMemberStatus
+  org          Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orgId        String
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
+  role         OrgRole
+  status       OrgMemberStatus
+  inviteToken  String?      @unique
+  invitedAt    DateTime?
+  acceptedAt   DateTime?
 
   @@id([orgId, userId])
+  @@unique([orgId, userId])
+  @@index([inviteToken])
 }
 
 model AuditLog {
