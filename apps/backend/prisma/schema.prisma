@@ -75,10 +75,9 @@ model Organization {
 }
 
 enum OrgRole {
-  OWNER
-  ADMIN
-  MEMBER
-  SUSPENDED
+  owner
+  admin
+  member
 }
 
 enum OrgMemberStatus {

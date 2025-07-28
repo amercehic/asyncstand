@@ -77,6 +77,9 @@ CREATE TABLE "OrgMember" (
     "userId" TEXT NOT NULL,
     "role" "OrgRole" NOT NULL,
     "status" "OrgMemberStatus" NOT NULL,
+    "inviteToken" TEXT,
+    "invitedAt" TIMESTAMP(3),
+    "acceptedAt" TIMESTAMP(3),
 
     CONSTRAINT "OrgMember_pkey" PRIMARY KEY ("orgId","userId")
 );
@@ -300,6 +303,15 @@ CREATE UNIQUE INDEX "RefreshToken_token_key" ON "RefreshToken"("token");
 
 -- CreateIndex
 CREATE INDEX "RefreshToken_userId_createdAt_idx" ON "RefreshToken"("userId", "createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "OrgMember_inviteToken_key" ON "OrgMember"("inviteToken");
+
+-- CreateIndex
+CREATE INDEX "OrgMember_inviteToken_idx" ON "OrgMember"("inviteToken");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "OrgMember_orgId_userId_key" ON "OrgMember"("orgId", "userId");
 
 -- CreateIndex
 CREATE INDEX "AuditLog_orgId_createdAt_idx" ON "AuditLog"("orgId", "createdAt");

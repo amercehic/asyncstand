@@ -8,6 +8,7 @@ import nodemailer from 'nodemailer';
 import { LoggerService } from '@/common/logger.service';
 import { AuditLogService } from '@/common/audit/audit-log.service';
 import { AuditActorType, AuditCategory, AuditSeverity } from '@/common/audit/types';
+import { OrgMemberStatus } from '@prisma/client';
 
 @Injectable()
 export class PasswordResetService implements OnModuleDestroy {
@@ -85,7 +86,7 @@ export class PasswordResetService implements OnModuleDestroy {
         email: true,
         name: true,
         orgMembers: {
-          where: { status: 'active' },
+          where: { status: OrgMemberStatus.active },
           select: {
             org: {
               select: { id: true, name: true },
@@ -168,7 +169,7 @@ export class PasswordResetService implements OnModuleDestroy {
         user: {
           include: {
             orgMembers: {
-              where: { status: 'active' },
+              where: { status: OrgMemberStatus.active },
               include: { org: true },
               take: 1,
             },
@@ -235,10 +236,10 @@ export class PasswordResetService implements OnModuleDestroy {
           data: {
             orgId: primaryOrg.id,
             actorUserId: resetToken.user.id,
-            actorType: 'user',
+            actorType: AuditActorType.USER,
             action: 'password.reset.completed',
-            category: 'auth',
-            severity: 'high',
+            category: AuditCategory.AUTH,
+            severity: AuditSeverity.HIGH,
             requestData: {
               method: 'POST',
               path: '/auth/reset-password',

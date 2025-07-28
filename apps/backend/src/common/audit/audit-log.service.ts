@@ -11,6 +11,7 @@ import {
   AuditSeverity,
 } from '@/common/audit/types';
 import { AuditSanitizer } from '@/common/audit/sanitizer';
+import { OrgMemberStatus } from '@prisma/client';
 
 @Injectable()
 export class AuditLogService {
@@ -31,7 +32,7 @@ export class AuditLogService {
         const userOrg = await this.prisma.orgMember.findFirst({
           where: {
             userId: data.actorUserId,
-            status: 'active',
+            status: OrgMemberStatus.active,
           },
           select: {
             orgId: true,
@@ -105,7 +106,7 @@ export class AuditLogService {
         const userOrg = await transaction.orgMember.findFirst({
           where: {
             userId: data.actorUserId,
-            status: 'active',
+            status: OrgMemberStatus.active,
           },
           select: {
             orgId: true,

@@ -2,7 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '@/prisma/prisma.service';
 import { LoggerService } from '@/common/logger.service';
-import { AuditLogService } from '@/common/audit-log.service';
+import { AuditLogService } from '@/common/audit/audit-log.service';
+import { AuditActorType, AuditCategory, AuditSeverity } from '@/common/audit/types';
+import { OrgMemberStatus } from '@prisma/client';
 
 @Injectable()
 export class CleanupExpiredInvitesJob {
@@ -26,7 +28,7 @@ export class CleanupExpiredInvitesJob {
 
       const expiredInvites = await this.prisma.orgMember.findMany({
         where: {
-          status: 'invited',
+          status: OrgMemberStatus.invited,
           invitedAt: {
             lt: sevenDaysAgo,
           },
@@ -47,7 +49,7 @@ export class CleanupExpiredInvitesJob {
       // Delete expired invitations
       const result = await this.prisma.orgMember.deleteMany({
         where: {
-          status: 'invited',
+          status: OrgMemberStatus.invited,
           invitedAt: {
             lt: sevenDaysAgo,
           },
@@ -63,11 +65,18 @@ export class CleanupExpiredInvitesJob {
         await this.auditLogService.log({
           action: 'org.member.invite.expired',
           orgId: invite.orgId,
-          actorUserId: 'system',
-          payload: {
-            email: invite.userId,
-            invitedAt: invite.invitedAt,
-            expiredAt: new Date(),
+          actorType: AuditActorType.SYSTEM,
+          category: AuditCategory.USER_MANAGEMENT,
+          severity: AuditSeverity.LOW,
+          requestData: {
+            method: 'CRON',
+            path: '/jobs/cleanup-expired-invites',
+            ipAddress: 'system',
+            body: {
+              email: invite.userId,
+              invitedAt: invite.invitedAt,
+              expiredAt: new Date(),
+            },
           },
         });
       }

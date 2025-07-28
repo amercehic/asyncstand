@@ -3,7 +3,7 @@ import { ApiOperation, ApiBody, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { InviteMemberDto } from '@/auth/dto/invite-member.dto';
 import { AcceptInviteDto } from '@/auth/dto/accept-invite.dto';
 import { UpdateMemberDto } from '@/auth/dto/update-member.dto';
-import { OrgRole } from '@prisma/client';
+import { OrgRole, OrgMemberStatus } from '@prisma/client';
 
 export const SwaggerListMembers = () =>
   applyDecorators(
@@ -26,8 +26,8 @@ export const SwaggerListMembers = () =>
                 id: { type: 'string', example: '123e4567-e89b-12d3-a456-426614174000' },
                 email: { type: 'string', example: 'john.doe@example.com' },
                 name: { type: 'string', example: 'John Doe' },
-                role: { type: 'string', enum: Object.values(OrgRole), example: 'MEMBER' },
-                status: { type: 'string', example: 'active' },
+                role: { type: 'string', enum: Object.values(OrgRole), example: 'member' },
+                status: { type: 'string', enum: Object.values(OrgMemberStatus), example: 'active' },
                 joinedAt: { type: 'string', format: 'date-time', example: '2024-01-15T10:30:00Z' },
               },
             },
@@ -110,7 +110,7 @@ export const SwaggerAcceptInvite = () =>
               id: { type: 'string', example: '123e4567-e89b-12d3-a456-426614174000' },
               email: { type: 'string', example: 'user@example.com' },
               name: { type: 'string', example: 'John Doe' },
-              role: { type: 'string', enum: Object.values(OrgRole), example: 'MEMBER' },
+              role: { type: 'string', enum: Object.values(OrgRole), example: 'member' },
             },
           },
           organization: {
@@ -154,8 +154,8 @@ export const SwaggerUpdateMember = () =>
             properties: {
               id: { type: 'string', example: '123e4567-e89b-12d3-a456-426614174000' },
               email: { type: 'string', example: 'john.doe@example.com' },
-              role: { type: 'string', enum: Object.values(OrgRole), example: 'ADMIN' },
-              status: { type: 'string', example: 'active' },
+              role: { type: 'string', enum: Object.values(OrgRole), example: 'admin' },
+              status: { type: 'string', enum: Object.values(OrgMemberStatus), example: 'active' },
             },
           },
         },

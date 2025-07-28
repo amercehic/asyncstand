@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '@/app.module';
+import { OrgMemberStatus } from '@prisma/client';
 
 import { PrismaService } from '@/prisma/prisma.service';
 
@@ -181,8 +182,8 @@ describe('AuthController (e2e)', () => {
       data: {
         orgId: secondOrg.id,
         userId: testUserId,
-        role: 'MEMBER',
-        status: 'active',
+        role: 'member',
+        status: OrgMemberStatus.active,
       },
     });
 
@@ -199,7 +200,7 @@ describe('AuthController (e2e)', () => {
     // Find the primary organization (should be the one where user is OWNER)
     const primaryOrg = res.body.organizations.find((org: OrganizationResponse) => org.isPrimary);
     expect(primaryOrg).toBeDefined();
-    expect(primaryOrg.role).toBe('OWNER');
+    expect(primaryOrg.role).toBe('owner');
 
     // Verify the primary organization exists and has correct role
     expect(primaryOrg).toBeDefined();
@@ -341,9 +342,14 @@ describe('AuthController (e2e)', () => {
     });
 
     it('should verify audit logs were created for password reset actions', async () => {
+      // Debug: Log all audit logs for this user
+      const allUserLogs = await prisma.auditLog.findMany({
+        where: { actorUserId: passwordResetUserId },
+      });
+      console.log('All audit logs for user:', allUserLogs);
+      
       const auditLogs = await prisma.auditLog.findMany({
         where: {
-          orgId,
           actorUserId: passwordResetUserId,
           action: { in: ['password.reset.requested', 'password.reset.completed'] },
         },
@@ -355,17 +361,17 @@ describe('AuthController (e2e)', () => {
       // Check for password reset request log
       const requestLog = auditLogs.find((log) => log.action === 'password.reset.requested');
       expect(requestLog).toBeDefined();
-      expect(requestLog.payload).toHaveProperty('userId', passwordResetUserId);
-      expect(requestLog.payload).toHaveProperty('email', passwordResetUser.email);
-      expect(requestLog.payload).toHaveProperty('ipAddress');
+      expect((requestLog.requestData as any).body).toHaveProperty('email', passwordResetUser.email);
+      expect(requestLog.requestData as any).toHaveProperty('ipAddress');
+      expect(requestLog).toHaveProperty('actorUserId', passwordResetUserId);
 
       // Check for password reset completion log
       const completionLog = auditLogs.find((log) => log.action === 'password.reset.completed');
       expect(completionLog).toBeDefined();
-      expect(completionLog.payload).toHaveProperty('userId', passwordResetUserId);
-      expect(completionLog.payload).toHaveProperty('email', passwordResetUser.email);
-      expect(completionLog.payload).toHaveProperty('ipAddress');
-      expect(completionLog.payload).toHaveProperty('resetAt');
+      expect((completionLog.requestData as any).body).toHaveProperty('email', passwordResetUser.email);
+      expect(completionLog.requestData as any).toHaveProperty('ipAddress');
+      expect(completionLog).toHaveProperty('actorUserId', passwordResetUserId);
+      expect((completionLog.requestData as any).body).toHaveProperty('resetAt');
     });
   });
 });

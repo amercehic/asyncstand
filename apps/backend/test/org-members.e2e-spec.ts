@@ -61,7 +61,7 @@ describe('Organization Members (e2e)', () => {
       data: {
         orgId: org.id,
         userId: adminUser.id,
-        role: OrgRole.ADMIN,
+        role: OrgRole.admin,
         status: 'active',
       },
     });
@@ -81,7 +81,7 @@ describe('Organization Members (e2e)', () => {
       data: {
         orgId: org.id,
         userId: memberUser.id,
-        role: OrgRole.MEMBER,
+        role: OrgRole.member,
         status: 'active',
       },
     });
@@ -148,7 +148,7 @@ describe('Organization Members (e2e)', () => {
         .set('Authorization', `Bearer ${testData.adminToken}`)
         .send({
           email: inviteEmail,
-          role: OrgRole.MEMBER,
+          role: OrgRole.member,
         })
         .expect(201);
 
@@ -164,7 +164,7 @@ describe('Organization Members (e2e)', () => {
       });
 
       expect(invitation).toBeDefined();
-      expect(invitation?.role).toBe(OrgRole.MEMBER);
+      expect(invitation?.role).toBe(OrgRole.member);
       expect(invitation?.status).toBe('invited');
       expect(invitation?.inviteToken).toBeDefined();
       expect(invitation?.invitedAt).toBeDefined();
@@ -179,7 +179,7 @@ describe('Organization Members (e2e)', () => {
         .set('Authorization', `Bearer ${testData.memberToken}`)
         .send({
           email: inviteEmail,
-          role: OrgRole.MEMBER,
+          role: OrgRole.member,
         })
         .expect(403);
     });
@@ -202,7 +202,7 @@ describe('Organization Members (e2e)', () => {
         .set('Authorization', `Bearer ${testData.adminToken}`)
         .send({
           email: existingMember!.user.email,
-          role: OrgRole.MEMBER,
+          role: OrgRole.member,
         })
         .expect(409); // Conflict - duplicate member
     });
@@ -232,7 +232,7 @@ describe('Organization Members (e2e)', () => {
         data: {
           orgId: testData.orgId,
           userId: inviteeUser.id,
-          role: OrgRole.MEMBER,
+          role: OrgRole.member,
           status: 'invited',
           inviteToken: inviteTokenHash,
           invitedAt: new Date(),
@@ -257,7 +257,7 @@ describe('Organization Members (e2e)', () => {
       expect(response.body.user).toHaveProperty('id');
       expect(response.body.user).toHaveProperty('email', inviteEmail);
       expect(response.body.user).toHaveProperty('name', 'John Doe');
-      expect(response.body.user).toHaveProperty('role', 'MEMBER');
+      expect(response.body.user).toHaveProperty('role', 'member');
       expect(response.body.organization).toHaveProperty('id', testData.orgId);
       expect(response.body.organization).toHaveProperty('name');
 
@@ -303,7 +303,7 @@ describe('Organization Members (e2e)', () => {
         data: {
           orgId: testData.orgId,
           userId: existingUser.id,
-          role: OrgRole.MEMBER,
+          role: OrgRole.member,
           status: 'invited',
           inviteToken: inviteTokenHash,
           invitedAt: new Date(),
@@ -328,7 +328,7 @@ describe('Organization Members (e2e)', () => {
       expect(response.body.user).toHaveProperty('id');
       expect(response.body.user).toHaveProperty('email', inviteEmail);
       expect(response.body.user).toHaveProperty('name', `Existing User ${randomSuffix}`);
-      expect(response.body.user).toHaveProperty('role', 'MEMBER');
+      expect(response.body.user).toHaveProperty('role', 'member');
       expect(response.body.organization).toHaveProperty('id', testData.orgId);
       expect(response.body.organization).toHaveProperty('name');
 
@@ -383,7 +383,7 @@ describe('Organization Members (e2e)', () => {
         .patch(`/org/members/${testData.memberUserId}`)
         .set('Authorization', `Bearer ${testData.adminToken}`)
         .send({
-          role: OrgRole.ADMIN,
+          role: OrgRole.admin,
         })
         .expect(200);
 
@@ -399,7 +399,7 @@ describe('Organization Members (e2e)', () => {
         },
       });
 
-      expect(updatedMember?.role).toBe(OrgRole.ADMIN);
+      expect(updatedMember?.role).toBe(OrgRole.admin);
     });
 
     it('should suspend a member successfully', async () => {
@@ -431,7 +431,7 @@ describe('Organization Members (e2e)', () => {
         .patch(`/org/members/${testData.adminUserId}`)
         .set('Authorization', `Bearer ${testData.memberToken}`)
         .send({
-          role: OrgRole.MEMBER,
+          role: OrgRole.member,
         })
         .expect(403);
     });
@@ -508,7 +508,7 @@ describe('Organization Members (e2e)', () => {
         .set('Authorization', `Bearer ${testData.memberToken}`)
         .send({
           email: 'test@example.com',
-          role: OrgRole.MEMBER,
+          role: OrgRole.member,
         })
         .expect(403);
 
@@ -518,7 +518,7 @@ describe('Organization Members (e2e)', () => {
         .set('Authorization', `Bearer ${testData.adminToken}`)
         .send({
           email: 'test@example.com',
-          role: OrgRole.MEMBER,
+          role: OrgRole.member,
         })
         .expect(201);
     });

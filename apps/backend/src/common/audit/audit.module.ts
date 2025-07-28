@@ -4,10 +4,14 @@ import { AuditLogService } from '@/common/audit/audit-log.service';
 import { AuditInterceptor } from '@/common/audit/audit.interceptor';
 import { AuditSanitizer } from '@/common/audit/sanitizer';
 import { createAuditConfig, DEFAULT_AUDIT_CONFIG } from '@/common/audit/config';
+import { LoggerService } from '@/common/logger.service';
+import { createLoggerModule } from '@/config/logger.config';
 
 @Global()
 @Module({
+  imports: [createLoggerModule()],
   providers: [
+    LoggerService,
     AuditLogService,
     {
       provide: 'AUDIT_CONFIG',

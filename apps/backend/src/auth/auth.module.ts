@@ -9,6 +9,7 @@ import { AuthController } from '@/auth/controllers/auth.controller';
 import { OrgMembersController } from '@/auth/controllers/org-members.controller';
 import { OrgMembersService } from '@/auth/services/org-members.service';
 import { UserUtilsService } from '@/auth/services/user-utils.service';
+import { TokenService } from '@/auth/services/token.service';
 import { RolesGuard } from '@/auth/guards/roles.guard';
 import { CleanupExpiredInvitesJob } from '@/auth/jobs/cleanup-expired-invites.job';
 import { PasswordResetService } from '@/auth/services/password-reset.service';
@@ -37,6 +38,7 @@ import { AuditLogService } from '@/common/audit/audit-log.service';
     JwtStrategy,
     OrgMembersService,
     UserUtilsService,
+    TokenService,
     RolesGuard,
     // Only include CleanupExpiredInvitesJob in non-test environments
     ...(process.env.NODE_ENV !== 'test' ? [CleanupExpiredInvitesJob] : []),

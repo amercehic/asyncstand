@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, ExtractJwt } from 'passport-jwt';
 import { PrismaService } from '@/prisma/prisma.service';
+import { OrgMemberStatus } from '@prisma/client';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -21,7 +22,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         },
       },
     });
-    if (!member || member.status !== 'active') {
+    if (!member || member.status !== OrgMemberStatus.active) {
       throw new UnauthorizedException('Invalid organization');
     }
     return { userId: payload.sub, orgId: payload.orgId, role: payload.role };

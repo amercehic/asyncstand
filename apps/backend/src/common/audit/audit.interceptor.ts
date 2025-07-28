@@ -1,4 +1,4 @@
-import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler, Inject } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Observable, tap, catchError, throwError } from 'rxjs';
 import { Request, Response } from 'express';
@@ -38,7 +38,7 @@ export class AuditInterceptor implements NestInterceptor {
     private readonly auditLogService: AuditLogService,
     private readonly sanitizer: AuditSanitizer,
     private readonly logger: LoggerService,
-    private readonly config: AuditConfig,
+    @Inject('AUDIT_CONFIG') private readonly config: AuditConfig,
   ) {
     this.logger.setContext(AuditInterceptor.name);
   }
