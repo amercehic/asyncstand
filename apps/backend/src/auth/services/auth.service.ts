@@ -10,6 +10,7 @@ import { AuditLogService } from '@/common/audit/audit-log.service';
 import { AuditActorType, AuditCategory, AuditSeverity } from '@/common/audit/types';
 import { UserUtilsService } from '@/auth/services/user-utils.service';
 import { TokenService } from '@/auth/services/token.service';
+import { UserService } from '@/auth/services/user.service';
 import { OrgRole, OrgMemberStatus } from '@prisma/client';
 
 @Injectable()
@@ -21,13 +22,12 @@ export class AuthService {
     private readonly auditLogService: AuditLogService,
     private readonly userUtilsService: UserUtilsService,
     private readonly tokenService: TokenService,
+    private readonly userService: UserService,
   ) {
     this.logger.setContext(AuthService.name);
   }
 
   async signup(email: string, password: string, name?: string, orgId?: string) {
-    const passwordHash = await this.userUtilsService.hashPassword(password);
-
     // Check if user already exists
     const existingUser = await this.prisma.user.findUnique({ where: { email } });
     if (existingUser) {
@@ -40,102 +40,12 @@ export class AuthService {
 
     // Scenario 1: Self-service signup (create new organization)
     if (!orgId) {
-      // Create organization and user in a transaction
-      const result = await this.prisma.$transaction(async (tx) => {
-        // Create new organization
-        const org = await tx.organization.create({
-          data: {
-            name: `${name || email}'s Organization`,
-          },
-        });
-
-        // Create user
-        const user = await tx.user.create({
-          data: {
-            email,
-            passwordHash,
-            name,
-          },
-        });
-
-        // Create OrgMember record as owner
-        await tx.orgMember.create({
-          data: {
-            orgId: org.id,
-            userId: user.id,
-            role: OrgRole.owner,
-            status: OrgMemberStatus.active,
-          },
-        });
-
-        // Emit audit log for self-service signup
-        await this.auditLogService.logWithTransaction(
-          {
-            orgId: org.id,
-            actorUserId: user.id,
-            actorType: AuditActorType.USER,
-            action: 'user.signup.self_service',
-            category: AuditCategory.AUTH,
-            severity: AuditSeverity.MEDIUM,
-            requestData: {
-              method: 'POST',
-              path: '/auth/signup',
-              ipAddress: 'unknown',
-              body: {
-                email: user.email,
-                name: user.name,
-                orgName: org.name,
-              },
-            },
-          },
-          tx,
-        );
-
-        return { user, org };
-      });
-
+      const result = await this.userService.createUserWithNewOrganization(email, password, name);
       return result.user;
     }
 
     // Scenario 2: User joining specific organization (if orgId provided)
-    const user = await this.prisma.user.create({
-      data: {
-        email,
-        passwordHash,
-        name,
-      },
-    });
-
-    // Create OrgMember record
-    await this.prisma.orgMember.create({
-      data: {
-        orgId,
-        userId: user.id,
-        role: OrgRole.member,
-        status: OrgMemberStatus.active,
-      },
-    });
-
-    // Emit audit log for direct org join
-    await this.auditLogService.log({
-      orgId,
-      actorUserId: user.id,
-      actorType: AuditActorType.USER,
-      action: 'user.signup.direct_join',
-      category: AuditCategory.AUTH,
-      severity: AuditSeverity.MEDIUM,
-      requestData: {
-        method: 'POST',
-        path: '/auth/signup',
-        ipAddress: 'unknown',
-        body: {
-          email: user.email,
-          name: user.name,
-        },
-      },
-    });
-
-    return user;
+    return await this.userService.addUserToOrganization(email, password, name, orgId);
   }
 
   async login(email: string, password: string, req: Request) {

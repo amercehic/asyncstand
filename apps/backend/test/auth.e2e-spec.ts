@@ -361,20 +361,25 @@ describe('AuthController (e2e)', () => {
       // Check for password reset request log
       const requestLog = auditLogs.find((log) => log.action === 'password.reset.requested');
       expect(requestLog).toBeDefined();
-      expect((requestLog.requestData as any).body).toHaveProperty('email', passwordResetUser.email);
-      expect(requestLog.requestData as any).toHaveProperty('ipAddress');
+      const requestLogData = requestLog.requestData as unknown as {
+        body: { email: string };
+        ipAddress: string;
+      };
+      expect(requestLogData.body).toHaveProperty('email', passwordResetUser.email);
+      expect(requestLogData).toHaveProperty('ipAddress');
       expect(requestLog).toHaveProperty('actorUserId', passwordResetUserId);
 
       // Check for password reset completion log
       const completionLog = auditLogs.find((log) => log.action === 'password.reset.completed');
       expect(completionLog).toBeDefined();
-      expect((completionLog.requestData as any).body).toHaveProperty(
-        'email',
-        passwordResetUser.email,
-      );
-      expect(completionLog.requestData as any).toHaveProperty('ipAddress');
+      const completionLogData = completionLog.requestData as unknown as {
+        body: { email: string; resetAt: Date };
+        ipAddress: string;
+      };
+      expect(completionLogData.body).toHaveProperty('email', passwordResetUser.email);
+      expect(completionLogData).toHaveProperty('ipAddress');
       expect(completionLog).toHaveProperty('actorUserId', passwordResetUserId);
-      expect((completionLog.requestData as any).body).toHaveProperty('resetAt');
+      expect(completionLogData.body).toHaveProperty('resetAt');
     });
   });
 });

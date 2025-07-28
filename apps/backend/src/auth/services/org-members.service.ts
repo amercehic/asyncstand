@@ -11,6 +11,7 @@ import { UpdateMemberDto } from '@/auth/dto/update-member.dto';
 import { OrgRole, OrgMemberStatus } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { UserUtilsService } from '@/auth/services/user-utils.service';
+import { UserService } from '@/auth/services/user.service';
 
 @Injectable()
 export class OrgMembersService {
@@ -20,6 +21,7 @@ export class OrgMembersService {
     private readonly logger: LoggerService,
     private readonly auditLogService: AuditLogService,
     private readonly userUtilsService: UserUtilsService,
+    private readonly userService: UserService,
   ) {
     this.logger.setContext(OrgMembersService.name);
   }
@@ -130,23 +132,14 @@ export class OrgMembersService {
       });
     } else {
       // New user - create placeholder user that will be completed on invite acceptance
-      const newUser = await this.prisma.user.create({
-        data: {
-          email: dto.email,
-          passwordHash: 'temp_hash', // Placeholder - will be updated when user accepts
-          name: dto.email.split('@')[0], // Default name from email
-        },
-      });
-
-      await this.prisma.orgMember.create({
-        data: {
-          orgId,
-          userId: newUser.id,
-          role: dto.role,
-          status: OrgMemberStatus.invited,
-          inviteToken: inviteTokenHash,
-          invitedAt: new Date(),
-        },
+      await this.userService.createUserWithOrganization({
+        email: dto.email,
+        isTemporary: true,
+        orgId,
+        role: dto.role,
+        status: OrgMemberStatus.invited,
+        inviteToken: inviteTokenHash,
+        invitedAt: new Date(),
       });
     }
 
