@@ -7,7 +7,7 @@ import { AuthModule } from '@/auth/auth.module';
 import { PrismaService } from '@/prisma/prisma.service';
 import { createLoggerModule } from '@/config/logger.config';
 import { LoggerService } from '@/common/logger.service';
-import { AuditLogService } from '@/common/audit-log.service';
+import { AuditModule } from '@/common/audit/audit.module';
 
 @Module({
   imports: [
@@ -17,9 +17,10 @@ import { AuditLogService } from '@/common/audit-log.service';
       envFilePath: '.env',
     }),
     createLoggerModule(),
+    AuditModule,
     AuthModule,
   ],
   controllers: [AppController],
-  providers: [AppService, PrismaService, LoggerService, AuditLogService],
+  providers: [AppService, PrismaService, LoggerService],
 })
 export class AppModule {}

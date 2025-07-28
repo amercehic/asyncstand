@@ -8,7 +8,7 @@ import { AuthController } from '@/auth/auth.controller';
 import { PasswordResetService } from '@/auth/password-reset.service';
 import { PrismaService } from '@/prisma/prisma.service';
 import { LoggerService } from '@/common/logger.service';
-import { AuditLogService } from '@/common/audit-log.service';
+import { AuditLogService } from '@/common/audit/audit-log.service';
 
 @Module({
   imports: [

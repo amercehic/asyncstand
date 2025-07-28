@@ -6,7 +6,8 @@ import { JwtService } from '@nestjs/jwt';
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
 import { LoggerService } from '@/common/logger.service';
-import { AuditLogService } from '@/common/audit-log.service';
+import { AuditLogService } from '@/common/audit/audit-log.service';
+import { AuditActorType, AuditCategory, AuditSeverity } from '@/common/audit/types';
 
 @Injectable()
 export class AuthService {
@@ -73,13 +74,21 @@ export class AuthService {
 
       // Emit audit log for invited user signup
       await this.auditLogService.log({
-        action: 'user.signup.invited',
-        actorUserId: user.id,
         orgId,
-        payload: {
-          email: user.email,
-          name: user.name,
-          invitationToken,
+        actorUserId: user.id,
+        actorType: AuditActorType.USER,
+        action: 'user.signup.invited',
+        category: AuditCategory.AUTH,
+        severity: AuditSeverity.MEDIUM,
+        requestData: {
+          method: 'POST',
+          path: '/auth/signup',
+          ipAddress: 'unknown',
+          body: {
+            email: user.email,
+            name: user.name,
+            invitationToken,
+          },
         },
       });
 
@@ -111,7 +120,7 @@ export class AuthService {
           data: {
             orgId: org.id,
             userId: user.id,
-            role: 'owner',
+            role: 'OWNER',
             status: 'active',
           },
         });
@@ -119,13 +128,21 @@ export class AuthService {
         // Emit audit log for self-service signup
         await this.auditLogService.logWithTransaction(
           {
-            action: 'user.signup.self_service',
-            actorUserId: user.id,
             orgId: org.id,
-            payload: {
-              email: user.email,
-              name: user.name,
-              orgName: org.name,
+            actorUserId: user.id,
+            actorType: AuditActorType.USER,
+            action: 'user.signup.self_service',
+            category: AuditCategory.AUTH,
+            severity: AuditSeverity.MEDIUM,
+            requestData: {
+              method: 'POST',
+              path: '/auth/signup',
+              ipAddress: 'unknown',
+              body: {
+                email: user.email,
+                name: user.name,
+                orgName: org.name,
+              },
             },
           },
           tx,
@@ -158,12 +175,20 @@ export class AuthService {
 
     // Emit audit log for direct org join
     await this.auditLogService.log({
-      action: 'user.signup.direct_join',
-      actorUserId: user.id,
       orgId,
-      payload: {
-        email: user.email,
-        name: user.name,
+      actorUserId: user.id,
+      actorType: AuditActorType.USER,
+      action: 'user.signup.direct_join',
+      category: AuditCategory.AUTH,
+      severity: AuditSeverity.MEDIUM,
+      requestData: {
+        method: 'POST',
+        path: '/auth/signup',
+        ipAddress: 'unknown',
+        body: {
+          email: user.email,
+          name: user.name,
+        },
       },
     });
 
@@ -222,11 +247,17 @@ export class AuthService {
       data: {
         orgId: primaryOrg.id,
         actorUserId: user.id,
+        actorType: 'user',
         action: 'user.login',
-        payload: {
-          userId: user.id,
-          email: user.email,
+        category: 'auth',
+        severity: 'medium',
+        requestData: {
+          method: 'POST',
+          path: '/auth/login',
           ipAddress: ip,
+          body: {
+            email: user.email,
+          },
         },
       },
     });
@@ -286,10 +317,17 @@ export class AuthService {
         data: {
           orgId: primaryOrg.id,
           actorUserId: refreshToken.userId,
+          actorType: 'user',
           action: 'user.logout',
-          payload: {
+          category: 'auth',
+          severity: 'low',
+          requestData: {
+            method: 'POST',
+            path: '/auth/logout',
             ipAddress: ip,
-            refreshTokenId: refreshToken.id,
+            body: {
+              refreshTokenId: refreshToken.id,
+            },
           },
         },
       });

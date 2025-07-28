@@ -87,8 +87,18 @@ CREATE TABLE "AuditLog" (
     "orgId" TEXT NOT NULL,
     "actorUserId" TEXT,
     "actorPlatformUserId" TEXT,
+    "actorType" TEXT NOT NULL DEFAULT 'user',
     "action" TEXT NOT NULL,
-    "payload" JSONB NOT NULL,
+    "category" TEXT NOT NULL,
+    "severity" TEXT NOT NULL,
+    "requestData" JSONB,
+    "responseData" JSONB,
+    "resources" JSONB,
+    "sessionId" TEXT,
+    "correlationId" TEXT,
+    "tags" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "executionTime" INTEGER,
+    "payload" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "AuditLog_pkey" PRIMARY KEY ("id")
@@ -293,6 +303,21 @@ CREATE INDEX "RefreshToken_userId_createdAt_idx" ON "RefreshToken"("userId", "cr
 
 -- CreateIndex
 CREATE INDEX "AuditLog_orgId_createdAt_idx" ON "AuditLog"("orgId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "AuditLog_orgId_category_createdAt_idx" ON "AuditLog"("orgId", "category", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "AuditLog_orgId_severity_createdAt_idx" ON "AuditLog"("orgId", "severity", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "AuditLog_orgId_actorUserId_createdAt_idx" ON "AuditLog"("orgId", "actorUserId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "AuditLog_correlationId_idx" ON "AuditLog"("correlationId");
+
+-- CreateIndex
+CREATE INDEX "AuditLog_sessionId_idx" ON "AuditLog"("sessionId");
 
 -- CreateIndex
 CREATE INDEX "Integration_tokenStatus_idx" ON "Integration"("tokenStatus");

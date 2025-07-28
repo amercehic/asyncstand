@@ -6,7 +6,8 @@ import { ErrorCode } from 'shared';
 import { randomBytes } from 'crypto';
 import nodemailer from 'nodemailer';
 import { LoggerService } from '@/common/logger.service';
-import { AuditLogService } from '@/common/audit-log.service';
+import { AuditLogService } from '@/common/audit/audit-log.service';
+import { AuditActorType, AuditCategory, AuditSeverity } from '@/common/audit/types';
 
 @Injectable()
 export class PasswordResetService {
@@ -110,17 +111,25 @@ export class PasswordResetService {
     });
 
     // Create audit log (synchronous - important for security)
-    await this.auditLogService.log({
-      action: 'password.reset.requested',
-      actorUserId: user.id,
-      orgId: primaryOrg?.id,
-      payload: {
-        userId: user.id,
-        email: user.email,
-        ipAddress,
-        tokenExpiresAt: expiresAt,
-      },
-    });
+    if (primaryOrg?.id) {
+      await this.auditLogService.log({
+        orgId: primaryOrg.id,
+        actorUserId: user.id,
+        actorType: AuditActorType.USER,
+        action: 'password.reset.requested',
+        category: AuditCategory.AUTH,
+        severity: AuditSeverity.MEDIUM,
+        requestData: {
+          method: 'POST',
+          path: '/auth/forgot-password',
+          ipAddress,
+          body: {
+            email: user.email,
+            tokenExpiresAt: expiresAt,
+          },
+        },
+      });
+    }
 
     // Send password reset email (non-blocking)
     this.sendPasswordResetEmail(user.email, token, user.name).catch((error) => {
@@ -214,12 +223,18 @@ export class PasswordResetService {
           data: {
             orgId: primaryOrg.id,
             actorUserId: resetToken.user.id,
+            actorType: 'user',
             action: 'password.reset.completed',
-            payload: {
-              userId: resetToken.user.id,
-              email: resetToken.user.email,
+            category: 'auth',
+            severity: 'high',
+            requestData: {
+              method: 'POST',
+              path: '/auth/reset-password',
               ipAddress,
-              resetAt: new Date(),
+              body: {
+                email: resetToken.user.email,
+                resetAt: new Date(),
+              },
             },
           },
         });

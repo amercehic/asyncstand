@@ -17,8 +17,14 @@ import {
   SwaggerForgotPassword,
   SwaggerResetPassword,
 } from '@/auth/auth.swagger';
+import { AuditLog, AuditableController } from '@/common/audit/decorators';
+import { AuditCategory, AuditSeverity } from '@/common/audit/types';
 
 @ApiTags('Authentication')
+@AuditableController({
+  defaultCategory: AuditCategory.AUTH,
+  defaultSeverity: AuditSeverity.MEDIUM,
+})
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -28,6 +34,13 @@ export class AuthController {
 
   @Post('signup')
   @SwaggerSignup()
+  @AuditLog({
+    action: 'user.signup',
+    category: AuditCategory.AUTH,
+    severity: AuditSeverity.MEDIUM,
+    sanitizeFields: ['password'],
+    resources: [{ type: 'user', idFrom: 'result.id' }],
+  })
   async signup(@Body() dto: SignupDto) {
     const user = await this.authService.signup(
       dto.email,
@@ -43,6 +56,13 @@ export class AuthController {
   @HttpCode(200)
   @Post('login')
   @SwaggerLogin()
+  @AuditLog({
+    action: 'user.login',
+    category: AuditCategory.AUTH,
+    severity: AuditSeverity.MEDIUM,
+    sanitizeFields: ['password'],
+    resources: [{ type: 'user', idFrom: 'result.user.id' }],
+  })
   async login(
     @Body() dto: LoginDto,
     @Res({ passthrough: true }) res: Response,
@@ -67,6 +87,11 @@ export class AuthController {
   @HttpCode(200)
   @Post('logout')
   @SwaggerLogout()
+  @AuditLog({
+    action: 'user.logout',
+    category: AuditCategory.AUTH,
+    severity: AuditSeverity.LOW,
+  })
   async logout(
     @Body('refreshToken') bodyToken: string | undefined,
     @Req() req: Request,
@@ -95,6 +120,11 @@ export class AuthController {
   @Post('forgot-password')
   @UseGuards(ThrottlerGuard)
   @SwaggerForgotPassword()
+  @AuditLog({
+    action: 'password.reset.requested',
+    category: AuditCategory.AUTH,
+    severity: AuditSeverity.MEDIUM,
+  })
   async forgotPassword(@Body() dto: ForgotPasswordDto, @Req() req: Request) {
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
     await this.passwordResetService.createPasswordResetToken(dto.email, ip);
@@ -107,6 +137,12 @@ export class AuthController {
 
   @Post('reset-password')
   @SwaggerResetPassword()
+  @AuditLog({
+    action: 'password.reset.completed',
+    category: AuditCategory.AUTH,
+    severity: AuditSeverity.HIGH,
+    sanitizeFields: ['password'],
+  })
   async resetPassword(@Body() dto: ResetPasswordDto, @Req() req: Request) {
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
     await this.passwordResetService.resetPassword(dto.token, dto.password, dto.email, ip);

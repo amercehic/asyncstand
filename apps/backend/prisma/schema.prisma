@@ -104,11 +104,37 @@ model AuditLog {
   actorUser             User?        @relation("AuditLogActor", fields: [actorUserId], references: [id])
   actorUserId           String?
   actorPlatformUserId   String?
+  actorType             String       @default("user") // user, system, api_key, service
+  
+  // Event classification
   action                String
-  payload               Json
+  category              String       // auth, user_management, data_modification, system, integration, billing
+  severity              String       // low, medium, high, critical
+  
+  // Request/Response data
+  requestData           Json?        // Method, path, body, query, headers, userAgent, ipAddress
+  responseData          Json?        // StatusCode, body, executionTime
+  
+  // Resource tracking
+  resources             Json?        // Array of affected resources with before/after values
+  
+  // Enhanced metadata
+  sessionId             String?
+  correlationId         String?
+  tags                  String[]     @default([])
+  executionTime         Int?         // Milliseconds
+  
+  // Legacy payload field (for backward compatibility)
+  payload               Json?
+  
   createdAt             DateTime     @default(now())
 
   @@index([orgId, createdAt])
+  @@index([orgId, category, createdAt])
+  @@index([orgId, severity, createdAt])
+  @@index([orgId, actorUserId, createdAt])
+  @@index([correlationId])
+  @@index([sessionId])
 }
 
 // ------------------------------
