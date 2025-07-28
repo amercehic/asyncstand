@@ -347,7 +347,7 @@ describe('AuthController (e2e)', () => {
         where: { actorUserId: passwordResetUserId },
       });
       console.log('All audit logs for user:', allUserLogs);
-      
+
       const auditLogs = await prisma.auditLog.findMany({
         where: {
           actorUserId: passwordResetUserId,
@@ -368,7 +368,10 @@ describe('AuthController (e2e)', () => {
       // Check for password reset completion log
       const completionLog = auditLogs.find((log) => log.action === 'password.reset.completed');
       expect(completionLog).toBeDefined();
-      expect((completionLog.requestData as any).body).toHaveProperty('email', passwordResetUser.email);
+      expect((completionLog.requestData as any).body).toHaveProperty(
+        'email',
+        passwordResetUser.email,
+      );
       expect(completionLog.requestData as any).toHaveProperty('ipAddress');
       expect(completionLog).toHaveProperty('actorUserId', passwordResetUserId);
       expect((completionLog.requestData as any).body).toHaveProperty('resetAt');
