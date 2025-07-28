@@ -54,7 +54,7 @@ export interface AuditResourceData {
 
 export interface AuditLogEntry {
   // Core identification
-  orgId: string;
+  orgId?: string;
   actorUserId?: string;
   actorType: AuditActorType;
 
