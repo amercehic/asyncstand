@@ -1,11 +1,11 @@
-import { TestHelpers } from '../test-helpers';
+import { TestHelpers } from '@/test/utils/test-helpers';
 import { OrgRole, OrgMemberStatus } from '@prisma/client';
 
 export class UserFixtures {
   /**
    * Valid user data for signup
    */
-  static validSignupData(overrides: Partial<any> = {}) {
+  static validSignupData(overrides: Partial<Record<string, unknown>> = {}) {
     return {
       email: TestHelpers.generateRandomEmail(),
       password: 'TestPassword123!',
@@ -17,7 +17,7 @@ export class UserFixtures {
   /**
    * Valid user data without password (for responses)
    */
-  static validUserResponse(overrides: Partial<any> = {}) {
+  static validUserResponse(overrides: Partial<Record<string, unknown>> = {}) {
     return {
       id: TestHelpers.generateRandomString(),
       email: TestHelpers.generateRandomEmail(),
@@ -31,7 +31,7 @@ export class UserFixtures {
   /**
    * User data with weak password
    */
-  static userWithWeakPassword(overrides: Partial<any> = {}) {
+  static userWithWeakPassword(overrides: Partial<Record<string, unknown>> = {}) {
     return {
       ...this.validSignupData(),
       password: '123',
@@ -42,7 +42,7 @@ export class UserFixtures {
   /**
    * User data with invalid email
    */
-  static userWithInvalidEmail(overrides: Partial<any> = {}) {
+  static userWithInvalidEmail(overrides: Partial<Record<string, unknown>> = {}) {
     return {
       ...this.validSignupData(),
       email: 'invalid-email',
@@ -53,7 +53,7 @@ export class UserFixtures {
   /**
    * User data with missing required fields
    */
-  static userWithMissingFields(overrides: Partial<any> = {}) {
+  static userWithMissingFields(overrides: Partial<Record<string, unknown>> = {}) {
     return {
       // Missing email and password
       name: 'Test User',
@@ -64,7 +64,7 @@ export class UserFixtures {
   /**
    * User data with very long name
    */
-  static userWithLongName(overrides: Partial<any> = {}) {
+  static userWithLongName(overrides: Partial<Record<string, unknown>> = {}) {
     return {
       ...this.validSignupData(),
       name: 'a'.repeat(256),
@@ -75,7 +75,7 @@ export class UserFixtures {
   /**
    * Login credentials
    */
-  static validLoginCredentials(overrides: Partial<any> = {}) {
+  static validLoginCredentials(overrides: Partial<Record<string, unknown>> = {}) {
     return {
       email: TestHelpers.generateRandomEmail(),
       password: 'TestPassword123!',
@@ -86,7 +86,7 @@ export class UserFixtures {
   /**
    * Invalid login credentials
    */
-  static invalidLoginCredentials(overrides: Partial<any> = {}) {
+  static invalidLoginCredentials(overrides: Partial<Record<string, unknown>> = {}) {
     return {
       email: TestHelpers.generateRandomEmail(),
       password: 'WrongPassword123!',
@@ -97,7 +97,7 @@ export class UserFixtures {
   /**
    * Password reset request data
    */
-  static passwordResetRequest(overrides: Partial<any> = {}) {
+  static passwordResetRequest(overrides: Partial<Record<string, unknown>> = {}) {
     return {
       email: TestHelpers.generateRandomEmail(),
       ...overrides,
@@ -107,7 +107,7 @@ export class UserFixtures {
   /**
    * Password reset data
    */
-  static passwordResetData(overrides: Partial<any> = {}) {
+  static passwordResetData(overrides: Partial<Record<string, unknown>> = {}) {
     return {
       token: 'valid_reset_token',
       password: 'NewPassword123!',
@@ -119,7 +119,7 @@ export class UserFixtures {
   /**
    * User with organization membership
    */
-  static userWithOrgMembership(overrides: Partial<any> = {}) {
+  static userWithOrgMembership(overrides: Partial<Record<string, unknown>> = {}) {
     const userId = TestHelpers.generateRandomString();
     const orgId = TestHelpers.generateRandomString();
 
@@ -155,7 +155,7 @@ export class UserFixtures {
   /**
    * Owner user with organization
    */
-  static ownerUserWithOrg(overrides: Partial<any> = {}) {
+  static ownerUserWithOrg(overrides: Partial<Record<string, unknown>> = {}) {
     return this.userWithOrgMembership({
       ...overrides,
       orgMembers: [
@@ -171,7 +171,7 @@ export class UserFixtures {
   /**
    * Admin user with organization
    */
-  static adminUserWithOrg(overrides: Partial<any> = {}) {
+  static adminUserWithOrg(overrides: Partial<Record<string, unknown>> = {}) {
     return this.userWithOrgMembership({
       ...overrides,
       orgMembers: [
@@ -187,7 +187,7 @@ export class UserFixtures {
   /**
    * Invited user (pending invitation)
    */
-  static invitedUser(overrides: Partial<any> = {}) {
+  static invitedUser(overrides: Partial<Record<string, unknown>> = {}) {
     return this.userWithOrgMembership({
       ...overrides,
       passwordHash: 'temp_hash',
@@ -207,7 +207,7 @@ export class UserFixtures {
   /**
    * User with multiple organization memberships
    */
-  static userWithMultipleOrgs(overrides: Partial<any> = {}) {
+  static userWithMultipleOrgs(overrides: Partial<Record<string, unknown>> = {}) {
     const userId = TestHelpers.generateRandomString();
 
     return {

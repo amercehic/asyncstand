@@ -1,18 +1,19 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { HttpStatus } from '@nestjs/common';
-import { AuthService } from '../auth.service';
+import { Request } from 'express';
+import { AuthService } from '@/auth/services/auth.service';
 import { PrismaService } from '@/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { LoggerService } from '@/common/logger.service';
 import { AuditLogService } from '@/common/audit/audit-log.service';
-import { UserUtilsService } from '../user-utils.service';
-import { TokenService } from '../token.service';
-import { UserService } from '../user.service';
+import { UserUtilsService } from '@/auth/services/user-utils.service';
+import { TokenService } from '@/auth/services/token.service';
+import { UserService } from '@/auth/services/user.service';
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
 import { OrgRole, OrgMemberStatus } from '@prisma/client';
 import { AuditActorType, AuditCategory, AuditSeverity } from '@/common/audit/types';
-import { createMockPrismaService } from '../../../../test/utils/mocks/prisma.mock';
+import { createMockPrismaService } from '@/test/utils/mocks/prisma.mock';
 import {
   createMockJwtService,
   createMockLoggerService,
@@ -20,15 +21,18 @@ import {
   createMockUserUtilsService,
   createMockTokenService,
   createMockUserService,
-} from '../../../../test/utils/mocks/services.mock';
-import { TestHelpers } from '../../../../test/utils/test-helpers';
+} from '@/test/utils/mocks/services.mock';
+import { TestHelpers } from '@/test/utils/test-helpers';
 
 // Mock the argon2 library
 jest.mock('@node-rs/argon2', () => ({
   verify: jest.fn(),
 }));
 
-const { verify } = require('@node-rs/argon2');
+import { verify } from '@node-rs/argon2';
+
+// Type the mocked verify function
+const mockVerify = verify as jest.MockedFunction<typeof verify>;
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -137,7 +141,7 @@ describe('AuthService', () => {
     const mockRequest = {
       ip: '192.168.1.1',
       socket: { remoteAddress: '192.168.1.1' },
-    } as any;
+    } as Request;
 
     it('should login user successfully', async () => {
       const email = TestHelpers.generateRandomEmail();
@@ -154,7 +158,7 @@ describe('AuthService', () => {
         ...mockUser,
         orgMembers: [mockOrgMember],
       });
-      verify.mockResolvedValue(true);
+      mockVerify.mockResolvedValue(true);
       mockTokenService.generateTokens.mockResolvedValue({
         accessToken: 'access_token',
         refreshToken: 'refresh_token',
@@ -236,7 +240,7 @@ describe('AuthService', () => {
         ...mockUser,
         orgMembers: [],
       });
-      verify.mockResolvedValue(false);
+      mockVerify.mockResolvedValue(false);
 
       await expect(service.login(email, password, mockRequest)).rejects.toThrow(
         new ApiError(ErrorCode.INVALID_CREDENTIALS, 'Invalid credentials', HttpStatus.UNAUTHORIZED),
@@ -252,7 +256,7 @@ describe('AuthService', () => {
         ...mockUser,
         orgMembers: [],
       });
-      verify.mockResolvedValue(true);
+      mockVerify.mockResolvedValue(true);
 
       await expect(service.login(email, password, mockRequest)).rejects.toThrow(
         new ApiError(
@@ -287,7 +291,7 @@ describe('AuthService', () => {
         ...mockUser,
         orgMembers: mockOrgMembers,
       });
-      verify.mockResolvedValue(true);
+      mockVerify.mockResolvedValue(true);
       mockTokenService.generateTokens.mockResolvedValue({
         accessToken: 'access_token',
         refreshToken: 'refresh_token',
@@ -318,13 +322,13 @@ describe('AuthService', () => {
         role: OrgRole.member,
         status: OrgMemberStatus.active,
       };
-      const requestWithoutIP = { socket: {} } as any;
+      const requestWithoutIP = { socket: {} } as Request;
 
       mockPrisma.user.findUnique.mockResolvedValue({
         ...mockUser,
         orgMembers: [mockOrgMember],
       });
-      verify.mockResolvedValue(true);
+      mockVerify.mockResolvedValue(true);
       mockTokenService.generateTokens.mockResolvedValue({
         accessToken: 'access_token',
         refreshToken: 'refresh_token',
@@ -440,7 +444,9 @@ describe('AuthService', () => {
 
     beforeEach(() => {
       // Mock the crypto module
-      jest.spyOn(service as any, 'hashToken').mockResolvedValue(inviteTokenHash);
+      jest
+        .spyOn(service as unknown as { hashToken: (token: string) => Promise<string> }, 'hashToken')
+        .mockResolvedValue(inviteTokenHash);
     });
 
     it('should accept invite for new user', async () => {
@@ -626,9 +632,12 @@ describe('AuthService', () => {
   describe('hashToken', () => {
     it('should hash token using SHA256', async () => {
       const token = 'test_token';
-      const expectedHash = require('crypto').createHash('sha256').update(token).digest('hex');
+      const crypto = await import('crypto');
+      const expectedHash = crypto.createHash('sha256').update(token).digest('hex');
 
-      const result = await (service as any).hashToken(token);
+      const result = await (
+        service as unknown as { hashToken: (token: string) => Promise<string> }
+      ).hashToken(token);
 
       expect(result).toBe(expectedHash);
     });
@@ -654,13 +663,13 @@ describe('AuthService', () => {
         role: OrgRole.member,
         status: OrgMemberStatus.active,
       };
-      const mockRequest = { ip: '192.168.1.1' } as any;
+      const mockRequest = { ip: '192.168.1.1' } as Request;
 
       mockPrisma.user.findUnique.mockResolvedValue({
         ...mockUser,
         orgMembers: [mockOrgMember],
       });
-      verify.mockResolvedValue(true);
+      mockVerify.mockResolvedValue(true);
       mockTokenService.generateTokens.mockRejectedValue(new Error('Token generation failed'));
 
       await expect(service.login(email, password, mockRequest)).rejects.toThrow(

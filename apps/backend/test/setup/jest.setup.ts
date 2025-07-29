@@ -1,7 +1,8 @@
-import { TestHelpers } from '../utils/test-helpers';
+import { TestHelpers } from '@/test/utils/test-helpers';
 
 // Extend Jest matchers with custom matchers
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace jest {
     interface Matchers<R> {
       toBeValidUser(): R;
@@ -14,14 +15,15 @@ declare global {
 
 // Custom Jest matchers
 expect.extend({
-  toBeValidUser(received: any) {
+  toBeValidUser(received: unknown) {
+    const obj = received as Record<string, unknown>;
     const pass =
       received &&
       typeof received === 'object' &&
-      typeof received.id === 'string' &&
-      typeof received.email === 'string' &&
-      !received.hasOwnProperty('password') &&
-      !received.hasOwnProperty('passwordHash');
+      typeof obj.id === 'string' &&
+      typeof obj.email === 'string' &&
+      !Object.prototype.hasOwnProperty.call(received, 'password') &&
+      !Object.prototype.hasOwnProperty.call(received, 'passwordHash');
 
     return {
       pass,
@@ -32,14 +34,15 @@ expect.extend({
     };
   },
 
-  toHaveValidTokens(received: any) {
+  toHaveValidTokens(received: unknown) {
+    const obj = received as Record<string, unknown>;
     const pass =
       received &&
       typeof received === 'object' &&
-      typeof received.accessToken === 'string' &&
-      typeof received.refreshToken === 'string' &&
-      typeof received.expiresIn === 'number' &&
-      received.expiresIn > 0;
+      typeof obj.accessToken === 'string' &&
+      typeof obj.refreshToken === 'string' &&
+      typeof obj.expiresIn === 'number' &&
+      (obj.expiresIn as number) > 0;
 
     return {
       pass,
@@ -50,13 +53,14 @@ expect.extend({
     };
   },
 
-  toBeValidOrganization(received: any) {
+  toBeValidOrganization(received: unknown) {
+    const obj = received as Record<string, unknown>;
     const pass =
       received &&
       typeof received === 'object' &&
-      typeof received.id === 'string' &&
-      typeof received.name === 'string' &&
-      received.name.length > 0;
+      typeof obj.id === 'string' &&
+      typeof obj.name === 'string' &&
+      (obj.name as string).length > 0;
 
     return {
       pass,
@@ -67,16 +71,17 @@ expect.extend({
     };
   },
 
-  toHaveValidAuditLog(received: any) {
+  toHaveValidAuditLog(received: unknown) {
+    const obj = received as Record<string, unknown>;
     const pass =
       received &&
       typeof received === 'object' &&
-      typeof received.id === 'string' &&
-      typeof received.orgId === 'string' &&
-      typeof received.action === 'string' &&
-      typeof received.category === 'string' &&
-      typeof received.severity === 'string' &&
-      received.createdAt instanceof Date;
+      typeof obj.id === 'string' &&
+      typeof obj.orgId === 'string' &&
+      typeof obj.action === 'string' &&
+      typeof obj.category === 'string' &&
+      typeof obj.severity === 'string' &&
+      obj.createdAt instanceof Date;
 
     return {
       pass,

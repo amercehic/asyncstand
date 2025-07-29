@@ -1,4 +1,4 @@
-import { TestHelpers } from '../test-helpers';
+import { TestHelpers } from '@/test/utils/test-helpers';
 
 export type MockPrismaService = {
   user: {

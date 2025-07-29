@@ -1,16 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { UserService } from '../user.service';
+import { UserService } from '@/auth/services/user.service';
 import { PrismaService } from '@/prisma/prisma.service';
-import { UserUtilsService } from '../user-utils.service';
+import { UserUtilsService } from '@/auth/services/user-utils.service';
 import { AuditLogService } from '@/common/audit/audit-log.service';
 import { OrgRole, OrgMemberStatus } from '@prisma/client';
-import { createMockPrismaService } from '../../../../test/utils/mocks/prisma.mock';
+import { createMockPrismaService } from '@/test/utils/mocks/prisma.mock';
 import {
   createMockUserUtilsService,
   createMockAuditLogService,
-} from '../../../../test/utils/mocks/services.mock';
-import { TestHelpers } from '../../../../test/utils/test-helpers';
-import { UserFixtures } from '../../../../test/utils/fixtures/users.fixture';
+} from '@/test/utils/mocks/services.mock';
+import { TestHelpers } from '@/test/utils/test-helpers';
 
 describe('UserService', () => {
   let service: UserService;

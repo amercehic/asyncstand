@@ -1,12 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AuditLogService } from '../audit-log.service';
+import { AuditLogService } from '@/common/audit/audit-log.service';
 import { PrismaService } from '@/prisma/prisma.service';
 import { LoggerService } from '@/common/logger.service';
-import { AuditSanitizer } from '../sanitizer';
+import { AuditSanitizer } from '@/common/audit/sanitizer';
 import { OrgMemberStatus } from '@prisma/client';
-import { AuditCategory, AuditSeverity, AuditActorType } from '../types';
-import { createMockPrismaService } from '../../../../test/utils/mocks/prisma.mock';
-import { TestHelpers } from '../../../../test/utils/test-helpers';
+import { AuditCategory, AuditSeverity, AuditActorType } from '@/common/audit/types';
+import { createMockPrismaService } from '@/test/utils/mocks/prisma.mock';
+import { TestHelpers } from '@/test/utils/test-helpers';
 
 describe('AuditLogService', () => {
   let service: AuditLogService;
@@ -21,10 +21,10 @@ describe('AuditLogService', () => {
       debug: jest.fn(),
       warn: jest.fn(),
       logError: jest.fn(),
-    } as any;
+    } as unknown as jest.Mocked<LoggerService>;
     mockSanitizer = {
       sanitize: jest.fn(),
-    } as any;
+    } as unknown as jest.Mocked<AuditSanitizer>;
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -314,7 +314,7 @@ describe('AuditLogService', () => {
         },
       ];
 
-      mockPrisma.auditLog.findMany.mockResolvedValue(mockLogs as any);
+      mockPrisma.auditLog.findMany.mockResolvedValue(mockLogs as never);
 
       const result = await service.getActivitySummary(orgId, 'day');
 

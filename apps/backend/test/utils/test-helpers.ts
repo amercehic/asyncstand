@@ -4,7 +4,7 @@ export class TestHelpers {
   /**
    * Create mock user data for testing
    */
-  static createMockUser(overrides: Partial<any> = {}) {
+  static createMockUser(overrides: Partial<Record<string, unknown>> = {}) {
     return {
       id: faker.string.uuid(),
       email: faker.internet.email(),
@@ -19,7 +19,7 @@ export class TestHelpers {
   /**
    * Create mock organization data for testing
    */
-  static createMockOrganization(overrides: Partial<any> = {}) {
+  static createMockOrganization(overrides: Partial<Record<string, unknown>> = {}) {
     return {
       id: faker.string.uuid(),
       name: faker.company.name(),
@@ -53,7 +53,7 @@ export class TestHelpers {
   /**
    * Create valid user signup data
    */
-  static createValidUserData(overrides: Partial<any> = {}) {
+  static createValidUserData(overrides: Partial<Record<string, unknown>> = {}) {
     return {
       email: faker.internet.email(),
       password: 'TestPassword123!',
@@ -65,7 +65,7 @@ export class TestHelpers {
   /**
    * Create valid organization data
    */
-  static createValidOrgData(overrides: Partial<any> = {}) {
+  static createValidOrgData(overrides: Partial<Record<string, unknown>> = {}) {
     return {
       name: faker.company.name(),
       ...overrides,
@@ -82,7 +82,7 @@ export class TestHelpers {
   /**
    * Create mock audit log data for testing
    */
-  static createMockAuditLog(overrides: Partial<any> = {}) {
+  static createMockAuditLog(overrides: Partial<Record<string, unknown>> = {}) {
     return {
       id: faker.string.uuid(),
       orgId: faker.string.uuid(),

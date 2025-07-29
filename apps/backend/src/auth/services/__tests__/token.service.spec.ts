@@ -1,10 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
-import { TokenService } from '../token.service';
+import { TokenService } from '@/auth/services/token.service';
 import { PrismaService } from '@/prisma/prisma.service';
-import { createMockPrismaService } from '../../../../test/utils/mocks/prisma.mock';
-import { createMockJwtService } from '../../../../test/utils/mocks/services.mock';
-import { TestHelpers } from '../../../../test/utils/test-helpers';
+import { createMockPrismaService } from '@/test/utils/mocks/prisma.mock';
+import { createMockJwtService } from '@/test/utils/mocks/services.mock';
+import { TestHelpers } from '@/test/utils/test-helpers';
 
 describe('TokenService', () => {
   let service: TokenService;

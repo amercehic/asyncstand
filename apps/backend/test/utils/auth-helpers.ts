@@ -1,5 +1,5 @@
 import { JwtService } from '@nestjs/jwt';
-import { TestHelpers } from './test-helpers';
+import { TestHelpers } from '@/test/utils/test-helpers';
 
 export interface TokenPayload {
   sub: string;
@@ -106,12 +106,12 @@ export class AuthHelpers {
   /**
    * Parse JWT token payload without verification (for testing)
    */
-  static parseTokenPayload(token: string): any {
+  static parseTokenPayload(token: string): Record<string, unknown> {
     try {
       const base64Payload = token.split('.')[1];
       const payload = Buffer.from(base64Payload, 'base64').toString('utf-8');
       return JSON.parse(payload);
-    } catch (error) {
+    } catch {
       throw new Error('Invalid JWT token format');
     }
   }
@@ -119,7 +119,7 @@ export class AuthHelpers {
   /**
    * Create token with custom claims for testing edge cases
    */
-  static generateCustomJWT(jwtService: JwtService, customClaims: Record<string, any>): string {
+  static generateCustomJWT(jwtService: JwtService, customClaims: Record<string, unknown>): string {
     return jwtService.sign(customClaims);
   }
 
@@ -136,7 +136,7 @@ export class AuthHelpers {
   /**
    * Create test user credentials
    */
-  static createTestCredentials(overrides: Partial<any> = {}) {
+  static createTestCredentials(overrides: Partial<Record<string, unknown>> = {}) {
     return {
       email: TestHelpers.generateRandomEmail(),
       password: 'TestPassword123!',

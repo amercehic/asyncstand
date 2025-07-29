@@ -1,11 +1,11 @@
-import { TestHelpers } from '../test-helpers';
+import { TestHelpers } from '@/test/utils/test-helpers';
 import { OrgRole, OrgMemberStatus } from '@prisma/client';
 
 export class OrganizationFixtures {
   /**
    * Valid organization data
    */
-  static validOrgData(overrides: Partial<any> = {}) {
+  static validOrgData(overrides: Partial<Record<string, unknown>> = {}) {
     return {
       name: `Test Organization ${TestHelpers.generateRandomSuffix()}`,
       ...overrides,
@@ -15,7 +15,7 @@ export class OrganizationFixtures {
   /**
    * Organization response data
    */
-  static validOrgResponse(overrides: Partial<any> = {}) {
+  static validOrgResponse(overrides: Partial<Record<string, unknown>> = {}) {
     return {
       id: TestHelpers.generateRandomString(),
       name: `Test Organization ${TestHelpers.generateRandomSuffix()}`,
@@ -28,7 +28,7 @@ export class OrganizationFixtures {
   /**
    * Organization with very long name
    */
-  static orgWithLongName(overrides: Partial<any> = {}) {
+  static orgWithLongName(overrides: Partial<Record<string, unknown>> = {}) {
     return {
       ...this.validOrgData(),
       name: 'a'.repeat(256),
@@ -39,7 +39,7 @@ export class OrganizationFixtures {
   /**
    * Organization with members
    */
-  static orgWithMembers(overrides: Partial<any> = {}) {
+  static orgWithMembers(overrides: Partial<Record<string, unknown>> = {}) {
     const orgId = TestHelpers.generateRandomString();
 
     return {
@@ -101,7 +101,7 @@ export class OrganizationFixtures {
   /**
    * Member invitation data
    */
-  static memberInvitationData(overrides: Partial<any> = {}) {
+  static memberInvitationData(overrides: Partial<Record<string, unknown>> = {}) {
     return {
       email: TestHelpers.generateRandomEmail(),
       role: OrgRole.member,
@@ -112,7 +112,7 @@ export class OrganizationFixtures {
   /**
    * Admin invitation data
    */
-  static adminInvitationData(overrides: Partial<any> = {}) {
+  static adminInvitationData(overrides: Partial<Record<string, unknown>> = {}) {
     return {
       ...this.memberInvitationData(),
       role: OrgRole.admin,
@@ -123,7 +123,7 @@ export class OrganizationFixtures {
   /**
    * Invalid invitation data (invalid email)
    */
-  static invalidInvitationData(overrides: Partial<any> = {}) {
+  static invalidInvitationData(overrides: Partial<Record<string, unknown>> = {}) {
     return {
       email: 'invalid-email',
       role: OrgRole.member,
@@ -134,7 +134,7 @@ export class OrganizationFixtures {
   /**
    * Accept invitation data
    */
-  static acceptInvitationData(overrides: Partial<any> = {}) {
+  static acceptInvitationData(overrides: Partial<Record<string, unknown>> = {}) {
     return {
       token: 'valid_invite_token',
       name: 'New Member',
@@ -146,7 +146,7 @@ export class OrganizationFixtures {
   /**
    * Accept invitation data for existing user
    */
-  static acceptInvitationDataExistingUser(overrides: Partial<any> = {}) {
+  static acceptInvitationDataExistingUser(overrides: Partial<Record<string, unknown>> = {}) {
     return {
       token: 'valid_invite_token',
       name: 'Existing User',
@@ -158,7 +158,7 @@ export class OrganizationFixtures {
   /**
    * Update member data
    */
-  static updateMemberData(overrides: Partial<any> = {}) {
+  static updateMemberData(overrides: Partial<Record<string, unknown>> = {}) {
     return {
       role: OrgRole.admin,
       ...overrides,
@@ -168,7 +168,7 @@ export class OrganizationFixtures {
   /**
    * Suspend member data
    */
-  static suspendMemberData(overrides: Partial<any> = {}) {
+  static suspendMemberData(overrides: Partial<Record<string, unknown>> = {}) {
     return {
       suspend: true,
       ...overrides,
@@ -178,7 +178,7 @@ export class OrganizationFixtures {
   /**
    * Organization member response
    */
-  static memberResponse(overrides: Partial<any> = {}) {
+  static memberResponse(overrides: Partial<Record<string, unknown>> = {}) {
     return {
       id: TestHelpers.generateRandomString(),
       email: TestHelpers.generateRandomEmail(),
@@ -193,7 +193,7 @@ export class OrganizationFixtures {
   /**
    * Members list response
    */
-  static membersListResponse(overrides: Partial<any> = {}) {
+  static membersListResponse(overrides: Partial<Record<string, unknown>> = {}) {
     return {
       members: [
         this.memberResponse({ role: 'owner', name: 'Owner User' }),
@@ -207,7 +207,7 @@ export class OrganizationFixtures {
   /**
    * Organization with pending invitations
    */
-  static orgWithPendingInvitations(overrides: Partial<any> = {}) {
+  static orgWithPendingInvitations(overrides: Partial<Record<string, unknown>> = {}) {
     const orgId = TestHelpers.generateRandomString();
 
     return {
@@ -238,7 +238,7 @@ export class OrganizationFixtures {
   /**
    * Empty organization (no members)
    */
-  static emptyOrganization(overrides: Partial<any> = {}) {
+  static emptyOrganization(overrides: Partial<Record<string, unknown>> = {}) {
     return {
       ...this.validOrgResponse(),
       members: [],

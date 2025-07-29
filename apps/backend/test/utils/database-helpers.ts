@@ -1,6 +1,6 @@
 import { PrismaService } from '@/prisma/prisma.service';
 import { OrgRole, OrgMemberStatus } from '@prisma/client';
-import { TestHelpers } from './test-helpers';
+import { TestHelpers } from '@/test/utils/test-helpers';
 
 export interface TestIds {
   userIds?: string[];
@@ -41,15 +41,18 @@ export class DatabaseHelpers {
       });
 
       await this.prisma.passwordResetToken.deleteMany({
-        where: { id: { in: tokenIds } },
+        where: { token: { in: tokenIds } },
       });
     }
 
     // 2. Clean up org members
     if (orgMemberIds.length > 0) {
-      await this.prisma.orgMember.deleteMany({
-        where: { id: { in: orgMemberIds } },
-      });
+      // Clean up org members for specific org/user pairs
+      for (const orgId of orgIds) {
+        await this.prisma.orgMember.deleteMany({
+          where: { orgId },
+        });
+      }
     }
 
     // 3. Clean up audit logs
@@ -108,7 +111,9 @@ export class DatabaseHelpers {
   /**
    * Create a test user with optional organization membership
    */
-  async createTestUser(options: CreateTestUserOptions = {}): Promise<any> {
+  async createTestUser(
+    options: CreateTestUserOptions = {},
+  ): Promise<{ id: string; email: string; name: string; passwordHash: string }> {
     const {
       email = TestHelpers.generateRandomEmail(),
       name = 'Test User',
@@ -144,7 +149,9 @@ export class DatabaseHelpers {
   /**
    * Create a test organization with optional owner
    */
-  async createTestOrganization(options: CreateTestOrgOptions = {}): Promise<any> {
+  async createTestOrganization(
+    options: CreateTestOrgOptions = {},
+  ): Promise<{ id: string; name: string }> {
     const { name = `Test Org ${TestHelpers.generateRandomSuffix()}`, ownerId } = options;
 
     const org = await this.prisma.organization.create({
@@ -170,9 +177,9 @@ export class DatabaseHelpers {
    * Create a complete test setup with user and organization
    */
   async createTestUserWithOrg(userOverrides: Partial<CreateTestUserOptions> = {}): Promise<{
-    user: any;
-    org: any;
-    orgMember: any;
+    user: { id: string; email: string; name: string; passwordHash: string };
+    org: { id: string; name: string };
+    orgMember: Record<string, unknown> | null;
   }> {
     // Create organization first
     const org = await this.createTestOrganization();
@@ -204,7 +211,7 @@ export class DatabaseHelpers {
     orgId: string,
     count: number,
     baseOptions: Partial<CreateTestUserOptions> = {},
-  ): Promise<any[]> {
+  ): Promise<{ id: string; email: string; name: string; passwordHash: string }[]> {
     const users = [];
 
     for (let i = 0; i < count; i++) {
@@ -248,7 +255,7 @@ export class DatabaseHelpers {
   /**
    * Get user with organization memberships
    */
-  async getUserWithOrgs(userId: string): Promise<any> {
+  async getUserWithOrgs(userId: string): Promise<Record<string, unknown> | null> {
     return this.prisma.user.findUnique({
       where: { id: userId },
       include: {

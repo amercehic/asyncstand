@@ -1,4 +1,4 @@
-import { TestHelpers } from '../test-helpers';
+import { TestHelpers } from '@/test/utils/test-helpers';
 
 // Mock JwtService
 export const createMockJwtService = () => ({
@@ -119,7 +119,7 @@ export const createMockPasswordResetService = () => ({
 });
 
 // Helper to reset all mocks
-export const resetAllMocks = (...mocks: any[]): void => {
+export const resetAllMocks = (...mocks: Record<string, unknown>[]): void => {
   mocks.forEach((mock) => {
     if (mock && typeof mock === 'object') {
       Object.values(mock).forEach((method) => {
