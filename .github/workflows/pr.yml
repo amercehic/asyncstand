@@ -1,28 +1,36 @@
-name: Pull Request Checks
+name: PR Checks
 
 on:
   pull_request:
     branches: [main, develop]
 
+env:
+  NODE_VERSION: '20.x'
+  PNPM_VERSION: '10.12.4'
+
 jobs:
+  # Just the basics for PRs - super fast feedback
   quick-checks:
+    name: Quick Checks
     runs-on: ubuntu-latest
+    timeout-minutes: 3
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20.x
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20.x
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
 
       - name: Get pnpm store directory
         shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
 
       - name: Setup pnpm cache
         uses: actions/cache@v4
@@ -40,6 +48,3 @@ jobs:
 
       - name: Lint code
         run: pnpm lint
-
-      - name: Type check
-        run: pnpm build --dry-run
