@@ -174,7 +174,7 @@ describe('OrganizationService', () => {
 
     it('should throw error if organization not found', async () => {
       const mockMember = {
-        role: OrgRole.admin,
+        role: OrgRole.owner,
         org: { id: orgId, name: 'Old Name' },
         user: { id: userId },
       };
