@@ -7,7 +7,9 @@ import { AuthService } from '@/auth/services/auth.service';
 import { JwtStrategy } from '@/auth/jwt.strategy';
 import { AuthController } from '@/auth/controllers/auth.controller';
 import { OrgMembersController } from '@/auth/controllers/org-members.controller';
+import { OrganizationController } from '@/auth/controllers/organization.controller';
 import { OrgMembersService } from '@/auth/services/org-members.service';
+import { OrganizationService } from '@/auth/services/organization.service';
 import { UserUtilsService } from '@/auth/services/user-utils.service';
 import { TokenService } from '@/auth/services/token.service';
 import { UserService } from '@/auth/services/user.service';
@@ -38,6 +40,7 @@ import { AuditLogService } from '@/common/audit/audit-log.service';
     AuthService,
     JwtStrategy,
     OrgMembersService,
+    OrganizationService,
     UserUtilsService,
     TokenService,
     UserService,
@@ -49,6 +52,6 @@ import { AuditLogService } from '@/common/audit/audit-log.service';
     LoggerService,
     AuditLogService,
   ],
-  controllers: [AuthController, OrgMembersController],
+  controllers: [AuthController, OrgMembersController, OrganizationController],
 })
 export class AuthModule {}

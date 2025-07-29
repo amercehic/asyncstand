@@ -22,7 +22,7 @@ import { UpdateMemberDto } from '@/auth/dto/update-member.dto';
 import { CurrentOrg } from '@/auth/decorators/current-org.decorator';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 import { OrgRole } from '@prisma/client';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import {
   SwaggerListMembers,
   SwaggerInviteMember,
@@ -32,6 +32,7 @@ import {
 } from '@/swagger/org-members.swagger';
 
 @ApiTags('Organization Members')
+@ApiBearerAuth('JWT-auth')
 @Controller('org/members')
 export class OrgMembersController {
   constructor(

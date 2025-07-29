@@ -22,9 +22,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         },
       },
     });
+
     if (!member || member.status !== OrgMemberStatus.active) {
       throw new UnauthorizedException('Invalid organization');
     }
-    return { userId: payload.sub, orgId: payload.orgId, role: payload.role };
+
+    const result = { userId: payload.sub, orgId: payload.orgId, role: payload.role };
+    return result;
   }
 }
