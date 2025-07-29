@@ -1,0 +1,292 @@
+name: Backend Tests
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'apps/backend/**'
+      - 'packages/shared/**'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'apps/backend/**'
+      - 'packages/shared/**'
+
+jobs:
+  # Unit tests - fastest feedback
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20.x]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: latest
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run unit tests
+        run: |
+          cd apps/backend
+          pnpm test:unit --coverage --ci
+        env:
+          NODE_ENV: test
+
+      - name: Upload unit test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-test-results
+          path: |
+            apps/backend/test-results/
+            apps/backend/coverage/unit/
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          flags: unit
+          directory: apps/backend/coverage/unit/
+
+  # Integration tests - requires database
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20.x]
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: latest
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup database
+        run: |
+          cd apps/backend
+          pnpm prisma generate
+          pnpm prisma db push
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+
+      - name: Run integration tests
+        run: |
+          cd apps/backend
+          pnpm test:integration --coverage --ci
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+          JWT_SECRET: test_jwt_secret_for_ci
+
+      - name: Upload integration test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-results
+          path: |
+            apps/backend/test-results/
+            apps/backend/coverage/integration/
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          flags: integration
+          directory: apps/backend/coverage/integration/
+
+  # E2E tests - full application testing
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20.x]
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: latest
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup database
+        run: |
+          cd apps/backend
+          pnpm prisma generate
+          pnpm prisma db push
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+
+      - name: Build application
+        run: |
+          cd apps/backend
+          pnpm build
+
+      - name: Run E2E tests
+        run: |
+          cd apps/backend
+          pnpm test:e2e --coverage --ci
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+          JWT_SECRET: test_jwt_secret_for_ci
+
+      - name: Upload E2E test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-test-results
+          path: |
+            apps/backend/test-results/
+            apps/backend/coverage/e2e/
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          flags: e2e
+          directory: apps/backend/coverage/e2e/
+
+  # Test reporting and metrics
+  test-report:
+    name: Test Report
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests, e2e-tests]
+    if: always()
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download test results
+        uses: actions/download-artifact@v4
+        with:
+          path: test-artifacts/
+
+      - name: Merge test results
+        run: |
+          mkdir -p merged-results
+          find test-artifacts -name "*.xml" -exec cp {} merged-results/ \;
+          find test-artifacts -name "test-report.html" -exec cp {} merged-results/ \;
+
+      - name: Publish test results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Backend Test Results
+          path: 'merged-results/*.xml'
+          reporter: jest-junit
+          fail-on-error: false
+
+      - name: Upload merged test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: merged-test-results
+          path: merged-results/
+
+      - name: Comment test results on PR
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request' && always()
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            // Read test metrics if available
+            try {
+              const metricsPath = 'test-artifacts/unit-test-results/metrics.json';
+              if (fs.existsSync(metricsPath)) {
+                const metrics = JSON.parse(fs.readFileSync(metricsPath, 'utf8'));
+                
+                const comment = `## 📊 Test Results
+                
+                **Unit Tests:** ${metrics.totalPassed}/${metrics.totalTests} passed (${metrics.summary.passRate.toFixed(1)}%)
+                **Duration:** ${(metrics.totalDuration/1000).toFixed(2)}s
+                **Coverage:** Available in artifacts
+                
+                ${metrics.summary.slowestTests.length > 0 ? `
+                **Slowest Tests:**
+                ${metrics.summary.slowestTests.slice(0, 3).map(test => 
+                  `- ${test.name}: ${test.duration.toFixed(2)}ms`
+                ).join('\n')}
+                ` : ''}
+                
+                View detailed results in the [test artifacts](${context.payload.pull_request.html_url}/checks).
+                `;
+                
+                github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: comment
+                });
+              }
+            } catch (error) {
+              console.log('Could not read test metrics:', error.message);
+            }

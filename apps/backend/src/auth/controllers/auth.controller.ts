@@ -72,7 +72,8 @@ export class AuthController {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    const { ...response } = loginResponse;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { refreshToken, ...response } = loginResponse;
     return response;
   }
 

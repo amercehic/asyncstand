@@ -22,6 +22,9 @@ lib-cov
 coverage
 *.lcov
 
+# Jest
+test-results/
+
 # nyc test coverage
 .nyc_output
 

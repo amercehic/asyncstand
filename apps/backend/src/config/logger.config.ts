@@ -9,9 +9,10 @@ export interface LoggerConfig {
 
 export const getLoggerConfig = (): LoggerConfig => {
   const isProduction = process.env.NODE_ENV === 'production';
+  const isTest = process.env.NODE_ENV === 'test';
 
   return {
-    level: process.env.LOG_LEVEL || (isProduction ? 'info' : 'debug'),
+    level: process.env.LOG_LEVEL || (isProduction ? 'info' : isTest ? 'error' : 'debug'),
     prettyPrint:
       process.env.LOG_PRETTY === 'true' || (!isProduction && process.env.LOG_PRETTY !== 'false'),
     redact: [
@@ -63,6 +64,18 @@ export const getLoggerConfig = (): LoggerConfig => {
 
 export const createLoggerModule = () => {
   const config = getLoggerConfig();
+  const isTest = process.env.NODE_ENV === 'test';
+  const isSilent = process.env.LOG_LEVEL === 'silent';
+
+  // If LOG_LEVEL is silent, return a minimal logger configuration
+  if (isSilent) {
+    return LoggerModule.forRoot({
+      pinoHttp: {
+        enabled: false,
+        level: 'silent',
+      },
+    });
+  }
 
   return LoggerModule.forRoot({
     pinoHttp: {
@@ -70,6 +83,8 @@ export const createLoggerModule = () => {
       transport: config.prettyPrint ? { target: 'pino-pretty' } : undefined,
       serializers: config.serializers,
       redact: config.redact,
+      // Disable HTTP request/response logging in test environment
+      autoLogging: !isTest,
       // Additional Pino options
       timestamp: () => `,"time":"${new Date().toISOString()}"`,
       formatters: {

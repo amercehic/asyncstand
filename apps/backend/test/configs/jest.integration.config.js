@@ -8,8 +8,9 @@ module.exports = {
   },
   setupFilesAfterEnv: ['<rootDir>/test/setup/jest.setup.ts'],
   moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/src/$1',
     '^@/prisma/prisma\\.service$': '<rootDir>/prisma/prisma.service',
+    '^@/test/(.*)$': '<rootDir>/test/$1',
+    '^@/(.*)$': '<rootDir>/src/$1',
   },
   testTimeout: 30000,
   // Use a separate test database for integration tests

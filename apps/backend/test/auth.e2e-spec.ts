@@ -109,9 +109,17 @@ describe('AuthController (e2e)', () => {
     // Verify basic response structure
     expect(res.body).toHaveProperty('accessToken');
     expect(res.body).toHaveProperty('expiresIn', 900);
-    expect(res.body).toHaveProperty('refreshToken');
     expect(res.body).toHaveProperty('user');
     expect(res.body).toHaveProperty('organizations');
+
+    // Verify refresh token is set as HTTP-only cookie
+    expect(res.headers['set-cookie']).toBeDefined();
+    const setCookieHeader = res.headers['set-cookie'];
+    const cookieArray = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader];
+    const refreshTokenCookie = cookieArray.find((cookie: string) =>
+      cookie.startsWith('refreshToken='),
+    );
+    expect(refreshTokenCookie).toBeDefined();
 
     // Verify user object
     expect(res.body.user).toHaveProperty('id', userId);
@@ -219,7 +227,7 @@ describe('AuthController (e2e)', () => {
   });
 
   it('should logout user successfully', async () => {
-    // Send refreshToken in body (or cookie)
+    // Send refreshToken in body
     const res = await request(app.getHttpServer())
       .post('/auth/logout')
       .send({ refreshToken })
