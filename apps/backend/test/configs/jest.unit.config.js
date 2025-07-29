@@ -7,15 +7,15 @@ module.exports = {
   maxWorkers: '75%', // More aggressive parallelization for unit tests
   workerIdleMemoryLimit: '200MB',
 
-  testMatch: ['<rootDir>/src/**/*.spec.ts'],
+  testMatch: ['<rootDir>/test/unit/**/*.test.ts'],
   transform: {
     '^.+\\.ts$': 'ts-jest',
   },
 
   // Coverage collection
-  collectCoverage: true,
   collectCoverageFrom: [
     'src/**/*.ts',
+    '!src/**/*.test.ts',
     '!src/**/*.spec.ts',
     '!src/**/*.e2e-spec.ts',
     '!src/main.ts',

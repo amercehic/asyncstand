@@ -7,7 +7,7 @@ module.exports = {
   maxWorkers: 1, // Sequential execution to avoid database conflicts
   workerIdleMemoryLimit: '1GB', // Higher memory limit for E2E tests
 
-  testRegex: '.e2e-spec.ts$',
+  testMatch: ['<rootDir>/test/e2e/**/*.test.ts'],
 
   transform: {
     '^.+\\.ts$': 'ts-jest',
@@ -30,11 +30,11 @@ module.exports = {
   testTimeout: 60000,
 
   // Coverage collection
-  collectCoverage: true,
   coverageDirectory: 'coverage/e2e',
   coverageReporters: ['text', 'lcov', 'html'],
   collectCoverageFrom: [
     'src/**/*.ts',
+    '!src/**/*.test.ts',
     '!src/**/*.spec.ts',
     '!src/**/*.e2e-spec.ts',
     '!src/main.ts',
@@ -49,7 +49,5 @@ module.exports = {
   clearMocks: true,
 
   // Debugging options
-  verbose: true, // More verbose output for E2E tests
   detectOpenHandles: true, // Detect async operations that prevent Jest from exiting
-  forceExit: true, // Force exit after tests complete
 };

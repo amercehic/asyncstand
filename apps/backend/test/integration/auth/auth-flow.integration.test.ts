@@ -1,0 +1,200 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { AuthService } from '@/auth/services/auth.service';
+import { UserService } from '@/auth/services/user.service';
+import { TokenService } from '@/auth/services/token.service';
+import { UserUtilsService } from '@/auth/services/user-utils.service';
+import { PrismaService } from '@/prisma/prisma.service';
+import { AuditLogService } from '@/common/audit/audit-log.service';
+import { LoggerService } from '@/common/logger.service';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import { Request } from 'express';
+import * as argon2 from '@node-rs/argon2';
+
+describe('Auth Integration', () => {
+  let authService: AuthService;
+  let prisma: PrismaService;
+  let module: TestingModule;
+
+  beforeAll(async () => {
+    module = await Test.createTestingModule({
+      providers: [
+        AuthService,
+        UserService,
+        TokenService,
+        UserUtilsService,
+        PrismaService,
+        {
+          provide: LoggerService,
+          useValue: {
+            setContext: jest.fn(),
+            log: jest.fn(),
+            error: jest.fn(),
+            warn: jest.fn(),
+          },
+        },
+        {
+          provide: JwtService,
+          useValue: {
+            sign: jest.fn().mockReturnValue('mock-jwt-token'),
+            verify: jest.fn().mockReturnValue({ sub: 'user-id', orgId: 'org-id' }),
+          },
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn((key: string) => {
+              const config = {
+                JWT_SECRET: 'test-secret',
+                JWT_EXPIRES_IN: '1h',
+                JWT_REFRESH_EXPIRES_IN: '7d',
+              };
+              return config[key];
+            }),
+          },
+        },
+        // Mock AuditLogService to avoid complex dependencies
+        {
+          provide: AuditLogService,
+          useValue: {
+            log: jest.fn().mockResolvedValue(undefined),
+            logWithTransaction: jest.fn().mockResolvedValue(undefined),
+          },
+        },
+      ],
+    }).compile();
+
+    authService = module.get<AuthService>(AuthService);
+    prisma = module.get<PrismaService>(PrismaService);
+  });
+
+  afterAll(async () => {
+    await module.close();
+  });
+
+  afterEach(async () => {
+    // Clean up test data
+    await prisma.user.deleteMany({
+      where: {
+        email: {
+          contains: 'test',
+        },
+      },
+    });
+  });
+
+  describe('User Registration and Login Flow', () => {
+    it('should register a new user and allow login', async () => {
+      const signupData = {
+        email: 'integration-test@example.com',
+        password: 'Password123!',
+        firstName: 'Test',
+        lastName: 'User',
+      };
+
+      // Register user
+      const registeredUser = await authService.signup(
+        signupData.email,
+        signupData.password,
+        `${signupData.firstName} ${signupData.lastName}`,
+      );
+      expect(registeredUser).toBeDefined();
+      expect(registeredUser.email).toBe(signupData.email);
+      expect(registeredUser.name).toBe(`${signupData.firstName} ${signupData.lastName}`);
+
+      // Verify user exists in database
+      const dbUser = await prisma.user.findUnique({
+        where: { email: signupData.email },
+      });
+      expect(dbUser).toBeDefined();
+      expect(dbUser.email).toBe(signupData.email);
+
+      // Login with the registered user (need request object for IP)
+      const mockRequest = { ip: '127.0.0.1' } as Request;
+      const loginResult = await authService.login(
+        signupData.email,
+        signupData.password,
+        mockRequest,
+      );
+
+      expect(loginResult).toBeDefined();
+      expect(loginResult.accessToken).toBeDefined();
+      expect(loginResult.refreshToken).toBeDefined();
+      expect(loginResult.user.email).toBe(signupData.email);
+    });
+
+    it('should hash password correctly during registration', async () => {
+      const signupData = {
+        email: 'hash-test@example.com',
+        password: 'TestPassword123!',
+        firstName: 'Hash',
+        lastName: 'Test',
+      };
+
+      await authService.signup(
+        signupData.email,
+        signupData.password,
+        `${signupData.firstName} ${signupData.lastName}`,
+      );
+
+      // Get user from database and verify password is hashed
+      const dbUser = await prisma.user.findUnique({
+        where: { email: signupData.email },
+      });
+
+      expect(dbUser).toBeDefined();
+      expect(dbUser.passwordHash).toBeDefined();
+      expect(dbUser.passwordHash).not.toBe(signupData.password);
+
+      // Verify password can be verified
+      const isValidPassword = await argon2.verify(dbUser.passwordHash, signupData.password);
+      expect(isValidPassword).toBe(true);
+    });
+
+    it('should prevent duplicate email registration', async () => {
+      const signupData = {
+        email: 'duplicate-test@example.com',
+        password: 'Password123!',
+        firstName: 'Test',
+        lastName: 'User',
+      };
+
+      // Register user first time
+      await authService.signup(
+        signupData.email,
+        signupData.password,
+        `${signupData.firstName} ${signupData.lastName}`,
+      );
+
+      // Try to register with same email
+      await expect(
+        authService.signup(
+          signupData.email,
+          signupData.password,
+          `${signupData.firstName} ${signupData.lastName}`,
+        ),
+      ).rejects.toThrow();
+    });
+
+    it('should fail login with incorrect password', async () => {
+      const signupData = {
+        email: 'login-fail-test@example.com',
+        password: 'CorrectPassword123!',
+        firstName: 'Test',
+        lastName: 'User',
+      };
+
+      await authService.signup(
+        signupData.email,
+        signupData.password,
+        `${signupData.firstName} ${signupData.lastName}`,
+      );
+
+      // Try to login with wrong password
+      const mockRequest = { ip: '127.0.0.1' } as Request;
+      await expect(
+        authService.login(signupData.email, 'WrongPassword123!', mockRequest),
+      ).rejects.toThrow();
+    });
+  });
+});
