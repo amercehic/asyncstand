@@ -6,25 +6,35 @@ on:
   pull_request:
     branches: [main, develop]
 
+env:
+  NODE_VERSION: '20.x'
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
 jobs:
+  # Quality checks - fast feedback
   quality-checks:
+    name: Code Quality
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20.x
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20.x
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
       - name: Get pnpm store directory
         shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
 
       - name: Setup pnpm cache
         uses: actions/cache@v4
@@ -43,38 +53,32 @@ jobs:
       - name: Lint code
         run: pnpm lint
 
+      - name: Type check
+        run: pnpm build --dry-run
+
+  # Build once, use everywhere
   build:
+    name: Build
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_USER: postgres
-          POSTGRES_DB: asyncstand_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
+    needs: [quality-checks]
+    timeout-minutes: 5
+    outputs:
+      cache-key: ${{ steps.cache-key.outputs.key }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20.x
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20.x
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
       - name: Get pnpm store directory
         shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
 
       - name: Setup pnpm cache
         uses: actions/cache@v4
@@ -87,52 +91,52 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Setup environment
-        run: pnpm env:setup
-
-      - name: Generate Prisma client
-        run: |
-          cd apps/backend
-          npx prisma generate
-        env:
-          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/asyncstand_test'
-
-      - name: Build project
+      - name: Build packages
         run: pnpm build
 
-  test:
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_USER: postgres
-          POSTGRES_DB: asyncstand_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
+      - name: Generate build cache key
+        id: cache-key
+        run: echo "key=build-${{ runner.os }}-${{ github.sha }}-${{ hashFiles('**/pnpm-lock.yaml') }}" >> $GITHUB_OUTPUT
 
+      - name: Cache build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            apps/*/dist
+            packages/*/dist
+            node_modules/.turbo
+          key: ${{ steps.cache-key.outputs.key }}
+
+  # Unit tests - fast, no external dependencies
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: [build]
+    timeout-minutes: 8
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20.x
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20.x
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
+      - name: Restore build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            apps/*/dist
+            packages/*/dist
+            node_modules/.turbo
+          key: ${{ needs.build.outputs.cache-key }}
+
       - name: Get pnpm store directory
         shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
 
       - name: Setup pnpm cache
         uses: actions/cache@v4
@@ -145,36 +149,283 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Setup environment
-        run: pnpm env:setup
+      - name: Run unit tests
+        run: pnpm --filter=backend test:unit:ci
+        env:
+          NODE_ENV: test
+          CI: true
 
-      - name: Build shared package
-        run: pnpm --filter shared build
+      - name: Upload unit test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-test-results
+          path: |
+            apps/backend/test-results/
+            apps/backend/coverage/
+            apps/backend/junit.xml
+          retention-days: 7
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          flags: unit
+          directory: apps/backend/coverage/
+          fail_ci_if_error: false
+
+  # Integration tests - service-level testing with database
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [build]
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Restore build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            apps/*/dist
+            packages/*/dist
+            node_modules/.turbo
+          key: ${{ needs.build.outputs.cache-key }}
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Setup database
+        working-directory: apps/backend
         run: |
-          cd apps/backend
-          npx prisma generate
-          npx prisma migrate deploy
+          pnpm prisma generate
+          pnpm prisma db push
         env:
-          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/asyncstand_test'
-          NODE_ENV: 'test'
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
 
-      - name: Verify database connection
-        run: |
-          cd apps/backend
-          npx prisma db execute --url "postgresql://postgres:postgres@localhost:5432/asyncstand_test" --stdin <<< "SELECT 1;"
+      - name: Run integration tests
+        run: pnpm --filter=backend test:integration:ci
         env:
-          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/asyncstand_test'
-          NODE_ENV: 'test'
+          NODE_ENV: test
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          JWT_SECRET: test_jwt_secret_for_ci
+          CI: true
 
-      - name: Run e2e tests
-        run: |
-          echo "DATABASE_URL: $DATABASE_URL"
-          echo "NODE_ENV: $NODE_ENV"
-          cd apps/backend
-          pnpm test:e2e:backend
+      - name: Upload integration test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-results
+          path: |
+            apps/backend/test-results/
+            apps/backend/coverage/
+            apps/backend/junit.xml
+          retention-days: 7
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          flags: integration
+          directory: apps/backend/coverage/
+          fail_ci_if_error: false
+
+  # E2E tests - full application testing
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: [build]
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:15
         env:
-          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/asyncstand_test'
-          JWT_SECRET: 'test-secret-key-for-ci'
-          NODE_ENV: 'test'
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Restore build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            apps/*/dist
+            packages/*/dist
+            node_modules/.turbo
+          key: ${{ needs.build.outputs.cache-key }}
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup database
+        working-directory: apps/backend
+        run: |
+          pnpm prisma generate
+          pnpm prisma db push
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+
+      - name: Run E2E tests
+        run: pnpm --filter=backend test:e2e:ci
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          JWT_SECRET: test_jwt_secret_for_ci
+          CI: true
+
+      - name: Upload E2E test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-test-results
+          path: |
+            apps/backend/test-results/
+            apps/backend/coverage/
+            apps/backend/junit.xml
+          retention-days: 7
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          flags: e2e
+          directory: apps/backend/coverage/
+          fail_ci_if_error: false
+
+  # Test summary - collect all results
+  test-summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests, e2e-tests]
+    if: always()
+    timeout-minutes: 3
+    steps:
+      - name: Download all test artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: test-artifacts/
+
+      - name: Create test summary
+        run: |
+          echo "# 🧪 Test Results Summary" > test-summary.md
+          echo "" >> test-summary.md
+
+          # Check results
+          echo "| Test Type | Status | Result |" >> test-summary.md
+          echo "|-----------|--------|--------|" >> test-summary.md
+          echo "| Unit Tests | ${{ needs.unit-tests.result == 'success' && '✅' || '❌' }} | ${{ needs.unit-tests.result }} |" >> test-summary.md
+          echo "| Integration Tests | ${{ needs.integration-tests.result == 'success' && '✅' || '❌' }} | ${{ needs.integration-tests.result }} |" >> test-summary.md
+          echo "| E2E Tests | ${{ needs.e2e-tests.result == 'success' && '✅' || '❌' }} | ${{ needs.e2e-tests.result }} |" >> test-summary.md
+          echo "" >> test-summary.md
+
+          # List artifacts
+          echo "## 📁 Available Artifacts" >> test-summary.md
+          find test-artifacts -name "*.xml" -o -name "test-report.html" | sort >> test-summary.md
+
+          cat test-summary.md
+
+      - name: Upload test summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-summary
+          path: test-summary.md
+          retention-days: 7
+
+      - name: Comment test results on PR
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request' && always()
+        with:
+          script: |
+            const fs = require('fs');
+
+            if (fs.existsSync('test-summary.md')) {
+              const summary = fs.readFileSync('test-summary.md', 'utf8');
+              
+              // Find existing comment and update or create new one
+              const { data: comments } = await github.rest.issues.listComments({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+              });
+              
+              const existingComment = comments.find(comment => 
+                comment.body.includes('🧪 Test Results Summary')
+              );
+              
+              if (existingComment) {
+                await github.rest.issues.updateComment({
+                  comment_id: existingComment.id,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: summary
+                });
+              } else {
+                await github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: summary
+                });
+              }
+            }

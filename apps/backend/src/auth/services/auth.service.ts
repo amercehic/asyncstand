@@ -6,9 +6,12 @@ import { JwtService } from '@nestjs/jwt';
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
 import { LoggerService } from '@/common/logger.service';
-import { AuditLogService } from '@/common/audit-log.service';
+import { AuditLogService } from '@/common/audit/audit-log.service';
+import { AuditActorType, AuditCategory, AuditSeverity } from '@/common/audit/types';
 import { UserUtilsService } from '@/auth/services/user-utils.service';
-import { OrgRole } from '@prisma/client';
+import { TokenService } from '@/auth/services/token.service';
+import { UserService } from '@/auth/services/user.service';
+import { OrgRole, OrgMemberStatus } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -18,13 +21,13 @@ export class AuthService {
     private readonly logger: LoggerService,
     private readonly auditLogService: AuditLogService,
     private readonly userUtilsService: UserUtilsService,
+    private readonly tokenService: TokenService,
+    private readonly userService: UserService,
   ) {
     this.logger.setContext(AuthService.name);
   }
 
   async signup(email: string, password: string, name?: string, orgId?: string) {
-    const passwordHash = await this.userUtilsService.hashPassword(password);
-
     // Check if user already exists
     const existingUser = await this.prisma.user.findUnique({ where: { email } });
     if (existingUser) {
@@ -37,86 +40,12 @@ export class AuthService {
 
     // Scenario 1: Self-service signup (create new organization)
     if (!orgId) {
-      // Create organization and user in a transaction
-      const result = await this.prisma.$transaction(async (tx) => {
-        // Create new organization
-        const org = await tx.organization.create({
-          data: {
-            name: `${name || email}'s Organization`,
-          },
-        });
-
-        // Create user
-        const user = await tx.user.create({
-          data: {
-            email,
-            passwordHash,
-            name,
-          },
-        });
-
-        // Create OrgMember record as owner
-        await tx.orgMember.create({
-          data: {
-            orgId: org.id,
-            userId: user.id,
-            role: OrgRole.OWNER,
-            status: 'active',
-          },
-        });
-
-        // Emit audit log for self-service signup
-        await this.auditLogService.logWithTransaction(
-          {
-            action: 'user.signup.self_service',
-            actorUserId: user.id,
-            orgId: org.id,
-            payload: {
-              email: user.email,
-              name: user.name,
-              orgName: org.name,
-            },
-          },
-          tx,
-        );
-
-        return { user, org };
-      });
-
+      const result = await this.userService.createUserWithNewOrganization(email, password, name);
       return result.user;
     }
 
     // Scenario 2: User joining specific organization (if orgId provided)
-    const user = await this.prisma.user.create({
-      data: {
-        email,
-        passwordHash,
-        name,
-      },
-    });
-
-    // Create OrgMember record
-    await this.prisma.orgMember.create({
-      data: {
-        orgId,
-        userId: user.id,
-        role: OrgRole.MEMBER,
-        status: 'active',
-      },
-    });
-
-    // Emit audit log for direct org join
-    await this.auditLogService.log({
-      action: 'user.signup.direct_join',
-      actorUserId: user.id,
-      orgId,
-      payload: {
-        email: user.email,
-        name: user.name,
-      },
-    });
-
-    return user;
+    return await this.userService.addUserToOrganization(email, password, name, orgId);
   }
 
   async login(email: string, password: string, req: Request) {
@@ -124,7 +53,7 @@ export class AuthService {
       where: { email },
       include: {
         orgMembers: {
-          where: { status: 'active' },
+          where: { status: OrgMemberStatus.active },
           include: { org: true },
           orderBy: { org: { name: 'asc' } }, // Order by organization name
         },
@@ -146,13 +75,13 @@ export class AuthService {
       );
     }
 
-    // Find primary organization (where user is OWNER)
-    const primaryOrgMember = user.orgMembers.find((member) => member.role === 'OWNER');
+    // Find primary organization (where user is owner)
+    const primaryOrgMember = user.orgMembers.find((member) => member.role === OrgRole.owner);
     const primaryOrg = primaryOrgMember?.org || user.orgMembers[0]?.org;
     const userRole = primaryOrgMember?.role || user.orgMembers[0]?.role;
 
-    // Sort organizations by role priority (OWNER first, then ADMIN, then MEMBER)
-    const rolePriority = { OWNER: 3, ADMIN: 2, MEMBER: 1, SUSPENDED: 0 };
+    // Sort organizations by role priority (owner first, then admin, then member)
+    const rolePriority = { owner: 3, admin: 2, member: 1 };
     const sortedOrgMembers = user.orgMembers.sort((a, b) => {
       const priorityDiff = rolePriority[b.role] - rolePriority[a.role];
       if (priorityDiff !== 0) return priorityDiff;
@@ -160,37 +89,27 @@ export class AuthService {
       return a.org.name.localeCompare(b.org.name);
     });
 
-    // Generate access token (JWT) with 15 minutes expiry
-    const payload = { sub: user.id, orgId: primaryOrg.id };
-    const accessToken = this.jwt.sign(payload, { expiresIn: '15m' });
-
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
 
-    // Generate refresh token with 7 days expiry and unique identifier
-    const refreshTokenValue = this.jwt.sign(
-      { sub: user.id, jti: `${user.id}-${Date.now()}-${Math.random()}` },
-      { expiresIn: '7d' },
-    );
-
-    const refreshToken = await this.prisma.refreshToken.create({
-      data: {
-        token: refreshTokenValue,
-        user: { connect: { id: user.id } },
-        ipAddress: ip,
-        fingerprint: '1234567890',
-      },
-    });
+    // Generate tokens using TokenService
+    const tokens = await this.tokenService.generateTokens(user.id, primaryOrg.id, ip);
 
     // Emit audit log for login
     await this.prisma.auditLog.create({
       data: {
         orgId: primaryOrg.id,
         actorUserId: user.id,
+        actorType: AuditActorType.USER,
         action: 'user.login',
-        payload: {
-          userId: user.id,
-          email: user.email,
+        category: AuditCategory.AUTH,
+        severity: AuditSeverity.MEDIUM,
+        requestData: {
+          method: 'POST',
+          path: '/auth/login',
           ipAddress: ip,
+          body: {
+            email: user.email,
+          },
         },
       },
     });
@@ -204,9 +123,9 @@ export class AuthService {
     }));
 
     return {
-      accessToken,
-      expiresIn: 900, // 15 minutes in seconds
-      refreshToken: refreshToken.token, // Needed by controller to set cookie
+      accessToken: tokens.accessToken,
+      expiresIn: tokens.expiresIn,
+      refreshToken: tokens.refreshToken,
       user: {
         id: user.id,
         email: user.email,
@@ -225,7 +144,7 @@ export class AuthService {
         user: {
           include: {
             orgMembers: {
-              where: { status: 'active' },
+              where: { status: OrgMemberStatus.active },
               include: { org: true },
               take: 1,
             },
@@ -242,11 +161,8 @@ export class AuthService {
       );
     }
 
-    // Revoke the refresh token
-    await this.prisma.refreshToken.updateMany({
-      where: { token },
-      data: { revokedAt: new Date() },
-    });
+    // Revoke the refresh token using TokenService
+    await this.tokenService.revokeRefreshToken(token);
 
     // Emit audit log for logout - only if we have an orgId
     const primaryOrg = refreshToken.user?.orgMembers[0]?.org;
@@ -255,15 +171,153 @@ export class AuthService {
         data: {
           orgId: primaryOrg.id,
           actorUserId: refreshToken.userId,
+          actorType: AuditActorType.USER,
           action: 'user.logout',
-          payload: {
+          category: AuditCategory.AUTH,
+          severity: AuditSeverity.LOW,
+          requestData: {
+            method: 'POST',
+            path: '/auth/logout',
             ipAddress: ip,
-            refreshTokenId: refreshToken.id,
+            body: {
+              refreshTokenId: refreshToken.id,
+            },
           },
         },
       });
     }
 
     return { success: true };
+  }
+
+  async acceptInvite(
+    inviteToken: string,
+    name?: string,
+    password?: string,
+    ipAddress: string = 'unknown',
+  ) {
+    // Hash the invite token to find the invitation
+    const inviteTokenHash = await this.hashToken(inviteToken);
+
+    // Find the invitation
+    const orgMember = await this.prisma.orgMember.findUnique({
+      where: { inviteToken: inviteTokenHash },
+      include: { org: true, user: true },
+    });
+
+    if (!orgMember) {
+      throw new ApiError(ErrorCode.FORBIDDEN, 'Invalid invitation token', HttpStatus.BAD_REQUEST);
+    }
+
+    if (orgMember.status !== OrgMemberStatus.invited) {
+      throw new ApiError(
+        ErrorCode.FORBIDDEN,
+        'Invitation has already been accepted or is no longer valid',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    // Check if token is expired (7 days)
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    if (orgMember.invitedAt && orgMember.invitedAt < sevenDaysAgo) {
+      throw new ApiError(
+        ErrorCode.FORBIDDEN,
+        'Invitation token has expired',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const userId = orgMember.userId;
+    let userName = orgMember.user.name;
+
+    // Check if this is a new user (has temp_hash password) or existing user
+    const isNewUser = orgMember.user.passwordHash === 'temp_hash';
+
+    if (isNewUser) {
+      // New user - password is required
+      if (!password) {
+        throw new ApiError(
+          ErrorCode.VALIDATION_FAILED,
+          'Password is required for new users',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      // Update user with real password and name
+      const passwordHash = await this.userUtilsService.hashPassword(password);
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          passwordHash,
+          name: name || orgMember.user.name,
+        },
+      });
+
+      userName = name || orgMember.user.name;
+    } else {
+      // Existing user - password not needed, but can update name if provided
+      if (name) {
+        await this.prisma.user.update({
+          where: { id: userId },
+          data: { name },
+        });
+        userName = name;
+      }
+    }
+
+    // Activate the membership
+    await this.prisma.orgMember.update({
+      where: { inviteToken: inviteTokenHash },
+      data: {
+        status: OrgMemberStatus.active,
+        acceptedAt: new Date(),
+        inviteToken: null, // Clear the token
+      },
+    });
+
+    // Generate tokens
+    const tokens = await this.tokenService.generateTokens(userId, orgMember.orgId, ipAddress);
+
+    // Log audit event
+    await this.auditLogService.log({
+      action: isNewUser ? 'user.invite.accepted.new' : 'user.invite.accepted.existing',
+      actorUserId: userId,
+      orgId: orgMember.orgId,
+      actorType: AuditActorType.USER,
+      category: AuditCategory.AUTH,
+      severity: AuditSeverity.MEDIUM,
+      requestData: {
+        method: 'POST',
+        path: '/org/members/accept',
+        ipAddress,
+        body: {
+          userId,
+          role: orgMember.role,
+          name: userName,
+          isNewUser,
+        },
+      },
+    });
+
+    return {
+      accessToken: tokens.accessToken,
+      expiresIn: tokens.expiresIn,
+      refreshToken: tokens.refreshToken,
+      user: {
+        id: userId,
+        email: orgMember.user.email,
+        name: userName,
+        role: orgMember.role,
+      },
+      organization: {
+        id: orgMember.org.id,
+        name: orgMember.org.name,
+      },
+    };
+  }
+
+  private async hashToken(token: string): Promise<string> {
+    const crypto = await import('crypto');
+    return crypto.createHash('sha256').update(token).digest('hex');
   }
 }

@@ -22,6 +22,9 @@ lib-cov
 coverage
 *.lcov
 
+# Jest
+test-results/
+
 # nyc test coverage
 .nyc_output
 
@@ -143,3 +146,4 @@ vite.config.ts.timestamp-*
 
 # pnpm
 pnpm-lock.yaml
+apps/backend/junit.xml

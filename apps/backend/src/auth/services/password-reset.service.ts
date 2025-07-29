@@ -6,7 +6,9 @@ import { ErrorCode } from 'shared';
 import { randomBytes } from 'crypto';
 import nodemailer from 'nodemailer';
 import { LoggerService } from '@/common/logger.service';
-import { AuditLogService } from '@/common/audit-log.service';
+import { AuditLogService } from '@/common/audit/audit-log.service';
+import { AuditActorType, AuditCategory, AuditSeverity } from '@/common/audit/types';
+import { OrgMemberStatus } from '@prisma/client';
 
 @Injectable()
 export class PasswordResetService implements OnModuleDestroy {
@@ -84,7 +86,7 @@ export class PasswordResetService implements OnModuleDestroy {
         email: true,
         name: true,
         orgMembers: {
-          where: { status: 'active' },
+          where: { status: OrgMemberStatus.active },
           select: {
             org: {
               select: { id: true, name: true },
@@ -122,17 +124,25 @@ export class PasswordResetService implements OnModuleDestroy {
     });
 
     // Create audit log (synchronous - important for security)
-    await this.auditLogService.log({
-      action: 'password.reset.requested',
-      actorUserId: user.id,
-      orgId: primaryOrg?.id,
-      payload: {
-        userId: user.id,
-        email: user.email,
-        ipAddress,
-        tokenExpiresAt: expiresAt,
-      },
-    });
+    if (primaryOrg?.id) {
+      await this.auditLogService.log({
+        orgId: primaryOrg.id,
+        actorUserId: user.id,
+        actorType: AuditActorType.USER,
+        action: 'password.reset.requested',
+        category: AuditCategory.AUTH,
+        severity: AuditSeverity.MEDIUM,
+        requestData: {
+          method: 'POST',
+          path: '/auth/forgot-password',
+          ipAddress,
+          body: {
+            email: user.email,
+            tokenExpiresAt: expiresAt,
+          },
+        },
+      });
+    }
 
     // Send password reset email (non-blocking)
     this.sendPasswordResetEmail(user.email, token, user.name).catch((error) => {
@@ -159,7 +169,7 @@ export class PasswordResetService implements OnModuleDestroy {
         user: {
           include: {
             orgMembers: {
-              where: { status: 'active' },
+              where: { status: OrgMemberStatus.active },
               include: { org: true },
               take: 1,
             },
@@ -226,12 +236,18 @@ export class PasswordResetService implements OnModuleDestroy {
           data: {
             orgId: primaryOrg.id,
             actorUserId: resetToken.user.id,
+            actorType: AuditActorType.USER,
             action: 'password.reset.completed',
-            payload: {
-              userId: resetToken.user.id,
-              email: resetToken.user.email,
+            category: AuditCategory.AUTH,
+            severity: AuditSeverity.HIGH,
+            requestData: {
+              method: 'POST',
+              path: '/auth/reset-password',
               ipAddress,
-              resetAt: new Date(),
+              body: {
+                email: resetToken.user.email,
+                resetAt: new Date(),
+              },
             },
           },
         });

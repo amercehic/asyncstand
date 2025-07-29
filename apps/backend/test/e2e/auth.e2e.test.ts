@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '@/app.module';
+import { OrgMemberStatus } from '@prisma/client';
 
 import { PrismaService } from '@/prisma/prisma.service';
 
@@ -108,9 +109,17 @@ describe('AuthController (e2e)', () => {
     // Verify basic response structure
     expect(res.body).toHaveProperty('accessToken');
     expect(res.body).toHaveProperty('expiresIn', 900);
-    expect(res.body).toHaveProperty('refreshToken');
     expect(res.body).toHaveProperty('user');
     expect(res.body).toHaveProperty('organizations');
+
+    // Verify refresh token is set as HTTP-only cookie
+    expect(res.headers['set-cookie']).toBeDefined();
+    const setCookieHeader = res.headers['set-cookie'];
+    const cookieArray = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader];
+    const refreshTokenCookie = cookieArray.find((cookie: string) =>
+      cookie.startsWith('refreshToken='),
+    );
+    expect(refreshTokenCookie).toBeDefined();
 
     // Verify user object
     expect(res.body.user).toHaveProperty('id', userId);
@@ -181,8 +190,8 @@ describe('AuthController (e2e)', () => {
       data: {
         orgId: secondOrg.id,
         userId: testUserId,
-        role: 'MEMBER',
-        status: 'active',
+        role: 'member',
+        status: OrgMemberStatus.active,
       },
     });
 
@@ -199,7 +208,7 @@ describe('AuthController (e2e)', () => {
     // Find the primary organization (should be the one where user is OWNER)
     const primaryOrg = res.body.organizations.find((org: OrganizationResponse) => org.isPrimary);
     expect(primaryOrg).toBeDefined();
-    expect(primaryOrg.role).toBe('OWNER');
+    expect(primaryOrg.role).toBe('owner');
 
     // Verify the primary organization exists and has correct role
     expect(primaryOrg).toBeDefined();
@@ -218,7 +227,7 @@ describe('AuthController (e2e)', () => {
   });
 
   it('should logout user successfully', async () => {
-    // Send refreshToken in body (or cookie)
+    // Send refreshToken in body
     const res = await request(app.getHttpServer())
       .post('/auth/logout')
       .send({ refreshToken })
@@ -341,9 +350,14 @@ describe('AuthController (e2e)', () => {
     });
 
     it('should verify audit logs were created for password reset actions', async () => {
+      // Debug: Log all audit logs for this user
+      const allUserLogs = await prisma.auditLog.findMany({
+        where: { actorUserId: passwordResetUserId },
+      });
+      console.log('All audit logs for user:', allUserLogs);
+
       const auditLogs = await prisma.auditLog.findMany({
         where: {
-          orgId,
           actorUserId: passwordResetUserId,
           action: { in: ['password.reset.requested', 'password.reset.completed'] },
         },
@@ -355,17 +369,25 @@ describe('AuthController (e2e)', () => {
       // Check for password reset request log
       const requestLog = auditLogs.find((log) => log.action === 'password.reset.requested');
       expect(requestLog).toBeDefined();
-      expect(requestLog.payload).toHaveProperty('userId', passwordResetUserId);
-      expect(requestLog.payload).toHaveProperty('email', passwordResetUser.email);
-      expect(requestLog.payload).toHaveProperty('ipAddress');
+      const requestLogData = requestLog.requestData as unknown as {
+        body: { email: string };
+        ipAddress: string;
+      };
+      expect(requestLogData.body).toHaveProperty('email', passwordResetUser.email);
+      expect(requestLogData).toHaveProperty('ipAddress');
+      expect(requestLog).toHaveProperty('actorUserId', passwordResetUserId);
 
       // Check for password reset completion log
       const completionLog = auditLogs.find((log) => log.action === 'password.reset.completed');
       expect(completionLog).toBeDefined();
-      expect(completionLog.payload).toHaveProperty('userId', passwordResetUserId);
-      expect(completionLog.payload).toHaveProperty('email', passwordResetUser.email);
-      expect(completionLog.payload).toHaveProperty('ipAddress');
-      expect(completionLog.payload).toHaveProperty('resetAt');
+      const completionLogData = completionLog.requestData as unknown as {
+        body: { email: string; resetAt: Date };
+        ipAddress: string;
+      };
+      expect(completionLogData.body).toHaveProperty('email', passwordResetUser.email);
+      expect(completionLogData).toHaveProperty('ipAddress');
+      expect(completionLog).toHaveProperty('actorUserId', passwordResetUserId);
+      expect(completionLogData.body).toHaveProperty('resetAt');
     });
   });
 });

@@ -8,7 +8,7 @@
   },
   "transformIgnorePatterns": ["node_modules/(?!.*\\.mjs$)", "../../packages/shared/dist"],
   "moduleNameMapper": {
-    "^@/prisma/(.*)$": "<rootDir>/prisma/$1",
+    "^@/prisma/prisma\\.service$": "<rootDir>/prisma/prisma.service",
     "^@/(.*)$": "<rootDir>/src/$1"
   }
 }

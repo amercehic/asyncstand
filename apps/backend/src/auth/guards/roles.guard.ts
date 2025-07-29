@@ -1,7 +1,7 @@
 import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PrismaService } from '@/prisma/prisma.service';
-import { OrgRole } from '@prisma/client';
+import { OrgRole, OrgMemberStatus } from '@prisma/client';
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
 
@@ -48,7 +48,7 @@ export class RolesGuard implements CanActivate {
       },
     });
 
-    if (!orgMember || orgMember.status !== 'active') {
+    if (!orgMember || orgMember.status !== OrgMemberStatus.active) {
       throw new ApiError(
         ErrorCode.FORBIDDEN,
         'User is suspended or not a member of this organization',

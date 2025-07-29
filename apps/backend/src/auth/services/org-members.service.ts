@@ -4,13 +4,14 @@ import { JwtService } from '@nestjs/jwt';
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
 import { LoggerService } from '@/common/logger.service';
-import { AuditLogService } from '@/common/audit-log.service';
+import { AuditLogService } from '@/common/audit/audit-log.service';
+import { AuditActorType, AuditCategory, AuditSeverity } from '@/common/audit/types';
 import { InviteMemberDto } from '@/auth/dto/invite-member.dto';
-import { AcceptInviteDto } from '@/auth/dto/accept-invite.dto';
 import { UpdateMemberDto } from '@/auth/dto/update-member.dto';
-import { OrgRole } from '@prisma/client';
+import { OrgRole, OrgMemberStatus } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { UserUtilsService } from '@/auth/services/user-utils.service';
+import { UserService } from '@/auth/services/user.service';
 
 @Injectable()
 export class OrgMembersService {
@@ -20,6 +21,7 @@ export class OrgMembersService {
     private readonly logger: LoggerService,
     private readonly auditLogService: AuditLogService,
     private readonly userUtilsService: UserUtilsService,
+    private readonly userService: UserService,
   ) {
     this.logger.setContext(OrgMembersService.name);
   }
@@ -62,7 +64,7 @@ export class OrgMembersService {
       },
     });
 
-    if (!actorMember || actorMember.status !== 'active') {
+    if (!actorMember || actorMember.status !== OrgMemberStatus.active) {
       throw new ApiError(
         ErrorCode.FORBIDDEN,
         'You are not a member of this organization',
@@ -70,7 +72,7 @@ export class OrgMembersService {
       );
     }
 
-    if (actorMember.role !== OrgRole.OWNER && actorMember.role !== OrgRole.ADMIN) {
+    if (actorMember.role !== OrgRole.owner && actorMember.role !== OrgRole.admin) {
       throw new ApiError(
         ErrorCode.FORBIDDEN,
         'Only owners and admins can invite members',
@@ -90,7 +92,7 @@ export class OrgMembersService {
 
     if (existingUser?.orgMembers.length > 0) {
       const existingMember = existingUser.orgMembers[0];
-      if (existingMember.status === 'active') {
+      if (existingMember.status === OrgMemberStatus.active) {
         throw new ApiError(
           ErrorCode.CONFLICT,
           'User is already an active member of this organization',
@@ -105,6 +107,7 @@ export class OrgMembersService {
 
     // Create or update OrgMember record
     if (existingUser) {
+      // Existing user - create/update invitation
       await this.prisma.orgMember.upsert({
         where: {
           orgId_userId: {
@@ -114,7 +117,7 @@ export class OrgMembersService {
         },
         update: {
           role: dto.role,
-          status: 'invited',
+          status: OrgMemberStatus.invited,
           inviteToken: inviteTokenHash,
           invitedAt: new Date(),
         },
@@ -122,31 +125,21 @@ export class OrgMembersService {
           orgId,
           userId: existingUser.id,
           role: dto.role,
-          status: 'invited',
+          status: OrgMemberStatus.invited,
           inviteToken: inviteTokenHash,
           invitedAt: new Date(),
         },
       });
     } else {
-      // For non-existent users, we need to create the user first
-      // This is a simplified approach for testing - in production, you'd handle this differently
-      const newUser = await this.prisma.user.create({
-        data: {
-          email: dto.email,
-          passwordHash: 'temp_hash', // Will be updated when user accepts
-          name: dto.email.split('@')[0], // Use email prefix as name
-        },
-      });
-
-      await this.prisma.orgMember.create({
-        data: {
-          orgId,
-          userId: newUser.id,
-          role: dto.role,
-          status: 'invited',
-          inviteToken: inviteTokenHash,
-          invitedAt: new Date(),
-        },
+      // New user - create placeholder user that will be completed on invite acceptance
+      await this.userService.createUserWithOrganization({
+        email: dto.email,
+        isTemporary: true,
+        orgId,
+        role: dto.role,
+        status: OrgMemberStatus.invited,
+        inviteToken: inviteTokenHash,
+        invitedAt: new Date(),
       });
     }
 
@@ -155,10 +148,17 @@ export class OrgMembersService {
       action: 'org.member.invited',
       actorUserId,
       orgId,
-      payload: {
-        email: dto.email,
-        role: dto.role,
-        inviteToken: inviteTokenHash,
+      actorType: AuditActorType.USER,
+      category: AuditCategory.USER_MANAGEMENT,
+      severity: AuditSeverity.MEDIUM,
+      requestData: {
+        method: 'POST',
+        path: '/org-members/invite',
+        ipAddress: 'unknown',
+        body: {
+          email: dto.email,
+          role: dto.role,
+        },
       },
     });
 
@@ -169,99 +169,6 @@ export class OrgMembersService {
       message: 'Invitation sent successfully',
       invitedEmail: dto.email,
       inviteToken: inviteToken, // TODO: For production, send token via email instead of returning in response
-    };
-  }
-
-  async acceptInvite(dto: AcceptInviteDto) {
-    const inviteTokenHash = await this.hashToken(dto.token);
-
-    // Find the invitation
-    const orgMember = await this.prisma.orgMember.findUnique({
-      where: { inviteToken: inviteTokenHash },
-      include: { org: true, user: true },
-    });
-
-    if (!orgMember) {
-      throw new ApiError(ErrorCode.FORBIDDEN, 'Invalid invitation token', HttpStatus.BAD_REQUEST);
-    }
-
-    if (orgMember.status !== 'invited') {
-      throw new ApiError(
-        ErrorCode.FORBIDDEN,
-        'Invitation has already been accepted or is no longer valid',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
-    // Check if token is expired (7 days)
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    if (orgMember.invitedAt && orgMember.invitedAt < sevenDaysAgo) {
-      throw new ApiError(
-        ErrorCode.FORBIDDEN,
-        'Invitation token has expired',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
-    // Update user information if needed (for new users or users with temp_hash)
-    await this.userUtilsService.updateUserIfNeeded(orgMember.userId, dto.name, dto.password);
-
-    // Update the OrgMember record
-    await this.prisma.orgMember.update({
-      where: { inviteToken: inviteTokenHash },
-      data: {
-        status: 'active',
-        acceptedAt: new Date(),
-        inviteToken: null, // Clear the token
-      },
-    });
-
-    // Get the user's name for audit logging (use provided name or current name)
-    const userName = dto.name || (await this.userUtilsService.getUserName(orgMember.userId));
-
-    // Log audit event
-    await this.auditLogService.log({
-      action: 'org.member.accepted',
-      actorUserId: orgMember.userId,
-      orgId: orgMember.orgId,
-      payload: {
-        userId: orgMember.userId,
-        role: orgMember.role,
-        name: userName,
-      },
-    });
-
-    // Generate JWT token (15 minutes)
-    const payload = { sub: orgMember.userId, orgId: orgMember.orgId };
-    const accessToken = this.jwt.sign(payload, { expiresIn: '15m' });
-
-    // Generate refresh token (7 days)
-    const refreshTokenValue = this.jwt.sign({ sub: orgMember.userId }, { expiresIn: '7d' });
-
-    // Persist refresh token
-    const refreshToken = await this.prisma.refreshToken.create({
-      data: {
-        token: refreshTokenValue,
-        user: { connect: { id: orgMember.userId } },
-        ipAddress: 'unknown', // Could be passed from controller if needed
-        fingerprint: '1234567890',
-      },
-    });
-
-    return {
-      accessToken,
-      expiresIn: 900, // 15 minutes in seconds
-      refreshToken: refreshToken.token,
-      user: {
-        id: orgMember.userId,
-        email: orgMember.user.email,
-        name: userName,
-        role: orgMember.role,
-      },
-      organization: {
-        id: orgMember.org.id,
-        name: orgMember.org.name,
-      },
     };
   }
 
@@ -276,7 +183,7 @@ export class OrgMembersService {
       },
     });
 
-    if (!actorMember || actorMember.status !== 'active') {
+    if (!actorMember || actorMember.status !== OrgMemberStatus.active) {
       throw new ApiError(
         ErrorCode.FORBIDDEN,
         'You are not a member of this organization',
@@ -300,7 +207,7 @@ export class OrgMembersService {
     }
 
     // Permission checks
-    if (targetMember.role === OrgRole.OWNER) {
+    if (targetMember.role === OrgRole.owner) {
       throw new ApiError(
         ErrorCode.FORBIDDEN,
         'Cannot modify organization owner',
@@ -308,7 +215,7 @@ export class OrgMembersService {
       );
     }
 
-    if (actorMember.role !== OrgRole.OWNER && targetMember.role === OrgRole.ADMIN) {
+    if (actorMember.role !== OrgRole.owner && targetMember.role === OrgRole.admin) {
       throw new ApiError(
         ErrorCode.FORBIDDEN,
         'Only owners can modify admins',
@@ -322,7 +229,7 @@ export class OrgMembersService {
       updateData.role = dto.role; // Keep the enum value as is
     }
     if (dto.suspend !== undefined) {
-      updateData.status = dto.suspend ? 'suspended' : 'active';
+      updateData.status = dto.suspend ? OrgMemberStatus.suspended : OrgMemberStatus.active;
     }
 
     // Update the member
@@ -347,10 +254,18 @@ export class OrgMembersService {
       action: 'org.member.updated',
       actorUserId,
       orgId,
-      payload: {
-        targetUserId: memberId,
-        targetEmail: targetMember.user.email,
-        changes: updateData,
+      actorType: AuditActorType.USER,
+      category: AuditCategory.USER_MANAGEMENT,
+      severity: AuditSeverity.MEDIUM,
+      requestData: {
+        method: 'PUT',
+        path: `/org-members/${memberId}`,
+        ipAddress: 'unknown',
+        body: {
+          targetUserId: memberId,
+          targetEmail: targetMember.user.email,
+          changes: updateData,
+        },
       },
     });
 
@@ -376,7 +291,7 @@ export class OrgMembersService {
       },
     });
 
-    if (!actorMember || actorMember.status !== 'active') {
+    if (!actorMember || actorMember.status !== OrgMemberStatus.active) {
       throw new ApiError(
         ErrorCode.FORBIDDEN,
         'You are not a member of this organization',
@@ -400,12 +315,12 @@ export class OrgMembersService {
     }
 
     // Check if this is the last admin/owner (do this before other permission checks)
-    if (targetMember.role === OrgRole.OWNER || targetMember.role === OrgRole.ADMIN) {
+    if (targetMember.role === OrgRole.owner || targetMember.role === OrgRole.admin) {
       const adminCount = await this.prisma.orgMember.count({
         where: {
           orgId,
-          role: { in: [OrgRole.OWNER, OrgRole.ADMIN] },
-          status: 'active',
+          role: { in: [OrgRole.owner, OrgRole.admin] },
+          status: OrgMemberStatus.active,
         },
       });
 
@@ -419,7 +334,7 @@ export class OrgMembersService {
     }
 
     // Permission checks
-    if (targetMember.role === OrgRole.OWNER) {
+    if (targetMember.role === OrgRole.owner) {
       throw new ApiError(
         ErrorCode.FORBIDDEN,
         'Cannot delete organization owner',
@@ -427,7 +342,7 @@ export class OrgMembersService {
       );
     }
 
-    if (actorMember.role !== OrgRole.OWNER && targetMember.role === OrgRole.ADMIN) {
+    if (actorMember.role !== OrgRole.owner && targetMember.role === OrgRole.admin) {
       throw new ApiError(
         ErrorCode.FORBIDDEN,
         'Only owners can delete admins',
@@ -453,10 +368,18 @@ export class OrgMembersService {
       action: 'org.member.deleted',
       actorUserId,
       orgId,
-      payload: {
-        targetUserId: memberId,
-        targetEmail: targetMember.user.email,
-        targetRole: targetMember.role,
+      actorType: AuditActorType.USER,
+      category: AuditCategory.USER_MANAGEMENT,
+      severity: AuditSeverity.HIGH,
+      requestData: {
+        method: 'DELETE',
+        path: `/org-members/${memberId}`,
+        ipAddress: 'unknown',
+        body: {
+          targetUserId: memberId,
+          targetEmail: targetMember.user.email,
+          targetRole: targetMember.role,
+        },
       },
     });
 

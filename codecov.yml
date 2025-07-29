@@ -1,0 +1,40 @@
+codecov:
+  require_ci_to_pass: true
+
+coverage:
+  precision: 2
+  round: down
+
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 5%
+    patch:
+      default:
+        target: auto
+
+flags:
+  unit:
+    paths:
+      - apps/backend/src/
+  integration:
+    paths:
+      - apps/backend/src/
+  e2e:
+    paths:
+      - apps/backend/src/
+
+ignore:
+  - '**/*.spec.ts'
+  - '**/*.test.ts'
+  - '**/test/**'
+  - '**/dist/**'
+  - '**/coverage/**'
+  - '**/*.d.ts'
+  - '**/jest.config.js'
+  - '**/prisma/migrations/**'
+
+comment:
+  layout: 'header, diff, flags, footer'
+  behavior: default
