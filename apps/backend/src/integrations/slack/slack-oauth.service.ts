@@ -8,6 +8,7 @@ import { RedisService } from '@/common/redis.service';
 import { IntegrationPlatform, TokenStatus } from '@prisma/client';
 import { AuditLogService } from '@/common/audit/audit-log.service';
 import { AuditActorType, AuditCategory, AuditSeverity, ResourceAction } from '@/common/audit/types';
+import { SLACK_OAUTH_URLS } from 'shared';
 
 interface SlackOauthResponse {
   ok: boolean;
@@ -218,7 +219,7 @@ export class SlackOauthService {
       );
     }
 
-    const response = await fetch('https://slack.com/api/oauth.v2.access', {
+    const response = await fetch(SLACK_OAUTH_URLS.ACCESS, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',

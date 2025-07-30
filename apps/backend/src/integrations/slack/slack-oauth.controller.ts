@@ -6,6 +6,7 @@ import { ApiError } from '@/common/api-error';
 import { LoggerService } from '@/common/logger.service';
 import { RedisService } from '@/common/redis.service';
 import { ConfigService } from '@nestjs/config';
+import { SLACK_OAUTH_URLS } from 'shared';
 
 @Controller('slack/oauth')
 export class SlackOauthController {
@@ -39,7 +40,7 @@ export class SlackOauthController {
     const state = await this.redisService.generateStateToken(orgId);
 
     // Build OAuth URL
-    const oauthUrl = new URL('https://slack.com/oauth/v2/authorize');
+    const oauthUrl = new URL(SLACK_OAUTH_URLS.AUTHORIZE);
     oauthUrl.searchParams.set('client_id', clientId);
     oauthUrl.searchParams.set('scope', 'chat:write,channels:read,channels:history,users:read');
     oauthUrl.searchParams.set('state', state);
