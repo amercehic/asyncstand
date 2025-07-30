@@ -46,6 +46,14 @@ export type MockPrismaService = {
     delete: jest.Mock;
     deleteMany: jest.Mock;
   };
+  integration: {
+    create: jest.Mock;
+    findUnique: jest.Mock;
+    findMany: jest.Mock;
+    update: jest.Mock;
+    delete: jest.Mock;
+    deleteMany: jest.Mock;
+  };
   auditLog: {
     create: jest.Mock;
     findUnique: jest.Mock;
@@ -55,6 +63,8 @@ export type MockPrismaService = {
   };
   $transaction: jest.Mock;
   $disconnect: jest.Mock;
+  $executeRaw: jest.Mock;
+  $queryRaw: jest.Mock;
 };
 
 export const createMockPrismaService = (): MockPrismaService => {
@@ -146,6 +156,24 @@ export const createMockPrismaService = (): MockPrismaService => {
       delete: jest.fn().mockResolvedValue({}),
       deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
+    integration: {
+      create: jest.fn().mockResolvedValue({
+        id: TestHelpers.generateRandomString(),
+        orgId: mockOrg.id,
+        platform: 'slack',
+        externalTeamId: 'T123456789',
+        accessToken: 'encrypted_token',
+        refreshToken: 'encrypted_refresh',
+        tokenStatus: 'ok',
+        scopes: ['chat:write'],
+        createdAt: new Date(),
+      }),
+      findUnique: jest.fn().mockResolvedValue(null),
+      findMany: jest.fn().mockResolvedValue([]),
+      update: jest.fn().mockResolvedValue({}),
+      delete: jest.fn().mockResolvedValue({}),
+      deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
+    },
     auditLog: {
       create: jest.fn().mockResolvedValue({
         id: TestHelpers.generateRandomString(),
@@ -176,6 +204,8 @@ export const createMockPrismaService = (): MockPrismaService => {
       return callback;
     }),
     $disconnect: jest.fn().mockResolvedValue(undefined),
+    $executeRaw: jest.fn().mockResolvedValue(undefined),
+    $queryRaw: jest.fn().mockResolvedValue([]),
   };
 };
 
