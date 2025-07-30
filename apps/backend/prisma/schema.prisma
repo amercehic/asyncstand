@@ -163,12 +163,17 @@ model Integration {
   platform          IntegrationPlatform
   externalTeamId    String
   accessToken       String
-  refreshToken      String
+  refreshToken      String?
   expiresAt         DateTime?
   tokenStatus       TokenStatus
   scopes            String[]
   installedBy       User?         @relation("IntegrationInstalledBy", fields: [installedByUserId], references: [id], onDelete: SetNull)
   installedByUserId String?
+  
+  // Slack-specific OAuth v2 fields
+  botToken          String?
+  botUserId         String?
+  appId             String?
 
   // Relations
   teams             Team[]
