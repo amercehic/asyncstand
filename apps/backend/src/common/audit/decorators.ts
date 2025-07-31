@@ -76,11 +76,11 @@ export const AuditableController = (metadata: AuditableControllerMetadata) =>
 export const AuditResource = (type: string) => {
   return (target: unknown, propertyKey: string | symbol | undefined, parameterIndex: number) => {
     const existingMetadata: AuditResourceMetadata[] =
-      Reflect.getMetadata(AUDIT_RESOURCE_KEY, target, propertyKey!) || [];
+      Reflect.getMetadata(AUDIT_RESOURCE_KEY, target as object, propertyKey!) || [];
 
     existingMetadata.push({ type, parameterIndex });
 
-    Reflect.defineMetadata(AUDIT_RESOURCE_KEY, existingMetadata, target, propertyKey!);
+    Reflect.defineMetadata(AUDIT_RESOURCE_KEY, existingMetadata, target as object, propertyKey!);
   };
 };
 

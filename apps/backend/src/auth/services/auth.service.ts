@@ -86,7 +86,7 @@ export class AuthService {
       const priorityDiff = rolePriority[b.role] - rolePriority[a.role];
       if (priorityDiff !== 0) return priorityDiff;
       // If same role, sort by organization name
-      return a.org.name.localeCompare(b.org.name);
+      return (a.org.name || '').localeCompare(b.org.name || '');
     });
 
     const ip = req.ip || req.socket.remoteAddress || 'unknown';

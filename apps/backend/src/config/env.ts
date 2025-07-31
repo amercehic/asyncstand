@@ -27,6 +27,9 @@ export class EnvironmentVariables {
   FRONTEND_URL: string = 'http://localhost:3000';
 
   @IsString()
+  BACKEND_URL: string = 'http://localhost:3000';
+
+  @IsString()
   FROM_EMAIL: string = 'noreply@asyncstand.com';
 
   @IsString()
@@ -57,6 +60,10 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   SLACK_CLIENT_SECRET: string = '';
+
+  @IsOptional()
+  @IsString()
+  SLACK_SIGNING_SECRET: string = '';
 
   @IsOptional()
   @IsString()
@@ -93,6 +100,7 @@ export const envConfig = () => ({
   databaseUrl: process.env.DATABASE_URL,
   jwtSecret: process.env.JWT_SECRET,
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+  backendUrl: process.env.BACKEND_URL || 'http://localhost:3000',
   fromEmail: process.env.FROM_EMAIL || 'noreply@asyncstand.com',
   smtpHost: process.env.SMTP_HOST || '',
   smtpPort: parseInt(process.env.SMTP_PORT || '587', 10),
@@ -102,6 +110,7 @@ export const envConfig = () => ({
   logPretty: process.env.LOG_PRETTY || 'true',
   slackClientId: process.env.SLACK_CLIENT_ID || '',
   slackClientSecret: process.env.SLACK_CLIENT_SECRET || '',
+  slackSigningSecret: process.env.SLACK_SIGNING_SECRET || '',
   slackOauthEnabled: process.env.SLACK_OAUTH_ENABLED === 'true',
   redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
   databaseEncryptKey: process.env.DATABASE_ENCRYPT_KEY || '',

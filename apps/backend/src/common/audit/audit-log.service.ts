@@ -389,7 +389,10 @@ export class AuditLogService {
       totalEvents: logs.length,
       eventsByCategory,
       eventsBySeverity,
-      topUsers,
+      topUsers: topUsers.map((user) => ({
+        ...user,
+        userName: user.userName || undefined,
+      })),
       timeRange: { from, to: now },
     };
   }
@@ -418,7 +421,7 @@ export class AuditLogService {
       type: this.classifySecurityEventType(log.action),
       severity: log.severity as AuditSeverity,
       description: `${log.action}: ${log.category}`,
-      actorUserId: log.actorUserId,
+      actorUserId: log.actorUserId || undefined,
       timestamp: log.createdAt,
       metadata: {
         action: log.action,

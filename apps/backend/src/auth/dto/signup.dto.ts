@@ -10,7 +10,7 @@ export class SignupDto {
   })
   @IsEmail({}, { message: 'Please provide a valid email address' })
   @IsNotEmpty({ message: 'Email is required' })
-  email: string;
+  email!: string;
 
   @ApiProperty({
     description: 'User password (must meet strong password requirements)',
@@ -20,7 +20,7 @@ export class SignupDto {
   @IsString({ message: 'Password must be a string' })
   @IsNotEmpty({ message: 'Password is required' })
   @IsStrongPassword()
-  password: string;
+  password!: string;
 
   @ApiProperty({
     description: 'User full name',

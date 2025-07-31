@@ -158,8 +158,8 @@ enum TokenStatus {
 
 model Integration {
   id                String        @id @default(uuid())
-  org               Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  orgId             String
+  org               Organization? @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orgId             String?
   platform          IntegrationPlatform
   externalTeamId    String
   accessToken       String
@@ -181,7 +181,7 @@ model Integration {
   digestPosts       StandupDigestPost[]
   tokenRefreshJobs  TokenRefreshJob[]
 
-  @@unique([orgId, platform, externalTeamId])
+  @@unique([platform, externalTeamId])
   @@index([tokenStatus])
 }
 

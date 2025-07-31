@@ -12,7 +12,7 @@ import { OrgMemberStatus } from '@prisma/client';
 
 @Injectable()
 export class PasswordResetService implements OnModuleDestroy {
-  private transporter: nodemailer.Transporter;
+  private transporter: nodemailer.Transporter | null = null;
 
   constructor(
     private prisma: PrismaService,
@@ -145,7 +145,7 @@ export class PasswordResetService implements OnModuleDestroy {
     }
 
     // Send password reset email (non-blocking)
-    this.sendPasswordResetEmail(user.email, token, user.name).catch((error) => {
+    this.sendPasswordResetEmail(user.email, token, user.name || undefined).catch((error) => {
       this.logger.logError(error as Error, { email: user.email, context: 'password reset email' });
     });
 

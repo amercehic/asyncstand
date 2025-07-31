@@ -13,6 +13,9 @@ export class RedisService implements OnModuleDestroy {
   ) {
     this.logger.setContext(RedisService.name);
     const redisUrl = this.configService.get<string>('redisUrl');
+    if (!redisUrl) {
+      throw new Error('REDIS_URL configuration is required');
+    }
     this.client = new Redis(redisUrl);
 
     this.client.on('connect', () => {
@@ -65,6 +68,10 @@ export class RedisService implements OnModuleDestroy {
     }
 
     return orgId;
+  }
+
+  getClient(): Redis {
+    return this.client;
   }
 
   onModuleDestroy() {

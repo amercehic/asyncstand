@@ -12,5 +12,5 @@ export class UpdateOrganizationDto {
   @IsNotEmpty({ message: 'Organization name is required' })
   @MinLength(1, { message: 'Organization name must be at least 1 character long' })
   @MaxLength(100, { message: 'Organization name must not exceed 100 characters' })
-  name: string;
+  name!: string;
 }

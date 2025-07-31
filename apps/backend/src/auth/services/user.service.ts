@@ -137,7 +137,13 @@ export class UserService {
         tx,
       );
 
-      return { user, org };
+      return {
+        user,
+        org: {
+          ...org,
+          name: org.name || '',
+        },
+      };
     });
 
     return result;

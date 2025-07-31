@@ -8,7 +8,7 @@ export class ResetPasswordDto {
   })
   @IsString({ message: 'Token must be a string' })
   @IsNotEmpty({ message: 'Token is required' })
-  token: string;
+  token!: string;
 
   @ApiProperty({
     description: 'New password for the user account',
@@ -18,7 +18,7 @@ export class ResetPasswordDto {
   @IsString({ message: 'Password must be a string' })
   @IsNotEmpty({ message: 'Password is required' })
   @MinLength(8, { message: 'Password must be at least 8 characters long' })
-  password: string;
+  password!: string;
 
   @ApiProperty({
     description: 'Email address of the user (for additional verification)',
@@ -26,5 +26,5 @@ export class ResetPasswordDto {
   })
   @IsString({ message: 'Email must be a string' })
   @IsNotEmpty({ message: 'Email is required' })
-  email: string;
+  email!: string;
 }

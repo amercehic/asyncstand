@@ -1,0 +1,59 @@
+{
+  "display_information": {
+    "name": "AsyncStand",
+    "description": "Streamline your team standups with automated reminders and digest posting",
+    "background_color": "#2c3e50"
+  },
+  "features": {
+    "bot_user": {
+      "display_name": "AsyncStand",
+      "always_online": true
+    },
+    "slash_commands": [
+      {
+        "command": "/asyncstand-connect",
+        "url": "https://71f9101d722c.ngrok-free.app/slack/commands/connect",
+        "description": "Connect this workspace to your AsyncStand organization",
+        "usage_hint": "your-organization-id"
+      },
+      {
+        "command": "/asyncstand-disconnect",
+        "url": "https://71f9101d722c.ngrok-free.app/slack/commands/disconnect",
+        "description": "Disconnect this workspace from AsyncStand"
+      },
+      {
+        "command": "/asyncstand-status",
+        "url": "https://71f9101d722c.ngrok-free.app/slack/commands/status",
+        "description": "Check AsyncStand connection status"
+      }
+    ]
+  },
+  "oauth_config": {
+    "redirect_urls": ["https://71f9101d722c.ngrok-free.app/slack/oauth/callback"],
+    "scopes": {
+      "bot": [
+        "chat:write",
+        "channels:read",
+        "channels:history",
+        "users:read",
+        "commands",
+        "app_mentions:read",
+        "im:history",
+        "groups:history"
+      ]
+    }
+  },
+  "settings": {
+    "event_subscriptions": {
+      "request_url": "https://71f9101d722c.ngrok-free.app/slack/events",
+      "bot_events": ["message.channels", "message.groups", "message.im", "app_mention"]
+    },
+    "interactivity": {
+      "is_enabled": true,
+      "request_url": "https://71f9101d722c.ngrok-free.app/slack/interactive"
+    },
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": false,
+    "token_rotation_enabled": false
+  }
+}

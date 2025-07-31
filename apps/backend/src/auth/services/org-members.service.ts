@@ -90,7 +90,7 @@ export class OrgMembersService {
       },
     });
 
-    if (existingUser?.orgMembers.length > 0) {
+    if (existingUser?.orgMembers && existingUser.orgMembers.length > 0) {
       const existingMember = existingUser.orgMembers[0];
       if (existingMember.status === OrgMemberStatus.active) {
         throw new ApiError(

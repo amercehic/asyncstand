@@ -34,7 +34,7 @@ function setupSwagger(app: INestApplication) {
   });
 
   // Expose OpenAPI JSON specification for Postman import
-  app.use('/api/docs/api-json', (req, res) => {
+  app.use('/api/docs/api-json', (req: any, res: any) => {
     res.setHeader('Content-Type', 'application/json');
     res.send(document);
   });
