@@ -25,7 +25,8 @@
     "paths": {
       "shared": ["../../packages/shared/dist"],
       "@/*": ["src/*", "./*"]
-    }
+    },
+    "moduleResolution": "node"
   },
   "include": ["src/**/*", "prisma/**/*", "test/**/*", "scripts/**/*"],
   "exclude": ["node_modules", "dist"],
