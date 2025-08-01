@@ -23,7 +23,7 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "paths": {
-      "shared": ["../../packages/shared/dist"],
+      "shared": ["../../packages/shared/dist/index"],
       "@/*": ["src/*", "./*"]
     },
     "moduleResolution": "node"
