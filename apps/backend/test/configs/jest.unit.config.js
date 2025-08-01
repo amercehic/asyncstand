@@ -36,7 +36,7 @@ module.exports = {
 
   setupFilesAfterEnv: ['<rootDir>/test/setup/jest.setup.ts'],
   moduleNameMapper: {
-    '^shared$': '<rootDir>/../../packages/shared/src/index.ts',
+    '^shared$': '<rootDir>/../../packages/shared/src',
     '^shared/(.*)$': '<rootDir>/../../packages/shared/src/$1',
     '^@/prisma/prisma\\.service$': '<rootDir>/prisma/prisma.service',
     '^@/test/(.*)$': '<rootDir>/test/$1',
