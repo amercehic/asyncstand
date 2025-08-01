@@ -12,7 +12,6 @@
     "sourceMap": true,
     "outDir": "./dist",
     "baseUrl": "./",
-    "rootDir": "./",
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": false,
@@ -23,7 +22,7 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "paths": {
-      "shared": ["../../packages/shared/dist/index"],
+      "shared": ["../../packages/shared/dist"],
       "@/*": ["src/*", "./*"]
     },
     "moduleResolution": "node"
