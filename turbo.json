@@ -9,7 +9,8 @@
         "apps/frontend/dist/**",
         "apps/backend/dist/**",
         "apps/worker/dist/**"
-      ]
+      ],
+      "cache": false
     },
     "lint": {
       "outputs": []
@@ -26,16 +27,9 @@
       "dependsOn": [],
       "outputs": []
     },
-    "build": {
+    "typecheck": {
       "dependsOn": ["^build"],
-      "outputs": [
-        "apps/*/dist/**",
-        "packages/shared/dist/**",
-        "apps/frontend/dist/**",
-        "apps/backend/dist/**",
-        "apps/worker/dist/**"
-      ],
-      "cache": false
+      "outputs": []
     },
     "dev": {
       "persistent": true,

@@ -99,7 +99,7 @@
     "@types/bcrypt": "^5.0.2",
     "@types/express": "^5.0.3",
     "@types/jest": "^30.0.0",
-    "@types/nock": "^11.1.0",
+    "@types/mjml": "^4.7.4",
     "@types/node": "^24.1.0",
     "@types/passport-jwt": "^4.0.1",
     "@types/passport-local": "^1.0.38",
@@ -111,6 +111,7 @@
     "jest": "^30.0.5",
     "jest-html-reporters": "^3.1.7",
     "jest-junit": "^16.0.0",
+    "mjml": "^4.15.3",
     "nock": "^14.0.8",
     "prettier": "^3.6.2",
     "prisma": "^6.13.0",
@@ -118,6 +119,6 @@
     "supertest": "^7.1.4",
     "ts-jest": "^29.4.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.2"
+    "typescript": "^5.8.3"
   }
 }

@@ -79,6 +79,15 @@ export default [
           message: 'Console methods are not allowed. Use the LoggerService instead.',
         },
       ],
+      // Catch unused variables and imports
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          ignoreRestSiblings: true,
+        },
+      ],
     },
   },
 ];

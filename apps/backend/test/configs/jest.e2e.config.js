@@ -12,7 +12,7 @@ module.exports = {
   transform: {
     '^.+\\.ts$': 'ts-jest',
   },
-  transformIgnorePatterns: ['node_modules/(?!.*\\.mjs$)', '../../packages/shared/dist'],
+  transformIgnorePatterns: ['node_modules/(?!.*\\.mjs$)'],
 
   setupFilesAfterEnv: [
     '<rootDir>/test/setup/jest.setup.ts',
@@ -21,6 +21,8 @@ module.exports = {
   globalTeardown: '<rootDir>/test/setup/integration-teardown.ts',
 
   moduleNameMapper: {
+    '^shared$': '<rootDir>/../../packages/shared/src',
+    '^shared/(.*)$': '<rootDir>/../../packages/shared/src/$1',
     '^@/prisma/prisma\\.service$': '<rootDir>/prisma/prisma.service',
     '^@/test/(.*)$': '<rootDir>/test/$1',
     '^@/(.*)$': '<rootDir>/src/$1',

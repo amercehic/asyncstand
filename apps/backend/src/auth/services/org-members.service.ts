@@ -1,6 +1,5 @@
 import { Injectable, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
-import { JwtService } from '@nestjs/jwt';
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
 import { LoggerService } from '@/common/logger.service';
@@ -10,17 +9,14 @@ import { InviteMemberDto } from '@/auth/dto/invite-member.dto';
 import { UpdateMemberDto } from '@/auth/dto/update-member.dto';
 import { OrgRole, OrgMemberStatus } from '@prisma/client';
 import { randomBytes } from 'crypto';
-import { UserUtilsService } from '@/auth/services/user-utils.service';
 import { UserService } from '@/auth/services/user.service';
 
 @Injectable()
 export class OrgMembersService {
   constructor(
     private prisma: PrismaService,
-    private jwt: JwtService,
     private readonly logger: LoggerService,
     private readonly auditLogService: AuditLogService,
-    private readonly userUtilsService: UserUtilsService,
     private readonly userService: UserService,
   ) {
     this.logger.setContext(OrgMembersService.name);

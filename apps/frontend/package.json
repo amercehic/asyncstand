@@ -6,6 +6,7 @@
   "scripts": {
     "test": "echo \"No tests configured for frontend package\"",
     "lint": "eslint \"src/**/*.{ts,tsx}\" --max-warnings=0",
+    "typecheck": "tsc --noEmit",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",

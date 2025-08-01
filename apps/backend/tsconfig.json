@@ -12,7 +12,6 @@
     "sourceMap": true,
     "outDir": "./dist",
     "baseUrl": "./",
-    "rootDir": "./",
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": false,
@@ -20,12 +19,16 @@
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "paths": {
       "shared": ["../../packages/shared/dist"],
+      "shared/*": ["../../packages/shared/dist/*"],
       "@/*": ["src/*", "./*"]
-    }
+    },
+    "moduleResolution": "node"
   },
-  "include": ["src/**/*", "prisma/**/*", "test/**/*"],
+  "include": ["src/**/*", "prisma/**/*", "test/**/*", "scripts/**/*"],
   "exclude": ["node_modules", "dist"],
   "types": ["jest", "node", "@types/node"]
 }

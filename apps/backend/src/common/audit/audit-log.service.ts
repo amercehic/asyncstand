@@ -10,7 +10,6 @@ import {
   AuditCategory,
   AuditSeverity,
 } from '@/common/audit/types';
-import { AuditSanitizer } from '@/common/audit/sanitizer';
 import { OrgMemberStatus } from '@prisma/client';
 
 @Injectable()
@@ -18,7 +17,6 @@ export class AuditLogService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly logger: LoggerService,
-    private readonly sanitizer: AuditSanitizer,
   ) {
     this.logger.setContext(AuditLogService.name);
   }
