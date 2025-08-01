@@ -54,7 +54,10 @@ jobs:
         run: pnpm lint
 
       - name: Type check
-        run: pnpm build --dry-run
+        run: |
+          pnpm --filter backend typecheck
+          pnpm --filter frontend typecheck
+          pnpm --filter worker typecheck
 
   # Build once, use everywhere
   build:

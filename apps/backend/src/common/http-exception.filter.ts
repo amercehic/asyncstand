@@ -6,7 +6,6 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
-import { HttpAdapterHost } from '@nestjs/core';
 import { Request, Response } from 'express';
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
@@ -70,7 +69,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
   private readonly isProd = process.env.NODE_ENV === 'production';
   private readonly errorTypeBase = process.env.ERROR_TYPE_BASE || 'about:blank';
 
-  constructor(private readonly httpAdapterHost?: HttpAdapterHost) {}
+  constructor() {}
 
   catch(exception: unknown, host: ArgumentsHost) {
     // Only handle HTTP context here. If you also support RPC/WS, branch accordingly.

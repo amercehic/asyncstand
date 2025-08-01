@@ -8,7 +8,7 @@ import { ErrorCode } from 'shared';
 export const ROLES_KEY = 'roles';
 
 export const Roles = (...roles: OrgRole[]) => {
-  return (target: unknown, key?: string, descriptor?: PropertyDescriptor) => {
+  return (_target: unknown, _key?: string, descriptor?: PropertyDescriptor) => {
     Reflect.defineMetadata(ROLES_KEY, roles, descriptor.value);
     return descriptor;
   };

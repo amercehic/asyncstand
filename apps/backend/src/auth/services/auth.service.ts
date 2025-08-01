@@ -2,7 +2,6 @@ import { Injectable, HttpStatus } from '@nestjs/common';
 import { Request } from 'express';
 import { PrismaService } from '@/prisma/prisma.service';
 import { verify } from '@node-rs/argon2';
-import { JwtService } from '@nestjs/jwt';
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
 import { LoggerService } from '@/common/logger.service';
@@ -17,7 +16,6 @@ import { OrgRole, OrgMemberStatus } from '@prisma/client';
 export class AuthService {
   constructor(
     private prisma: PrismaService,
-    private jwt: JwtService,
     private readonly logger: LoggerService,
     private readonly auditLogService: AuditLogService,
     private readonly userUtilsService: UserUtilsService,

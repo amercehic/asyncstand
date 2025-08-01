@@ -20,12 +20,14 @@
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "paths": {
       "shared": ["../../packages/shared/dist"],
       "@/*": ["src/*", "./*"]
     }
   },
-  "include": ["src/**/*", "prisma/**/*", "test/**/*"],
+  "include": ["src/**/*", "prisma/**/*", "test/**/*", "scripts/**/*"],
   "exclude": ["node_modules", "dist"],
   "types": ["jest", "node", "@types/node"]
 }
