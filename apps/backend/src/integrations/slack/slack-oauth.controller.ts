@@ -1,4 +1,5 @@
 import { Controller, Get, Query, Res, Req, HttpStatus } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { Response, Request } from 'express';
 import { SlackOauthService } from '@/integrations/slack/slack-oauth.service';
 import { SlackOauthCallbackDto } from '@/integrations/slack/dto/oauth-callback.dto';
@@ -7,7 +8,12 @@ import { LoggerService } from '@/common/logger.service';
 import { RedisService } from '@/common/redis.service';
 import { ConfigService } from '@nestjs/config';
 import { SLACK_OAUTH_URLS } from 'shared';
+import {
+  SwaggerSlackOAuthStart,
+  SwaggerSlackOAuthCallback,
+} from '@/swagger/slack-integration.swagger';
 
+@ApiTags('Slack OAuth')
 @Controller('slack/oauth')
 export class SlackOauthController {
   constructor(
@@ -20,6 +26,7 @@ export class SlackOauthController {
   }
 
   @Get('start')
+  @SwaggerSlackOAuthStart()
   async start(@Query('orgId') orgId: string, @Res() res: Response): Promise<void> {
     if (!orgId) {
       res.status(HttpStatus.BAD_REQUEST).json({ error: 'orgId query parameter is required' });
@@ -54,6 +61,7 @@ export class SlackOauthController {
   }
 
   @Get('callback')
+  @SwaggerSlackOAuthCallback()
   async callback(
     @Query() query: SlackOauthCallbackDto,
     @Req() req: Request,

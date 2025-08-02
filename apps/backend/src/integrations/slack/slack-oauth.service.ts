@@ -285,15 +285,32 @@ export class SlackOauthService {
       }
     }
 
-    // Decrypt from database
-    const columnName =
-      tokenType === 'access' ? 'accessToken' : tokenType === 'bot' ? 'botToken' : 'refreshToken';
+    // Decrypt from database using $queryRawUnsafe to avoid parameter binding issues
+    let query: string;
+    if (tokenType === 'access') {
+      query = `
+        SELECT pgp_sym_decrypt("accessToken"::bytea, $1) as decrypted
+        FROM "Integration" 
+        WHERE id = '${integrationId}'
+      `;
+    } else if (tokenType === 'bot') {
+      query = `
+        SELECT pgp_sym_decrypt("botToken"::bytea, $1) as decrypted
+        FROM "Integration" 
+        WHERE id = '${integrationId}'
+      `;
+    } else {
+      query = `
+        SELECT pgp_sym_decrypt("refreshToken"::bytea, $1) as decrypted
+        FROM "Integration" 
+        WHERE id = '${integrationId}'
+      `;
+    }
 
-    const result = await this.prisma.$queryRaw<Array<{ decrypted: string | null }>>`
-      SELECT pgp_sym_decrypt(${columnName}::bytea, ${encryptKey}) as decrypted
-      FROM "Integration" 
-      WHERE id = ${integrationId}::uuid
-    `;
+    const result = await this.prisma.$queryRawUnsafe<Array<{ decrypted: string | null }>>(
+      query,
+      encryptKey,
+    );
 
     return result[0]?.decrypted || null;
   }
