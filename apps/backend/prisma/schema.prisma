@@ -27,6 +27,8 @@ model User {
   auditLogs                  AuditLog[]       @relation("AuditLogActor")
   integrationsInstalled      Integration[]    @relation("IntegrationInstalledBy")
   teamMembers                TeamMember[]     @relation("TeamMemberUser")
+  createdTeams               Team[]           @relation("TeamCreatedBy")
+  addedTeamMembers           TeamMember[]     @relation("TeamMemberAddedBy")
 }
 
 model PasswordResetToken {
@@ -200,11 +202,15 @@ model Team {
   id             String       @id @default(uuid())
   org            Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   orgId          String
-  integration    Integration? @relation(fields: [integrationId], references: [id], onDelete: SetNull)
-  integrationId  String?
-  channelId      String?
-  name           String?
+  integration    Integration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  integrationId  String
+  channelId      String
+  name           String
   timezone       String
+  createdBy      User?        @relation("TeamCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  createdByUserId String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   // Relations
   members        TeamMember[]
@@ -212,6 +218,8 @@ model Team {
   instances      StandupInstance[]
 
   @@index([integrationId, channelId])
+  @@index([orgId, createdAt])
+  @@unique([integrationId, channelId])
 }
 
 model TeamMember {
@@ -223,6 +231,9 @@ model TeamMember {
   userId          String?
   name            String?
   active          Boolean       @default(true)
+  addedBy         User?         @relation("TeamMemberAddedBy", fields: [addedByUserId], references: [id], onDelete: SetNull)
+  addedByUserId   String?
+  addedAt         DateTime      @default(now())
 
   // Relations
   configMemberships StandupConfigMember[]
@@ -230,6 +241,7 @@ model TeamMember {
 
   @@unique([teamId, platformUserId])
   @@unique([teamId, userId], map: "unique_team_user")
+  @@index([teamId, addedAt])
 }
 
 model StandupConfig {
