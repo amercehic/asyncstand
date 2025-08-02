@@ -9,6 +9,7 @@ import { createLoggerModule } from '@/config/logger.config';
 import { LoggerService } from '@/common/logger.service';
 import { AuditModule } from '@/common/audit/audit.module';
 import { IntegrationsModule } from '@/integrations/integrations.module';
+import { TeamsModule } from '@/teams/teams.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { IntegrationsModule } from '@/integrations/integrations.module';
     AuditModule,
     AuthModule,
     IntegrationsModule,
+    TeamsModule,
   ],
   controllers: [AppController],
   providers: [AppService, LoggerService],
