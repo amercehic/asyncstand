@@ -59,7 +59,10 @@ export class TeamFactory {
     };
   }
 
-  static createMockTeamWithMembers(memberCount = 3, overrides: Partial<Record<string, unknown>> = {}) {
+  static createMockTeamWithMembers(
+    memberCount = 3,
+    overrides: Partial<Record<string, unknown>> = {},
+  ) {
     const team = this.createMockTeam(overrides);
     const members = Array.from({ length: memberCount }, (_, index) =>
       this.createMockTeamMember({

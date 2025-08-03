@@ -76,7 +76,10 @@ export class StandupConfigFactory {
     };
   }
 
-  static createMockBulkUpdateParticipationDto(memberCount = 3, overrides: Partial<Record<string, unknown>> = {}) {
+  static createMockBulkUpdateParticipationDto(
+    memberCount = 3,
+    overrides: Partial<Record<string, unknown>> = {},
+  ) {
     const members = Array.from({ length: memberCount }, (_, index) => ({
       teamMemberId: faker.string.uuid(),
       include: index < 2, // First 2 members included, last one excluded
@@ -135,7 +138,10 @@ export class StandupConfigFactory {
     };
   }
 
-  static createMockStandupConfigWithMembers(memberCount = 5, overrides: Partial<Record<string, unknown>> = {}) {
+  static createMockStandupConfigWithMembers(
+    memberCount = 5,
+    overrides: Partial<Record<string, unknown>> = {},
+  ) {
     const config = this.createMockStandupConfig(overrides);
     const configMembers = Array.from({ length: memberCount }, (_, index) =>
       this.createMockStandupConfigMember({
@@ -148,7 +154,7 @@ export class StandupConfigFactory {
 
     return {
       ...config,
-      configMembers: configMembers.map(cm => ({
+      configMembers: configMembers.map((cm) => ({
         ...cm,
         teamMember: {
           id: cm.teamMemberId,

@@ -171,7 +171,11 @@ export class DatabaseHelpers {
   /**
    * Create test standup config
    */
-  static async createTestStandupConfig(prisma: PrismaService, teamId: string, createdByUserId: string) {
+  static async createTestStandupConfig(
+    prisma: PrismaService,
+    teamId: string,
+    createdByUserId: string,
+  ) {
     return prisma.standupConfig.create({
       data: {
         teamId,
@@ -220,7 +224,12 @@ export class DatabaseHelpers {
     const channel = await this.createTestChannel(prisma, integration.id);
     const integrationUser = await this.createTestIntegrationUser(prisma, integration.id);
     const team = await this.createTestTeam(prisma, org.id, integration.id, channel.id, user.id);
-    const teamMember = await this.createTestTeamMember(prisma, team.id, integrationUser.id, user.id);
+    const teamMember = await this.createTestTeamMember(
+      prisma,
+      team.id,
+      integrationUser.id,
+      user.id,
+    );
     const standupConfig = await this.createTestStandupConfig(prisma, team.id, user.id);
     const configMember = await this.createTestStandupConfigMember(
       prisma,

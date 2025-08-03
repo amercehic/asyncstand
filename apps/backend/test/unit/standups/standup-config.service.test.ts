@@ -14,6 +14,7 @@ import {
 import { StandupConfigFactory } from '@/test/utils/factories/standup-config.factory';
 import { TeamFactory } from '@/test/utils/factories/team.factory';
 import { TestHelpers } from '@/test/utils/test-helpers';
+import { Prisma } from '@prisma/client';
 
 describe('StandupConfigService', () => {
   let service: StandupConfigService;
@@ -76,10 +77,15 @@ describe('StandupConfigService', () => {
             createMany: jest.fn().mockResolvedValue({ count: 0 }),
           },
         };
-        return callback(txMock as any);
+        return callback(txMock as unknown as Prisma.TransactionClient);
       });
 
-      const result = await service.createStandupConfig(mockTeamId, mockOrgId, mockUserId, mockCreateDto);
+      const result = await service.createStandupConfig(
+        mockTeamId,
+        mockOrgId,
+        mockUserId,
+        mockCreateDto,
+      );
 
       expect(mockPrisma.team.findFirst).toHaveBeenCalledWith({
         where: {
@@ -107,7 +113,11 @@ describe('StandupConfigService', () => {
       await expect(
         service.createStandupConfig(mockTeamId, mockOrgId, mockUserId, mockCreateDto),
       ).rejects.toThrow(
-        new ApiError(ErrorCode.NOT_FOUND, 'Team not found or does not belong to organization', HttpStatus.NOT_FOUND),
+        new ApiError(
+          ErrorCode.NOT_FOUND,
+          'Team not found or does not belong to organization',
+          HttpStatus.NOT_FOUND,
+        ),
       );
     });
 
@@ -174,7 +184,11 @@ describe('StandupConfigService', () => {
       await expect(
         service.updateStandupConfig(mockTeamId, mockOrgId, mockUpdateDto),
       ).rejects.toThrow(
-        new ApiError(ErrorCode.STANDUP_CONFIG_NOT_FOUND, 'Standup configuration not found', HttpStatus.NOT_FOUND),
+        new ApiError(
+          ErrorCode.STANDUP_CONFIG_NOT_FOUND,
+          'Standup configuration not found',
+          HttpStatus.NOT_FOUND,
+        ),
       );
     });
   });
@@ -190,7 +204,11 @@ describe('StandupConfigService', () => {
       });
       const mockConfigWithMembers = StandupConfigFactory.createMockStandupConfigWithMembers(5);
       // Add required team relation to the config
-      (mockConfigWithMembers as any).team = {
+      (
+        mockConfigWithMembers as unknown as {
+          team: { id: string; name: string; channel: { name: string } };
+        }
+      ).team = {
         id: mockTeam.id,
         name: mockTeam.name,
         channel: { name: 'test-channel' },
