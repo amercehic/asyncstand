@@ -181,6 +181,7 @@ model Integration {
   // Relations
   teams             Team[]
   channels          Channel[]
+  integrationUsers  IntegrationUser[]
   syncState         IntegrationSyncState?
   digestPosts       StandupDigestPost[]
   tokenRefreshJobs  TokenRefreshJob[]
@@ -223,6 +224,36 @@ model Channel {
   @@index([name])
 }
 
+model IntegrationUser {
+  id              String      @id @default(uuid())
+  integration     Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  integrationId   String
+  
+  // Generic fields that work for all platforms (Slack, Teams, Discord, etc.)
+  externalUserId  String      // Slack ID, Teams ID, Discord ID, etc.
+  name            String?
+  displayName     String?
+  email           String?
+  isBot           Boolean     @default(false)
+  isDeleted       Boolean     @default(false)
+  profileImage    String?
+  timezone        String?
+  
+  // Platform-specific data stored as JSON
+  platformData    Json?       // Store platform-specific fields here
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  lastSyncAt      DateTime?
+
+  // Relations
+  teamMembers     TeamMember[] @relation("IntegrationUserTeamMember")
+
+  @@unique([integrationId, externalUserId])
+  @@index([integrationId, isDeleted])
+  @@index([integrationId, externalUserId])
+}
+
 model Team {
   id             String       @id @default(uuid())
   org            Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
@@ -250,17 +281,19 @@ model Team {
 }
 
 model TeamMember {
-  id              String        @id @default(uuid())
-  team            Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  teamId          String
-  platformUserId  String?
-  user            User?         @relation("TeamMemberUser", fields: [userId], references: [id], onDelete: SetNull)
-  userId          String?
-  name            String?
-  active          Boolean       @default(true)
-  addedBy         User?         @relation("TeamMemberAddedBy", fields: [addedByUserId], references: [id], onDelete: SetNull)
-  addedByUserId   String?
-  addedAt         DateTime      @default(now())
+  id                String           @id @default(uuid())
+  team              Team             @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  teamId            String
+  platformUserId    String?          // Legacy field - keeping for backward compatibility
+  integrationUser   IntegrationUser? @relation("IntegrationUserTeamMember", fields: [integrationUserId], references: [id], onDelete: SetNull)
+  integrationUserId String?          // Reference to IntegrationUser
+  user              User?            @relation("TeamMemberUser", fields: [userId], references: [id], onDelete: SetNull)
+  userId            String?
+  name              String?
+  active            Boolean          @default(true)
+  addedBy           User?            @relation("TeamMemberAddedBy", fields: [addedByUserId], references: [id], onDelete: SetNull)
+  addedByUserId     String?
+  addedAt           DateTime         @default(now())
 
   // Relations
   configMemberships StandupConfigMember[]

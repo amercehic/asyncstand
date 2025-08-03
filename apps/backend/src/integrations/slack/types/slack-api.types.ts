@@ -38,6 +38,7 @@ export interface SlackUser {
   tz_label?: string;
   tz_offset?: number;
   updated?: number;
+  team_id?: string;
 }
 
 export interface SlackChannel {

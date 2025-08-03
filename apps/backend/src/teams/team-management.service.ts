@@ -619,25 +619,101 @@ export class TeamManagementService {
   async getAvailableMembers(orgId: string): Promise<AvailableMembersResponse> {
     this.logger.info('Getting available members', { orgId });
 
-    // Get all Slack integrations for this organization
+    // Get all integrations for this organization (supports all platforms)
     const integrations = await this.prisma.integration.findMany({
       where: {
         orgId,
-        platform: 'slack',
         tokenStatus: 'ok',
+      },
+      include: {
+        integrationUsers: {
+          where: {
+            isDeleted: false,
+            isBot: false,
+          },
+        },
       },
     });
 
-    this.logger.info('Found integrations', {
+    this.logger.info('Found integrations with users', {
       count: integrations.length,
-      integrations: integrations.map((i) => ({ id: i.id, tokenStatus: i.tokenStatus })),
+      integrations: integrations.map((i) => ({
+        id: i.id,
+        platform: i.platform,
+        userCount: i.integrationUsers.length,
+      })),
     });
 
     const memberMap = new Map();
 
-    // Fetch users from each Slack integration
+    // Use stored IntegrationUser data (much faster than API calls)
     for (const integration of integrations) {
-      this.logger.info('Fetching users from integration', { integrationId: integration.id });
+      this.logger.info('Processing stored users from integration', {
+        integrationId: integration.id,
+        platform: integration.platform,
+        userCount: integration.integrationUsers.length,
+      });
+
+      for (const integrationUser of integration.integrationUsers) {
+        const key = `${integration.id}-${integrationUser.externalUserId}`;
+
+        if (!memberMap.has(key)) {
+          // Count how many teams this user is currently in
+          const teamCount = await this.prisma.teamMember.count({
+            where: {
+              OR: [
+                // Legacy lookup by platformUserId
+                {
+                  platformUserId: integrationUser.externalUserId,
+                  team: { orgId },
+                },
+                // New lookup by integrationUserId
+                {
+                  integrationUserId: integrationUser.id,
+                  team: { orgId },
+                },
+              ],
+            },
+          });
+
+          memberMap.set(key, {
+            id: integrationUser.externalUserId, // Use external user ID (Slack ID, Teams ID, etc.)
+            name: integrationUser.displayName || integrationUser.name || 'Unknown',
+            platformUserId: integrationUser.externalUserId,
+            email: integrationUser.email,
+            profileImage: integrationUser.profileImage,
+            platform: integration.platform,
+            inTeamCount: teamCount,
+            lastSyncAt: integrationUser.lastSyncAt,
+          });
+        }
+      }
+    }
+
+    // If no stored users found, fall back to live API calls (backward compatibility)
+    if (memberMap.size === 0) {
+      this.logger.info('No stored users found, falling back to live API calls');
+      return this.getAvailableMembersFromAPI(orgId);
+    }
+
+    const result = Array.from(memberMap.values());
+    this.logger.info('Returning available members from stored data', { count: result.length });
+    return { members: result };
+  }
+
+  // Fallback method for live API calls (backward compatibility)
+  private async getAvailableMembersFromAPI(orgId: string): Promise<AvailableMembersResponse> {
+    const integrations = await this.prisma.integration.findMany({
+      where: {
+        orgId,
+        platform: 'slack', // Only Slack for now
+        tokenStatus: 'ok',
+      },
+    });
+
+    const memberMap = new Map();
+
+    for (const integration of integrations) {
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const response = await (this.slackApiService as any).callSlackApi(
@@ -646,12 +722,6 @@ export class TeamManagementService {
           { limit: 200 },
         );
 
-        this.logger.info('Slack API response received', {
-          integrationId: integration.id,
-          memberCount: response.members?.length || 0,
-          hasMembers: !!response.members,
-        });
-
         for (const user of response.members || []) {
           if (user.deleted || user.is_bot || user.is_app_user) {
             continue;
@@ -659,18 +729,15 @@ export class TeamManagementService {
 
           const key = user.id;
           if (!memberMap.has(key)) {
-            // Count how many teams this user is currently in
             const teamCount = await this.prisma.teamMember.count({
               where: {
                 platformUserId: user.id,
-                team: {
-                  orgId,
-                },
+                team: { orgId },
               },
             });
 
             memberMap.set(key, {
-              id: user.id, // Use Slack user ID as the ID for now
+              id: user.id,
               name: user.profile.display_name || user.profile.real_name || user.name || 'Unknown',
               platformUserId: user.id,
               inTeamCount: teamCount,
@@ -678,17 +745,14 @@ export class TeamManagementService {
           }
         }
       } catch (error) {
-        this.logger.error('Failed to get users from integration', {
+        this.logger.error('Failed to get users from API', {
           integrationId: integration.id,
           error: error instanceof Error ? error.message : 'Unknown error',
-          errorStack: error instanceof Error ? error.stack : undefined,
         });
       }
     }
 
-    const result = Array.from(memberMap.values());
-    this.logger.info('Returning available members', { count: result.length });
-    return { members: result };
+    return { members: Array.from(memberMap.values()) };
   }
 
   async getChannelsList(orgId: string): Promise<{

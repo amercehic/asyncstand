@@ -159,42 +159,67 @@ export class SlackApiService {
           }
 
           try {
-            // With manual team management, we don't auto-create teams
-            // Instead, we just store the user data for later team assignment
-            const integration = await this.prisma.integration.findUnique({
-              where: { id: integrationId },
-            });
+            // Store user in IntegrationUser table
+            const userData = {
+              integrationId,
+              externalUserId: user.id,
+              name: user.profile.real_name || user.name,
+              displayName: user.profile.display_name,
+              email: user.profile.email,
+              isBot: user.is_bot || false,
+              isDeleted: user.deleted || false,
+              profileImage: user.profile.image_512 || user.profile.image_192,
+              timezone: user.tz,
+              platformData: {
+                // Store Slack-specific data
+                profile: user.profile,
+                status: user.profile.status_text,
+                statusEmoji: user.profile.status_emoji,
+                isAdmin: user.is_admin,
+                isOwner: user.is_owner,
+                isPrimaryOwner: user.is_primary_owner,
+                isRestricted: user.is_restricted,
+                isUltraRestricted: user.is_ultra_restricted,
+                teamId: user.team_id,
+              },
+              lastSyncAt: new Date(),
+            };
 
-            // Check if this user is already stored in any team for this org
-            const existingMember = await this.prisma.teamMember.findFirst({
+            // Upsert user - create if new, update if exists
+            const existingUser = await this.prisma.integrationUser.findUnique({
               where: {
-                platformUserId: user.id,
-                team: {
-                  orgId: integration.orgId,
+                integrationId_externalUserId: {
+                  integrationId,
+                  externalUserId: user.id,
                 },
               },
             });
 
-            const memberData = {
-              name: user.profile.display_name || user.profile.real_name || user.name,
-              active: true,
-            };
-
-            if (existingMember) {
-              // Update existing member data
-              await this.prisma.teamMember.updateMany({
-                where: {
-                  platformUserId: user.id,
-                  team: {
-                    orgId: integration.orgId,
-                  },
-                },
-                data: memberData,
+            if (existingUser) {
+              await this.prisma.integrationUser.update({
+                where: { id: existingUser.id },
+                data: userData,
               });
               result.updated++;
+            } else {
+              await this.prisma.integrationUser.create({
+                data: userData,
+              });
+              result.added++;
             }
-            // Note: We don't create new team members here anymore
-            // Users will be added to teams manually through the team management API
+
+            // Also update any existing team members with this user's data
+            await this.prisma.teamMember.updateMany({
+              where: {
+                platformUserId: user.id,
+                team: {
+                  integrationId,
+                },
+              },
+              data: {
+                name: userData.name,
+              },
+            });
           } catch (error) {
             const errorMessage = `Failed to sync user ${user.id}: ${error instanceof Error ? error.message : 'Unknown error'}`;
             result.errors.push(errorMessage);
