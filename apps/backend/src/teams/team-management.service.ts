@@ -422,8 +422,15 @@ export class TeamManagementService {
       throw new ApiError(ErrorCode.NOT_FOUND, 'Team not found', HttpStatus.NOT_FOUND);
     }
 
-    // TODO: Get channel name from Slack API
-    const channelName = team.channelId;
+    // Get channel name from channel table based on channel id
+    let channelName: string | null = null;
+    if (team.channelId) {
+      const channel = await this.prisma.channel.findUnique({
+        where: { id: team.channelId },
+        select: { name: true },
+      });
+      channelName = channel?.name || team.channelId;
+    }
 
     return {
       id: team.id,
