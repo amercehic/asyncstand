@@ -159,12 +159,19 @@ export class SlackApiService {
           }
 
           try {
-            const team = await this.ensureTeamExists(integrationId);
+            // With manual team management, we don't auto-create teams
+            // Instead, we just store the user data for later team assignment
+            const integration = await this.prisma.integration.findUnique({
+              where: { id: integrationId },
+            });
 
+            // Check if this user is already stored in any team for this org
             const existingMember = await this.prisma.teamMember.findFirst({
               where: {
-                teamId: team.id,
                 platformUserId: user.id,
+                team: {
+                  orgId: integration.orgId,
+                },
               },
             });
 
@@ -174,21 +181,20 @@ export class SlackApiService {
             };
 
             if (existingMember) {
-              await this.prisma.teamMember.update({
-                where: { id: existingMember.id },
+              // Update existing member data
+              await this.prisma.teamMember.updateMany({
+                where: {
+                  platformUserId: user.id,
+                  team: {
+                    orgId: integration.orgId,
+                  },
+                },
                 data: memberData,
               });
               result.updated++;
-            } else {
-              await this.prisma.teamMember.create({
-                data: {
-                  teamId: team.id,
-                  platformUserId: user.id,
-                  ...memberData,
-                },
-              });
-              result.added++;
             }
+            // Note: We don't create new team members here anymore
+            // Users will be added to teams manually through the team management API
           } catch (error) {
             const errorMessage = `Failed to sync user ${user.id}: ${error instanceof Error ? error.message : 'Unknown error'}`;
             result.errors.push(errorMessage);
@@ -220,54 +226,68 @@ export class SlackApiService {
           integrationId,
           'conversations.list',
           {
-            types: 'public_channel',
+            types: 'public_channel,private_channel',
             ...(cursor ? { cursor } : {}),
           },
         );
 
         for (const channel of response.channels) {
-          if (
-            !channel.is_channel ||
-            channel.is_private ||
-            channel.is_archived ||
-            !channel.is_member
-          ) {
+          if (!channel.is_channel || channel.is_archived) {
             continue;
           }
 
           try {
-            const integration = await this.prisma.integration.findUnique({
-              where: { id: integrationId },
-            });
+            // Store or update channel information
+            const channelData = {
+              integrationId,
+              channelId: channel.id,
+              name: channel.name,
+              topic: channel.topic?.value || null,
+              purpose: channel.purpose?.value || null,
+              isPrivate: channel.is_private || false,
+              isArchived: channel.is_archived || false,
+              memberCount: channel.num_members || null,
+              lastSyncAt: new Date(),
+            };
 
-            const existingTeam = await this.prisma.team.findFirst({
+            const existingChannel = await this.prisma.channel.findUnique({
               where: {
-                integrationId,
-                channelId: channel.id,
+                integrationId_channelId: {
+                  integrationId,
+                  channelId: channel.id,
+                },
               },
             });
 
-            const teamData = {
-              name: channel.name,
-              timezone: 'UTC',
-            };
-
-            if (existingTeam) {
-              await this.prisma.team.update({
-                where: { id: existingTeam.id },
-                data: teamData,
+            let channelRecord;
+            if (existingChannel) {
+              channelRecord = await this.prisma.channel.update({
+                where: { id: existingChannel.id },
+                data: channelData,
               });
               result.updated++;
             } else {
-              await this.prisma.team.create({
-                data: {
-                  orgId: integration.orgId,
-                  integrationId,
-                  channelId: channel.id,
-                  ...teamData,
-                },
+              channelRecord = await this.prisma.channel.create({
+                data: channelData,
               });
               result.added++;
+            }
+
+            // Also update any teams that are assigned to this channel
+            const assignedTeams = await this.prisma.team.findMany({
+              where: {
+                integrationId,
+                slackChannelId: channel.id,
+              },
+            });
+
+            for (const team of assignedTeams) {
+              await this.prisma.team.update({
+                where: { id: team.id },
+                data: {
+                  channelId: channelRecord.id,
+                },
+              });
             }
           } catch (error) {
             const errorMessage = `Failed to sync channel ${channel.id}: ${error instanceof Error ? error.message : 'Unknown error'}`;
@@ -286,33 +306,6 @@ export class SlackApiService {
     } while (cursor);
 
     return result;
-  }
-
-  private async ensureTeamExists(integrationId: string): Promise<{ id: string }> {
-    const integration = await this.prisma.integration.findUnique({
-      where: { id: integrationId },
-    });
-
-    let team = await this.prisma.team.findFirst({
-      where: {
-        integrationId,
-        channelId: null,
-      },
-    });
-
-    if (!team) {
-      team = await this.prisma.team.create({
-        data: {
-          orgId: integration.orgId,
-          integrationId,
-          channelId: null,
-          name: 'Slack Workspace Members',
-          timezone: 'UTC',
-        },
-      });
-    }
-
-    return team;
   }
 
   private async callSlackApi<T>(

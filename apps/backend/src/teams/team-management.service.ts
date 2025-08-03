@@ -67,7 +67,7 @@ export class TeamManagementService {
     const existingChannelAssignment = await this.prisma.team.findFirst({
       where: {
         integrationId: data.integrationId,
-        channelId: data.channelId,
+        slackChannelId: data.channelId,
       },
     });
 
@@ -76,6 +76,24 @@ export class TeamManagementService {
         ErrorCode.CONFLICT,
         'Channel is already assigned to another team',
         HttpStatus.CONFLICT,
+      );
+    }
+
+    // Find the channel record in our database
+    const channel = await this.prisma.channel.findUnique({
+      where: {
+        integrationId_channelId: {
+          integrationId: data.integrationId,
+          channelId: data.channelId,
+        },
+      },
+    });
+
+    if (!channel) {
+      throw new ApiError(
+        ErrorCode.NOT_FOUND,
+        'Channel not found. Please sync the workspace first.',
+        HttpStatus.NOT_FOUND,
       );
     }
 
@@ -94,7 +112,8 @@ export class TeamManagementService {
         data: {
           orgId,
           integrationId: data.integrationId,
-          channelId: data.channelId,
+          channelId: channel.id,
+          slackChannelId: data.channelId,
           name: data.name,
           timezone: data.timezone,
           createdByUserId,
@@ -167,11 +186,11 @@ export class TeamManagementService {
     }
 
     // If channel is being updated, validate it
-    if (data.channelId && data.channelId !== team.channelId) {
+    if (data.channelId && data.channelId !== team.slackChannelId) {
       const existingChannelAssignment = await this.prisma.team.findFirst({
         where: {
           integrationId: data.integrationId || team.integrationId,
-          channelId: data.channelId,
+          slackChannelId: data.channelId,
           id: { not: teamId },
         },
       });
@@ -181,6 +200,24 @@ export class TeamManagementService {
           ErrorCode.CONFLICT,
           'Channel is already assigned to another team',
           HttpStatus.CONFLICT,
+        );
+      }
+
+      // Find the new channel record
+      const newChannel = await this.prisma.channel.findUnique({
+        where: {
+          integrationId_channelId: {
+            integrationId: data.integrationId || team.integrationId,
+            channelId: data.channelId,
+          },
+        },
+      });
+
+      if (!newChannel) {
+        throw new ApiError(
+          ErrorCode.NOT_FOUND,
+          'Channel not found. Please sync the workspace first.',
+          HttpStatus.NOT_FOUND,
         );
       }
 
@@ -195,12 +232,33 @@ export class TeamManagementService {
           HttpStatus.BAD_REQUEST,
         );
       }
-    }
 
-    await this.prisma.team.update({
-      where: { id: teamId },
-      data,
-    });
+      // Update with new channel reference
+      const updateData = {
+        ...data,
+        channelId: newChannel.id,
+        slackChannelId: data.channelId,
+      };
+      delete updateData.channelId; // Remove the Slack channel ID from update data
+
+      await this.prisma.team.update({
+        where: { id: teamId },
+        data: {
+          ...updateData,
+          channelId: newChannel.id,
+          slackChannelId: data.channelId,
+        },
+      });
+    } else {
+      await this.prisma.team.update({
+        where: { id: teamId },
+        data: {
+          name: data.name,
+          timezone: data.timezone,
+          // Don't update channel-related fields if channel isn't changing
+        },
+      });
+    }
 
     this.logger.info('Team updated successfully', { teamId, orgId });
   }
@@ -425,92 +483,78 @@ export class TeamManagementService {
   async getAvailableChannels(orgId: string): Promise<AvailableChannelsResponse> {
     this.logger.info('Getting available channels', { orgId });
 
-    // Get all integrations for the organization
-    const integrations = await this.prisma.integration.findMany({
+    // Get all channels from database that belong to organization's integrations
+    const channels = await this.prisma.channel.findMany({
       where: {
-        orgId,
-        platform: 'slack',
-        tokenStatus: 'ok',
+        integration: {
+          orgId,
+          platform: 'slack',
+          tokenStatus: 'ok',
+        },
+        isArchived: false, // Only show non-archived channels
       },
+      include: {
+        teams: {
+          select: {
+            name: true,
+          },
+          take: 1,
+        },
+      },
+      orderBy: { name: 'asc' },
     });
 
-    if (integrations.length === 0) {
-      return { channels: [] };
-    }
-
-    // Get assigned channels
-    const assignedChannels = await this.prisma.team.findMany({
-      where: { orgId },
-      select: {
-        channelId: true,
-        name: true,
-        integrationId: true,
-      },
-    });
-
-    const assignedChannelMap = new Map(
-      assignedChannels.map((team) => [`${team.integrationId}-${team.channelId}`, team.name]),
-    );
-
-    // Get channels from each integration
-    const allChannels = [];
-    for (const integration of integrations) {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const response = await (this.slackApiService as any).callSlackApi(
-          integration.id,
-          'conversations.list',
-          { types: 'public_channel', limit: 100 },
-        );
-
-        for (const channel of response.channels || []) {
-          if (channel.is_channel && !channel.is_archived && channel.is_member) {
-            const key = `${integration.id}-${channel.id}`;
-            const isAssigned = assignedChannelMap.has(key);
-
-            allChannels.push({
-              id: channel.id,
-              name: channel.name,
-              isAssigned,
-              assignedTeamName: isAssigned ? assignedChannelMap.get(key) : undefined,
-            });
-          }
-        }
-      } catch (error) {
-        this.logger.warn('Failed to get channels from integration', {
-          integrationId: integration.id,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
-      }
-    }
-
-    return { channels: allChannels };
+    return {
+      channels: channels.map((channel) => ({
+        id: channel.channelId, // Return Slack channel ID for team creation
+        name: channel.name,
+        isAssigned: channel.teams.length > 0,
+        assignedTeamName: channel.teams[0]?.name,
+      })),
+    };
   }
 
-  async addTeamMember(teamId: string, memberId: string, addedByUserId: string): Promise<void> {
-    this.logger.info('Adding team member', { teamId, memberId, addedByUserId });
+  async addTeamMember(teamId: string, slackUserId: string, addedByUserId: string): Promise<void> {
+    this.logger.info('Adding team member', { teamId, slackUserId, addedByUserId });
 
     const team = await this.prisma.team.findUnique({
       where: { id: teamId },
+      include: { integration: true },
     });
 
     if (!team) {
       throw new ApiError(ErrorCode.NOT_FOUND, 'Team not found', HttpStatus.NOT_FOUND);
     }
 
-    const member = await this.prisma.teamMember.findUnique({
-      where: { id: memberId },
-    });
+    // Get user info from Slack API
+    let userName = 'Unknown';
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const userResponse = await (this.slackApiService as any).callSlackApi(
+        team.integrationId,
+        'users.info',
+        { user: slackUserId },
+      );
 
-    if (!member) {
-      throw new ApiError(ErrorCode.NOT_FOUND, 'Team member not found', HttpStatus.NOT_FOUND);
+      if (userResponse.user) {
+        userName =
+          userResponse.user.profile.display_name ||
+          userResponse.user.profile.real_name ||
+          userResponse.user.name ||
+          'Unknown';
+      }
+    } catch (error) {
+      this.logger.warn('Failed to get user info from Slack', {
+        slackUserId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
     }
 
     // Check if member is already in the team
     const existingMembership = await this.prisma.teamMember.findFirst({
       where: {
         teamId,
-        OR: [{ platformUserId: member.platformUserId }, { userId: member.userId }],
+        platformUserId: slackUserId,
       },
     });
 
@@ -522,14 +566,13 @@ export class TeamManagementService {
     await this.prisma.teamMember.create({
       data: {
         teamId,
-        platformUserId: member.platformUserId,
-        userId: member.userId,
-        name: member.name,
+        platformUserId: slackUserId,
+        name: userName,
         addedByUserId,
       },
     });
 
-    this.logger.info('Team member added successfully', { teamId, memberId });
+    this.logger.info('Team member added successfully', { teamId, slackUserId });
   }
 
   async removeTeamMember(teamId: string, memberId: string): Promise<void> {
@@ -576,40 +619,126 @@ export class TeamManagementService {
   async getAvailableMembers(orgId: string): Promise<AvailableMembersResponse> {
     this.logger.info('Getting available members', { orgId });
 
-    // Get all unique team members from teams in this organization
-    const teams = await this.prisma.team.findMany({
-      where: { orgId },
-      include: {
-        members: {
-          select: {
-            id: true,
-            name: true,
-            platformUserId: true,
-            userId: true,
-          },
-        },
+    // Get all Slack integrations for this organization
+    const integrations = await this.prisma.integration.findMany({
+      where: {
+        orgId,
+        platform: 'slack',
+        tokenStatus: 'ok',
       },
     });
 
-    // Flatten and deduplicate members by platformUserId
+    this.logger.info('Found integrations', {
+      count: integrations.length,
+      integrations: integrations.map((i) => ({ id: i.id, tokenStatus: i.tokenStatus })),
+    });
+
     const memberMap = new Map();
-    for (const team of teams) {
-      for (const member of team.members) {
-        const key = member.platformUserId || member.userId;
-        if (!memberMap.has(key)) {
-          memberMap.set(key, {
-            id: member.id,
-            name: member.name || 'Unknown',
-            platformUserId: member.platformUserId || '',
-            inTeamCount: 1,
-          });
-        } else {
-          const existing = memberMap.get(key);
-          existing.inTeamCount++;
+
+    // Fetch users from each Slack integration
+    for (const integration of integrations) {
+      this.logger.info('Fetching users from integration', { integrationId: integration.id });
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const response = await (this.slackApiService as any).callSlackApi(
+          integration.id,
+          'users.list',
+          { limit: 200 },
+        );
+
+        this.logger.info('Slack API response received', {
+          integrationId: integration.id,
+          memberCount: response.members?.length || 0,
+          hasMembers: !!response.members,
+        });
+
+        for (const user of response.members || []) {
+          if (user.deleted || user.is_bot || user.is_app_user) {
+            continue;
+          }
+
+          const key = user.id;
+          if (!memberMap.has(key)) {
+            // Count how many teams this user is currently in
+            const teamCount = await this.prisma.teamMember.count({
+              where: {
+                platformUserId: user.id,
+                team: {
+                  orgId,
+                },
+              },
+            });
+
+            memberMap.set(key, {
+              id: user.id, // Use Slack user ID as the ID for now
+              name: user.profile.display_name || user.profile.real_name || user.name || 'Unknown',
+              platformUserId: user.id,
+              inTeamCount: teamCount,
+            });
+          }
         }
+      } catch (error) {
+        this.logger.error('Failed to get users from integration', {
+          integrationId: integration.id,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          errorStack: error instanceof Error ? error.stack : undefined,
+        });
       }
     }
 
-    return { members: Array.from(memberMap.values()) };
+    const result = Array.from(memberMap.values());
+    this.logger.info('Returning available members', { count: result.length });
+    return { members: result };
+  }
+
+  async getChannelsList(orgId: string): Promise<{
+    channels: Array<{
+      id: string;
+      name: string;
+      topic?: string;
+      purpose?: string;
+      isPrivate: boolean;
+      isArchived: boolean;
+      memberCount?: number;
+      isAssigned: boolean;
+      assignedTeamName?: string;
+      lastSyncAt?: Date;
+    }>;
+  }> {
+    this.logger.info('Getting channels list', { orgId });
+
+    // Get all channels for organization's integrations
+    const channels = await this.prisma.channel.findMany({
+      where: {
+        integration: {
+          orgId,
+          platform: 'slack',
+        },
+      },
+      include: {
+        teams: {
+          select: {
+            name: true,
+          },
+          take: 1,
+        },
+      },
+      orderBy: [{ isArchived: 'asc' }, { name: 'asc' }],
+    });
+
+    return {
+      channels: channels.map((channel) => ({
+        id: channel.id,
+        name: channel.name,
+        topic: channel.topic,
+        purpose: channel.purpose,
+        isPrivate: channel.isPrivate,
+        isArchived: channel.isArchived,
+        memberCount: channel.memberCount,
+        isAssigned: channel.teams.length > 0,
+        assignedTeamName: channel.teams[0]?.name,
+        lastSyncAt: channel.lastSyncAt,
+      })),
+    };
   }
 }

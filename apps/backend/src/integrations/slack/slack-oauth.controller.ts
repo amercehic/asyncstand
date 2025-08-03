@@ -46,10 +46,13 @@ export class SlackOauthController {
     // Generate state token
     const state = await this.redisService.generateStateToken(orgId);
 
-    // Build OAuth URL
+    // Build OAuth URL - using v2 OAuth flow
     const oauthUrl = new URL(SLACK_OAUTH_URLS.AUTHORIZE);
     oauthUrl.searchParams.set('client_id', clientId);
-    oauthUrl.searchParams.set('scope', 'chat:write,channels:read,channels:history,users:read');
+    // User scopes for the installing user
+    oauthUrl.searchParams.set('user_scope', 'identity.basic');
+    // Bot scopes for the bot token
+    oauthUrl.searchParams.set('scope', 'channels:read,groups:read,users:read,chat:write');
     oauthUrl.searchParams.set('state', state);
     oauthUrl.searchParams.set(
       'redirect_uri',

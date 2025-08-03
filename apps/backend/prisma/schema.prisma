@@ -168,7 +168,8 @@ model Integration {
   refreshToken      String?
   expiresAt         DateTime?
   tokenStatus       TokenStatus
-  scopes            String[]
+  scopes            String[]      // Bot scopes granted to the bot token
+  userScopes        String[]      @default([]) // User scopes granted to the user token
   installedBy       User?         @relation("IntegrationInstalledBy", fields: [installedByUserId], references: [id], onDelete: SetNull)
   installedByUserId String?
   
@@ -179,6 +180,7 @@ model Integration {
 
   // Relations
   teams             Team[]
+  channels          Channel[]
   syncState         IntegrationSyncState?
   digestPosts       StandupDigestPost[]
   tokenRefreshJobs  TokenRefreshJob[]
@@ -198,13 +200,38 @@ model IntegrationSyncState {
 // ------------------------------
 // STANDUP FEATURE DOMAINS
 // ------------------------------
+model Channel {
+  id             String       @id @default(uuid())
+  integration    Integration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  integrationId  String
+  channelId      String       // Slack channel ID (e.g., C1234567890)
+  name           String       // Channel name (e.g., engineering)
+  topic          String?      // Channel topic/description
+  purpose        String?      // Channel purpose
+  isPrivate      Boolean      @default(false)
+  isArchived     Boolean      @default(false)
+  memberCount    Int?         // Number of members in channel
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  lastSyncAt     DateTime?    // When channel info was last synced
+
+  // Relations
+  teams          Team[]       // Teams assigned to this channel
+
+  @@unique([integrationId, channelId])
+  @@index([integrationId, isArchived])
+  @@index([name])
+}
+
 model Team {
   id             String       @id @default(uuid())
   org            Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   orgId          String
   integration    Integration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
   integrationId  String
-  channelId      String
+  channel        Channel?     @relation(fields: [channelId], references: [id], onDelete: SetNull)
+  channelId      String?      // Now references Channel.id, not Slack channel ID
+  slackChannelId String       // The actual Slack channel ID (e.g., C1234567890)
   name           String
   timezone       String
   createdBy      User?        @relation("TeamCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
@@ -217,9 +244,9 @@ model Team {
   configs        StandupConfig[]
   instances      StandupInstance[]
 
-  @@index([integrationId, channelId])
+  @@index([integrationId, slackChannelId])
   @@index([orgId, createdAt])
-  @@unique([integrationId, channelId])
+  @@unique([integrationId, slackChannelId])
 }
 
 model TeamMember {

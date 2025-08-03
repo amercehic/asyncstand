@@ -49,14 +49,21 @@ export class SlackOauthService {
   }
 
   async exchangeCode(code: string, state: string, ipAddress: string): Promise<{ success: true }> {
+    this.logger.debug(
+      `Starting OAuth exchange - code: ${code?.substring(0, 10)}..., state: ${state?.substring(0, 10)}...`,
+    );
+
     // Validate feature flag
     if (!this.configService.get<boolean>('slackOauthEnabled')) {
+      this.logger.error('Slack OAuth is not enabled');
       throw new ApiError(ErrorCode.FORBIDDEN, 'Slack OAuth is not enabled', HttpStatus.FORBIDDEN);
     }
 
     // Validate state parameter
     const orgId = await this.redisService.validateStateToken(state);
+    this.logger.debug(`State validation result - orgId: ${orgId}`);
     if (!orgId) {
+      this.logger.error(`State validation failed for state: ${state}`);
       throw new ApiError(
         ErrorCode.VALIDATION_FAILED,
         'Invalid or expired state parameter',
@@ -103,25 +110,32 @@ export class SlackOauthService {
       // Store integration with encrypted tokens
       const encryptKey = this.configService.get<string>('databaseEncryptKey');
 
+      // Extract bot scopes and user scopes
+      const botScopes = oauthResponse.scope ? oauthResponse.scope.split(',') : [];
+      const userScopes = oauthResponse.authed_user?.scope
+        ? oauthResponse.authed_user.scope.split(',')
+        : [];
+
       // Use database-level encryption if key is available
       if (encryptKey) {
         await this.prisma.$executeRaw`
           INSERT INTO "Integration" (
             id, "orgId", platform, "externalTeamId", "accessToken", "botToken", 
-            "botUserId", "appId", "refreshToken", "expiresAt", "tokenStatus", scopes
+            "botUserId", "appId", "refreshToken", "expiresAt", "tokenStatus", scopes, "userScopes"
           ) VALUES (
             gen_random_uuid(),
             ${orgId}::uuid,
             ${IntegrationPlatform.slack}::"IntegrationPlatform",
             ${oauthResponse.team.id},
-            pgp_sym_encrypt(${oauthResponse.access_token}, ${encryptKey}),
+            pgp_sym_encrypt(${oauthResponse.authed_user.access_token}, ${encryptKey}),
             pgp_sym_encrypt(${oauthResponse.access_token}, ${encryptKey}),
             ${oauthResponse.bot_user_id},
             ${oauthResponse.app_id},
             ${oauthResponse.refresh_token ? `pgp_sym_encrypt('${oauthResponse.refresh_token}', '${encryptKey}')` : null},
             ${expiresAt},
             ${TokenStatus.ok}::"TokenStatus",
-            ${oauthResponse.scope.split(',')}
+            ${botScopes},
+            ${userScopes}
           )
           RETURNING id
         `;
@@ -133,14 +147,15 @@ export class SlackOauthService {
             orgId,
             platform: IntegrationPlatform.slack,
             externalTeamId: oauthResponse.team.id,
-            accessToken: oauthResponse.access_token,
-            botToken: oauthResponse.access_token,
+            accessToken: oauthResponse.authed_user.access_token, // User token
+            botToken: oauthResponse.access_token, // Bot token
             botUserId: oauthResponse.bot_user_id,
             appId: oauthResponse.app_id,
             refreshToken: oauthResponse.refresh_token,
             expiresAt,
             tokenStatus: TokenStatus.ok,
-            scopes: oauthResponse.scope.split(','),
+            scopes: botScopes,
+            userScopes: userScopes,
           },
         });
       }

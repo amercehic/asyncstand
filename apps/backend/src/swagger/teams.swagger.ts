@@ -477,7 +477,7 @@ export const SwaggerAddTeamMember = () =>
     ApiOperation({
       summary: 'Add member to team',
       description:
-        "Adds an existing Slack user to a team. The member must already exist in the organization's Slack integration data (from previous sync operations). Users can belong to multiple teams. Prevents duplicate memberships.",
+        'Adds a Slack user to a team by their Slack user ID. The user must be a member of the Slack workspace associated with the team. Users can belong to multiple teams. Prevents duplicate memberships.',
     }),
     ApiBearerAuth('JWT-auth'),
     ApiParam({
@@ -679,6 +679,97 @@ export const SwaggerGetAvailableMembers = () =>
     ApiResponse({
       status: 403,
       description: 'Forbidden - insufficient permissions (requires admin or owner role)',
+    }),
+  );
+
+export const SwaggerGetChannelsList = () =>
+  applyDecorators(
+    ApiOperation({
+      summary: 'Get all channels with detailed information',
+      description:
+        'Retrieves all channels from organization integrations with comprehensive metadata including topic, purpose, member count, team assignments, and sync status. Channels are ordered by archived status and name.',
+    }),
+    ApiBearerAuth('JWT-auth'),
+    ApiResponse({
+      status: 200,
+      description: 'Channels list retrieved successfully',
+      schema: {
+        type: 'object',
+        properties: {
+          channels: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                id: {
+                  type: 'string',
+                  example: '123e4567-e89b-12d3-a456-426614174000',
+                  description: 'Internal channel ID',
+                },
+                name: {
+                  type: 'string',
+                  example: 'engineering',
+                  description: 'Channel name',
+                },
+                topic: {
+                  type: 'string',
+                  example: 'Engineering team discussions',
+                  description: 'Channel topic/description',
+                  nullable: true,
+                },
+                purpose: {
+                  type: 'string',
+                  example: 'Daily standups and technical discussions',
+                  description: 'Channel purpose',
+                  nullable: true,
+                },
+                isPrivate: {
+                  type: 'boolean',
+                  example: false,
+                  description: 'Whether channel is private',
+                },
+                isArchived: {
+                  type: 'boolean',
+                  example: false,
+                  description: 'Whether channel is archived',
+                },
+                memberCount: {
+                  type: 'number',
+                  example: 12,
+                  description: 'Number of members in channel',
+                  nullable: true,
+                },
+                isAssigned: {
+                  type: 'boolean',
+                  example: true,
+                  description: 'Whether channel is assigned to a team',
+                },
+                assignedTeamName: {
+                  type: 'string',
+                  example: 'Engineering Team',
+                  description: 'Name of team assigned to this channel',
+                  nullable: true,
+                },
+                lastSyncAt: {
+                  type: 'string',
+                  format: 'date-time',
+                  example: '2024-08-02T15:30:00.000Z',
+                  description: 'When channel info was last synced',
+                  nullable: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized - invalid or missing JWT token',
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden - insufficient permissions',
     }),
   );
 

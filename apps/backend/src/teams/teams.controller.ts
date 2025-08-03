@@ -40,6 +40,7 @@ import {
   SwaggerRemoveTeamMember,
   SwaggerGetAvailableChannels,
   SwaggerGetAvailableMembers,
+  SwaggerGetChannelsList,
   SwaggerValidateChannelAccess,
 } from '@/swagger/teams.swagger';
 
@@ -181,6 +182,20 @@ export class TeamsController {
     return { success: true };
   }
 
+  @Get('slack/channels')
+  @Roles(OrgRole.admin, OrgRole.owner)
+  @SwaggerGetAvailableChannels()
+  async getAvailableChannels(@CurrentOrg() orgId: string): Promise<AvailableChannelsResponse> {
+    return this.teamManagementService.getAvailableChannels(orgId);
+  }
+
+  @Get('slack/members')
+  @Roles(OrgRole.admin, OrgRole.owner)
+  @SwaggerGetAvailableMembers()
+  async getAvailableMembers(@CurrentOrg() orgId: string): Promise<AvailableMembersResponse> {
+    return this.teamManagementService.getAvailableMembers(orgId);
+  }
+
   @Get(':id/members')
   @Roles(OrgRole.admin, OrgRole.owner, OrgRole.member)
   @SwaggerGetTeamMembers()
@@ -196,7 +211,7 @@ export class TeamsController {
     @Body(ValidationPipe) addMemberDto: AddTeamMemberDto,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<{ success: boolean }> {
-    await this.teamManagementService.addTeamMember(teamId, addMemberDto.teamMemberId, user.userId);
+    await this.teamManagementService.addTeamMember(teamId, addMemberDto.slackUserId, user.userId);
 
     await this.auditLogService.log({
       action: 'team.member_added',
@@ -219,7 +234,7 @@ export class TeamsController {
         },
         {
           type: 'team_member',
-          id: addMemberDto.teamMemberId,
+          id: addMemberDto.slackUserId,
           action: ResourceAction.CREATED,
         },
       ],
@@ -267,18 +282,11 @@ export class TeamsController {
     return { success: true };
   }
 
-  @Get('slack/channels')
-  @Roles(OrgRole.admin, OrgRole.owner)
-  @SwaggerGetAvailableChannels()
-  async getAvailableChannels(@CurrentOrg() orgId: string): Promise<AvailableChannelsResponse> {
-    return this.teamManagementService.getAvailableChannels(orgId);
-  }
-
-  @Get('slack/members')
-  @Roles(OrgRole.admin, OrgRole.owner)
-  @SwaggerGetAvailableMembers()
-  async getAvailableMembers(@CurrentOrg() orgId: string): Promise<AvailableMembersResponse> {
-    return this.teamManagementService.getAvailableMembers(orgId);
+  @Get('channels')
+  @Roles(OrgRole.admin, OrgRole.owner, OrgRole.member)
+  @SwaggerGetChannelsList()
+  async getChannelsList(@CurrentOrg() orgId: string) {
+    return this.teamManagementService.getChannelsList(orgId);
   }
 
   @Post(':id/validate-channel')
