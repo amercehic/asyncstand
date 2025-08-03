@@ -1,268 +1,277 @@
 import { PrismaService } from '@/prisma/prisma.service';
-import { OrgRole, OrgMemberStatus } from '@prisma/client';
-import { TestHelpers } from '@/test/utils/test-helpers';
-
-export interface TestIds {
-  userIds?: string[];
-  orgIds?: string[];
-  orgMemberIds?: string[];
-  tokenIds?: string[];
-}
-
-export interface CreateTestUserOptions {
-  email?: string;
-  name?: string;
-  passwordHash?: string;
-  orgId?: string;
-  role?: OrgRole;
-  status?: OrgMemberStatus;
-}
-
-export interface CreateTestOrgOptions {
-  name?: string;
-  ownerId?: string;
-}
 
 export class DatabaseHelpers {
-  constructor(private readonly prisma: PrismaService) {}
-
   /**
-   * Clean up test data from database
+   * Clean database in dependency order
    */
-  async cleanupTestData(testIds: TestIds = {}): Promise<void> {
-    const { userIds = [], orgIds = [], orgMemberIds = [], tokenIds = [] } = testIds;
-
-    // Clean up in correct order due to foreign key constraints
-
-    // 1. Clean up tokens
-    if (tokenIds.length > 0) {
-      await this.prisma.refreshToken.deleteMany({
-        where: { id: { in: tokenIds } },
-      });
-
-      await this.prisma.passwordResetToken.deleteMany({
-        where: { token: { in: tokenIds } },
-      });
-    }
-
-    // 2. Clean up org members
-    if (orgMemberIds.length > 0) {
-      // Clean up org members for specific org/user pairs
-      for (const orgId of orgIds) {
-        await this.prisma.orgMember.deleteMany({
-          where: { orgId },
-        });
-      }
-    }
-
-    // 3. Clean up audit logs
-    if (orgIds.length > 0) {
-      await this.prisma.auditLog.deleteMany({
-        where: { orgId: { in: orgIds } },
-      });
-    }
-
-    // 4. Clean up org members by user IDs
-    if (userIds.length > 0) {
-      await this.prisma.orgMember.deleteMany({
-        where: { userId: { in: userIds } },
-      });
-    }
-
-    // 5. Clean up org members by org IDs
-    if (orgIds.length > 0) {
-      await this.prisma.orgMember.deleteMany({
-        where: { orgId: { in: orgIds } },
-      });
-    }
-
-    // 6. Clean up users
-    if (userIds.length > 0) {
-      await this.prisma.user.deleteMany({
-        where: { id: { in: userIds } },
-      });
-    }
-
-    // 7. Clean up organizations
-    if (orgIds.length > 0) {
-      await this.prisma.organization.deleteMany({
-        where: { id: { in: orgIds } },
-      });
-    }
+  static async cleanDatabase(prisma: PrismaService): Promise<void> {
+    // Delete in reverse dependency order to avoid foreign key constraints
+    await prisma.standupConfigMember.deleteMany();
+    await prisma.standupConfig.deleteMany();
+    await prisma.answer.deleteMany();
+    await prisma.participationSnapshot.deleteMany();
+    await prisma.standupDigestPost.deleteMany();
+    await prisma.standupInstance.deleteMany();
+    await prisma.teamMember.deleteMany();
+    await prisma.team.deleteMany();
+    await prisma.integrationUser.deleteMany();
+    await prisma.channel.deleteMany();
+    await prisma.integrationSyncState.deleteMany();
+    await prisma.tokenRefreshJob.deleteMany();
+    await prisma.integration.deleteMany();
+    await prisma.auditLog.deleteMany();
+    await prisma.orgMember.deleteMany();
+    await prisma.organization.deleteMany();
+    await prisma.refreshToken.deleteMany();
+    await prisma.session.deleteMany();
+    await prisma.passwordResetToken.deleteMany();
+    await prisma.user.deleteMany();
   }
 
   /**
-   * Clean up all test data by email patterns
+   * Setup basic test data
    */
-  async cleanupTestDataByEmail(emailPatterns: string[]): Promise<void> {
-    for (const pattern of emailPatterns) {
-      // Clean up org members first
-      await this.prisma.orgMember.deleteMany({
-        where: { user: { email: { contains: pattern } } },
-      });
-
-      // Clean up users
-      await this.prisma.user.deleteMany({
-        where: { email: { contains: pattern } },
-      });
-    }
-  }
-
-  /**
-   * Create a test user with optional organization membership
-   */
-  async createTestUser(
-    options: CreateTestUserOptions = {},
-  ): Promise<{ id: string; email: string; name: string; passwordHash: string }> {
-    const {
-      email = TestHelpers.generateRandomEmail(),
-      name = 'Test User',
-      passwordHash = 'hashed_password_123',
-      orgId,
-      role = OrgRole.member,
-      status = OrgMemberStatus.active,
-    } = options;
-
-    const user = await this.prisma.user.create({
+  static async setupTestData(prisma: PrismaService) {
+    // Create test user
+    const user = await prisma.user.create({
       data: {
-        email,
-        name,
-        passwordHash,
+        email: 'test@example.com',
+        passwordHash: 'hashed_password',
+        name: 'Test User',
       },
     });
 
-    // Create organization membership if orgId provided
-    if (orgId) {
-      await this.prisma.orgMember.create({
-        data: {
-          orgId,
-          userId: user.id,
-          role,
-          status,
-        },
-      });
-    }
-
-    return user;
-  }
-
-  /**
-   * Create a test organization with optional owner
-   */
-  async createTestOrganization(
-    options: CreateTestOrgOptions = {},
-  ): Promise<{ id: string; name: string }> {
-    const { name = `Test Org ${TestHelpers.generateRandomSuffix()}`, ownerId } = options;
-
-    const org = await this.prisma.organization.create({
-      data: { name },
-    });
-
-    // Create owner membership if ownerId provided
-    if (ownerId) {
-      await this.prisma.orgMember.create({
-        data: {
-          orgId: org.id,
-          userId: ownerId,
-          role: OrgRole.owner,
-          status: OrgMemberStatus.active,
-        },
-      });
-    }
-
-    return org;
-  }
-
-  /**
-   * Create a complete test setup with user and organization
-   */
-  async createTestUserWithOrg(userOverrides: Partial<CreateTestUserOptions> = {}): Promise<{
-    user: { id: string; email: string; name: string; passwordHash: string };
-    org: { id: string; name: string };
-    orgMember: Record<string, unknown> | null;
-  }> {
-    // Create organization first
-    const org = await this.createTestOrganization();
-
-    // Create user with org membership
-    const user = await this.createTestUser({
-      orgId: org.id,
-      role: OrgRole.owner,
-      ...userOverrides,
-    });
-
-    // Get the org member record
-    const orgMember = await this.prisma.orgMember.findUnique({
-      where: {
-        orgId_userId: {
-          orgId: org.id,
-          userId: user.id,
-        },
+    // Create test organization
+    const org = await prisma.organization.create({
+      data: {
+        name: 'Test Organization',
       },
     });
 
-    return { user, org, orgMember };
+    // Create org membership
+    await prisma.orgMember.create({
+      data: {
+        orgId: org.id,
+        userId: user.id,
+        role: 'admin',
+        status: 'active',
+      },
+    });
+
+    return { user, org };
   }
 
   /**
-   * Create multiple test users for an organization
+   * Create test integration
    */
-  async createTestUsersForOrg(
-    orgId: string,
-    count: number,
-    baseOptions: Partial<CreateTestUserOptions> = {},
-  ): Promise<{ id: string; email: string; name: string; passwordHash: string }[]> {
-    const users = [];
-
-    for (let i = 0; i < count; i++) {
-      const user = await this.createTestUser({
+  static async createTestIntegration(prisma: PrismaService, orgId: string, userId: string) {
+    return prisma.integration.create({
+      data: {
         orgId,
-        ...baseOptions,
-        email: `testuser${i}-${TestHelpers.generateRandomSuffix()}@test.com`,
-        name: `Test User ${i}`,
-      });
-      users.push(user);
-    }
-
-    return users;
-  }
-
-  /**
-   * Verify database state for testing
-   */
-  async verifyUserExists(email: string): Promise<boolean> {
-    const user = await this.prisma.user.findUnique({
-      where: { email },
+        platform: 'slack',
+        externalTeamId: 'T1234567890',
+        accessToken: 'xoxb-test-token',
+        refreshToken: 'refresh-token',
+        tokenStatus: 'ok',
+        scopes: ['channels:read', 'users:read', 'chat:write'],
+        userScopes: ['identify'],
+        installedByUserId: userId,
+        botToken: 'xoxb-bot-token',
+        botUserId: 'B1234567890',
+        appId: 'A1234567890',
+      },
     });
-    return !!user;
   }
 
   /**
-   * Verify organization membership
+   * Create test channel
    */
-  async verifyOrgMembership(userId: string, orgId: string): Promise<boolean> {
-    const membership = await this.prisma.orgMember.findUnique({
-      where: {
-        orgId_userId: {
-          orgId,
-          userId,
+  static async createTestChannel(prisma: PrismaService, integrationId: string) {
+    return prisma.channel.create({
+      data: {
+        integrationId,
+        channelId: 'C1234567890',
+        name: 'test-channel',
+        topic: 'Test channel topic',
+        purpose: 'Test channel purpose',
+        isPrivate: false,
+        isArchived: false,
+        memberCount: 5,
+      },
+    });
+  }
+
+  /**
+   * Create test integration user
+   */
+  static async createTestIntegrationUser(prisma: PrismaService, integrationId: string) {
+    return prisma.integrationUser.create({
+      data: {
+        integrationId,
+        externalUserId: 'U1234567890',
+        name: 'Test Slack User',
+        displayName: 'Test User',
+        email: 'slackuser@example.com',
+        isBot: false,
+        isDeleted: false,
+        profileImage: 'https://avatars.slack-edge.com/test.jpg',
+        timezone: 'America/New_York',
+        platformData: {
+          real_name: 'Test Slack User',
+          title: 'Developer',
         },
       },
     });
-    return !!membership;
   }
 
   /**
-   * Get user with organization memberships
+   * Create test team
    */
-  async getUserWithOrgs(userId: string): Promise<Record<string, unknown> | null> {
-    return this.prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        orgMembers: {
-          include: { org: true },
-        },
+  static async createTestTeam(
+    prisma: PrismaService,
+    orgId: string,
+    integrationId: string,
+    channelId: string,
+    createdByUserId: string,
+  ) {
+    return prisma.team.create({
+      data: {
+        orgId,
+        integrationId,
+        channelId,
+        slackChannelId: 'C1234567890',
+        name: 'Test Team',
+        timezone: 'America/New_York',
+        createdByUserId,
       },
     });
+  }
+
+  /**
+   * Create test team member
+   */
+  static async createTestTeamMember(
+    prisma: PrismaService,
+    teamId: string,
+    integrationUserId: string,
+    addedByUserId: string,
+  ) {
+    return prisma.teamMember.create({
+      data: {
+        teamId,
+        integrationUserId,
+        platformUserId: 'U1234567890',
+        name: 'Test Team Member',
+        active: true,
+        addedByUserId,
+      },
+    });
+  }
+
+  /**
+   * Create test standup config
+   */
+  static async createTestStandupConfig(prisma: PrismaService, teamId: string, createdByUserId: string) {
+    return prisma.standupConfig.create({
+      data: {
+        teamId,
+        questions: [
+          'What did you accomplish yesterday?',
+          'What will you work on today?',
+          'Are there any blockers or impediments?',
+        ],
+        weekdays: [1, 2, 3, 4, 5],
+        timeLocal: '09:00',
+        timezone: 'America/New_York',
+        reminderMinutesBefore: 15,
+        responseTimeoutHours: 2,
+        isActive: true,
+        createdByUserId,
+      },
+    });
+  }
+
+  /**
+   * Create test standup config member
+   */
+  static async createTestStandupConfigMember(
+    prisma: PrismaService,
+    standupConfigId: string,
+    teamMemberId: string,
+    include = true,
+    role?: string,
+  ) {
+    return prisma.standupConfigMember.create({
+      data: {
+        standupConfigId,
+        teamMemberId,
+        include,
+        role,
+      },
+    });
+  }
+
+  /**
+   * Create complete test setup with all entities
+   */
+  static async createCompleteTestSetup(prisma: PrismaService) {
+    const { user, org } = await this.setupTestData(prisma);
+    const integration = await this.createTestIntegration(prisma, org.id, user.id);
+    const channel = await this.createTestChannel(prisma, integration.id);
+    const integrationUser = await this.createTestIntegrationUser(prisma, integration.id);
+    const team = await this.createTestTeam(prisma, org.id, integration.id, channel.id, user.id);
+    const teamMember = await this.createTestTeamMember(prisma, team.id, integrationUser.id, user.id);
+    const standupConfig = await this.createTestStandupConfig(prisma, team.id, user.id);
+    const configMember = await this.createTestStandupConfigMember(
+      prisma,
+      standupConfig.id,
+      teamMember.id,
+    );
+
+    return {
+      user,
+      org,
+      integration,
+      channel,
+      integrationUser,
+      team,
+      teamMember,
+      standupConfig,
+      configMember,
+    };
+  }
+
+  /**
+   * Count all records in database (useful for testing cleanup)
+   */
+  static async countAllRecords(prisma: PrismaService) {
+    const counts = await Promise.all([
+      prisma.user.count(),
+      prisma.organization.count(),
+      prisma.orgMember.count(),
+      prisma.integration.count(),
+      prisma.channel.count(),
+      prisma.integrationUser.count(),
+      prisma.team.count(),
+      prisma.teamMember.count(),
+      prisma.standupConfig.count(),
+      prisma.standupConfigMember.count(),
+      prisma.auditLog.count(),
+    ]);
+
+    return {
+      users: counts[0],
+      organizations: counts[1],
+      orgMembers: counts[2],
+      integrations: counts[3],
+      channels: counts[4],
+      integrationUsers: counts[5],
+      teams: counts[6],
+      teamMembers: counts[7],
+      standupConfigs: counts[8],
+      standupConfigMembers: counts[9],
+      auditLogs: counts[10],
+      total: counts.reduce((sum, count) => sum + count, 0),
+    };
   }
 }

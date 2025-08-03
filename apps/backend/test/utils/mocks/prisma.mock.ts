@@ -61,6 +61,62 @@ export type MockPrismaService = {
     count: jest.Mock;
     deleteMany: jest.Mock;
   };
+  team: {
+    create: jest.Mock;
+    findFirst: jest.Mock;
+    findUnique: jest.Mock;
+    findMany: jest.Mock;
+    update: jest.Mock;
+    delete: jest.Mock;
+    deleteMany: jest.Mock;
+    count: jest.Mock;
+  };
+  teamMember: {
+    create: jest.Mock;
+    findFirst: jest.Mock;
+    findUnique: jest.Mock;
+    findMany: jest.Mock;
+    update: jest.Mock;
+    delete: jest.Mock;
+    deleteMany: jest.Mock;
+    count: jest.Mock;
+  };
+  standupConfig: {
+    create: jest.Mock;
+    findFirst: jest.Mock;
+    findUnique: jest.Mock;
+    findMany: jest.Mock;
+    update: jest.Mock;
+    delete: jest.Mock;
+    deleteMany: jest.Mock;
+  };
+  standupConfigMember: {
+    create: jest.Mock;
+    findUnique: jest.Mock;
+    findMany: jest.Mock;
+    upsert: jest.Mock;
+    update: jest.Mock;
+    delete: jest.Mock;
+    deleteMany: jest.Mock;
+  };
+  channel: {
+    create: jest.Mock;
+    findFirst: jest.Mock;
+    findUnique: jest.Mock;
+    findMany: jest.Mock;
+    update: jest.Mock;
+    delete: jest.Mock;
+    deleteMany: jest.Mock;
+  };
+  integrationUser: {
+    create: jest.Mock;
+    findFirst: jest.Mock;
+    findUnique: jest.Mock;
+    findMany: jest.Mock;
+    update: jest.Mock;
+    delete: jest.Mock;
+    deleteMany: jest.Mock;
+  };
   $transaction: jest.Mock;
   $disconnect: jest.Mock;
   $executeRaw: jest.Mock;
@@ -195,6 +251,130 @@ export const createMockPrismaService = (): MockPrismaService => {
       }),
       findMany: jest.fn().mockResolvedValue([]),
       count: jest.fn().mockResolvedValue(0),
+      deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
+    },
+    team: {
+      create: jest.fn().mockResolvedValue({
+        id: TestHelpers.generateRandomString(),
+        orgId: mockOrg.id,
+        name: 'Test Team',
+        integrationId: TestHelpers.generateRandomString(),
+        channelId: TestHelpers.generateRandomString(),
+        slackChannelId: 'C123456789',
+        timezone: 'America/New_York',
+        createdByUserId: mockUser.id,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }),
+      findFirst: jest.fn().mockResolvedValue(null),
+      findUnique: jest.fn().mockResolvedValue(null),
+      findMany: jest.fn().mockResolvedValue([]),
+      update: jest.fn().mockResolvedValue({}),
+      delete: jest.fn().mockResolvedValue({}),
+      deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
+      count: jest.fn().mockResolvedValue(0),
+    },
+    teamMember: {
+      create: jest.fn().mockResolvedValue({
+        id: TestHelpers.generateRandomString(),
+        teamId: TestHelpers.generateRandomString(),
+        integrationUserId: TestHelpers.generateRandomString(),
+        platformUserId: 'U123456789',
+        name: 'Test Member',
+        active: true,
+        addedByUserId: mockUser.id,
+        addedAt: new Date(),
+        removedAt: null,
+      }),
+      findFirst: jest.fn().mockResolvedValue(null),
+      findUnique: jest.fn().mockResolvedValue(null),
+      findMany: jest.fn().mockResolvedValue([]),
+      update: jest.fn().mockResolvedValue({}),
+      delete: jest.fn().mockResolvedValue({}),
+      deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
+      count: jest.fn().mockResolvedValue(0),
+    },
+    standupConfig: {
+      create: jest.fn().mockResolvedValue({
+        id: TestHelpers.generateRandomString(),
+        teamId: TestHelpers.generateRandomString(),
+        questions: ['What did you work on?', 'What will you work on?', 'Any blockers?'],
+        weekdays: [1, 2, 3, 4, 5],
+        timeLocal: '09:00',
+        timezone: 'America/New_York',
+        reminderMinutesBefore: 15,
+        responseTimeoutHours: 2,
+        isActive: true,
+        createdByUserId: mockUser.id,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }),
+      findFirst: jest.fn().mockResolvedValue(null),
+      findUnique: jest.fn().mockResolvedValue(null),
+      findMany: jest.fn().mockResolvedValue([]),
+      update: jest.fn().mockResolvedValue({}),
+      delete: jest.fn().mockResolvedValue({}),
+      deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
+    },
+    standupConfigMember: {
+      create: jest.fn().mockResolvedValue({
+        standupConfigId: TestHelpers.generateRandomString(),
+        teamMemberId: TestHelpers.generateRandomString(),
+        include: true,
+        role: 'member',
+        updatedAt: new Date(),
+      }),
+      findUnique: jest.fn().mockResolvedValue(null),
+      findMany: jest.fn().mockResolvedValue([]),
+      upsert: jest.fn().mockResolvedValue({}),
+      update: jest.fn().mockResolvedValue({}),
+      delete: jest.fn().mockResolvedValue({}),
+      deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
+    },
+    channel: {
+      create: jest.fn().mockResolvedValue({
+        id: TestHelpers.generateRandomString(),
+        integrationId: TestHelpers.generateRandomString(),
+        channelId: 'C123456789',
+        name: 'test-channel',
+        topic: 'Test channel topic',
+        purpose: 'Test channel purpose',
+        isPrivate: false,
+        isArchived: false,
+        memberCount: 5,
+        lastSyncAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }),
+      findFirst: jest.fn().mockResolvedValue(null),
+      findUnique: jest.fn().mockResolvedValue(null),
+      findMany: jest.fn().mockResolvedValue([]),
+      update: jest.fn().mockResolvedValue({}),
+      delete: jest.fn().mockResolvedValue({}),
+      deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
+    },
+    integrationUser: {
+      create: jest.fn().mockResolvedValue({
+        id: TestHelpers.generateRandomString(),
+        integrationId: TestHelpers.generateRandomString(),
+        externalUserId: 'U123456789',
+        name: 'Test User',
+        displayName: 'Test User',
+        email: 'test@example.com',
+        isBot: false,
+        isDeleted: false,
+        profileImage: 'https://example.com/avatar.jpg',
+        timezone: 'America/New_York',
+        platformData: {},
+        lastSyncAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }),
+      findFirst: jest.fn().mockResolvedValue(null),
+      findUnique: jest.fn().mockResolvedValue(null),
+      findMany: jest.fn().mockResolvedValue([]),
+      update: jest.fn().mockResolvedValue({}),
+      delete: jest.fn().mockResolvedValue({}),
       deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     $transaction: jest.fn().mockImplementation(async (callback) => {
