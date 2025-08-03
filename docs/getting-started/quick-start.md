@@ -16,7 +16,7 @@ Before starting, ensure you have the following installed:
 ## Step 1: Clone and Install
 
 ```bash
-# Clone the repository  
+# Clone the repository
 git clone <your-repository-url>
 cd asyncstand
 
@@ -127,6 +127,7 @@ pnpm dev
 ```
 
 This will start:
+
 - **Backend API**: http://localhost:3001
 - **Frontend**: http://localhost:3000 (basic React starter)
 
@@ -138,7 +139,7 @@ cd apps/backend
 pnpm dev
 
 # Frontend only (if needed)
-cd apps/frontend  
+cd apps/frontend
 pnpm dev
 ```
 

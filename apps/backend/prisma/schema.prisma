@@ -29,6 +29,7 @@ model User {
   teamMembers                TeamMember[]     @relation("TeamMemberUser")
   createdTeams               Team[]           @relation("TeamCreatedBy")
   addedTeamMembers           TeamMember[]     @relation("TeamMemberAddedBy")
+  createdStandupConfigs      StandupConfig[]  @relation("StandupConfigCreatedBy")
 }
 
 model PasswordResetToken {
@@ -307,11 +308,18 @@ model TeamMember {
 model StandupConfig {
   id                     String        @id @default(uuid())
   team                   Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  teamId                 String
+  teamId                 String        @unique // Only one config per team
   questions              String[]
   weekdays               Int[]         // 0 = Sunday
   timeLocal              String
+  timezone               String
   reminderMinutesBefore  Int           @default(10)
+  responseTimeoutHours   Int           @default(2)
+  isActive               Boolean       @default(true)
+  createdBy              User?         @relation("StandupConfigCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  createdByUserId        String?
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
 
   // Relations
   configMembers          StandupConfigMember[]
@@ -323,6 +331,8 @@ model StandupConfigMember {
   teamMember       TeamMember    @relation(fields: [teamMemberId], references: [id], onDelete: Cascade)
   teamMemberId     String
   include          Boolean
+  role             String?       // Optional role (e.g., "lead", "member")
+  updatedAt        DateTime      @updatedAt
 
   @@id([standupConfigId, teamMemberId])
 }

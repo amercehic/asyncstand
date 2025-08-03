@@ -40,6 +40,7 @@ Register a new user account and create their organization.
 ```
 
 **Validation Rules:**
+
 - `email`: Valid email format, unique
 - `password`: Minimum 8 characters
 - `name`: Optional string
@@ -80,6 +81,7 @@ Authenticate user and return JWT tokens.
 ```
 
 **Notes:**
+
 - Refresh token is set as httpOnly cookie
 - Returns all organizations user belongs to
 
@@ -159,6 +161,7 @@ Requires JWT authentication. Organization context determined from JWT.
 Get current organization details.
 
 **Headers:**
+
 ```
 Authorization: Bearer <access_token>
 ```
@@ -254,6 +257,7 @@ Invite a new member to the organization.
 ```
 
 **Validation:**
+
 - `email`: Valid email format
 - `role`: Must be `member` or `admin` (only owners can invite other owners)
 
@@ -293,6 +297,7 @@ Accept an organization invitation.
 ```
 
 **Notes:**
+
 - For new users: `name` and `password` required
 - For existing users: only `token` required
 
@@ -326,6 +331,7 @@ Update member role or status.
 ```
 
 **Authorization Rules:**
+
 - Owners can modify anyone except other owners
 - Admins can only modify members
 - Cannot modify yourself
@@ -347,6 +353,7 @@ Remove member from organization.
 ```
 
 **Authorization Rules:**
+
 - Same as PATCH /org/members/:id
 - Cannot delete the last owner/admin
 
@@ -469,6 +476,7 @@ OAuth and integration management for Slack workspaces.
 Initialize Slack OAuth flow.
 
 **Query Parameters:**
+
 - `orgId`: Organization UUID
 
 **Response:** Redirects to Slack authorization URL
@@ -478,6 +486,7 @@ Initialize Slack OAuth flow.
 Handle Slack OAuth callback.
 
 **Query Parameters:**
+
 - `code`: Authorization code from Slack
 - `state`: State token for security
 
@@ -538,4 +547,4 @@ Currently, all list endpoints return complete results. Pagination will be added 
 - UUIDs are used for all resource identifiers
 - JWT tokens expire after 15 minutes (access tokens)
 - Refresh tokens expire after 7 days
-- Audit logs are automatically created for all data modification operations 
+- Audit logs are automatically created for all data modification operations

@@ -26,11 +26,11 @@ AsyncStand follows a **test pyramid** approach with emphasis on:
 
 ### Test Categories
 
-| Type | Scope | Speed | Database | Purpose |
-|------|-------|-------|----------|---------|
-| **Unit** | Single function/component | Fast (ms) | Mocked | Logic validation |
-| **Integration** | Service interactions | Medium (100ms) | Test DB | Data flow validation |
-| **E2E** | Complete workflows | Slow (seconds) | Test DB | User journey validation |
+| Type            | Scope                     | Speed          | Database | Purpose                 |
+| --------------- | ------------------------- | -------------- | -------- | ----------------------- |
+| **Unit**        | Single function/component | Fast (ms)      | Mocked   | Logic validation        |
+| **Integration** | Service interactions      | Medium (100ms) | Test DB  | Data flow validation    |
+| **E2E**         | Complete workflows        | Slow (seconds) | Test DB  | User journey validation |
 
 ## Backend Testing
 
@@ -124,7 +124,7 @@ describe('AuthService', () => {
         password: 'SecurePass123!',
         name: 'Test User',
       });
-      
+
       const mockUser = createMockUser({ email: signupDto.email });
       const mockTokens = { accessToken: 'token', refreshToken: 'refresh' };
 
@@ -161,7 +161,7 @@ describe('AuthService', () => {
     it('should hash password before storing', async () => {
       // Arrange
       const signupDto = createSignupDto({ password: 'plaintext' });
-      
+
       prisma.user.findUnique.mockResolvedValue(null);
       prisma.user.create.mockResolvedValue(createMockUser());
 
@@ -376,9 +376,7 @@ describe('Auth Flow Integration', () => {
       };
 
       // Act & Assert
-      await expect(authService.signup(signupData)).rejects.toThrow(
-        'Email already exists'
-      );
+      await expect(authService.signup(signupData)).rejects.toThrow('Email already exists');
 
       // Verify no additional user created
       const users = await prisma.user.findMany({ where: { email } });
@@ -555,10 +553,7 @@ describe('Authentication (E2E)', () => {
       };
 
       // First registration
-      await request(app.getHttpServer())
-        .post('/auth/signup')
-        .send(userData)
-        .expect(201);
+      await request(app.getHttpServer()).post('/auth/signup').send(userData).expect(201);
 
       // Duplicate registration
       const response = await request(app.getHttpServer())
@@ -654,9 +649,7 @@ describe('Authentication (E2E)', () => {
     });
 
     it('should return 401 without token', async () => {
-      await request(app.getHttpServer())
-        .get('/auth/profile')
-        .expect(401);
+      await request(app.getHttpServer()).get('/auth/profile').expect(401);
     });
 
     it('should return 401 with invalid token', async () => {
@@ -734,7 +727,7 @@ export function createUserData(options: CreateUserOptions = {}): Partial<User> {
 
 export async function createTestUser(
   prisma: PrismaService,
-  options: CreateUserOptions = {}
+  options: CreateUserOptions = {},
 ): Promise<User> {
   const userData = createUserData(options);
   return prisma.user.create({ data: userData });
@@ -754,7 +747,7 @@ export interface CreateOrganizationOptions {
 
 export async function createTestOrganization(
   prisma: PrismaService,
-  options: CreateOrganizationOptions = {}
+  options: CreateOrganizationOptions = {},
 ): Promise<Organization & { members: OrgMember[] }> {
   const org = await prisma.organization.create({
     data: {
@@ -859,12 +852,7 @@ module.exports = {
   testEnvironment: 'node',
   rootDir: '.',
   testMatch: ['<rootDir>/test/**/*.test.ts'],
-  collectCoverageFrom: [
-    'src/**/*.ts',
-    '!src/**/*.d.ts',
-    '!src/main.ts',
-    '!src/**/*.module.ts',
-  ],
+  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts', '!src/main.ts', '!src/**/*.module.ts'],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
   setupFilesAfterEnv: ['<rootDir>/test/setup/jest.setup.ts'],
@@ -1092,11 +1080,13 @@ jobs:
 ### Test Quality Metrics
 
 **Coverage Targets:**
+
 - **Unit Tests**: 90%+ line coverage
 - **Integration Tests**: 80%+ branch coverage
 - **E2E Tests**: 70%+ user journey coverage
 
 **Performance Targets:**
+
 - **Unit Tests**: < 10ms per test
 - **Integration Tests**: < 100ms per test
 - **E2E Tests**: < 5s per test
@@ -1146,19 +1136,21 @@ it('should create user successfully', async () => {
 #### Avoid These Anti-Patterns
 
 1. **Testing Implementation Details**
+
    ```typescript
    // Bad - testing private methods
    expect(service['hashPassword']).toHaveBeenCalled();
-   
+
    // Good - testing public behavior
    expect(result.user.passwordHash).not.toBe(plainPassword);
    ```
 
 2. **Brittle Tests**
+
    ```typescript
    // Bad - depends on exact order
    expect(prisma.user.create).toHaveBeenNthCalledWith(1, ...);
-   
+
    // Good - focuses on important calls
    expect(prisma.user.create).toHaveBeenCalledWith(
      expect.objectContaining({ data: expect.any(Object) })
@@ -1166,22 +1158,28 @@ it('should create user successfully', async () => {
    ```
 
 3. **Excessive Mocking**
+
    ```typescript
    // Bad - mocking everything
    jest.mock('@/every/single/dependency');
-   
+
    // Good - mock external dependencies only
    jest.mock('@/external/slack-api');
    ```
 
 4. **Shared Test State**
+
    ```typescript
    // Bad - shared state between tests
    let globalUser;
-   beforeAll(() => { globalUser = createUser(); });
-   
+   beforeAll(() => {
+     globalUser = createUser();
+   });
+
    // Good - fresh state per test
-   beforeEach(() => { cleanupDatabase(); });
+   beforeEach(() => {
+     cleanupDatabase();
+   });
    ```
 
 ### Performance Testing
@@ -1191,9 +1189,9 @@ For performance-critical operations, include performance assertions:
 ```typescript
 it('should handle bulk user creation efficiently', async () => {
   const start = Date.now();
-  
+
   await authService.bulkCreateUsers(1000);
-  
+
   const duration = Date.now() - start;
   expect(duration).toBeLessThan(5000); // 5 seconds max
 });
@@ -1201,4 +1199,4 @@ it('should handle bulk user creation efficiently', async () => {
 
 ---
 
-This comprehensive testing strategy ensures AsyncStand maintains high quality, reliability, and performance across all components while providing fast feedback to developers. 
+This comprehensive testing strategy ensures AsyncStand maintains high quality, reliability, and performance across all components while providing fast feedback to developers.

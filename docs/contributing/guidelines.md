@@ -41,34 +41,40 @@ Before contributing, ensure you have:
 1. **Fork the repository** on GitHub
 
 2. **Clone your fork:**
+
    ```bash
    git clone https://github.com/YOUR_USERNAME/asyncstand.git
    cd asyncstand
    ```
 
 3. **Add upstream remote:**
+
    ```bash
    git remote add upstream https://github.com/original-owner/asyncstand.git
    ```
 
 4. **Install dependencies:**
+
    ```bash
    pnpm install
    ```
 
 5. **Set up environment:**
+
    ```bash
    pnpm env:setup
    # Edit .env files with your configuration
    ```
 
 6. **Run database migrations:**
+
    ```bash
    cd apps/backend
    pnpm db:migrate
    ```
 
 7. **Start development servers:**
+
    ```bash
    pnpm dev
    ```
@@ -94,6 +100,7 @@ Use descriptive branch names with prefixes:
 ### Making Changes
 
 1. **Create a new branch:**
+
    ```bash
    git checkout -b feat/your-feature-name
    ```
@@ -103,11 +110,13 @@ Use descriptive branch names with prefixes:
 3. **Add tests** for your changes (see [testing requirements](#testing-requirements))
 
 4. **Run the test suite:**
+
    ```bash
    pnpm test
    ```
 
 5. **Run linting and formatting:**
+
    ```bash
    pnpm lint
    pnpm format
@@ -158,6 +167,7 @@ test: add integration tests for auth service
 ### TypeScript Guidelines
 
 1. **Strict Type Safety:**
+
    ```typescript
    // Good
    interface User {
@@ -171,6 +181,7 @@ test: add integration tests for auth service
    ```
 
 2. **Use Interfaces for Object Shapes:**
+
    ```typescript
    // Good
    interface CreateUserRequest {
@@ -188,6 +199,7 @@ test: add integration tests for auth service
    ```
 
 3. **Prefer Union Types:**
+
    ```typescript
    // Good
    type UserRole = 'owner' | 'admin' | 'member';
@@ -203,6 +215,7 @@ test: add integration tests for auth service
 ### NestJS Best Practices
 
 1. **Service Injection:**
+
    ```typescript
    // Good
    @Injectable()
@@ -215,6 +228,7 @@ test: add integration tests for auth service
    ```
 
 2. **DTOs for Validation:**
+
    ```typescript
    // Good
    export class CreateUserDto {
@@ -230,6 +244,7 @@ test: add integration tests for auth service
    ```
 
 3. **Error Handling:**
+
    ```typescript
    // Good
    if (!user) {
@@ -245,18 +260,20 @@ test: add integration tests for auth service
 ### Database Guidelines
 
 1. **Use Prisma Transactions for Related Operations:**
+
    ```typescript
    // Good
    return this.prisma.$transaction(async (tx) => {
      const user = await tx.user.create({ data: userData });
      await tx.orgMember.create({
-       data: { userId: user.id, orgId, role: 'member' }
+       data: { userId: user.id, orgId, role: 'member' },
      });
      return user;
    });
    ```
 
 2. **Include Only Needed Fields:**
+
    ```typescript
    // Good
    return this.prisma.user.findMany({
@@ -264,7 +281,7 @@ test: add integration tests for auth service
        id: true,
        email: true,
        name: true,
-     }
+     },
    });
 
    // Avoid
@@ -274,6 +291,7 @@ test: add integration tests for auth service
 ### React Guidelines
 
 1. **Functional Components with Hooks:**
+
    ```typescript
    // Good
    export const UserProfile: React.FC<{ userId: string }> = ({ userId }) => {
@@ -288,6 +306,7 @@ test: add integration tests for auth service
    ```
 
 2. **Custom Hooks for Logic:**
+
    ```typescript
    // Good
    export const useUser = (userId: string) => {
@@ -336,6 +355,7 @@ feature-name/
 ### Testing Guidelines
 
 1. **Use Descriptive Test Names:**
+
    ```typescript
    // Good
    describe('AuthService', () => {
@@ -352,6 +372,7 @@ feature-name/
    ```
 
 2. **Use Test Factories:**
+
    ```typescript
    // Good
    const createUserDto = createMockSignupDto({
@@ -368,6 +389,7 @@ feature-name/
    ```
 
 3. **Clean Up After Tests:**
+
    ```typescript
    describe('User Integration Tests', () => {
      beforeEach(async () => {
@@ -403,6 +425,7 @@ pnpm test:coverage
 ### Before Creating a PR
 
 1. **Sync with upstream:**
+
    ```bash
    git fetch upstream
    git checkout main
@@ -411,6 +434,7 @@ pnpm test:coverage
    ```
 
 2. **Rebase your feature branch:**
+
    ```bash
    git checkout feat/your-feature
    git rebase main
@@ -426,6 +450,7 @@ pnpm test:coverage
 ### Creating a Pull Request
 
 1. **Push your branch:**
+
    ```bash
    git push origin feat/your-feature
    ```

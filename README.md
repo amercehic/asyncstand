@@ -23,7 +23,7 @@ AsyncStand is a multi-tenant SaaS platform designed to enable asynchronous stand
 - **🔐 Complete Authentication System** - User signup, login, JWT tokens, password reset
 - **👥 Organization Management** - Multi-tenant architecture with role-based access control
 - **👤 Member Management** - Invite users, manage roles (Owner, Admin, Member), suspension
-- **🏢 Team Management** - Create/manage teams linked to Slack channels  
+- **🏢 Team Management** - Create/manage teams linked to Slack channels
 - **🔗 Slack OAuth Integration** - Complete OAuth flow for Slack workspace integration
 - **📊 Comprehensive Audit Logging** - Track all system activities with detailed metadata
 - **🗄️ Robust Database Schema** - Multi-tenant PostgreSQL schema with Prisma ORM
@@ -54,6 +54,7 @@ asyncstand/
 ### Tech Stack
 
 #### Backend (Implemented)
+
 - **Framework**: NestJS 11+ with TypeScript
 - **Database**: PostgreSQL with Prisma ORM
 - **Authentication**: JWT with refresh tokens, Passport.js
@@ -66,11 +67,13 @@ asyncstand/
 - **Testing**: Jest (unit, integration, E2E)
 
 #### Frontend (Basic Starter)
+
 - **Framework**: React 19 with Vite
 - **Language**: TypeScript
 - **Status**: Basic Vite starter template
 
 #### Development Tools
+
 - **Package Manager**: pnpm with workspace support
 - **Build Tool**: Turbo for monorepo orchestration
 - **Code Quality**: ESLint, Prettier, TypeScript strict mode
@@ -80,7 +83,7 @@ asyncstand/
 ### Prerequisites
 
 - **Node.js 20+**
-- **pnpm 10+** 
+- **pnpm 10+**
 - **PostgreSQL 14+**
 - **Redis 6+**
 
@@ -109,12 +112,14 @@ pnpm dev
 ```
 
 This will start:
+
 - Backend API: http://localhost:3001
 - Frontend: http://localhost:3000 (basic starter)
 
 ## 📋 Available Commands
 
 ### Root Level
+
 ```bash
 pnpm dev              # Start all apps in development mode
 pnpm build            # Build all applications
@@ -124,6 +129,7 @@ pnpm format           # Format code with Prettier
 ```
 
 ### Backend (`apps/backend/`)
+
 ```bash
 pnpm dev              # Start development server with hot reload
 pnpm build            # Build for production
@@ -132,7 +138,7 @@ pnpm start:prod       # Start production server
 # Testing
 pnpm test             # Run all tests
 pnpm test:unit        # Run unit tests only
-pnpm test:integration # Run integration tests only  
+pnpm test:integration # Run integration tests only
 pnpm test:e2e         # Run end-to-end tests only
 pnpm test:coverage    # Run tests with coverage
 
@@ -144,6 +150,7 @@ pnpm db:reset         # Reset database (dev only)
 ```
 
 ### Frontend (`apps/frontend/`)
+
 ```bash
 pnpm dev              # Start Vite dev server
 pnpm build            # Build for production
@@ -153,6 +160,7 @@ pnpm preview          # Preview production build
 ## 📁 Project Structure
 
 ### Backend Application
+
 ```
 apps/backend/src/
 ├── auth/                 # Authentication & authorization
@@ -179,7 +187,7 @@ PORT=3001
 DATABASE_URL=postgresql://...
 REDIS_URL=redis://localhost:6379
 
-# Authentication  
+# Authentication
 JWT_SECRET=your-secret-key
 FRONTEND_URL=http://localhost:3000
 
@@ -206,13 +214,14 @@ The project includes comprehensive testing:
 ```bash
 # Run specific test suites
 pnpm test:unit           # Fast unit tests
-pnpm test:integration    # Database integration tests  
+pnpm test:integration    # Database integration tests
 pnpm test:e2e           # End-to-end API tests
 ```
 
 ## 🚀 Production Deployment
 
 ### Prerequisites
+
 - Node.js 20+ runtime
 - PostgreSQL 14+ database
 - Redis 6+ instance
@@ -220,6 +229,7 @@ pnpm test:e2e           # End-to-end API tests
 - SSL certificates
 
 ### Build & Deploy
+
 ```bash
 # Build all applications
 pnpm build
@@ -257,14 +267,16 @@ This project is licensed under the ISC License - see the [LICENSE](LICENSE) file
 ## 🗺️ Development Roadmap
 
 ### Current Phase: Core Backend (✅ Mostly Complete)
+
 - [x] Authentication system
-- [x] Organization & member management  
+- [x] Organization & member management
 - [x] Team management
 - [x] Slack integration
 - [x] Audit logging
 - [x] API documentation
 
 ### Next Phase: Frontend Development (🚧 In Progress)
+
 - [ ] Authentication UI
 - [ ] Organization dashboard
 - [ ] Team management interface
@@ -272,9 +284,10 @@ This project is licensed under the ISC License - see the [LICENSE](LICENSE) file
 - [ ] Slack integration UI
 
 ### Future Phases
+
 - [ ] Background job processing (worker)
 - [ ] Advanced standup analytics
 - [ ] Mobile application
 - [ ] Additional integrations (Teams, Discord)
 
-**Status**: Active development - backend core complete, frontend and worker in planning phase. 
+**Status**: Active development - backend core complete, frontend and worker in planning phase.

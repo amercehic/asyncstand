@@ -192,7 +192,7 @@ export class AuthService {
     // Business logic implementation
     const hashedPassword = await hash(password, 12);
     return this.prisma.user.create({
-      data: { email, passwordHash: hashedPassword, name }
+      data: { email, passwordHash: hashedPassword, name },
     });
   }
 }
@@ -255,10 +255,10 @@ export class UserService {
       include: {
         orgMembers: {
           include: {
-            org: true
-          }
-        }
-      }
+            org: true,
+          },
+        },
+      },
     });
   }
 
@@ -267,7 +267,7 @@ export class UserService {
       data: {
         ...data,
         passwordHash: await hash(data.password, 12),
-      }
+      },
     });
   }
 }
@@ -461,13 +461,16 @@ Use structured error responses:
 // Custom exception
 export class BusinessRuleException extends HttpException {
   constructor(message: string, code: ErrorCode) {
-    super({
-      error: {
-        code,
-        message,
-        timestamp: new Date().toISOString()
-      }
-    }, HttpStatus.UNPROCESSABLE_ENTITY);
+    super(
+      {
+        error: {
+          code,
+          message,
+          timestamp: new Date().toISOString(),
+        },
+      },
+      HttpStatus.UNPROCESSABLE_ENTITY,
+    );
   }
 }
 
@@ -475,7 +478,7 @@ export class BusinessRuleException extends HttpException {
 if (team.members.length === 0) {
   throw new BusinessRuleException(
     'Cannot delete team with members',
-    ErrorCode.BUSINESS_RULE_VIOLATION
+    ErrorCode.BUSINESS_RULE_VIOLATION,
   );
 }
 ```
@@ -514,10 +517,7 @@ describe('AuthService', () => {
 
   beforeEach(async () => {
     const module = await Test.createTestingModule({
-      providers: [
-        AuthService,
-        { provide: PrismaService, useValue: mockDeep<PrismaService>() }
-      ]
+      providers: [AuthService, { provide: PrismaService, useValue: mockDeep<PrismaService>() }],
     }).compile();
 
     service = module.get(AuthService);
@@ -533,8 +533,8 @@ describe('AuthService', () => {
     expect(prisma.user.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         email: userData.email,
-        passwordHash: expect.not.stringMatching(userData.password)
-      })
+        passwordHash: expect.not.stringMatching(userData.password),
+      }),
     });
   });
 });
@@ -551,7 +551,7 @@ describe('Auth Flow Integration', () => {
 
   beforeEach(async () => {
     const module = await Test.createTestingModule({
-      imports: [AppModule]
+      imports: [AppModule],
     }).compile();
 
     app = module.createNestApplication();
@@ -562,10 +562,7 @@ describe('Auth Flow Integration', () => {
   it('should complete signup and login flow', async () => {
     // Create user
     const signupData = { email: 'test@example.com', password: 'password' };
-    await request(app.getHttpServer())
-      .post('/auth/signup')
-      .send(signupData)
-      .expect(200);
+    await request(app.getHttpServer()).post('/auth/signup').send(signupData).expect(200);
 
     // Verify user exists
     const user = await prisma.user.findUnique({ where: { email: signupData.email } });
@@ -611,7 +608,7 @@ describe('Organization Members E2E', () => {
       .send({
         token: inviteResponse.body.inviteId,
         name: 'New User',
-        password: 'password'
+        password: 'password',
       })
       .expect(200);
 

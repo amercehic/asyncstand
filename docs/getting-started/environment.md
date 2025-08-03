@@ -17,6 +17,7 @@ apps/worker/.env           # Worker configuration (🚧 Planned)
 ### Core Configuration
 
 #### NODE_ENV
+
 - **Description**: Application environment
 - **Type**: `string`
 - **Required**: No
@@ -28,6 +29,7 @@ NODE_ENV=development
 ```
 
 #### PORT
+
 - **Description**: HTTP server port
 - **Type**: `number`
 - **Required**: No
@@ -38,6 +40,7 @@ PORT=3001
 ```
 
 #### DATABASE_URL
+
 - **Description**: PostgreSQL connection string
 - **Type**: `string`
 - **Required**: Yes
@@ -54,6 +57,7 @@ DATABASE_URL=postgresql://user:pass@prod-db.amazonaws.com:5432/asyncstand_prod
 ### Authentication
 
 #### JWT_SECRET
+
 - **Description**: Secret key for JWT token signing
 - **Type**: `string`
 - **Required**: Yes
@@ -64,6 +68,7 @@ JWT_SECRET=your-super-secret-jwt-key-here
 ```
 
 #### FRONTEND_URL
+
 - **Description**: Frontend application URL for CORS and redirects
 - **Type**: `string`
 - **Required**: No
@@ -77,6 +82,7 @@ FRONTEND_URL=http://localhost:3000
 ### Email Configuration
 
 #### FROM_EMAIL
+
 - **Description**: Default sender email address
 - **Type**: `string`
 - **Required**: No
@@ -87,6 +93,7 @@ FROM_EMAIL=noreply@yourdomain.com
 ```
 
 #### SMTP_HOST
+
 - **Description**: SMTP server hostname
 - **Type**: `string`
 - **Required**: No
@@ -97,6 +104,7 @@ SMTP_HOST=smtp.gmail.com
 ```
 
 #### SMTP_PORT
+
 - **Description**: SMTP server port
 - **Type**: `number`
 - **Required**: No
@@ -107,6 +115,7 @@ SMTP_PORT=587
 ```
 
 #### SMTP_USER
+
 - **Description**: SMTP authentication username
 - **Type**: `string`
 - **Required**: No
@@ -117,6 +126,7 @@ SMTP_USER=your-email@gmail.com
 ```
 
 #### SMTP_PASS
+
 - **Description**: SMTP authentication password
 - **Type**: `string`
 - **Required**: No
@@ -129,6 +139,7 @@ SMTP_PASS=your-app-password
 ### Slack Integration
 
 #### SLACK_CLIENT_ID
+
 - **Description**: Slack OAuth application client ID
 - **Type**: `string`
 - **Required**: No (required for Slack integration)
@@ -139,6 +150,7 @@ SLACK_CLIENT_ID=123456789.987654321
 ```
 
 #### SLACK_CLIENT_SECRET
+
 - **Description**: Slack OAuth application client secret
 - **Type**: `string`
 - **Required**: No (required for Slack integration)
@@ -149,6 +161,7 @@ SLACK_CLIENT_SECRET=your-slack-client-secret
 ```
 
 #### SLACK_OAUTH_ENABLED
+
 - **Description**: Enable/disable Slack OAuth functionality
 - **Type**: `string`
 - **Required**: No
@@ -162,6 +175,7 @@ SLACK_OAUTH_ENABLED=true
 ### Redis Configuration
 
 #### REDIS_URL
+
 - **Description**: Redis connection string
 - **Type**: `string`
 - **Required**: No
@@ -181,6 +195,7 @@ REDIS_URL=rediss://username:password@host:port
 ### Logging
 
 #### LOG_LEVEL
+
 - **Description**: Minimum log level to output
 - **Type**: `string`
 - **Required**: No
@@ -196,6 +211,7 @@ LOG_LEVEL=info
 ```
 
 #### LOG_PRETTY
+
 - **Description**: Enable pretty-printed logs (development)
 - **Type**: `string`
 - **Required**: No
@@ -213,6 +229,7 @@ LOG_PRETTY=false
 ### Security
 
 #### DATABASE_ENCRYPT_KEY
+
 - **Description**: Key for encrypting sensitive database fields
 - **Type**: `string`
 - **Required**: No (required for encryption features)
@@ -228,6 +245,7 @@ DATABASE_ENCRYPT_KEY=your-32-character-encryption-key
 ### Basic Configuration (Vite)
 
 #### VITE_API_URL
+
 - **Description**: Backend API base URL
 - **Type**: `string`
 - **Required**: No
@@ -289,7 +307,7 @@ VITE_API_URL=http://localhost:3001
 
 ### Production Configuration Example
 
-*Note: This is for reference only - modify for your actual production environment*
+_Note: This is for reference only - modify for your actual production environment_
 
 ```bash
 # Core
@@ -377,6 +395,7 @@ Error: connect ECONNREFUSED 127.0.0.1:5432
 ```
 
 **Solutions:**
+
 1. Verify PostgreSQL is running
 2. Check DATABASE_URL format
 3. Ensure database and user exist
@@ -389,6 +408,7 @@ Error: connect ECONNREFUSED 127.0.0.1:6379
 ```
 
 **Solutions:**
+
 1. Verify Redis is running
 2. Check REDIS_URL format
 3. Verify Redis authentication if enabled
@@ -400,6 +420,7 @@ Error: An instance of EnvironmentVariables has failed the validation
 ```
 
 **Solutions:**
+
 1. Check required environment variables are set
 2. Verify data types (numbers, booleans)
 3. Check enum values match allowed options
@@ -419,4 +440,4 @@ If you encounter issues with environment configuration:
 - Changes require application restart
 - Use `.env.example` files as templates
 - Frontend environment variables must be prefixed with `VITE_`
-- Worker environment variables will be documented when implemented 
+- Worker environment variables will be documented when implemented

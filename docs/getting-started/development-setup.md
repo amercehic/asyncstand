@@ -565,6 +565,7 @@ export class MyService {
 #### React Developer Tools
 
 Install React DevTools browser extension:
+
 - [Chrome Extension](https://chrome.google.com/webstore/detail/react-developer-tools/fmkadmapgofadopljbjfkapdkoienihi)
 - [Firefox Extension](https://addons.mozilla.org/en-US/firefox/addon/react-devtools/)
 
@@ -732,4 +733,4 @@ npx tsc --version
 
 ---
 
-This development setup should provide a robust environment for AsyncStand development. For additional configuration options, see the [Environment Configuration](./environment.md) guide. 
+This development setup should provide a robust environment for AsyncStand development. For additional configuration options, see the [Environment Configuration](./environment.md) guide.

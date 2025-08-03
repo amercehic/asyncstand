@@ -10,6 +10,7 @@ import { LoggerService } from '@/common/logger.service';
 import { AuditModule } from '@/common/audit/audit.module';
 import { IntegrationsModule } from '@/integrations/integrations.module';
 import { TeamsModule } from '@/teams/teams.module';
+import { StandupsModule } from '@/standups/standups.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { TeamsModule } from '@/teams/teams.module';
     AuthModule,
     IntegrationsModule,
     TeamsModule,
+    StandupsModule,
   ],
   controllers: [AppController],
   providers: [AppService, LoggerService],

@@ -16,11 +16,11 @@ AsyncStand is built as a modern, scalable SaaS platform with a focus on multi-te
                     │   Backend API   │    │     Worker      │    │   Monitoring    │
                     │   (NestJS)      │    │  (Background)   │    │  (Prometheus)   │
                     └─────────────────┘    └─────────────────┘    └─────────────────┘
-                               │                        │                        
-                    ┌─────────────────┐    ┌─────────────────┐    
-                    │   PostgreSQL    │    │      Redis      │    
-                    │   (Database)    │    │  (Cache/Jobs)   │    
-                    └─────────────────┘    └─────────────────┘    
+                               │                        │
+                    ┌─────────────────┐    ┌─────────────────┐
+                    │   PostgreSQL    │    │      Redis      │
+                    │   (Database)    │    │  (Cache/Jobs)   │
+                    └─────────────────┘    └─────────────────┘
                                │
                     ┌─────────────────┐
                     │ External APIs   │
@@ -54,32 +54,32 @@ AsyncStand is built as a modern, scalable SaaS platform with a focus on multi-te
 
 ### Backend Infrastructure
 
-| Component | Technology | Purpose | Scaling Strategy |
-|-----------|------------|---------|------------------|
-| **API Server** | NestJS + TypeScript | REST API, Business Logic | Horizontal (stateless) |
-| **Database** | PostgreSQL 14+ | Primary data store | Vertical + Read replicas |
-| **Cache/Queue** | Redis 6+ | Caching, Sessions, Jobs | Horizontal (clustering) |
-| **File Storage** | AWS S3 / Local FS | Static assets, uploads | CDN + replication |
-| **Email** | SMTP / SendGrid | Transactional emails | External service |
+| Component        | Technology          | Purpose                  | Scaling Strategy         |
+| ---------------- | ------------------- | ------------------------ | ------------------------ |
+| **API Server**   | NestJS + TypeScript | REST API, Business Logic | Horizontal (stateless)   |
+| **Database**     | PostgreSQL 14+      | Primary data store       | Vertical + Read replicas |
+| **Cache/Queue**  | Redis 6+            | Caching, Sessions, Jobs  | Horizontal (clustering)  |
+| **File Storage** | AWS S3 / Local FS   | Static assets, uploads   | CDN + replication        |
+| **Email**        | SMTP / SendGrid     | Transactional emails     | External service         |
 
 ### Frontend Infrastructure
 
-| Component | Technology | Purpose | Scaling Strategy |
-|-----------|------------|---------|------------------|
-| **UI Framework** | React 19 | User interface | CDN distribution |
-| **Build Tool** | Vite | Development & bundling | Build-time optimization |
-| **Styling** | CSS Modules / Tailwind | Component styling | Build-time optimization |
-| **State Management** | React Context/Hooks | Client state | In-memory |
+| Component            | Technology             | Purpose                | Scaling Strategy        |
+| -------------------- | ---------------------- | ---------------------- | ----------------------- |
+| **UI Framework**     | React 19               | User interface         | CDN distribution        |
+| **Build Tool**       | Vite                   | Development & bundling | Build-time optimization |
+| **Styling**          | CSS Modules / Tailwind | Component styling      | Build-time optimization |
+| **State Management** | React Context/Hooks    | Client state           | In-memory               |
 
 ### Development Infrastructure
 
-| Component | Technology | Purpose |
-|-----------|------------|---------|
-| **Monorepo** | pnpm + Turbo | Package management & builds |
-| **Type Safety** | TypeScript 5+ | Static type checking |
-| **Testing** | Jest + Supertest | Unit, integration, e2e testing |
-| **Code Quality** | ESLint + Prettier | Code formatting & linting |
-| **CI/CD** | GitHub Actions | Automated testing & deployment |
+| Component        | Technology        | Purpose                        |
+| ---------------- | ----------------- | ------------------------------ |
+| **Monorepo**     | pnpm + Turbo      | Package management & builds    |
+| **Type Safety**  | TypeScript 5+     | Static type checking           |
+| **Testing**      | Jest + Supertest  | Unit, integration, e2e testing |
+| **Code Quality** | ESLint + Prettier | Code formatting & linting      |
+| **CI/CD**        | GitHub Actions    | Automated testing & deployment |
 
 ## Data Architecture
 
@@ -147,14 +147,14 @@ User ──────────────── Organization ────�
 
 ### Threat Mitigation
 
-| Threat | Mitigation Strategy |
-|--------|-------------------|
-| **SQL Injection** | Prisma ORM with parameterized queries |
-| **XSS** | Input sanitization, Content Security Policy |
-| **CSRF** | SameSite cookies, CSRF tokens |
-| **Brute Force** | Rate limiting, account lockout |
-| **Data Breach** | Encryption, access logging, principle of least privilege |
-| **Session Hijacking** | Secure cookies, session rotation |
+| Threat                | Mitigation Strategy                                      |
+| --------------------- | -------------------------------------------------------- |
+| **SQL Injection**     | Prisma ORM with parameterized queries                    |
+| **XSS**               | Input sanitization, Content Security Policy              |
+| **CSRF**              | SameSite cookies, CSRF tokens                            |
+| **Brute Force**       | Rate limiting, account lockout                           |
+| **Data Breach**       | Encryption, access logging, principle of least privilege |
+| **Session Hijacking** | Secure cookies, session rotation                         |
 
 ## Integration Architecture
 

@@ -44,6 +44,7 @@ model User {
 ```
 
 **Key Features:**
+
 - UUID primary key for security
 - Unique email constraint
 - Argon2 password hashing
@@ -155,6 +156,7 @@ model OrgMember {
 ```
 
 **Role Hierarchy:**
+
 - **Owner**: Full access, billing management, delete organization
 - **Admin**: User management, team configuration, integrations
 - **Member**: Basic access, view teams, participate in standups
@@ -322,7 +324,7 @@ model Integration {
   userScopes        String[]      @default([])
   installedBy       User?         @relation("IntegrationInstalledBy", fields: [installedByUserId], references: [id], onDelete: SetNull)
   installedByUserId String?
-  
+
   // Slack-specific OAuth v2 fields
   botToken          String?       // Encrypted
   botUserId         String?
@@ -379,7 +381,7 @@ model IntegrationUser {
   id              String      @id @default(uuid())
   integration     Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
   integrationId   String
-  
+
   // Generic fields that work for all platforms
   externalUserId  String
   name            String?
@@ -389,10 +391,10 @@ model IntegrationUser {
   isDeleted       Boolean     @default(false)
   profileImage    String?
   timezone        String?
-  
+
   // Platform-specific data stored as JSON
   platformData    Json?
-  
+
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
   lastSyncAt      DateTime?
@@ -421,28 +423,28 @@ model AuditLog {
   actorUserId           String?
   actorPlatformUserId   String?
   actorType             String       @default("user") // user, system, api_key, service
-  
+
   // Event classification
   action                String
   category              String       // auth, user_management, data_modification, system, integration, billing
   severity              String       // low, medium, high, critical
-  
+
   // Request/Response data
   requestData           Json?        // Method, path, body, query, headers, userAgent, ipAddress
   responseData          Json?        // StatusCode, body, executionTime
-  
+
   // Resource tracking
   resources             Json?        // Array of affected resources with before/after values
-  
+
   // Enhanced metadata
   sessionId             String?
   correlationId         String?
   tags                  String[]     @default([])
   executionTime         Int?         // Milliseconds
-  
+
   // Legacy payload field (for backward compatibility)
   payload               Json?
-  
+
   createdAt             DateTime     @default(now())
 
   @@index([orgId, createdAt])
@@ -455,6 +457,7 @@ model AuditLog {
 ```
 
 **Audit Categories:**
+
 - **auth**: Login, logout, password changes
 - **user_management**: User creation, role changes, invitations
 - **data_modification**: Team changes, configuration updates
@@ -589,18 +592,18 @@ erDiagram
     Organization ||--o{ Integration : "connects"
     Organization ||--o{ AuditLog : "tracks"
     Organization ||--o{ BillingAccount : "bills"
-    
+
     Team ||--o{ TeamMember : "includes"
     Team ||--o{ StandupConfig : "configures"
     Team ||--o{ StandupInstance : "executes"
-    
+
     Integration ||--o{ Channel : "syncs"
     Integration ||--o{ IntegrationUser : "manages"
     Integration ||--o{ Team : "powers"
-    
+
     StandupInstance ||--o{ Answer : "collects"
     TeamMember ||--o{ Answer : "provides"
-    
+
     User ||--o{ Session : "authenticates"
     User ||--o{ RefreshToken : "refreshes"
     User ||--o{ PasswordResetToken : "resets"
@@ -611,12 +614,14 @@ erDiagram
 ### Encryption Strategy
 
 **Encrypted Fields:**
+
 - `Integration.accessToken` - Platform OAuth tokens
-- `Integration.refreshToken` - OAuth refresh tokens  
+- `Integration.refreshToken` - OAuth refresh tokens
 - `Integration.botToken` - Bot access tokens
 - `User.passwordHash` - Argon2 hashed passwords
 
 **Encryption Implementation:**
+
 ```typescript
 // Token encryption using AES-256-GCM
 const encryptedToken = encrypt(token, process.env.ENCRYPTION_KEY);
@@ -626,16 +631,19 @@ const decryptedToken = decrypt(encryptedToken, process.env.ENCRYPTION_KEY);
 ### Data Retention Policies
 
 **Audit Logs:**
+
 - Retained for 7 years for compliance
 - Anonymized after user deletion
 - Indexed by date for efficient queries
 
 **User Data:**
+
 - Soft deletion with anonymization
 - Hard deletion after 30 days (GDPR compliance)
 - Export capabilities for data portability
 
 **Session Data:**
+
 - Active sessions: 7 days maximum
 - Refresh tokens: 30 days with rotation
 - Password reset tokens: 1 hour expiration
@@ -645,6 +653,7 @@ const decryptedToken = decrypt(encryptedToken, process.env.ENCRYPTION_KEY);
 ### Indexing Strategy
 
 **Primary Indexes:**
+
 ```sql
 -- User lookups
 CREATE INDEX idx_user_email ON "User"(email);
@@ -665,6 +674,7 @@ CREATE INDEX idx_answer_team_member ON "Answer"(team_member_id);
 ```
 
 **Composite Indexes:**
+
 ```sql
 -- Multi-column queries
 CREATE INDEX idx_audit_log_org_category_date ON "AuditLog"(org_id, category, created_at);
@@ -674,27 +684,29 @@ CREATE INDEX idx_refresh_token_user_created ON "RefreshToken"(user_id, created_a
 ### Query Optimization Patterns
 
 **Efficient Organization Isolation:**
+
 ```typescript
 // Good: Organization-scoped queries
 const teams = await prisma.team.findMany({
   where: { orgId: currentOrgId },
-  include: { members: true }
+  include: { members: true },
 });
 
 // Avoid: Cross-organization queries
 const allTeams = await prisma.team.findMany({
-  include: { members: true }
+  include: { members: true },
 });
 ```
 
 **Pagination with Cursor:**
+
 ```typescript
 // Efficient pagination
 const users = await prisma.user.findMany({
   where: { orgMembers: { some: { orgId } } },
   take: 20,
   skip: page * 20,
-  orderBy: { createdAt: 'desc' }
+  orderBy: { createdAt: 'desc' },
 });
 ```
 
@@ -703,18 +715,20 @@ const users = await prisma.user.findMany({
 ### Schema Evolution
 
 **Safe Migration Practices:**
+
 1. **Additive Changes**: New columns with defaults
 2. **Backwards Compatible**: Maintain old columns during transition
 3. **Data Migration**: Separate from schema changes
 4. **Rollback Plan**: Always have a rollback strategy
 
 **Example Migration:**
+
 ```sql
 -- Add new column with default
 ALTER TABLE "User" ADD COLUMN "timezone" VARCHAR(50) DEFAULT 'UTC';
 
 -- Backfill data
-UPDATE "User" SET "timezone" = 'America/New_York' 
+UPDATE "User" SET "timezone" = 'America/New_York'
 WHERE "id" IN (SELECT DISTINCT "user_id" FROM "OrgMember" WHERE "org_id" = '...');
 
 -- Remove default after backfill
@@ -724,6 +738,7 @@ ALTER TABLE "User" ALTER COLUMN "timezone" DROP DEFAULT;
 ### Environment Consistency
 
 **Development → Staging → Production:**
+
 1. Generate migration in development
 2. Test on staging with production data copy
 3. Apply during maintenance window
@@ -734,11 +749,13 @@ ALTER TABLE "User" ALTER COLUMN "timezone" DROP DEFAULT;
 ### Backup Strategy
 
 **PostgreSQL Backups:**
+
 - Daily full backups with point-in-time recovery
 - Backup retention: 30 days daily, 12 months monthly
 - Cross-region replication for disaster recovery
 
 **Backup Verification:**
+
 ```bash
 # Test backup restoration
 pg_restore --dbname=asyncstand_test backup_file.dump
@@ -747,16 +764,18 @@ pg_restore --dbname=asyncstand_test backup_file.dump
 ### Data Recovery Procedures
 
 **User Data Recovery:**
+
 1. Identify affected time range
 2. Restore from nearest backup
 3. Apply transaction logs for point-in-time recovery
 4. Validate data integrity
 
 **Audit Trail Integrity:**
+
 - Immutable audit logs with checksums
 - Tamper detection through hash chains
 - Blockchain-like verification for critical events
 
 ---
 
-This database schema provides a robust foundation for AsyncStand's multi-tenant SaaS architecture with comprehensive audit trails, security controls, and performance optimizations. 
+This database schema provides a robust foundation for AsyncStand's multi-tenant SaaS architecture with comprehensive audit trails, security controls, and performance optimizations.
