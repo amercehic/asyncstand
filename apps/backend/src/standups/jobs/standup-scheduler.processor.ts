@@ -4,6 +4,7 @@ import { Injectable } from '@nestjs/common';
 import { LoggerService } from '@/common/logger.service';
 import { StandupSchedulerService } from '@/standups/standup-scheduler.service';
 import { StandupInstanceService } from '@/standups/standup-instance.service';
+import { StandupReminderService } from '@/standups/standup-reminder.service';
 import { StandupInstanceState } from '@/standups/dto/update-instance-state.dto';
 
 export interface DailyStandupJobData {
@@ -24,6 +25,11 @@ export interface CleanupJobData {
   cutoffDate: Date;
 }
 
+export interface FollowupReminderJobData {
+  instanceId: string;
+  reminderType: string;
+}
+
 @Injectable()
 @Processor('standup-scheduler')
 export class StandupSchedulerProcessor {
@@ -31,6 +37,7 @@ export class StandupSchedulerProcessor {
     private readonly logger: LoggerService,
     private readonly standupSchedulerService: StandupSchedulerService,
     private readonly standupInstanceService: StandupInstanceService,
+    private readonly standupReminderService: StandupReminderService,
   ) {
     this.logger.setContext(StandupSchedulerProcessor.name);
   }
@@ -109,6 +116,9 @@ export class StandupSchedulerProcessor {
       // Start collection
       await this.standupSchedulerService.startCollection(instanceId);
 
+      // Send Slack reminder
+      await this.standupReminderService.triggerStandupReminder(instanceId);
+
       this.logger.info('Collection started successfully', {
         jobId: job.id,
         instanceId,
@@ -168,6 +178,9 @@ export class StandupSchedulerProcessor {
       // Handle timeout
       await this.standupSchedulerService.handleCollectionTimeout(instanceId);
 
+      // Post summary to Slack
+      await this.standupReminderService.handleCollectionComplete(instanceId);
+
       this.logger.info('Collection timeout handled successfully', {
         jobId: job.id,
         instanceId,
@@ -218,6 +231,54 @@ export class StandupSchedulerProcessor {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error('Cleanup job failed', {
         jobId: job.id,
+        error: errorMessage,
+      });
+
+      throw error;
+    }
+  }
+
+  /**
+   * Process followup reminder job
+   */
+  @Process('followup-reminder')
+  async handleFollowupReminder(job: Job<FollowupReminderJobData>) {
+    this.logger.info('Processing followup reminder job', {
+      jobId: job.id,
+      instanceId: job.data.instanceId,
+      reminderType: job.data.reminderType,
+    });
+
+    try {
+      const { instanceId, reminderType } = job.data;
+
+      if (reminderType === 'timeout_warning') {
+        await this.standupReminderService.sendTimeoutWarning(instanceId);
+      } else {
+        await this.standupReminderService.sendFollowupToMissingUsers(instanceId, reminderType);
+      }
+
+      // Also check if standup should be completed
+      await this.standupReminderService.checkAndCompleteStandup(instanceId);
+
+      this.logger.info('Followup reminder processed successfully', {
+        jobId: job.id,
+        instanceId,
+        reminderType,
+      });
+
+      return {
+        success: true,
+        instanceId,
+        reminderType,
+        message: 'Followup reminder sent',
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error('Followup reminder job failed', {
+        jobId: job.id,
+        instanceId: job.data.instanceId,
+        reminderType: job.data.reminderType,
         error: errorMessage,
       });
 

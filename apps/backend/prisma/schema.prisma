@@ -351,6 +351,10 @@ model StandupInstance {
   targetDate     DateTime
   state          StandupInstanceState
   createdAt      DateTime     @default(now())
+  
+  // Slack message tracking
+  reminderMessageTs String?    // Timestamp of initial reminder message
+  summaryMessageTs  String?    // Timestamp of summary message
 
   // Relations
   digestPost     StandupDigestPost?

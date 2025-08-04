@@ -7,16 +7,19 @@ import { StandupConfigService } from '@/standups/standup-config.service';
 import { StandupInstanceService } from '@/standups/standup-instance.service';
 import { AnswerCollectionService } from '@/standups/answer-collection.service';
 import { StandupSchedulerService } from '@/standups/standup-scheduler.service';
+import { StandupReminderService } from '@/standups/standup-reminder.service';
 import { StandupJobService } from '@/standups/jobs/standup-job.service';
 import { StandupSchedulerProcessor } from '@/standups/jobs/standup-scheduler.processor';
 import { PrismaModule } from '@/prisma/prisma.module';
 import { AuditModule } from '@/common/audit/audit.module';
+import { SlackModule } from '@/integrations/slack/slack.module';
 import { LoggerService } from '@/common/logger.service';
 
 @Module({
   imports: [
     PrismaModule,
     AuditModule,
+    SlackModule,
     BullModule.registerQueue({
       name: 'standup-scheduler',
       defaultJobOptions: {
@@ -36,6 +39,7 @@ import { LoggerService } from '@/common/logger.service';
     StandupInstanceService,
     AnswerCollectionService,
     StandupSchedulerService,
+    StandupReminderService,
     StandupJobService,
     StandupSchedulerProcessor,
     LoggerService,
@@ -45,6 +49,7 @@ import { LoggerService } from '@/common/logger.service';
     StandupInstanceService,
     AnswerCollectionService,
     StandupSchedulerService,
+    StandupReminderService,
     StandupJobService,
   ],
 })
