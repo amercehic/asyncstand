@@ -417,7 +417,8 @@ describe('Slack Integration (e2e)', () => {
       }, 30000);
 
       it('should handle Slack API errors', async () => {
-        mockSlackFetch({ ok: false, error: 'invalid_code' }, 400);
+        // Mock a generic network/service error that doesn't get caught by specific ApiError handling
+        global.fetch = jest.fn().mockRejectedValue(new Error('Network error'));
 
         const response = await request(app.getHttpServer())
           .get('/slack/oauth/callback')

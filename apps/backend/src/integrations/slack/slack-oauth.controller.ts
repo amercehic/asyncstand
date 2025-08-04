@@ -103,6 +103,11 @@ export class SlackOauthController {
         if (error.getStatus() === HttpStatus.BAD_REQUEST) {
           return this.renderErrorPage(res, 'Invalid or expired authorization request');
         }
+        // Handle other ApiError cases with their specific messages
+        return this.renderErrorPage(
+          res,
+          error.message || 'Invalid or expired authorization request',
+        );
       }
 
       // TODO: Replace with frontend redirect for error handling

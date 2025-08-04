@@ -66,7 +66,7 @@ export class SlackOauthService {
       this.logger.error(`State validation failed for state: ${state}`);
       throw new ApiError(
         ErrorCode.VALIDATION_FAILED,
-        'Invalid or expired state parameter',
+        'Invalid or expired authorization request',
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -97,7 +97,7 @@ export class SlackOauthService {
       if (existingIntegration) {
         throw new ApiError(
           ErrorCode.CONFLICT,
-          'Slack workspace already connected to this organization',
+          'This Slack workspace is already connected to your organization',
           HttpStatus.CONFLICT,
         );
       }
