@@ -13,6 +13,7 @@ export enum AuditCategory {
   INTEGRATION = 'integration',
   BILLING = 'billing',
   STANDUP_CONFIG = 'standup_config',
+  STANDUP = 'standup',
 }
 
 export enum AuditSeverity {
