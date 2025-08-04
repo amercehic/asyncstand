@@ -77,6 +77,7 @@ export type MockPrismaService = {
     findUnique: jest.Mock;
     findMany: jest.Mock;
     update: jest.Mock;
+    updateMany: jest.Mock;
     delete: jest.Mock;
     deleteMany: jest.Mock;
     count: jest.Mock;
@@ -117,10 +118,21 @@ export type MockPrismaService = {
     delete: jest.Mock;
     deleteMany: jest.Mock;
   };
+  integrationSyncState: {
+    create: jest.Mock;
+    findFirst: jest.Mock;
+    findUnique: jest.Mock;
+    findMany: jest.Mock;
+    upsert: jest.Mock;
+    update: jest.Mock;
+    delete: jest.Mock;
+    deleteMany: jest.Mock;
+  };
   $transaction: jest.Mock;
   $disconnect: jest.Mock;
   $executeRaw: jest.Mock;
   $queryRaw: jest.Mock;
+  $queryRawUnsafe: jest.Mock;
 };
 
 export const createMockPrismaService = (): MockPrismaService => {
@@ -290,6 +302,7 @@ export const createMockPrismaService = (): MockPrismaService => {
       findUnique: jest.fn().mockResolvedValue(null),
       findMany: jest.fn().mockResolvedValue([]),
       update: jest.fn().mockResolvedValue({}),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       delete: jest.fn().mockResolvedValue({}),
       deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
       count: jest.fn().mockResolvedValue(0),
@@ -377,6 +390,23 @@ export const createMockPrismaService = (): MockPrismaService => {
       delete: jest.fn().mockResolvedValue({}),
       deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
+    integrationSyncState: {
+      create: jest.fn().mockResolvedValue({
+        id: TestHelpers.generateRandomString(),
+        integrationId: TestHelpers.generateRandomString(),
+        lastSyncAt: new Date(),
+        errorMsg: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }),
+      findFirst: jest.fn().mockResolvedValue(null),
+      findUnique: jest.fn().mockResolvedValue(null),
+      findMany: jest.fn().mockResolvedValue([]),
+      upsert: jest.fn().mockResolvedValue({}),
+      update: jest.fn().mockResolvedValue({}),
+      delete: jest.fn().mockResolvedValue({}),
+      deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
+    },
     $transaction: jest.fn().mockImplementation(async (callback) => {
       if (typeof callback === 'function') {
         return callback(createMockPrismaService());
@@ -384,8 +414,9 @@ export const createMockPrismaService = (): MockPrismaService => {
       return callback;
     }),
     $disconnect: jest.fn().mockResolvedValue(undefined),
-    $executeRaw: jest.fn().mockResolvedValue(undefined),
+    $executeRaw: jest.fn().mockResolvedValue([{ id: TestHelpers.generateRandomString() }]),
     $queryRaw: jest.fn().mockResolvedValue([]),
+    $queryRawUnsafe: jest.fn().mockResolvedValue([{ decrypted: 'decrypted-token' }]),
   };
 };
 

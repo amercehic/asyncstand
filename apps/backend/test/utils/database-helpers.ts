@@ -5,27 +5,35 @@ export class DatabaseHelpers {
    * Clean database in dependency order
    */
   static async cleanDatabase(prisma: PrismaService): Promise<void> {
-    // Delete in reverse dependency order to avoid foreign key constraints
-    await prisma.standupConfigMember.deleteMany();
-    await prisma.standupConfig.deleteMany();
-    await prisma.answer.deleteMany();
-    await prisma.participationSnapshot.deleteMany();
-    await prisma.standupDigestPost.deleteMany();
-    await prisma.standupInstance.deleteMany();
-    await prisma.teamMember.deleteMany();
-    await prisma.team.deleteMany();
-    await prisma.integrationUser.deleteMany();
-    await prisma.channel.deleteMany();
-    await prisma.integrationSyncState.deleteMany();
-    await prisma.tokenRefreshJob.deleteMany();
-    await prisma.integration.deleteMany();
-    await prisma.auditLog.deleteMany();
-    await prisma.orgMember.deleteMany();
-    await prisma.organization.deleteMany();
-    await prisma.refreshToken.deleteMany();
-    await prisma.session.deleteMany();
-    await prisma.passwordResetToken.deleteMany();
-    await prisma.user.deleteMany();
+    try {
+      // Delete in reverse dependency order to avoid foreign key constraints
+      await prisma.standupConfigMember.deleteMany();
+      await prisma.standupConfig.deleteMany();
+      await prisma.answer.deleteMany();
+      await prisma.participationSnapshot.deleteMany();
+      await prisma.standupDigestPost.deleteMany();
+      await prisma.standupInstance.deleteMany();
+      await prisma.teamMember.deleteMany();
+      await prisma.team.deleteMany();
+      await prisma.integrationUser.deleteMany();
+      await prisma.channel.deleteMany();
+      await prisma.integrationSyncState.deleteMany();
+      await prisma.tokenRefreshJob.deleteMany();
+      await prisma.integration.deleteMany();
+      await prisma.auditLog.deleteMany();
+      await prisma.orgMember.deleteMany();
+      await prisma.organization.deleteMany();
+      await prisma.refreshToken.deleteMany();
+      await prisma.session.deleteMany();
+      await prisma.passwordResetToken.deleteMany();
+      await prisma.user.deleteMany();
+
+      // Ensure all deletions are committed
+      await prisma.$executeRaw`SELECT 1`;
+    } catch (error) {
+      console.error('Error cleaning database:', error);
+      throw error;
+    }
   }
 
   /**

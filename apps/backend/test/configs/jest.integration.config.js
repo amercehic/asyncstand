@@ -18,6 +18,8 @@ module.exports = {
   // Use a separate test database for integration tests
   globalSetup: '<rootDir>/test/setup/integration-setup.ts',
   globalTeardown: '<rootDir>/test/setup/integration-teardown.ts',
+  // Run tests sequentially to avoid database conflicts
+  maxWorkers: 1,
 
   // Coverage collection
   collectCoverageFrom: [
