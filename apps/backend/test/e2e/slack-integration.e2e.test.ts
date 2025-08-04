@@ -30,7 +30,18 @@ describe('Slack Integration (e2e)', () => {
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(RedisService)
+      .useValue({
+        generateStateToken: jest.fn().mockResolvedValue('mock-state-token'),
+        validateStateToken: jest.fn().mockResolvedValue('mock-org-id'),
+        set: jest.fn().mockResolvedValue('OK'),
+        get: jest.fn().mockResolvedValue('mock-org-id'),
+        del: jest.fn().mockResolvedValue(1),
+        exists: jest.fn().mockResolvedValue(1),
+        onModuleDestroy: jest.fn(),
+      })
+      .compile();
 
     app = moduleFixture.createNestApplication();
     await app.init();
@@ -191,8 +202,9 @@ describe('Slack Integration (e2e)', () => {
 
   // Mock Redis operations to prevent connection issues in CI
   function mockRedisOperations() {
-    jest.spyOn(redisService, 'generateStateToken').mockResolvedValue('mock-state-token');
-    jest.spyOn(redisService, 'validateStateToken').mockResolvedValue(testOrg.id);
+    // Update the mock to return the actual test organization ID
+    (redisService.generateStateToken as jest.Mock).mockResolvedValue('mock-state-token');
+    (redisService.validateStateToken as jest.Mock).mockResolvedValue(testOrg.id);
   }
 
   describe('Slack OAuth Flow', () => {
@@ -200,6 +212,14 @@ describe('Slack Integration (e2e)', () => {
       it('should redirect to Slack OAuth URL with proper parameters', async () => {
         // Mock Redis operations to prevent connection issues
         mockRedisOperations();
+
+        // Mock Slack OAuth configuration
+        const configSpy = jest.spyOn(configService, 'get').mockImplementation((key: string) => {
+          if (key === 'slackClientId') return 'test-client-id';
+          if (key === 'slackOauthEnabled') return true;
+          if (key === 'frontendUrl') return 'http://localhost:3000';
+          return configService.get(key);
+        });
 
         const response = await request(app.getHttpServer())
           .get('/slack/oauth/start')
@@ -217,6 +237,9 @@ describe('Slack Integration (e2e)', () => {
         expect(location).toContain('user_scope=identity.basic');
         expect(location).toContain('state=');
         expect(location).toContain('redirect_uri=');
+
+        // Restore original implementation
+        configSpy.mockRestore();
       }, 30000);
 
       it('should return error when orgId is missing', async () => {
@@ -324,6 +347,9 @@ describe('Slack Integration (e2e)', () => {
       }, 30000);
 
       it('should return error for invalid state token', async () => {
+        // Mock the validateStateToken to return null for invalid state
+        (redisService.validateStateToken as jest.Mock).mockResolvedValueOnce(null);
+
         const response = await request(app.getHttpServer())
           .get('/slack/oauth/callback')
           .query({

@@ -7,10 +7,9 @@ import {
   Body,
   Param,
   UseGuards,
-  HttpStatus,
   ValidationPipe,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/auth/guards/roles.guard';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
@@ -26,6 +25,19 @@ import {
   PreviewResponse,
   QuestionTemplate,
 } from '@/standups/types/standup-config.types';
+import {
+  SwaggerCreateStandupConfig,
+  SwaggerGetStandupConfig,
+  SwaggerUpdateStandupConfig,
+  SwaggerDeleteStandupConfig,
+  SwaggerGetStandupPreview,
+  SwaggerGetMemberParticipation,
+  SwaggerUpdateMemberParticipation,
+  SwaggerBulkUpdateParticipation,
+  SwaggerGetValidTimezones,
+  SwaggerGetQuestionTemplates,
+  SwaggerListTeamsWithStandups,
+} from '@/swagger/standup-config.swagger';
 
 @ApiTags('Standup Configuration')
 @ApiBearerAuth('JWT-auth')
@@ -37,21 +49,7 @@ export class StandupConfigController {
   // Configuration CRUD endpoints
 
   @Post('teams/:teamId/standup-config')
-  @ApiOperation({ summary: 'Create standup configuration for a team' })
-  @ApiParam({ name: 'teamId', description: 'Team ID' })
-  @ApiResponse({
-    status: HttpStatus.CREATED,
-    description: 'Standup configuration created successfully',
-    schema: {
-      type: 'object',
-      properties: {
-        id: { type: 'string', description: 'Configuration ID' },
-      },
-    },
-  })
-  @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Invalid input data' })
-  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Team not found' })
-  @ApiResponse({ status: HttpStatus.CONFLICT, description: 'Configuration already exists' })
+  @SwaggerCreateStandupConfig()
   async createStandupConfig(
     @Param('teamId') teamId: string,
     @CurrentOrg('id') orgId: string,
@@ -62,14 +60,7 @@ export class StandupConfigController {
   }
 
   @Get('teams/:teamId/standup-config')
-  @ApiOperation({ summary: 'Get standup configuration for a team' })
-  @ApiParam({ name: 'teamId', description: 'Team ID' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Standup configuration retrieved successfully',
-    type: 'object', // Would be StandupConfigResponse in a real implementation
-  })
-  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Configuration not found' })
+  @SwaggerGetStandupConfig()
   async getStandupConfig(
     @Param('teamId') teamId: string,
     @CurrentOrg('id') orgId: string,
@@ -78,14 +69,7 @@ export class StandupConfigController {
   }
 
   @Put('teams/:teamId/standup-config')
-  @ApiOperation({ summary: 'Update standup configuration for a team' })
-  @ApiParam({ name: 'teamId', description: 'Team ID' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Standup configuration updated successfully',
-  })
-  @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Invalid input data' })
-  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Configuration not found' })
+  @SwaggerUpdateStandupConfig()
   async updateStandupConfig(
     @Param('teamId') teamId: string,
     @CurrentOrg('id') orgId: string,
@@ -96,13 +80,7 @@ export class StandupConfigController {
   }
 
   @Delete('teams/:teamId/standup-config')
-  @ApiOperation({ summary: 'Delete standup configuration for a team' })
-  @ApiParam({ name: 'teamId', description: 'Team ID' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Standup configuration deleted successfully',
-  })
-  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Configuration not found' })
+  @SwaggerDeleteStandupConfig()
   async deleteStandupConfig(
     @Param('teamId') teamId: string,
     @CurrentOrg('id') orgId: string,
@@ -112,14 +90,7 @@ export class StandupConfigController {
   }
 
   @Get('teams/:teamId/standup-config/preview')
-  @ApiOperation({ summary: 'Preview how standup will work with current configuration' })
-  @ApiParam({ name: 'teamId', description: 'Team ID' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Standup preview generated successfully',
-    type: 'object', // Would be PreviewResponse in a real implementation
-  })
-  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Configuration not found' })
+  @SwaggerGetStandupPreview()
   async getStandupPreview(
     @Param('teamId') teamId: string,
     @CurrentOrg('id') orgId: string,
@@ -130,14 +101,7 @@ export class StandupConfigController {
   // Member participation endpoints
 
   @Get('teams/:teamId/standup-config/members')
-  @ApiOperation({ summary: 'Get member participation settings for a team' })
-  @ApiParam({ name: 'teamId', description: 'Team ID' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Member participation retrieved successfully',
-    type: 'array',
-  })
-  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Configuration not found' })
+  @SwaggerGetMemberParticipation()
   async getMemberParticipation(
     @Param('teamId') teamId: string,
   ): Promise<MemberParticipationResponse[]> {
@@ -145,14 +109,7 @@ export class StandupConfigController {
   }
 
   @Put('teams/:teamId/standup-config/members/:memberId')
-  @ApiOperation({ summary: 'Update member participation in standups' })
-  @ApiParam({ name: 'teamId', description: 'Team ID' })
-  @ApiParam({ name: 'memberId', description: 'Team Member ID' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Member participation updated successfully',
-  })
-  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Team member not found' })
+  @SwaggerUpdateMemberParticipation()
   async updateMemberParticipation(
     @Param('teamId') teamId: string,
     @Param('memberId') memberId: string,
@@ -163,13 +120,7 @@ export class StandupConfigController {
   }
 
   @Post('teams/:teamId/standup-config/members/bulk')
-  @ApiOperation({ summary: 'Bulk update member participation in standups' })
-  @ApiParam({ name: 'teamId', description: 'Team ID' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Member participation updated successfully',
-  })
-  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'One or more team members not found' })
+  @SwaggerBulkUpdateParticipation()
   async bulkUpdateParticipation(
     @Param('teamId') teamId: string,
     @Body(ValidationPipe) data: BulkUpdateParticipationDto,
@@ -181,35 +132,13 @@ export class StandupConfigController {
   // Utility endpoints
 
   @Get('standup-config/timezones')
-  @ApiOperation({ summary: 'Get list of valid timezones' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Valid timezones retrieved successfully',
-    schema: {
-      type: 'array',
-      items: { type: 'string' },
-    },
-  })
+  @SwaggerGetValidTimezones()
   async getValidTimezones(): Promise<string[]> {
     return this.standupConfigService.getValidTimezones();
   }
 
   @Get('standup-config/templates')
-  @ApiOperation({ summary: 'Get default question templates' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Question templates retrieved successfully',
-    schema: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          name: { type: 'string' },
-          questions: { type: 'array', items: { type: 'string' } },
-        },
-      },
-    },
-  })
+  @SwaggerGetQuestionTemplates()
   async getQuestionTemplates(): Promise<QuestionTemplate[]> {
     return this.standupConfigService.getQuestionTemplates();
   }
@@ -217,22 +146,7 @@ export class StandupConfigController {
   // Organization-level endpoint
 
   @Get('standup-config/teams')
-  @ApiOperation({ summary: 'List teams with standup configurations' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Teams with standups retrieved successfully',
-    schema: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          teamId: { type: 'string' },
-          teamName: { type: 'string' },
-          isActive: { type: 'boolean' },
-        },
-      },
-    },
-  })
+  @SwaggerListTeamsWithStandups()
   async listTeamsWithStandups(
     @CurrentOrg('id') orgId: string,
   ): Promise<{ teamId: string; teamName: string; isActive: boolean }[]> {
