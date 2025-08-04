@@ -275,12 +275,28 @@ describe('Slack Integration (e2e)', () => {
 
     describe('GET /slack/oauth/callback', () => {
       let validState: string;
+      let configSpy: jest.SpyInstance;
 
       beforeEach(async () => {
         // Mock Redis operations to prevent connection issues
         mockRedisOperations();
         validState = 'mock-state-token';
+
+        // Mock Slack OAuth configuration for callback tests
+        configSpy = jest.spyOn(configService, 'get').mockImplementation((key: string) => {
+          if (key === 'slackClientId') return 'test-client-id';
+          if (key === 'slackClientSecret') return 'test-client-secret';
+          if (key === 'slackOauthEnabled') return true;
+          if (key === 'frontendUrl') return 'http://localhost:3000';
+          return configService.get.bind(configService)(key);
+        });
       }, 30000);
+
+      afterEach(() => {
+        if (configSpy) {
+          configSpy.mockRestore();
+        }
+      });
 
       it('should successfully handle OAuth callback and create integration', async () => {
         // This test requires proper Slack OAuth configuration

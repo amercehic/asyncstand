@@ -206,7 +206,7 @@ describe('SlackOauthService', () => {
       mockRedisService.validateStateToken.mockResolvedValue(null);
 
       await expect(service.exchangeCode(mockCode, mockState, mockIpAddress)).rejects.toThrow(
-        new ApiError(ErrorCode.VALIDATION_FAILED, 'Invalid or expired state parameter', 400),
+        new ApiError(ErrorCode.VALIDATION_FAILED, 'Invalid or expired authorization request', 400),
       );
 
       expect(mockPrisma.organization.findUnique).not.toHaveBeenCalled();
@@ -233,7 +233,7 @@ describe('SlackOauthService', () => {
       await expect(service.exchangeCode(mockCode, mockState, mockIpAddress)).rejects.toThrow(
         new ApiError(
           ErrorCode.CONFLICT,
-          'Slack workspace already connected to this organization',
+          'This Slack workspace is already connected to your organization',
           409,
         ),
       );
