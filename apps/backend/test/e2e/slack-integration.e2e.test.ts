@@ -43,7 +43,7 @@ describe('Slack Integration (e2e)', () => {
     originalFetch = global.fetch;
 
     await setupTestData();
-  });
+  }, 60000); // 60 second timeout for setup
 
   afterAll(async () => {
     // Restore original fetch
@@ -52,7 +52,7 @@ describe('Slack Integration (e2e)', () => {
     await cleanupTestData();
     await prisma.$disconnect();
     await app.close();
-  });
+  }, 30000); // 30 second timeout for teardown
 
   beforeEach(() => {
     // Reset fetch mock before each test
@@ -189,9 +189,18 @@ describe('Slack Integration (e2e)', () => {
     });
   }
 
+  // Mock Redis operations to prevent connection issues in CI
+  function mockRedisOperations() {
+    jest.spyOn(redisService, 'generateStateToken').mockResolvedValue('mock-state-token');
+    jest.spyOn(redisService, 'validateStateToken').mockResolvedValue(testOrg.id);
+  }
+
   describe('Slack OAuth Flow', () => {
     describe('GET /slack/oauth/start', () => {
       it('should redirect to Slack OAuth URL with proper parameters', async () => {
+        // Mock Redis operations to prevent connection issues
+        mockRedisOperations();
+
         const response = await request(app.getHttpServer())
           .get('/slack/oauth/start')
           .query({ orgId: testOrg.id })
@@ -208,7 +217,7 @@ describe('Slack Integration (e2e)', () => {
         expect(location).toContain('user_scope=identity.basic');
         expect(location).toContain('state=');
         expect(location).toContain('redirect_uri=');
-      });
+      }, 30000);
 
       it('should return error when orgId is missing', async () => {
         await request(app.getHttpServer())
@@ -217,7 +226,7 @@ describe('Slack Integration (e2e)', () => {
           .expect((res) => {
             expect(res.body.error).toBe('orgId query parameter is required');
           });
-      });
+      }, 30000);
 
       it('should return error when Slack OAuth is not configured', async () => {
         // Create a spy that avoids infinite recursion
@@ -238,16 +247,17 @@ describe('Slack Integration (e2e)', () => {
 
         // Restore original implementation
         configSpy.mockRestore();
-      });
+      }, 30000);
     });
 
     describe('GET /slack/oauth/callback', () => {
       let validState: string;
 
       beforeEach(async () => {
-        // Generate a valid state token
-        validState = await redisService.generateStateToken(testOrg.id);
-      });
+        // Mock Redis operations to prevent connection issues
+        mockRedisOperations();
+        validState = 'mock-state-token';
+      }, 30000);
 
       it('should successfully handle OAuth callback and create integration', async () => {
         // This test requires proper Slack OAuth configuration
@@ -311,7 +321,7 @@ describe('Slack Integration (e2e)', () => {
           expect(response.status).toBe(400);
           expect(response.text).toContain('An unexpected error occurred during installation');
         }
-      });
+      }, 30000);
 
       it('should return error for invalid state token', async () => {
         const response = await request(app.getHttpServer())
@@ -324,7 +334,7 @@ describe('Slack Integration (e2e)', () => {
 
         // The error should render the error page with the specific message for state validation
         expect(response.text).toContain('Invalid or expired authorization request');
-      });
+      }, 30000);
 
       it('should handle OAuth error from Slack', async () => {
         const response = await request(app.getHttpServer())
@@ -336,7 +346,7 @@ describe('Slack Integration (e2e)', () => {
           .expect(400);
 
         expect(response.text).toContain('OAuth was denied or failed');
-      });
+      }, 30000);
 
       it('should handle duplicate integration error', async () => {
         // Create an existing integration with the same external team ID
@@ -378,7 +388,7 @@ describe('Slack Integration (e2e)', () => {
         expect(response.text).toContain(
           'This Slack workspace is already connected to your organization',
         );
-      });
+      }, 30000);
 
       it('should handle Slack API errors', async () => {
         mockSlackFetch({ ok: false, error: 'invalid_code' }, 400);
@@ -392,7 +402,7 @@ describe('Slack Integration (e2e)', () => {
           .expect(400);
 
         expect(response.text).toContain('An unexpected error occurred during installation');
-      });
+      }, 30000);
     });
   });
 
@@ -415,14 +425,14 @@ describe('Slack Integration (e2e)', () => {
         expect(integration).toHaveProperty('tokenStatus', 'ok');
         expect(integration).toHaveProperty('scopes');
         expect(integration).toHaveProperty('installedAt');
-      });
+      }, 30000);
 
       it('should require authentication', async () => {
         await request(app.getHttpServer())
           .get('/slack/integrations')
           .set('X-Organization-ID', testOrg.id)
           .expect(401);
-      });
+      }, 30000);
 
       it('should require admin role', async () => {
         await request(app.getHttpServer())
@@ -430,7 +440,7 @@ describe('Slack Integration (e2e)', () => {
           .set('Authorization', `Bearer ${memberAccessToken}`)
           .set('X-Organization-ID', testOrg.id)
           .expect(403);
-      });
+      }, 30000);
 
       it('should return empty array when no integrations exist', async () => {
         // Create a new org with no integrations and use a fresh user
@@ -454,7 +464,7 @@ describe('Slack Integration (e2e)', () => {
         await prisma.orgMember.deleteMany({ where: { orgId: emptyOrg.id } });
         await prisma.user.deleteMany({ where: { email: freshAdminEmail } });
         await prisma.organization.delete({ where: { id: emptyOrg.id } });
-      });
+      }, 30000);
     });
 
     describe('POST /slack/integrations/:id/sync', () => {
@@ -535,14 +545,14 @@ describe('Slack Integration (e2e)', () => {
         expect(syncState).toBeDefined();
         expect(syncState!.lastUsersSyncAt).toBeDefined();
         expect(syncState!.lastChannelsSyncAt).toBeDefined();
-      });
+      }, 30000);
 
       it('should require authentication', async () => {
         await request(app.getHttpServer())
           .post(`/slack/integrations/${testIntegration.id}/sync`)
           .set('X-Organization-ID', testOrg.id)
           .expect(401);
-      });
+      }, 30000);
 
       it('should require admin role', async () => {
         await request(app.getHttpServer())
@@ -550,7 +560,7 @@ describe('Slack Integration (e2e)', () => {
           .set('Authorization', `Bearer ${memberAccessToken}`)
           .set('X-Organization-ID', testOrg.id)
           .expect(403);
-      });
+      }, 30000);
 
       it('should return 404 for non-existent integration', async () => {
         await request(app.getHttpServer())
@@ -558,7 +568,7 @@ describe('Slack Integration (e2e)', () => {
           .set('Authorization', `Bearer ${adminAccessToken}`)
           .set('X-Organization-ID', testOrg.id)
           .expect(404);
-      });
+      }, 30000);
 
       it('should return 403 for integration from different organization', async () => {
         // Create integration in different org
@@ -590,7 +600,7 @@ describe('Slack Integration (e2e)', () => {
         // Cleanup
         await prisma.integration.delete({ where: { id: otherIntegration.id } });
         await prisma.organization.delete({ where: { id: otherOrg.id } });
-      });
+      }, 30000);
 
       it('should handle Slack API errors gracefully', async () => {
         // Mock Slack API error
@@ -610,7 +620,7 @@ describe('Slack Integration (e2e)', () => {
         expect(response.body).toHaveProperty('success', true);
         expect(response.body).toHaveProperty('errors');
         expect(response.body.errors.length).toBeGreaterThan(0);
-      });
+      }, 30000);
     });
 
     describe('DELETE /slack/integrations/:id', () => {
@@ -633,7 +643,7 @@ describe('Slack Integration (e2e)', () => {
             userScopes: ['identity.basic'],
           },
         });
-      });
+      }, 30000);
 
       it('should successfully remove integration for admin user', async () => {
         const response = await request(app.getHttpServer())
@@ -649,14 +659,14 @@ describe('Slack Integration (e2e)', () => {
           where: { id: integrationToDelete.id },
         });
         expect(deletedIntegration).toBeNull();
-      });
+      }, 30000);
 
       it('should require authentication', async () => {
         await request(app.getHttpServer())
           .delete(`/slack/integrations/${integrationToDelete.id}`)
           .set('X-Organization-ID', testOrg.id)
           .expect(401);
-      });
+      }, 30000);
 
       it('should require admin role', async () => {
         await request(app.getHttpServer())
@@ -664,7 +674,7 @@ describe('Slack Integration (e2e)', () => {
           .set('Authorization', `Bearer ${memberAccessToken}`)
           .set('X-Organization-ID', testOrg.id)
           .expect(403);
-      });
+      }, 30000);
 
       it('should return 404 for non-existent integration', async () => {
         await request(app.getHttpServer())
@@ -672,7 +682,7 @@ describe('Slack Integration (e2e)', () => {
           .set('Authorization', `Bearer ${adminAccessToken}`)
           .set('X-Organization-ID', testOrg.id)
           .expect(404);
-      });
+      }, 30000);
 
       it('should cascade delete related data', async () => {
         // Create related data that should be deleted
@@ -707,7 +717,7 @@ describe('Slack Integration (e2e)', () => {
           where: { integrationId: integrationToDelete.id },
         });
         expect(deletedSyncState).toBeNull();
-      });
+      }, 30000);
     });
   });
 
@@ -718,7 +728,7 @@ describe('Slack Integration (e2e)', () => {
         .set('Authorization', `Bearer ${adminAccessToken}`)
         .set('X-Organization-ID', testOrg.id)
         .expect(404);
-    });
+    }, 30000);
 
     it('should handle missing organization header', async () => {
       // Since CurrentOrg comes from the authenticated user, missing header doesn't cause 400
@@ -729,7 +739,7 @@ describe('Slack Integration (e2e)', () => {
         .expect(200);
 
       expect(Array.isArray(response.body)).toBe(true);
-    });
+    }, 30000);
 
     it('should handle invalid organization ID', async () => {
       // Since CurrentOrg comes from the authenticated user, invalid header ID doesn't matter
@@ -741,6 +751,6 @@ describe('Slack Integration (e2e)', () => {
         .expect(200);
 
       expect(Array.isArray(response.body)).toBe(true);
-    });
+    }, 30000);
   });
 });

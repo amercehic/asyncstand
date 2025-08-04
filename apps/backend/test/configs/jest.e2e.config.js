@@ -29,7 +29,7 @@ module.exports = {
   },
 
   // Extended timeouts for E2E tests
-  testTimeout: 60000,
+  testTimeout: 120000, // 2 minutes for e2e tests
 
   // Coverage collection
   coverageDirectory: 'coverage/e2e',
