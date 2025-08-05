@@ -162,6 +162,23 @@ jest.mock('ioredis', () => {
   return jest.fn(() => mockRedis);
 });
 
+// Mock Bull queue library
+jest.mock('bull', () => {
+  const mockQueue = {
+    add: jest.fn().mockResolvedValue({ id: 'test-job-id' }),
+    process: jest.fn(),
+    on: jest.fn(),
+    close: jest.fn().mockResolvedValue(undefined),
+    clean: jest.fn().mockResolvedValue(undefined),
+    getJob: jest.fn().mockResolvedValue(null),
+    getJobs: jest.fn().mockResolvedValue([]),
+    getRepeatableJobs: jest.fn().mockResolvedValue([]),
+    removeRepeatableByKey: jest.fn().mockResolvedValue(undefined),
+  };
+
+  return jest.fn(() => mockQueue);
+});
+
 // Set longer timeout for integration tests
 jest.setTimeout(30000);
 

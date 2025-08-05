@@ -415,8 +415,8 @@ export class SlackMessageFormatterService {
   }
 
   private getTimeRemaining(deadline: Date): string {
-    const now = new Date();
-    const diffMs = deadline.getTime() - now.getTime();
+    const now = Date.now();
+    const diffMs = deadline.getTime() - now;
 
     if (diffMs <= 0) {
       return 'Time expired';
