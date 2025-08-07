@@ -140,6 +140,11 @@ describe('Teams (e2e)', () => {
     // Clean up existing test data
     await cleanupTestData();
 
+    // Ensure fresh mock setup - clear any existing jest mocks first
+    if (jest.isMockFunction(global.fetch)) {
+      (global.fetch as jest.Mock).mockReset();
+    }
+
     // Mock Slack API calls
     global.fetch = jest.fn().mockImplementation((url: string) => {
       console.log('Mocking fetch for URL:', url); // Debug log
@@ -329,6 +334,9 @@ describe('Teams (e2e)', () => {
   afterEach(async () => {
     await cleanupTestData();
     resetTestData();
+    
+    // Restore original fetch to prevent interference with other tests
+    global.fetch = originalFetch;
   });
 
   afterAll(async () => {
