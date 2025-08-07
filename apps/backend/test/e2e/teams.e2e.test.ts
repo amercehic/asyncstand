@@ -334,7 +334,7 @@ describe('Teams (e2e)', () => {
   afterEach(async () => {
     await cleanupTestData();
     resetTestData();
-    
+
     // Restore original fetch to prevent interference with other tests
     global.fetch = originalFetch;
   });
