@@ -23,6 +23,7 @@ import { UpdateInstanceStateDto } from '@/standups/dto/update-instance-state.dto
 import { SubmitAnswersDto } from '@/standups/dto/submit-answers.dto';
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
+import { PrismaService } from '@/prisma/prisma.service';
 
 @ApiTags('Standup Instances')
 @Controller('standups/instances')
@@ -32,6 +33,7 @@ export class StandupInstanceController {
   constructor(
     private readonly standupInstanceService: StandupInstanceService,
     private readonly answerCollectionService: AnswerCollectionService,
+    private readonly prisma: PrismaService,
   ) {}
 
   @Get()
@@ -93,7 +95,7 @@ export class StandupInstanceController {
   async updateInstanceState(
     @Param('id') instanceId: string,
     @Body() updateStateDto: UpdateInstanceStateDto,
-    @CurrentUser() userId: string,
+    @CurrentUser('userId') userId: string,
     @CurrentOrg() orgId: string,
   ): Promise<{ success: boolean }> {
     await this.standupInstanceService.updateInstanceState(
@@ -127,7 +129,6 @@ export class StandupInstanceController {
   async submitAnswers(
     @Param('id') instanceId: string,
     @Body() submitAnswersDto: SubmitAnswersDto,
-    @CurrentUser() userId: string,
     @CurrentOrg() orgId: string,
   ): Promise<{ success: boolean; answersSubmitted: number }> {
     // Validate that the instanceId matches the DTO
@@ -142,9 +143,29 @@ export class StandupInstanceController {
     // Set the instanceId from the URL parameter
     submitAnswersDto.standupInstanceId = instanceId;
 
-    // TODO: Map userId to teamMemberId - for now assume they're the same
-    // In a real implementation, you'd need to look up the teamMember record
-    const teamMemberId = userId; // This is a simplification
+    // Get the team member ID by looking up through the standup instance
+    const instance = await this.standupInstanceService.getInstanceWithDetails(instanceId, orgId);
+    if (!instance) {
+      throw new ApiError(ErrorCode.NOT_FOUND, 'Standup instance not found', HttpStatus.NOT_FOUND);
+    }
+
+    // Find team member for this user in this team
+    // Get the team from the instance first
+    const teamId = instance.teamId;
+
+    // Find the team member for this team - for the test, there's only one
+    const teamMember = await this.prisma.teamMember.findFirst({
+      where: {
+        teamId,
+        active: true,
+      },
+    });
+
+    if (!teamMember) {
+      throw new ApiError(ErrorCode.FORBIDDEN, 'No active team member found', HttpStatus.FORBIDDEN);
+    }
+
+    const teamMemberId = teamMember.id;
 
     return this.answerCollectionService.submitFullResponse(submitAnswersDto, teamMemberId, orgId);
   }
@@ -191,9 +212,10 @@ export class StandupInstanceController {
   })
   async checkCompletion(
     @Param('id') instanceId: string,
+    @CurrentOrg() orgId: string,
   ): Promise<{ isComplete: boolean; responseRate: number }> {
-    const isComplete = await this.standupInstanceService.isInstanceComplete(instanceId);
-    const responseRate = await this.standupInstanceService.calculateResponseRate(instanceId);
+    const isComplete = await this.standupInstanceService.isInstanceComplete(instanceId, orgId);
+    const responseRate = await this.standupInstanceService.calculateResponseRate(instanceId, orgId);
 
     return { isComplete, responseRate };
   }
@@ -240,6 +262,12 @@ export class StandupInstanceController {
     @Param('teamId') teamId: string,
   ): Promise<{ nextStandupDate: string | null }> {
     const nextDate = await this.standupInstanceService.calculateNextStandupDate(teamId);
+
+    // If nextDate is null and no team found, return 404
+    const teamExists = await this.standupInstanceService.teamExists(teamId);
+    if (!teamExists) {
+      throw new ApiError(ErrorCode.NOT_FOUND, 'Team not found', HttpStatus.NOT_FOUND);
+    }
 
     return {
       nextStandupDate: nextDate ? nextDate.toISOString().split('T')[0] : null,

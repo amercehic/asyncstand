@@ -11,7 +11,8 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
-import { RolesGuard } from '@/auth/guards/roles.guard';
+import { RolesGuard, Roles } from '@/auth/guards/roles.guard';
+import { OrgRole } from '@prisma/client';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 import { CurrentOrg } from '@/auth/decorators/current-org.decorator';
 import { StandupConfigService } from '@/standups/standup-config.service';
@@ -42,18 +43,59 @@ import {
 @ApiTags('Standup Configuration')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Controller()
+@Controller('standups/config')
 export class StandupConfigController {
   constructor(private readonly standupConfigService: StandupConfigService) {}
 
   // Configuration CRUD endpoints
 
+  @Post()
+  @SwaggerCreateStandupConfig()
+  @UseGuards(RolesGuard)
+  @Roles(OrgRole.admin)
+  async createStandupConfigFromBody(
+    @CurrentOrg() orgId: string,
+    @CurrentUser('userId') userId: string,
+    @Body(ValidationPipe) data: CreateStandupConfigDto & { teamId: string },
+  ): Promise<StandupConfigResponse> {
+    if (!data.teamId) {
+      throw new Error('teamId is required');
+    }
+    await this.standupConfigService.createStandupConfig(data.teamId, orgId, userId, data);
+
+    // Return the created config with full details for the test
+    const config = await this.standupConfigService.getStandupConfig(data.teamId, orgId);
+    return config;
+  }
+
+  @Get(':teamId')
+  @SwaggerGetStandupConfig()
+  async getStandupConfigByTeamId(
+    @Param('teamId') teamId: string,
+    @CurrentOrg() orgId: string,
+  ): Promise<StandupConfigResponse | null> {
+    return this.standupConfigService.getStandupConfig(teamId, orgId);
+  }
+
+  @Post(':id/members/bulk')
+  @SwaggerBulkUpdateParticipation()
+  @UseGuards(RolesGuard)
+  @Roles(OrgRole.admin)
+  async bulkUpdateParticipationById(
+    @Param('id') configId: string,
+    @CurrentOrg() orgId: string,
+    @Body(ValidationPipe) data: BulkUpdateParticipationDto,
+  ): Promise<{ success: boolean; updated: number }> {
+    await this.standupConfigService.bulkUpdateParticipationById(configId, orgId, data);
+    return { success: true, updated: data.members?.length || 0 };
+  }
+
   @Post('teams/:teamId/standup-config')
   @SwaggerCreateStandupConfig()
   async createStandupConfig(
     @Param('teamId') teamId: string,
-    @CurrentOrg('id') orgId: string,
-    @CurrentUser('id') userId: string,
+    @CurrentOrg() orgId: string,
+    @CurrentUser('userId') userId: string,
     @Body(ValidationPipe) data: CreateStandupConfigDto,
   ): Promise<{ id: string }> {
     return this.standupConfigService.createStandupConfig(teamId, orgId, userId, data);
@@ -63,27 +105,52 @@ export class StandupConfigController {
   @SwaggerGetStandupConfig()
   async getStandupConfig(
     @Param('teamId') teamId: string,
-    @CurrentOrg('id') orgId: string,
+    @CurrentOrg() orgId: string,
   ): Promise<StandupConfigResponse> {
     return this.standupConfigService.getStandupConfig(teamId, orgId);
+  }
+
+  @Put(':id')
+  @SwaggerUpdateStandupConfig()
+  @UseGuards(RolesGuard)
+  @Roles(OrgRole.admin)
+  async updateStandupConfigById(
+    @Param('id') configId: string,
+    @CurrentOrg() orgId: string,
+    @Body(ValidationPipe) data: UpdateStandupConfigDto,
+  ): Promise<{ success: boolean }> {
+    await this.standupConfigService.updateStandupConfigById(configId, orgId, data);
+    return { success: true };
   }
 
   @Put('teams/:teamId/standup-config')
   @SwaggerUpdateStandupConfig()
   async updateStandupConfig(
     @Param('teamId') teamId: string,
-    @CurrentOrg('id') orgId: string,
+    @CurrentOrg() orgId: string,
     @Body(ValidationPipe) data: UpdateStandupConfigDto,
   ): Promise<{ message: string }> {
     await this.standupConfigService.updateStandupConfig(teamId, orgId, data);
     return { message: 'Standup configuration updated successfully' };
   }
 
+  @Delete(':id')
+  @SwaggerDeleteStandupConfig()
+  @UseGuards(RolesGuard)
+  @Roles(OrgRole.admin)
+  async deleteStandupConfigById(
+    @Param('id') configId: string,
+    @CurrentOrg() orgId: string,
+  ): Promise<{ success: boolean }> {
+    await this.standupConfigService.deleteStandupConfigById(configId, orgId);
+    return { success: true };
+  }
+
   @Delete('teams/:teamId/standup-config')
   @SwaggerDeleteStandupConfig()
   async deleteStandupConfig(
     @Param('teamId') teamId: string,
-    @CurrentOrg('id') orgId: string,
+    @CurrentOrg() orgId: string,
   ): Promise<{ message: string }> {
     await this.standupConfigService.deleteStandupConfig(teamId, orgId);
     return { message: 'Standup configuration deleted successfully' };
@@ -93,7 +160,7 @@ export class StandupConfigController {
   @SwaggerGetStandupPreview()
   async getStandupPreview(
     @Param('teamId') teamId: string,
-    @CurrentOrg('id') orgId: string,
+    @CurrentOrg() orgId: string,
   ): Promise<PreviewResponse> {
     return this.standupConfigService.getPreview(teamId, orgId);
   }
@@ -148,7 +215,7 @@ export class StandupConfigController {
   @Get('standup-config/teams')
   @SwaggerListTeamsWithStandups()
   async listTeamsWithStandups(
-    @CurrentOrg('id') orgId: string,
+    @CurrentOrg() orgId: string,
   ): Promise<{ teamId: string; teamName: string; isActive: boolean }[]> {
     return this.standupConfigService.listTeamsWithStandups(orgId);
   }

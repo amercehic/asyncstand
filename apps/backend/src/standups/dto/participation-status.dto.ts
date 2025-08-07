@@ -83,6 +83,12 @@ export class ParticipationStatusDto {
   responseRate: number;
 
   @ApiProperty({
+    description: 'Overall completion rate as percentage',
+    example: 40,
+  })
+  completionRate: number;
+
+  @ApiProperty({
     description: 'Individual member participation status',
     type: [MemberParticipationStatus],
   })

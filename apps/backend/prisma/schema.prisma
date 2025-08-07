@@ -253,6 +253,8 @@ model IntegrationUser {
   @@unique([integrationId, externalUserId])
   @@index([integrationId, isDeleted])
   @@index([integrationId, externalUserId])
+  @@index([email])
+  @@index([isDeleted, isBot])
 }
 
 model Team {
@@ -303,6 +305,10 @@ model TeamMember {
   @@unique([teamId, platformUserId])
   @@unique([teamId, userId], map: "unique_team_user")
   @@index([teamId, addedAt])
+  @@index([integrationUserId])
+  @@index([platformUserId])
+  @@index([userId, teamId])
+  @@index([active, teamId])
 }
 
 model StandupConfig {

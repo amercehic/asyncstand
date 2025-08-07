@@ -252,9 +252,12 @@ export class StandupInstanceService {
   /**
    * Check if a standup instance is complete
    */
-  async isInstanceComplete(instanceId: string): Promise<boolean> {
-    const instance = await this.prisma.standupInstance.findUnique({
-      where: { id: instanceId },
+  async isInstanceComplete(instanceId: string, orgId: string): Promise<boolean> {
+    const instance = await this.prisma.standupInstance.findFirst({
+      where: {
+        id: instanceId,
+        team: { orgId },
+      },
       include: {
         answers: { select: { teamMemberId: true } },
       },
@@ -366,6 +369,17 @@ export class StandupInstanceService {
     const weekday = teamDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
 
     return config.weekdays.includes(weekday);
+  }
+
+  /**
+   * Check if team exists
+   */
+  async teamExists(teamId: string): Promise<boolean> {
+    const team = await this.prisma.team.findFirst({
+      where: { id: teamId },
+      select: { id: true },
+    });
+    return !!team;
   }
 
   /**
@@ -491,9 +505,14 @@ export class StandupInstanceService {
     );
 
     const respondedMembers = memberStatus.filter((m) => m.questionsAnswered > 0).length;
+    const completeMembers = memberStatus.filter((m) => m.isComplete).length;
     const responseRate =
       configSnapshot.participatingMembers.length > 0
         ? Math.round((respondedMembers / configSnapshot.participatingMembers.length) * 100)
+        : 0;
+    const completionRate =
+      configSnapshot.participatingMembers.length > 0
+        ? Math.round((completeMembers / configSnapshot.participatingMembers.length) * 100)
         : 0;
 
     // Calculate timeout
@@ -509,6 +528,7 @@ export class StandupInstanceService {
       totalMembers: configSnapshot.participatingMembers.length,
       respondedMembers,
       responseRate,
+      completionRate,
       memberStatus,
       timeoutAt,
       canStillSubmit:
@@ -538,8 +558,8 @@ export class StandupInstanceService {
   /**
    * Calculate response rate for an instance
    */
-  async calculateResponseRate(instanceId: string): Promise<number> {
-    const participation = await this.getInstanceParticipation(instanceId, ''); // orgId will be validated in getInstanceParticipation
+  async calculateResponseRate(instanceId: string, orgId: string): Promise<number> {
+    const participation = await this.getInstanceParticipation(instanceId, orgId);
     return participation.responseRate;
   }
 

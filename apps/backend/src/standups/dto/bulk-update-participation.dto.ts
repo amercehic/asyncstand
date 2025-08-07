@@ -6,7 +6,6 @@ import {
   IsUUID,
   Length,
   ValidateNested,
-  ArrayMinSize,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -44,7 +43,6 @@ export class BulkUpdateParticipationDto {
     type: [MemberParticipationUpdate],
   })
   @IsArray()
-  @ArrayMinSize(1, { message: 'At least one member update is required' })
   @ValidateNested({ each: true })
   @Type(() => MemberParticipationUpdate)
   members: MemberParticipationUpdate[];

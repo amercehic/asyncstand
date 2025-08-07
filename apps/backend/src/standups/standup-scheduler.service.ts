@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 import { LoggerService } from '@/common/logger.service';
+import { TimezoneService } from '@/common/services/timezone.service';
 import { StandupInstanceService } from '@/standups/standup-instance.service';
 import { StandupJobService } from '@/standups/jobs/standup-job.service';
 import { StandupInstanceState } from '@/standups/dto/update-instance-state.dto';
@@ -39,6 +40,7 @@ export class StandupSchedulerService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly logger: LoggerService,
+    private readonly timezoneService: TimezoneService,
     private readonly standupInstanceService: StandupInstanceService,
     private readonly standupJobService: StandupJobService,
   ) {
@@ -416,39 +418,10 @@ export class StandupSchedulerService {
   }
 
   /**
-   * Convert UTC date to team's timezone
-   */
-  private convertToTeamTimezone(date: Date, timezone: string): Date {
-    // Simple timezone conversion - in production, use date-fns-tz or similar
-    const teamDate = new Date(date);
-
-    // Basic timezone offset mapping (simplified for this implementation)
-    const timezoneOffsets: Record<string, number> = {
-      'America/New_York': -5,
-      'America/Chicago': -6,
-      'America/Denver': -7,
-      'America/Los_Angeles': -8,
-      'Europe/London': 0,
-      'Europe/Berlin': 1,
-      'Europe/Moscow': 3,
-      'Asia/Tokyo': 9,
-      'Asia/Shanghai': 8,
-      'Australia/Sydney': 11,
-    };
-
-    const offset = timezoneOffsets[timezone] || 0;
-    teamDate.setHours(teamDate.getHours() + offset);
-
-    return teamDate;
-  }
-
-  /**
    * Check if today is a scheduled standup day for the team
    */
   private isScheduledDay(weekdays: number[], date: Date, timezone: string): boolean {
-    const teamDate = this.convertToTeamTimezone(date, timezone);
-    const weekday = teamDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
-    return weekdays.includes(weekday);
+    return this.timezoneService.isWeekdayInTimezone(date, weekdays, timezone);
   }
 
   /**
@@ -459,13 +432,11 @@ export class StandupSchedulerService {
     configSnapshot: ConfigSnapshot,
     timezone: string,
   ): Date {
-    const teamDate = this.convertToTeamTimezone(targetDate, timezone);
-    const [hours, minutes] = configSnapshot.timeLocal.split(':').map(Number);
-
-    const startTime = new Date(teamDate);
-    startTime.setHours(hours, minutes, 0, 0);
-
-    return startTime;
+    return this.timezoneService.createDateAtTimeInTimezone(
+      targetDate,
+      configSnapshot.timeLocal,
+      timezone,
+    );
   }
 
   /**

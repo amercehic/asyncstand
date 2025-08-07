@@ -261,6 +261,7 @@ export class StandupConfigService {
 
     return {
       id: config.id,
+      teamId: config.teamId,
       questions: config.questions,
       weekdays: config.weekdays,
       timeLocal: config.timeLocal,
@@ -303,6 +304,89 @@ export class StandupConfigService {
     });
 
     this.logger.info('Standup configuration deleted successfully', { teamId, configId: config.id });
+  }
+
+  async updateStandupConfigById(
+    configId: string,
+    orgId: string,
+    data: UpdateStandupConfigDto,
+  ): Promise<void> {
+    this.logger.info('Updating standup configuration by ID', { configId, orgId });
+
+    // Find the config and verify it belongs to the organization
+    const config = await this.prisma.standupConfig.findFirst({
+      where: {
+        id: configId,
+        team: { orgId },
+      },
+      include: { team: true },
+    });
+
+    if (!config) {
+      throw new ApiError(
+        ErrorCode.STANDUP_CONFIG_NOT_FOUND,
+        'Standup configuration not found',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    // Validate input data if provided
+    if (data.weekdays || data.timeLocal || data.timezone) {
+      ValidationUtils.validateSchedule(
+        data.weekdays || config.weekdays,
+        data.timeLocal || config.timeLocal,
+        data.timezone || config.timezone,
+      );
+    }
+    if (data.questions) {
+      ValidationUtils.validateQuestions(data.questions);
+    }
+
+    // Update the config
+    await this.prisma.standupConfig.update({
+      where: { id: configId },
+      data: {
+        ...(data.questions && { questions: data.questions }),
+        ...(data.weekdays && { weekdays: data.weekdays }),
+        ...(data.timeLocal && { timeLocal: data.timeLocal }),
+        ...(data.timezone && { timezone: data.timezone }),
+        ...(data.reminderMinutesBefore !== undefined && {
+          reminderMinutesBefore: data.reminderMinutesBefore,
+        }),
+        ...(data.responseTimeoutHours !== undefined && {
+          responseTimeoutHours: data.responseTimeoutHours,
+        }),
+        ...(data.isActive !== undefined && { isActive: data.isActive }),
+      },
+    });
+
+    this.logger.info('Standup configuration updated successfully', { configId });
+  }
+
+  async deleteStandupConfigById(configId: string, orgId: string): Promise<void> {
+    this.logger.info('Deleting standup configuration by ID', { configId, orgId });
+
+    const config = await this.prisma.standupConfig.findFirst({
+      where: {
+        id: configId,
+        team: { orgId },
+      },
+      include: { team: true },
+    });
+
+    if (!config) {
+      throw new ApiError(
+        ErrorCode.STANDUP_CONFIG_NOT_FOUND,
+        'Standup configuration not found',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    await this.prisma.standupConfig.delete({
+      where: { id: configId },
+    });
+
+    this.logger.info('Standup configuration deleted successfully', { configId });
   }
 
   async listTeamsWithStandups(
@@ -495,6 +579,34 @@ export class StandupConfigService {
     });
 
     this.logger.info('Bulk member participation updated successfully', { teamId });
+  }
+
+  async bulkUpdateParticipationById(
+    configId: string,
+    orgId: string,
+    data: BulkUpdateParticipationDto,
+  ): Promise<void> {
+    this.logger.info('Bulk updating member participation by config ID', {
+      configId,
+      memberCount: data.members.length,
+    });
+
+    const config = await this.prisma.standupConfig.findFirst({
+      where: {
+        id: configId,
+        team: { orgId },
+      },
+    });
+
+    if (!config) {
+      throw new ApiError(
+        ErrorCode.STANDUP_CONFIG_NOT_FOUND,
+        'Standup configuration not found',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    return this.bulkUpdateParticipation(config.teamId, data);
   }
 
   async getPreview(teamId: string, orgId: string): Promise<PreviewResponse> {

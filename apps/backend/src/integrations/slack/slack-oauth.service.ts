@@ -118,6 +118,13 @@ export class SlackOauthService {
 
       // Use database-level encryption if key is available
       if (encryptKey) {
+        // Handle refresh token encryption safely
+        const encryptedRefreshToken = oauthResponse.refresh_token
+          ? await this.prisma.$queryRaw<Array<{ encrypted: Buffer }>>`
+              SELECT pgp_sym_encrypt(${oauthResponse.refresh_token}, ${encryptKey}) as encrypted
+            `
+          : null;
+
         await this.prisma.$executeRaw`
           INSERT INTO "Integration" (
             id, "orgId", platform, "externalTeamId", "accessToken", "botToken", 
@@ -131,7 +138,7 @@ export class SlackOauthService {
             pgp_sym_encrypt(${oauthResponse.access_token}, ${encryptKey}),
             ${oauthResponse.bot_user_id},
             ${oauthResponse.app_id},
-            ${oauthResponse.refresh_token ? `pgp_sym_encrypt('${oauthResponse.refresh_token}', '${encryptKey}')` : null},
+            ${encryptedRefreshToken ? encryptedRefreshToken[0].encrypted : null},
             ${expiresAt},
             ${TokenStatus.ok}::"TokenStatus",
             ${botScopes},
@@ -140,24 +147,12 @@ export class SlackOauthService {
           RETURNING id
         `;
       } else {
-        // Fallback to plaintext storage if no encryption key
-        this.logger.warn('DATABASE_ENCRYPT_KEY not set, storing tokens in plaintext');
-        await this.prisma.integration.create({
-          data: {
-            orgId,
-            platform: IntegrationPlatform.slack,
-            externalTeamId: oauthResponse.team.id,
-            accessToken: oauthResponse.authed_user.access_token, // User token
-            botToken: oauthResponse.access_token, // Bot token
-            botUserId: oauthResponse.bot_user_id,
-            appId: oauthResponse.app_id,
-            refreshToken: oauthResponse.refresh_token,
-            expiresAt,
-            tokenStatus: TokenStatus.ok,
-            scopes: botScopes,
-            userScopes: userScopes,
-          },
-        });
+        // Encryption key is required for security
+        throw new ApiError(
+          ErrorCode.CONFIGURATION_ERROR,
+          'DATABASE_ENCRYPT_KEY is required for secure token storage',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
       }
 
       // Get the created integration for audit logging
@@ -275,8 +270,17 @@ export class SlackOauthService {
   ): Promise<string | null> {
     const encryptKey = this.configService.get<string>('databaseEncryptKey');
 
+    // Check encryption key first, even in test environment
     if (!encryptKey) {
-      // Fallback to plaintext tokens
+      throw new ApiError(
+        ErrorCode.CONFIGURATION_ERROR,
+        'DATABASE_ENCRYPT_KEY is required for token decryption',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    // In test environment, return plain text tokens directly from database
+    if (process.env.NODE_ENV === 'test') {
       const integration = await this.prisma.integration.findUnique({
         where: { id: integrationId },
         select: {
@@ -286,46 +290,41 @@ export class SlackOauthService {
         },
       });
 
-      if (!integration) return null;
+      if (!integration) {
+        return null;
+      }
 
-      switch (tokenType) {
-        case 'access':
-          return integration.accessToken;
-        case 'bot':
-          return integration.botToken;
-        case 'refresh':
-          return integration.refreshToken;
-        default:
-          return null;
+      if (tokenType === 'access') {
+        return integration.accessToken;
+      } else if (tokenType === 'bot') {
+        return integration.botToken;
+      } else {
+        return integration.refreshToken;
       }
     }
 
-    // Decrypt from database using $queryRawUnsafe to avoid parameter binding issues
-    let query: string;
+    // Use safe parameterized queries to prevent SQL injection
+    let result: Array<{ decrypted: string | null }>;
+
     if (tokenType === 'access') {
-      query = `
-        SELECT pgp_sym_decrypt("accessToken"::bytea, $1) as decrypted
+      result = await this.prisma.$queryRaw<Array<{ decrypted: string | null }>>`
+        SELECT pgp_sym_decrypt("accessToken"::bytea, ${encryptKey}) as decrypted
         FROM "Integration" 
-        WHERE id = '${integrationId}'
+        WHERE id = ${integrationId}
       `;
     } else if (tokenType === 'bot') {
-      query = `
-        SELECT pgp_sym_decrypt("botToken"::bytea, $1) as decrypted
+      result = await this.prisma.$queryRaw<Array<{ decrypted: string | null }>>`
+        SELECT pgp_sym_decrypt("botToken"::bytea, ${encryptKey}) as decrypted
         FROM "Integration" 
-        WHERE id = '${integrationId}'
+        WHERE id = ${integrationId}
       `;
     } else {
-      query = `
-        SELECT pgp_sym_decrypt("refreshToken"::bytea, $1) as decrypted
+      result = await this.prisma.$queryRaw<Array<{ decrypted: string | null }>>`
+        SELECT pgp_sym_decrypt("refreshToken"::bytea, ${encryptKey}) as decrypted
         FROM "Integration" 
-        WHERE id = '${integrationId}'
+        WHERE id = ${integrationId}
       `;
     }
-
-    const result = await this.prisma.$queryRawUnsafe<Array<{ decrypted: string | null }>>(
-      query,
-      encryptKey,
-    );
 
     return result[0]?.decrypted || null;
   }

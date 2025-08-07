@@ -81,6 +81,7 @@ export type MockPrismaService = {
     delete: jest.Mock;
     deleteMany: jest.Mock;
     count: jest.Mock;
+    groupBy: jest.Mock;
   };
   standupConfig: {
     create: jest.Mock;
@@ -306,6 +307,7 @@ export const createMockPrismaService = (): MockPrismaService => {
       delete: jest.fn().mockResolvedValue({}),
       deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
       count: jest.fn().mockResolvedValue(0),
+      groupBy: jest.fn().mockResolvedValue([]),
     },
     standupConfig: {
       create: jest.fn().mockResolvedValue({

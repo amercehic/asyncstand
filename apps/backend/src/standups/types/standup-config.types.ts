@@ -1,5 +1,6 @@
 export interface StandupConfigResponse {
   id: string;
+  teamId: string;
   questions: string[];
   weekdays: number[];
   timeLocal: string;

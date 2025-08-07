@@ -111,6 +111,7 @@ describe('StandupConfigController', () => {
     it('should get standup configuration successfully', async () => {
       const expectedConfig: StandupConfigResponse = {
         id: mockConfigId,
+        teamId: mockTeamId,
         team: {
           id: mockTeamId,
           name: 'Test Team',

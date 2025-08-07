@@ -11,9 +11,10 @@ import {
   SlackConversationsListResponse,
   SlackSyncResult,
 } from '@/integrations/slack/types/slack-api.types';
+import { ISlackApiService } from '@/integrations/slack/interfaces/slack-api.interface';
 
 @Injectable()
-export class SlackApiService {
+export class SlackApiService implements ISlackApiService {
   private readonly baseUrl = 'https://slack.com/api';
 
   constructor(
@@ -333,7 +334,7 @@ export class SlackApiService {
     return result;
   }
 
-  private async callSlackApi<T>(
+  async callSlackApi<T>(
     integrationId: string,
     endpoint: string,
     params: Record<string, unknown> = {},

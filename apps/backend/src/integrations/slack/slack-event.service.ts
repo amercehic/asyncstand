@@ -160,7 +160,7 @@ export class SlackEventService {
     } catch (error) {
       this.logger.error('Error processing Slack event', {
         error: this.getErrorMessage(error),
-        eventType: event.type,
+        eventType: event?.type,
         teamId,
       });
     }

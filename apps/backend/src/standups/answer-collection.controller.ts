@@ -48,7 +48,7 @@ export class AnswerCollectionController {
   })
   async submitAnswer(
     @Body() submitAnswerDto: SubmitAnswerDto,
-    @CurrentUser() userId: string,
+    @CurrentUser('userId') userId: string,
     @CurrentOrg() orgId: string,
   ): Promise<{ success: boolean }> {
     // TODO: Map userId to teamMemberId - for now assume they're the same
@@ -78,7 +78,7 @@ export class AnswerCollectionController {
   })
   async submitBulkAnswers(
     @Body() submitAnswersDto: SubmitAnswersDto,
-    @CurrentUser() userId: string,
+    @CurrentUser('userId') userId: string,
     @CurrentOrg() orgId: string,
   ): Promise<{ success: boolean; answersSubmitted: number }> {
     // TODO: Map userId to teamMemberId - for now assume they're the same
@@ -190,7 +190,7 @@ export class AnswerCollectionController {
   async deleteMemberResponses(
     @Param('instanceId') instanceId: string,
     @Param('memberId') memberId: string,
-    @CurrentUser() userId: string,
+    @CurrentUser('userId') userId: string,
     @CurrentOrg() orgId: string,
   ): Promise<{ success: boolean; deleted: number }> {
     const result = await this.answerCollectionService.deleteMemberResponses(
@@ -304,7 +304,7 @@ export class AnswerCollectionController {
   })
   async getMyAnswers(
     @Param('instanceId') instanceId: string,
-    @CurrentUser() userId: string,
+    @CurrentUser('userId') userId: string,
     @CurrentOrg() orgId: string,
   ): Promise<{
     answers: Array<{
@@ -361,7 +361,7 @@ export class AnswerCollectionController {
   })
   async getMyMissingAnswers(
     @Param('instanceId') instanceId: string,
-    @CurrentUser() userId: string,
+    @CurrentUser('userId') userId: string,
     @CurrentOrg() orgId: string,
   ): Promise<Array<{ questionIndex: number; question: string }>> {
     // TODO: Map userId to teamMemberId

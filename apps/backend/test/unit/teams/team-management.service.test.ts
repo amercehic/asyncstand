@@ -204,17 +204,30 @@ describe('TeamManagementService', () => {
     });
 
     it('should throw error when channel validation fails', async () => {
-      (mockSlackApiService as unknown as { callSlackApi: jest.Mock }).callSlackApi = jest
-        .fn()
-        .mockRejectedValue(new Error('Bot not in channel'));
+      // Enable channel validation for this test
+      const originalEnv = process.env.ENABLE_CHANNEL_VALIDATION;
+      process.env.ENABLE_CHANNEL_VALIDATION = 'true';
 
-      await expect(service.createTeam(mockOrgId, mockUserId, createTeamDto)).rejects.toThrow(
-        new ApiError(
-          ErrorCode.EXTERNAL_SERVICE_ERROR,
-          'Bot does not have access to this channel or channel does not exist',
-          400,
-        ),
-      );
+      try {
+        (mockSlackApiService as unknown as { callSlackApi: jest.Mock }).callSlackApi = jest
+          .fn()
+          .mockRejectedValue(new Error('Bot not in channel'));
+
+        await expect(service.createTeam(mockOrgId, mockUserId, createTeamDto)).rejects.toThrow(
+          new ApiError(
+            ErrorCode.EXTERNAL_SERVICE_ERROR,
+            'Bot does not have access to this channel or channel does not exist',
+            400,
+          ),
+        );
+      } finally {
+        // Restore original environment
+        if (originalEnv !== undefined) {
+          process.env.ENABLE_CHANNEL_VALIDATION = originalEnv;
+        } else {
+          delete process.env.ENABLE_CHANNEL_VALIDATION;
+        }
+      }
     });
   });
 
@@ -662,6 +675,10 @@ describe('TeamManagementService', () => {
         mockIntegrations as unknown as (Integration & { integrationUsers: IntegrationUser[] })[],
       );
       mockPrisma.teamMember.count.mockResolvedValue(1); // Both users are in 1 team
+      mockPrisma.teamMember.groupBy.mockResolvedValue([
+        { integrationUserId: 'user1-id', platformUserId: 'U1111111111', _count: { id: 1 } },
+        { integrationUserId: 'user2-id', platformUserId: 'U2222222222', _count: { id: 1 } },
+      ]);
 
       const result = await service.getAvailableMembers(mockOrgId);
 
@@ -682,6 +699,7 @@ describe('TeamManagementService', () => {
       mockPrisma.integration.findMany.mockResolvedValue([
         { id: mockIntegrationId, platform: 'slack', integrationUsers: [] },
       ] as unknown as (Integration & { integrationUsers: IntegrationUser[] })[]);
+      mockPrisma.teamMember.groupBy.mockResolvedValue([]);
 
       // Mock the private method call
       const getAvailableMembersFromAPISpy = jest
