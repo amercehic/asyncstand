@@ -61,12 +61,12 @@
     "directory": "apps/backend"
   },
   "dependencies": {
-    "@nestjs/common": "^11.1.5",
+    "@nestjs/common": "^11.1.6",
     "@nestjs/config": "^4.0.2",
-    "@nestjs/core": "^11.1.5",
+    "@nestjs/core": "^11.1.6",
     "@nestjs/jwt": "^11.0.0",
     "@nestjs/passport": "^11.0.5",
-    "@nestjs/platform-express": "^11.1.5",
+    "@nestjs/platform-express": "^11.1.6",
     "@nestjs/schedule": "^6.0.0",
     "@nestjs/swagger": "^11.2.0",
     "@nestjs/throttler": "^6.4.0",
@@ -84,7 +84,7 @@
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
-    "pino": "^9.7.0",
+    "pino": "^9.8.0",
     "pino-pretty": "^13.1.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
@@ -95,7 +95,7 @@
     "@faker-js/faker": "^9.9.0",
     "@jest/reporters": "^30.0.5",
     "@nestjs/cli": "^11.0.10",
-    "@nestjs/testing": "^11.1.5",
+    "@nestjs/testing": "^11.1.6",
     "@types/bcrypt": "^5.0.2",
     "@types/express": "^5.0.3",
     "@types/jest": "^30.0.0",
@@ -117,8 +117,8 @@
     "prisma": "^6.13.0",
     "rimraf": "^5.0.0",
     "supertest": "^7.1.4",
-    "ts-jest": "^29.4.0",
+    "ts-jest": "^29.4.1",
     "ts-node": "^10.9.2",
-    "typescript": "^5.8.3"
+    "typescript": "^5.9.2"
   }
 }
