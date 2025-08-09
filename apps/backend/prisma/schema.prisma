@@ -27,6 +27,9 @@ model User {
   auditLogs                  AuditLog[]       @relation("AuditLogActor")
   integrationsInstalled      Integration[]    @relation("IntegrationInstalledBy")
   teamMembers                TeamMember[]     @relation("TeamMemberUser")
+  createdTeams               Team[]           @relation("TeamCreatedBy")
+  addedTeamMembers           TeamMember[]     @relation("TeamMemberAddedBy")
+  createdStandupConfigs      StandupConfig[]  @relation("StandupConfigCreatedBy")
 }
 
 model PasswordResetToken {
@@ -166,7 +169,8 @@ model Integration {
   refreshToken      String?
   expiresAt         DateTime?
   tokenStatus       TokenStatus
-  scopes            String[]
+  scopes            String[]      // Bot scopes granted to the bot token
+  userScopes        String[]      @default([]) // User scopes granted to the user token
   installedBy       User?         @relation("IntegrationInstalledBy", fields: [installedByUserId], references: [id], onDelete: SetNull)
   installedByUserId String?
   
@@ -177,6 +181,8 @@ model Integration {
 
   // Relations
   teams             Team[]
+  channels          Channel[]
+  integrationUsers  IntegrationUser[]
   syncState         IntegrationSyncState?
   digestPosts       StandupDigestPost[]
   tokenRefreshJobs  TokenRefreshJob[]
@@ -196,33 +202,101 @@ model IntegrationSyncState {
 // ------------------------------
 // STANDUP FEATURE DOMAINS
 // ------------------------------
+model Channel {
+  id             String       @id @default(uuid())
+  integration    Integration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  integrationId  String
+  channelId      String       // Slack channel ID (e.g., C1234567890)
+  name           String       // Channel name (e.g., engineering)
+  topic          String?      // Channel topic/description
+  purpose        String?      // Channel purpose
+  isPrivate      Boolean      @default(false)
+  isArchived     Boolean      @default(false)
+  memberCount    Int?         // Number of members in channel
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  lastSyncAt     DateTime?    // When channel info was last synced
+
+  // Relations
+  teams          Team[]       // Teams assigned to this channel
+
+  @@unique([integrationId, channelId])
+  @@index([integrationId, isArchived])
+  @@index([name])
+}
+
+model IntegrationUser {
+  id              String      @id @default(uuid())
+  integration     Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  integrationId   String
+  
+  // Generic fields that work for all platforms (Slack, Teams, Discord, etc.)
+  externalUserId  String      // Slack ID, Teams ID, Discord ID, etc.
+  name            String?
+  displayName     String?
+  email           String?
+  isBot           Boolean     @default(false)
+  isDeleted       Boolean     @default(false)
+  profileImage    String?
+  timezone        String?
+  
+  // Platform-specific data stored as JSON
+  platformData    Json?       // Store platform-specific fields here
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  lastSyncAt      DateTime?
+
+  // Relations
+  teamMembers     TeamMember[] @relation("IntegrationUserTeamMember")
+
+  @@unique([integrationId, externalUserId])
+  @@index([integrationId, isDeleted])
+  @@index([integrationId, externalUserId])
+  @@index([email])
+  @@index([isDeleted, isBot])
+}
+
 model Team {
   id             String       @id @default(uuid())
   org            Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   orgId          String
-  integration    Integration? @relation(fields: [integrationId], references: [id], onDelete: SetNull)
-  integrationId  String?
-  channelId      String?
-  name           String?
+  integration    Integration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  integrationId  String
+  channel        Channel?     @relation(fields: [channelId], references: [id], onDelete: SetNull)
+  channelId      String?      // Now references Channel.id, not Slack channel ID
+  slackChannelId String       // The actual Slack channel ID (e.g., C1234567890)
+  name           String
   timezone       String
+  createdBy      User?        @relation("TeamCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  createdByUserId String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   // Relations
   members        TeamMember[]
   configs        StandupConfig[]
   instances      StandupInstance[]
 
-  @@index([integrationId, channelId])
+  @@index([integrationId, slackChannelId])
+  @@index([orgId, createdAt])
+  @@unique([integrationId, slackChannelId])
 }
 
 model TeamMember {
-  id              String        @id @default(uuid())
-  team            Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  teamId          String
-  platformUserId  String?
-  user            User?         @relation("TeamMemberUser", fields: [userId], references: [id], onDelete: SetNull)
-  userId          String?
-  name            String?
-  active          Boolean       @default(true)
+  id                String           @id @default(uuid())
+  team              Team             @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  teamId            String
+  platformUserId    String?          // Legacy field - keeping for backward compatibility
+  integrationUser   IntegrationUser? @relation("IntegrationUserTeamMember", fields: [integrationUserId], references: [id], onDelete: SetNull)
+  integrationUserId String?          // Reference to IntegrationUser
+  user              User?            @relation("TeamMemberUser", fields: [userId], references: [id], onDelete: SetNull)
+  userId            String?
+  name              String?
+  active            Boolean          @default(true)
+  addedBy           User?            @relation("TeamMemberAddedBy", fields: [addedByUserId], references: [id], onDelete: SetNull)
+  addedByUserId     String?
+  addedAt           DateTime         @default(now())
 
   // Relations
   configMemberships StandupConfigMember[]
@@ -230,16 +304,28 @@ model TeamMember {
 
   @@unique([teamId, platformUserId])
   @@unique([teamId, userId], map: "unique_team_user")
+  @@index([teamId, addedAt])
+  @@index([integrationUserId])
+  @@index([platformUserId])
+  @@index([userId, teamId])
+  @@index([active, teamId])
 }
 
 model StandupConfig {
   id                     String        @id @default(uuid())
   team                   Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  teamId                 String
+  teamId                 String        @unique // Only one config per team
   questions              String[]
   weekdays               Int[]         // 0 = Sunday
   timeLocal              String
+  timezone               String
   reminderMinutesBefore  Int           @default(10)
+  responseTimeoutHours   Int           @default(2)
+  isActive               Boolean       @default(true)
+  createdBy              User?         @relation("StandupConfigCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  createdByUserId        String?
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
 
   // Relations
   configMembers          StandupConfigMember[]
@@ -251,6 +337,8 @@ model StandupConfigMember {
   teamMember       TeamMember    @relation(fields: [teamMemberId], references: [id], onDelete: Cascade)
   teamMemberId     String
   include          Boolean
+  role             String?       // Optional role (e.g., "lead", "member")
+  updatedAt        DateTime      @updatedAt
 
   @@id([standupConfigId, teamMemberId])
 }
@@ -269,6 +357,10 @@ model StandupInstance {
   targetDate     DateTime
   state          StandupInstanceState
   createdAt      DateTime     @default(now())
+  
+  // Slack message tracking
+  reminderMessageTs String?    // Timestamp of initial reminder message
+  summaryMessageTs  String?    // Timestamp of summary message
 
   // Relations
   digestPost     StandupDigestPost?

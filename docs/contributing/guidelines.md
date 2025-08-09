@@ -1,105 +1,476 @@
 # Contributing Guidelines
 
-Thank you for your interest in contributing to AsyncStand! This document provides guidelines for contributing to the project.
+Thank you for your interest in contributing to AsyncStand! This guide will help you get started with contributing to our project.
 
-## 🤝 How to Contribute
+## Table of Contents
 
-### 1. Fork and Clone
+- [Code of Conduct](#code-of-conduct)
+- [Getting Started](#getting-started)
+- [Development Workflow](#development-workflow)
+- [Code Standards](#code-standards)
+- [Testing Requirements](#testing-requirements)
+- [Pull Request Process](#pull-request-process)
+- [Issue Guidelines](#issue-guidelines)
+- [Security Guidelines](#security-guidelines)
 
-1. Fork the repository on GitHub
-2. Clone your fork locally
-3. Add the upstream remote:
+## Code of Conduct
+
+By participating in this project, you agree to abide by our [Code of Conduct](./code-of-conduct.md). Please read it before contributing.
+
+### Our Standards
+
+- **Be respectful**: Treat everyone with respect and professionalism
+- **Be inclusive**: Welcome newcomers and help them get started
+- **Be constructive**: Provide helpful feedback and suggestions
+- **Be patient**: Remember that everyone has different experience levels
+
+## Getting Started
+
+### Prerequisites
+
+Before contributing, ensure you have:
+
+- Node.js 20+ installed
+- pnpm 10+ installed
+- PostgreSQL 14+ running
+- Redis 6+ running
+- Git configured with your name and email
+
+### Development Setup
+
+1. **Fork the repository** on GitHub
+
+2. **Clone your fork:**
+
    ```bash
-   git remote add upstream <original-repo-url>
+   git clone https://github.com/YOUR_USERNAME/asyncstand.git
+   cd asyncstand
    ```
 
-### 2. Create a Feature Branch
+3. **Add upstream remote:**
 
-```bash
-git checkout -b feature/your-feature-name
-# or
-git checkout -b fix/your-bug-fix
+   ```bash
+   git remote add upstream https://github.com/original-owner/asyncstand.git
+   ```
+
+4. **Install dependencies:**
+
+   ```bash
+   pnpm install
+   ```
+
+5. **Set up environment:**
+
+   ```bash
+   pnpm env:setup
+   # Edit .env files with your configuration
+   ```
+
+6. **Run database migrations:**
+
+   ```bash
+   cd apps/backend
+   pnpm db:migrate
+   ```
+
+7. **Start development servers:**
+
+   ```bash
+   pnpm dev
+   ```
+
+8. **Run tests to verify setup:**
+   ```bash
+   pnpm test
+   ```
+
+## Development Workflow
+
+### Branch Naming
+
+Use descriptive branch names with prefixes:
+
+- `feat/`: New features (`feat/slack-integration`)
+- `fix/`: Bug fixes (`fix/auth-token-expiry`)
+- `docs/`: Documentation updates (`docs/api-reference`)
+- `refactor/`: Code refactoring (`refactor/user-service`)
+- `test/`: Test improvements (`test/auth-coverage`)
+- `chore/`: Maintenance tasks (`chore/update-dependencies`)
+
+### Making Changes
+
+1. **Create a new branch:**
+
+   ```bash
+   git checkout -b feat/your-feature-name
+   ```
+
+2. **Make your changes** following our [code standards](#code-standards)
+
+3. **Add tests** for your changes (see [testing requirements](#testing-requirements))
+
+4. **Run the test suite:**
+
+   ```bash
+   pnpm test
+   ```
+
+5. **Run linting and formatting:**
+
+   ```bash
+   pnpm lint
+   pnpm format
+   ```
+
+6. **Commit your changes:**
+   ```bash
+   git add .
+   git commit -m "feat: add slack integration support"
+   ```
+
+### Commit Message Format
+
+We follow [Conventional Commits](https://www.conventionalcommits.org/) specification:
+
+```
+<type>[optional scope]: <description>
+
+[optional body]
+
+[optional footer(s)]
 ```
 
-### 3. Development Workflow
+#### Types
 
-1. **Install dependencies**: `pnpm install`
-2. **Setup environment**: `pnpm env:setup`
-3. **Start development**: `pnpm dev`
-4. **Run tests**: `pnpm test`
-5. **Lint code**: `pnpm lint`
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation changes
+- `style`: Code style changes (formatting, etc.)
+- `refactor`: Code refactoring
+- `test`: Adding or modifying tests
+- `chore`: Maintenance tasks
+- `perf`: Performance improvements
+- `ci`: CI/CD changes
 
-### 4. Make Your Changes
+#### Examples
 
-- Follow the [Code Style Guide](./code-style.md)
-- Write tests for new features
-- Update documentation as needed
-- Keep commits atomic and well-described
+```bash
+feat: add slack OAuth integration
+fix: resolve JWT token expiration issue
+docs: update API documentation for teams endpoint
+refactor: simplify user authentication logic
+test: add integration tests for auth service
+```
 
-### 5. Test Your Changes
+## Code Standards
+
+### TypeScript Guidelines
+
+1. **Strict Type Safety:**
+
+   ```typescript
+   // Good
+   interface User {
+     id: string;
+     email: string;
+     name?: string;
+   }
+
+   // Avoid
+   const user: any = { id: '123', email: 'test@example.com' };
+   ```
+
+2. **Use Interfaces for Object Shapes:**
+
+   ```typescript
+   // Good
+   interface CreateUserRequest {
+     email: string;
+     password: string;
+     name?: string;
+   }
+
+   // Avoid
+   type CreateUserRequest = {
+     email: string;
+     password: string;
+     name?: string;
+   };
+   ```
+
+3. **Prefer Union Types:**
+
+   ```typescript
+   // Good
+   type UserRole = 'owner' | 'admin' | 'member';
+
+   // Avoid
+   enum UserRole {
+     OWNER = 'owner',
+     ADMIN = 'admin',
+     MEMBER = 'member',
+   }
+   ```
+
+### NestJS Best Practices
+
+1. **Service Injection:**
+
+   ```typescript
+   // Good
+   @Injectable()
+   export class UserService {
+     constructor(
+       private readonly prisma: PrismaService,
+       private readonly logger: LoggerService,
+     ) {}
+   }
+   ```
+
+2. **DTOs for Validation:**
+
+   ```typescript
+   // Good
+   export class CreateUserDto {
+     @IsEmail()
+     @ApiProperty()
+     email: string;
+
+     @IsString()
+     @MinLength(8)
+     @ApiProperty()
+     password: string;
+   }
+   ```
+
+3. **Error Handling:**
+
+   ```typescript
+   // Good
+   if (!user) {
+     throw new NotFoundException(`User with ID ${id} not found`);
+   }
+
+   // Avoid
+   if (!user) {
+     throw new Error('User not found');
+   }
+   ```
+
+### Database Guidelines
+
+1. **Use Prisma Transactions for Related Operations:**
+
+   ```typescript
+   // Good
+   return this.prisma.$transaction(async (tx) => {
+     const user = await tx.user.create({ data: userData });
+     await tx.orgMember.create({
+       data: { userId: user.id, orgId, role: 'member' },
+     });
+     return user;
+   });
+   ```
+
+2. **Include Only Needed Fields:**
+
+   ```typescript
+   // Good
+   return this.prisma.user.findMany({
+     select: {
+       id: true,
+       email: true,
+       name: true,
+     },
+   });
+
+   // Avoid
+   return this.prisma.user.findMany(); // Returns all fields
+   ```
+
+### React Guidelines
+
+1. **Functional Components with Hooks:**
+
+   ```typescript
+   // Good
+   export const UserProfile: React.FC<{ userId: string }> = ({ userId }) => {
+     const [user, setUser] = useState<User | null>(null);
+
+     useEffect(() => {
+       fetchUser(userId).then(setUser);
+     }, [userId]);
+
+     return <div>{user?.name}</div>;
+   };
+   ```
+
+2. **Custom Hooks for Logic:**
+
+   ```typescript
+   // Good
+   export const useUser = (userId: string) => {
+     const [user, setUser] = useState<User | null>(null);
+     const [loading, setLoading] = useState(true);
+
+     useEffect(() => {
+       fetchUser(userId)
+         .then(setUser)
+         .finally(() => setLoading(false));
+     }, [userId]);
+
+     return { user, loading };
+   };
+   ```
+
+### File Structure Guidelines
+
+```
+feature-name/
+├── controllers/        # HTTP controllers
+├── services/          # Business logic
+├── dto/               # Data transfer objects
+├── entities/          # Database entities (if using TypeORM)
+├── guards/            # Authentication/authorization
+├── decorators/        # Custom decorators
+├── types/             # TypeScript types/interfaces
+├── tests/             # Feature-specific tests
+└── feature-name.module.ts
+```
+
+## Testing Requirements
+
+### Test Coverage
+
+- **Minimum coverage**: 80% for new code
+- **Required tests**: All public methods must have tests
+- **Integration tests**: Critical user flows must have integration tests
+
+### Test Types
+
+1. **Unit Tests**: Test individual functions/methods in isolation
+2. **Integration Tests**: Test service interactions with database
+3. **E2E Tests**: Test complete API workflows
+
+### Testing Guidelines
+
+1. **Use Descriptive Test Names:**
+
+   ```typescript
+   // Good
+   describe('AuthService', () => {
+     describe('signup', () => {
+       it('should create user and return tokens when valid data provided', () => {
+         // test implementation
+       });
+
+       it('should throw ValidationError when email already exists', () => {
+         // test implementation
+       });
+     });
+   });
+   ```
+
+2. **Use Test Factories:**
+
+   ```typescript
+   // Good
+   const createUserDto = createMockSignupDto({
+     email: 'test@example.com',
+     password: 'ValidPass123!',
+   });
+
+   // Avoid inline test data
+   const userDto = {
+     email: 'test@example.com',
+     password: 'ValidPass123!',
+     name: 'Test User',
+   };
+   ```
+
+3. **Clean Up After Tests:**
+
+   ```typescript
+   describe('User Integration Tests', () => {
+     beforeEach(async () => {
+       await cleanupDatabase(prisma);
+     });
+
+     afterAll(async () => {
+       await app.close();
+     });
+   });
+   ```
+
+### Running Tests
 
 ```bash
 # Run all tests
 pnpm test
 
-# Run specific test suites
-pnpm test:auth
-pnpm test:e2e:backend
+# Run specific test type
+pnpm test:unit
+pnpm test:integration
+pnpm test:e2e
 
-# Check linting
-pnpm lint
+# Run tests in watch mode
+pnpm test:watch
 
-# Build the project
-pnpm build
+# Run tests with coverage
+pnpm test:coverage
 ```
 
-### 6. Commit Your Changes
+## Pull Request Process
 
-```bash
-git add .
-git commit -m "feat: add user authentication endpoint
+### Before Creating a PR
 
-- Add POST /auth/login endpoint
-- Implement JWT token generation
-- Add comprehensive test coverage
-- Update API documentation"
-```
+1. **Sync with upstream:**
 
-### 7. Push and Create Pull Request
+   ```bash
+   git fetch upstream
+   git checkout main
+   git merge upstream/main
+   git push origin main
+   ```
 
-```bash
-git push origin feature/your-feature-name
-```
+2. **Rebase your feature branch:**
 
-Then create a Pull Request on GitHub with:
+   ```bash
+   git checkout feat/your-feature
+   git rebase main
+   ```
 
-- Clear description of changes
-- Link to related issues
-- Screenshots (if UI changes)
-- Test results
+3. **Run full test suite:**
+   ```bash
+   pnpm test
+   pnpm lint
+   pnpm typecheck
+   ```
 
-## 📋 Pull Request Guidelines
+### Creating a Pull Request
 
-### Before Submitting
+1. **Push your branch:**
 
-- [ ] Code follows style guidelines
-- [ ] Tests pass locally
-- [ ] Documentation is updated
-- [ ] No console.log statements
-- [ ] No sensitive data in commits
+   ```bash
+   git push origin feat/your-feature
+   ```
+
+2. **Create PR** using our template
+
+3. **Fill out the PR template** completely
 
 ### PR Template
 
 ```markdown
 ## Description
 
-Brief description of changes
+Brief description of changes made.
 
 ## Type of Change
 
-- [ ] Bug fix
-- [ ] New feature
-- [ ] Breaking change
+- [ ] Bug fix (non-breaking change which fixes an issue)
+- [ ] New feature (non-breaking change which adds functionality)
+- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
 - [ ] Documentation update
 
 ## Testing
@@ -107,194 +478,149 @@ Brief description of changes
 - [ ] Unit tests added/updated
 - [ ] Integration tests added/updated
 - [ ] E2E tests added/updated
-- [ ] Manual testing completed
+- [ ] All tests pass
 
 ## Checklist
 
-- [ ] Code follows style guidelines
+- [ ] Code follows project style guidelines
 - [ ] Self-review completed
+- [ ] Code is commented where necessary
 - [ ] Documentation updated
-- [ ] No breaking changes (or documented)
-
-## Screenshots (if applicable)
+- [ ] No new warnings introduced
 ```
 
-## 🏷️ Issue Guidelines
+### PR Review Process
 
-### Bug Reports
+1. **Automated Checks**: All CI checks must pass
+2. **Code Review**: At least one maintainer review required
+3. **Testing**: All tests must pass
+4. **Documentation**: Any necessary docs must be updated
 
-- Use the bug report template
-- Include steps to reproduce
-- Provide expected vs actual behavior
-- Include environment details
+### After PR Approval
 
-### Feature Requests
+1. **Squash and merge** (preferred method)
+2. **Delete feature branch** after merge
+3. **Update local main:**
+   ```bash
+   git checkout main
+   git pull upstream main
+   git push origin main
+   ```
 
-- Use the feature request template
-- Explain the problem you're solving
-- Describe the proposed solution
-- Consider implementation complexity
+## Issue Guidelines
 
-## 🎯 Development Priorities
+### Before Creating an Issue
 
-### High Priority
+1. **Search existing issues** to avoid duplicates
+2. **Check documentation** for answers
+3. **Verify the issue** on latest version
 
-- Security vulnerabilities
-- Critical bugs
-- Performance issues
-- Documentation gaps
+### Issue Types
 
-### Medium Priority
+#### Bug Reports
 
-- New features
-- UI/UX improvements
-- Code refactoring
-- Test coverage improvements
+Use the bug report template and include:
 
-### Low Priority
+- **Steps to reproduce**
+- **Expected behavior**
+- **Actual behavior**
+- **Environment details**
+- **Screenshots/logs** if applicable
 
-- Nice-to-have features
-- Cosmetic changes
-- Experimental features
+#### Feature Requests
 
-## 🔧 Development Setup
+Use the feature request template and include:
 
-### Prerequisites
+- **Problem description**
+- **Proposed solution**
+- **Alternative solutions considered**
+- **Use cases**
 
-- Node.js 18+
-- pnpm 7+
-- Git
-- SQLite (development)
+#### Questions
 
-### Quick Setup
+For questions:
 
-```bash
-# Clone repository
-git clone <your-fork-url>
-cd asyncstand
+- Check documentation first
+- Use GitHub Discussions for general questions
+- Use issues only for documentation gaps
 
-# Install dependencies
-pnpm install
+### Issue Labels
 
-# Setup environment
-pnpm env:setup
+- `bug`: Something isn't working
+- `enhancement`: New feature or request
+- `documentation`: Improvements or additions to docs
+- `good first issue`: Good for newcomers
+- `help wanted`: Extra attention is needed
+- `priority:high`: High priority items
+- `status:needs-triage`: Needs initial review
 
-# Start development
-pnpm dev
-```
+## Security Guidelines
 
-### Environment Variables
+### Reporting Security Issues
 
-Copy `.env.example` to `.env` and configure:
+**DO NOT** create public issues for security vulnerabilities.
 
-```bash
-# Database
-DATABASE_URL="file:./dev.db"
+Instead:
 
-# JWT
-JWT_SECRET="your-secret-key"
+1. Email security issues to `security@asyncstand.com`
+2. Include detailed description
+3. Provide steps to reproduce
+4. Allow reasonable time for response
 
-# Server
-PORT=3000
-```
+### Security Best Practices
 
-## 🧪 Testing Guidelines
+1. **Never commit secrets** to version control
+2. **Use environment variables** for configuration
+3. **Validate all inputs** in DTOs
+4. **Use parameterized queries** (Prisma handles this)
+5. **Follow principle of least privilege**
 
-### Writing Tests
+### Dependencies
 
-- Write tests for all new features
-- Aim for 80%+ code coverage
-- Use descriptive test names
-- Test both success and failure cases
+- **Keep dependencies updated**: Use Dependabot
+- **Audit dependencies**: Run `pnpm audit` regularly
+- **Review new dependencies**: Ensure they're necessary and trusted
 
-### Test Structure
+## Documentation
 
-```typescript
-describe('UserService', () => {
-  describe('createUser', () => {
-    it('should create a new user with valid data', async () => {
-      // Arrange
-      const userData = { email: 'test@example.com', password: 'password123' };
+### When to Update Documentation
 
-      // Act
-      const result = await userService.createUser(userData);
+Update documentation when you:
 
-      // Assert
-      expect(result).toBeDefined();
-      expect(result.email).toBe(userData.email);
-    });
+- Add new features
+- Change existing APIs
+- Fix bugs that affect usage
+- Update configuration options
 
-    it('should throw error for invalid email', async () => {
-      // Test error cases
-    });
-  });
-});
-```
+### Documentation Types
 
-## 📚 Documentation Guidelines
+1. **Code Comments**: Explain complex logic
+2. **API Documentation**: Update Swagger annotations
+3. **README Updates**: Keep installation/usage current
+4. **Architecture Docs**: Update for structural changes
 
-### Code Documentation
+## Getting Help
 
-- Use JSDoc for public APIs
-- Include examples in comments
-- Document complex algorithms
-- Keep comments up-to-date
+### Communication Channels
 
-### README Updates
+- **GitHub Issues**: Bug reports, feature requests
+- **GitHub Discussions**: General questions, ideas
+- **Email**: security@asyncstand.com (security only)
 
-- Update relevant README files
-- Add usage examples
-- Document breaking changes
-- Include migration guides
+### Maintainer Availability
 
-## 🚀 Release Process
+- **Response time**: 2-3 business days for issues
+- **Review time**: 3-5 business days for PRs
+- **Release schedule**: Bi-weekly releases
 
-### Versioning
+## Recognition
 
-We use [Semantic Versioning](https://semver.org/):
+Contributors are recognized in:
 
-- **Major**: Breaking changes
-- **Minor**: New features (backward compatible)
-- **Patch**: Bug fixes (backward compatible)
+- **CONTRIBUTORS.md**: All contributors listed
+- **Release notes**: Major contributors highlighted
+- **Hall of Fame**: Outstanding contributors featured
 
-### Release Checklist
+---
 
-- [ ] All tests pass
-- [ ] Documentation updated
-- [ ] Changelog updated
-- [ ] Version bumped
-- [ ] Release notes written
-
-## 🤝 Community Guidelines
-
-### Code of Conduct
-
-- Be respectful and inclusive
-- Help others learn
-- Provide constructive feedback
-- Follow project conventions
-
-### Communication
-
-- Use GitHub issues for discussions
-- Be clear and concise
-- Ask questions when unsure
-- Share knowledge and experiences
-
-## 📞 Getting Help
-
-- **Documentation**: Check the [docs](../README.md)
-- **Issues**: Search existing issues first
-- **Discussions**: Use GitHub Discussions
-- **Chat**: Join our community chat (if available)
-
-## 🙏 Recognition
-
-Contributors will be recognized in:
-
-- Project README
-- Release notes
-- Contributor hall of fame
-- GitHub contributors page
-
-Thank you for contributing to AsyncStand! 🚀
+Thank you for contributing to AsyncStand! Together we're building a better way for teams to stay connected asynchronously.

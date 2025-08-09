@@ -1,4 +1,5 @@
 import { Controller, Get, Query, Res, Req, HttpStatus } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { Response, Request } from 'express';
 import { SlackOauthService } from '@/integrations/slack/slack-oauth.service';
 import { SlackOauthCallbackDto } from '@/integrations/slack/dto/oauth-callback.dto';
@@ -7,7 +8,12 @@ import { LoggerService } from '@/common/logger.service';
 import { RedisService } from '@/common/redis.service';
 import { ConfigService } from '@nestjs/config';
 import { SLACK_OAUTH_URLS } from 'shared';
+import {
+  SwaggerSlackOAuthStart,
+  SwaggerSlackOAuthCallback,
+} from '@/swagger/slack-integration.swagger';
 
+@ApiTags('Slack OAuth')
 @Controller('slack/oauth')
 export class SlackOauthController {
   constructor(
@@ -20,6 +26,7 @@ export class SlackOauthController {
   }
 
   @Get('start')
+  @SwaggerSlackOAuthStart()
   async start(@Query('orgId') orgId: string, @Res() res: Response): Promise<void> {
     if (!orgId) {
       res.status(HttpStatus.BAD_REQUEST).json({ error: 'orgId query parameter is required' });
@@ -39,10 +46,13 @@ export class SlackOauthController {
     // Generate state token
     const state = await this.redisService.generateStateToken(orgId);
 
-    // Build OAuth URL
+    // Build OAuth URL - using v2 OAuth flow
     const oauthUrl = new URL(SLACK_OAUTH_URLS.AUTHORIZE);
     oauthUrl.searchParams.set('client_id', clientId);
-    oauthUrl.searchParams.set('scope', 'chat:write,channels:read,channels:history,users:read');
+    // User scopes for the installing user
+    oauthUrl.searchParams.set('user_scope', 'identity.basic');
+    // Bot scopes for the bot token
+    oauthUrl.searchParams.set('scope', 'channels:read,groups:read,users:read,chat:write');
     oauthUrl.searchParams.set('state', state);
     oauthUrl.searchParams.set(
       'redirect_uri',
@@ -54,6 +64,7 @@ export class SlackOauthController {
   }
 
   @Get('callback')
+  @SwaggerSlackOAuthCallback()
   async callback(
     @Query() query: SlackOauthCallbackDto,
     @Req() req: Request,
@@ -92,6 +103,11 @@ export class SlackOauthController {
         if (error.getStatus() === HttpStatus.BAD_REQUEST) {
           return this.renderErrorPage(res, 'Invalid or expired authorization request');
         }
+        // Handle other ApiError cases with their specific messages
+        return this.renderErrorPage(
+          res,
+          error.message || 'Invalid or expired authorization request',
+        );
       }
 
       // TODO: Replace with frontend redirect for error handling

@@ -12,6 +12,8 @@ export enum AuditCategory {
   SYSTEM = 'system',
   INTEGRATION = 'integration',
   BILLING = 'billing',
+  STANDUP_CONFIG = 'standup_config',
+  STANDUP = 'standup',
 }
 
 export enum AuditSeverity {
@@ -19,9 +21,11 @@ export enum AuditSeverity {
   MEDIUM = 'medium',
   HIGH = 'high',
   CRITICAL = 'critical',
+  INFO = 'info',
 }
 
 export enum ResourceAction {
+  CREATE = 'create',
   CREATED = 'created',
   UPDATED = 'updated',
   DELETED = 'deleted',

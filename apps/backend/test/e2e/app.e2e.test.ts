@@ -6,6 +6,13 @@ import { AppModule } from '@/app.module';
 describe('AppController (e2e)', () => {
   let app: INestApplication;
 
+  beforeAll(() => {
+    // Set Redis environment variables for tests
+    process.env.REDIS_HOST = 'localhost';
+    process.env.REDIS_PORT = '6379';
+    process.env.REDIS_DB = '0';
+  });
+
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
