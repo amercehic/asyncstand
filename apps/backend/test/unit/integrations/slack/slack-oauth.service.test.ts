@@ -342,11 +342,18 @@ describe('SlackOauthService', () => {
     const mockIntegrationId = 'integration-123';
 
     it('should throw error when no encryption key is configured', async () => {
-      mockConfigService.get.mockReturnValue(null); // No encryption key
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'development'; // Ensure we test non-test behavior
 
-      await expect(service.getDecryptedToken(mockIntegrationId, 'access')).rejects.toThrow(
-        'DATABASE_ENCRYPT_KEY is required for token decryption',
-      );
+      try {
+        mockConfigService.get.mockReturnValue(null); // No encryption key
+
+        await expect(service.getDecryptedToken(mockIntegrationId, 'access')).rejects.toThrow(
+          'DATABASE_ENCRYPT_KEY is required for token decryption',
+        );
+      } finally {
+        process.env.NODE_ENV = originalEnv;
+      }
     });
 
     it('should return null when integration not found', async () => {
