@@ -268,18 +268,7 @@ export class SlackOauthService {
     integrationId: string,
     tokenType: 'access' | 'bot' | 'refresh',
   ): Promise<string | null> {
-    const encryptKey = this.configService.get<string>('databaseEncryptKey');
-
-    // Check encryption key first, even in test environment
-    if (!encryptKey) {
-      throw new ApiError(
-        ErrorCode.CONFIGURATION_ERROR,
-        'DATABASE_ENCRYPT_KEY is required for token decryption',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-
-    // In test environment, return plain text tokens directly from database
+    // In test environment, return plain text tokens directly from database (no encryption key required)
     if (process.env.NODE_ENV === 'test') {
       const integration = await this.prisma.integration.findUnique({
         where: { id: integrationId },
@@ -301,6 +290,17 @@ export class SlackOauthService {
       } else {
         return integration.refreshToken;
       }
+    }
+
+    const encryptKey = this.configService.get<string>('databaseEncryptKey');
+
+    // For non-test environments, encryption key is required
+    if (!encryptKey) {
+      throw new ApiError(
+        ErrorCode.CONFIGURATION_ERROR,
+        'DATABASE_ENCRYPT_KEY is required for token decryption',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
 
     // Use safe parameterized queries to prevent SQL injection
