@@ -347,10 +347,18 @@ describe('Teams (e2e)', () => {
 
   async function cleanupTestData() {
     try {
+      // Only clean up if we have test data to clean up
+      if (!testData.orgId) {
+        return;
+      }
+
       // Clean up in correct order due to foreign key constraints
+      // Only delete data belonging to our test org
       await prisma.teamMember.deleteMany({ where: { team: { orgId: testData.orgId } } });
       await prisma.team.deleteMany({ where: { orgId: testData.orgId } });
-      await prisma.integrationUser.deleteMany();
+      await prisma.integrationUser.deleteMany({
+        where: { integration: { orgId: testData.orgId } },
+      });
       await prisma.channel.deleteMany({ where: { integration: { orgId: testData.orgId } } });
       await prisma.integration.deleteMany({ where: { orgId: testData.orgId } });
       await prisma.orgMember.deleteMany({ where: { orgId: testData.orgId } });
@@ -360,7 +368,7 @@ describe('Teams (e2e)', () => {
       if (testData.orgId) {
         await prisma.organization.deleteMany({ where: { id: testData.orgId } });
       }
-      // Clean up any test organizations by name pattern
+      // Clean up any test organizations by name pattern (as backup)
       await prisma.organization.deleteMany({ where: { name: { contains: 'Teams E2E Test' } } });
     } catch (error) {
       console.warn('Cleanup error:', error);
@@ -598,8 +606,8 @@ describe('Teams (e2e)', () => {
     });
 
     it('should return empty array when no teams exist', async () => {
-      // Clean up existing teams
-      await prisma.teamMember.deleteMany();
+      // Clean up existing teams (only for this test org)
+      await prisma.teamMember.deleteMany({ where: { team: { orgId: testData.orgId } } });
       await prisma.team.deleteMany({ where: { orgId: testData.orgId } });
 
       const response = await request(app.getHttpServer())

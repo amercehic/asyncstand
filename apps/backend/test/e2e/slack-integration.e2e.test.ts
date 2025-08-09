@@ -71,14 +71,10 @@ describe('Slack Integration (e2e)', () => {
   });
 
   async function setupTestData() {
-    // Clean up existing test data
-    await prisma.teamMember.deleteMany();
-    await prisma.team.deleteMany();
-    await prisma.integrationUser.deleteMany();
-    await prisma.channel.deleteMany();
-    await prisma.integrationSyncState.deleteMany();
-    await prisma.integration.deleteMany();
-    await prisma.orgMember.deleteMany();
+    // Clean up existing test data (scoped cleanup)
+    await cleanupTestData();
+
+    // Clean up any leftover test data by name pattern
     await prisma.user.deleteMany({ where: { email: { contains: 'slack-e2e-test' } } });
     await prisma.organization.deleteMany({ where: { name: { contains: 'Slack E2E Test' } } });
 
@@ -117,13 +113,26 @@ describe('Slack Integration (e2e)', () => {
 
   async function cleanupTestData() {
     try {
-      await prisma.teamMember.deleteMany();
-      await prisma.team.deleteMany();
-      await prisma.integrationUser.deleteMany();
-      await prisma.channel.deleteMany();
-      await prisma.integrationSyncState.deleteMany();
-      await prisma.integration.deleteMany();
-      await prisma.orgMember.deleteMany();
+      // Only clean up if we have test org data
+      if (!testOrg?.id) {
+        // Fallback cleanup by name pattern only
+        await prisma.user.deleteMany({ where: { email: { contains: 'slack-e2e-test' } } });
+        await prisma.organization.deleteMany({ where: { name: { contains: 'Slack E2E Test' } } });
+        await prisma.organization.deleteMany({ where: { name: { contains: 'Empty Org' } } });
+        return;
+      }
+
+      // Clean up in correct order due to foreign key constraints
+      // Only delete data belonging to our test org
+      await prisma.teamMember.deleteMany({ where: { team: { orgId: testOrg.id } } });
+      await prisma.team.deleteMany({ where: { orgId: testOrg.id } });
+      await prisma.integrationUser.deleteMany({ where: { integration: { orgId: testOrg.id } } });
+      await prisma.channel.deleteMany({ where: { integration: { orgId: testOrg.id } } });
+      await prisma.integrationSyncState.deleteMany({
+        where: { integration: { orgId: testOrg.id } },
+      });
+      await prisma.integration.deleteMany({ where: { orgId: testOrg.id } });
+      await prisma.orgMember.deleteMany({ where: { orgId: testOrg.id } });
       // Clean up all users created during the test
       await prisma.user.deleteMany({ where: { email: { contains: 'slack-e2e-test' } } });
       await prisma.organization.deleteMany({ where: { name: { contains: 'Slack E2E Test' } } });

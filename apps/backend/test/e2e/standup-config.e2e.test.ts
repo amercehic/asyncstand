@@ -191,9 +191,23 @@ describe('Standup Configuration (e2e)', () => {
 
   async function cleanupTestData() {
     try {
+      // Only clean up if we have test data to clean up
+      if (!testData.orgId) {
+        return;
+      }
+
       // Clean up in correct order due to foreign key constraints
-      await prisma.standupConfigMember.deleteMany();
-      await prisma.standupConfig.deleteMany();
+      // Only delete data belonging to our test org
+      if (testData.configId) {
+        await prisma.standupConfigMember.deleteMany({
+          where: { standupConfigId: testData.configId },
+        });
+        await prisma.standupConfig.deleteMany({ where: { id: testData.configId } });
+      }
+      await prisma.standupConfig.deleteMany({ where: { team: { orgId: testData.orgId } } });
+      await prisma.standupConfigMember.deleteMany({
+        where: { standupConfig: { team: { orgId: testData.orgId } } },
+      });
       await prisma.teamMember.deleteMany({ where: { team: { orgId: testData.orgId } } });
       await prisma.team.deleteMany({ where: { orgId: testData.orgId } });
       await prisma.channel.deleteMany({ where: { integration: { orgId: testData.orgId } } });
@@ -205,7 +219,7 @@ describe('Standup Configuration (e2e)', () => {
       if (testData.orgId) {
         await prisma.organization.deleteMany({ where: { id: testData.orgId } });
       }
-      // Clean up any test organizations by name pattern
+      // Clean up any test organizations by name pattern (as backup)
       await prisma.organization.deleteMany({
         where: { name: { contains: 'Standup Config E2E Test' } },
       });

@@ -202,12 +202,24 @@ describe('Standup Instances (e2e)', () => {
 
   async function cleanupTestData() {
     try {
+      // Only clean up if we have test data to clean up
+      if (!testData.orgId) {
+        return;
+      }
+
       // Clean up in correct order due to foreign key constraints
-      await prisma.answer.deleteMany();
-      await prisma.participationSnapshot.deleteMany();
-      await prisma.standupInstance.deleteMany();
-      await prisma.standupConfigMember.deleteMany();
-      await prisma.standupConfig.deleteMany();
+      // Only delete data belonging to our test org
+      await prisma.answer.deleteMany({
+        where: { standupInstance: { team: { orgId: testData.orgId } } },
+      });
+      await prisma.participationSnapshot.deleteMany({
+        where: { standupInstance: { team: { orgId: testData.orgId } } },
+      });
+      await prisma.standupInstance.deleteMany({ where: { team: { orgId: testData.orgId } } });
+      await prisma.standupConfigMember.deleteMany({
+        where: { standupConfig: { team: { orgId: testData.orgId } } },
+      });
+      await prisma.standupConfig.deleteMany({ where: { team: { orgId: testData.orgId } } });
       await prisma.teamMember.deleteMany({ where: { team: { orgId: testData.orgId } } });
       await prisma.team.deleteMany({ where: { orgId: testData.orgId } });
       await prisma.channel.deleteMany({ where: { integration: { orgId: testData.orgId } } });
@@ -219,7 +231,7 @@ describe('Standup Instances (e2e)', () => {
       if (testData.orgId) {
         await prisma.organization.deleteMany({ where: { id: testData.orgId } });
       }
-      // Clean up any test organizations by name pattern
+      // Clean up any test organizations by name pattern (as backup)
       await prisma.organization.deleteMany({
         where: { name: { contains: 'Standup Instances E2E Test' } },
       });
