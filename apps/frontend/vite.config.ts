@@ -105,8 +105,10 @@ export default defineConfig(({ mode }) => {
       reporters: ['verbose'],
       coverage: {
         reporter: ['text', 'json', 'html'],
-        exclude: ['node_modules/', 'src/test/', '**/*.d.ts'],
+        exclude: ['node_modules/', 'src/test/', 'src/e2e/', '**/*.d.ts'],
       },
+      // Exclude E2E tests from Vitest (they should only be run by Playwright)
+      exclude: ['node_modules', 'src/e2e/**/*'],
     },
   };
 });
