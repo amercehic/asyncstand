@@ -1,0 +1,227 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-size: 15px;
+
+  /* Modern Gradient + Neutrals Color Palette */
+  --bg-main: #0f1117;
+  --bg-surface: #1c1f26;
+  --text-main: #f9fafb;
+  --text-dim: #9ca3af;
+
+  /* Primary Gradient Colors */
+  --primary-start: #6366f1;
+  --primary-end: #8b5cf6;
+  --secondary: #10b981;
+  --error: #ef4444;
+  --warning: #f59e0b;
+
+  /* Default to dark mode colors */
+  --background: var(--bg-main);
+  --foreground: var(--text-main);
+  --card: var(--bg-surface);
+  --card-foreground: var(--text-main);
+  --popover: var(--bg-surface);
+  --popover-foreground: var(--text-main);
+  --primary: var(--primary-start);
+  --primary-foreground: #ffffff;
+  --secondary: var(--secondary);
+  --secondary-foreground: #ffffff;
+  --muted: rgba(255, 255, 255, 0.04);
+  --muted-foreground: var(--text-dim);
+  --accent: rgba(255, 255, 255, 0.06);
+  --accent-foreground: var(--text-main);
+  --destructive: var(--error);
+  --destructive-foreground: #ffffff;
+  --border: rgba(255, 255, 255, 0.12);
+  --input: rgba(255, 255, 255, 0.04);
+  --input-background: rgba(255, 255, 255, 0.04);
+  --switch-background: #374151;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --font-weight-light: 300;
+  --font-weight-extralight: 200;
+  --ring: var(--primary-start);
+  --radius: 12px;
+}
+
+.light {
+  --background: #ffffff;
+  --foreground: #0f1117;
+  --card: #ffffff;
+  --card-foreground: #0f1117;
+  --popover: #ffffff;
+  --popover-foreground: #0f1117;
+  --muted: #f3f4f6;
+  --muted-foreground: #6b7280;
+  --accent: #f3f4f6;
+  --accent-foreground: #0f1117;
+  --border: rgba(0, 0, 0, 0.1);
+  --input: #ffffff;
+  --input-background: #f9fafb;
+  --switch-background: #d1d5db;
+}
+
+:root {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family:
+      'Inter',
+      system-ui,
+      -apple-system,
+      sans-serif;
+  }
+}
+
+/* Custom Typography following design guidelines */
+@layer base {
+  :where(:not(:has([class*=' text-']), :not(:has([class^='text-'])))) {
+    h1 {
+      font-size: 2rem;
+      font-weight: var(--font-weight-extralight);
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+    }
+
+    h2 {
+      font-size: 1.75rem;
+      font-weight: var(--font-weight-light);
+      line-height: 1.3;
+      letter-spacing: -0.01em;
+    }
+
+    h3 {
+      font-size: 1.5rem;
+      font-weight: var(--font-weight-medium);
+      line-height: 1.4;
+    }
+
+    h4 {
+      font-size: 1.25rem;
+      font-weight: var(--font-weight-medium);
+      line-height: 1.4;
+    }
+
+    p {
+      font-size: 1rem;
+      font-weight: var(--font-weight-normal);
+      line-height: 1.6;
+    }
+
+    label {
+      font-size: 0.875rem;
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-dim);
+    }
+
+    button {
+      font-size: 1rem;
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    input {
+      font-size: 1rem;
+      font-weight: var(--font-weight-normal);
+      line-height: 1.5;
+    }
+  }
+}
+
+html {
+  font-size: var(--font-size);
+}
+
+/* Custom utility classes */
+@layer utilities {
+  .gradient-primary {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  }
+
+  .gradient-text {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .shadow-glow {
+    box-shadow: 0 4px 20px rgba(99, 102, 241, 0.15);
+  }
+
+  .shadow-card {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  }
+
+  .transition-smooth {
+    transition: all 150ms ease-out;
+  }
+}
+
+/* Custom component classes */
+@layer components {
+  .btn-primary {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    color: white;
+    border-radius: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    transition: all 150ms ease-out;
+    box-shadow: 0 4px 20px rgba(99, 102, 241, 0.15);
+  }
+
+  .btn-primary:hover {
+    box-shadow: 0 8px 30px rgba(99, 102, 241, 0.25);
+    transform: translateY(-1px);
+  }
+
+  .btn-secondary {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: var(--text-main);
+    border-radius: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    transition: all 150ms ease-out;
+  }
+
+  .btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+}
