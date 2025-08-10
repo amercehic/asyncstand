@@ -86,6 +86,7 @@ export const LoginPage = React.memo(() => {
           transition={{ delay: 0.1 }}
           onClick={() => navigate('/')}
           className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-smooth mb-8 group"
+          data-testid="back-to-home-button"
         >
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform duration-200" />
           Back to home
@@ -110,6 +111,7 @@ export const LoginPage = React.memo(() => {
               variant="secondary"
               className="w-full justify-center gap-3"
               onClick={() => handleSocialLogin('Google')}
+              data-testid="google-login-button"
             >
               <Mail className="w-5 h-5" />
               Continue with Google
@@ -118,6 +120,7 @@ export const LoginPage = React.memo(() => {
               variant="secondary"
               className="w-full justify-center gap-3"
               onClick={() => handleSocialLogin('GitHub')}
+              data-testid="github-login-button"
             >
               <Github className="w-5 h-5" />
               Continue with GitHub
@@ -134,7 +137,7 @@ export const LoginPage = React.memo(() => {
           </div>
 
           {/* Login Form */}
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6" data-testid="login-form">
             <FormField
               label="Email"
               id="email"
@@ -144,6 +147,7 @@ export const LoginPage = React.memo(() => {
               onChange={e => handleInputChange('email', e.target.value)}
               error={errors.email}
               required
+              data-testid="email-input"
             />
 
             <div className="space-y-2">
@@ -154,6 +158,7 @@ export const LoginPage = React.memo(() => {
                 <button
                   type="button"
                   className="text-sm text-primary hover:text-primary/80 transition-smooth"
+                  data-testid="forgot-password-button"
                 >
                   Forgot password?
                 </button>
@@ -166,11 +171,13 @@ export const LoginPage = React.memo(() => {
                 value={formData.password}
                 onChange={e => handleInputChange('password', e.target.value)}
                 error={errors.password}
+                data-testid="password-input"
                 rightElement={
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="text-muted-foreground hover:text-foreground transition-smooth"
+                    data-testid="toggle-password-visibility"
                   >
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
@@ -179,7 +186,13 @@ export const LoginPage = React.memo(() => {
               />
             </div>
 
-            <ModernButton type="submit" className="w-full" size="lg" isLoading={authLoading}>
+            <ModernButton
+              type="submit"
+              className="w-full"
+              size="lg"
+              isLoading={authLoading}
+              data-testid="sign-in-submit-button"
+            >
               {authLoading ? 'Signing In...' : 'Sign In'}
             </ModernButton>
           </form>
@@ -190,6 +203,7 @@ export const LoginPage = React.memo(() => {
               <button
                 onClick={() => navigate('/signup')}
                 className="text-primary hover:text-primary/80 transition-smooth font-medium"
+                data-testid="sign-up-link"
               >
                 Sign up
               </button>
@@ -205,11 +219,19 @@ export const LoginPage = React.memo(() => {
           className="text-center mt-8 text-sm text-muted-foreground"
         >
           By signing in, you agree to our{' '}
-          <a href="#" className="text-primary hover:text-primary/80 transition-smooth">
+          <a
+            href="#"
+            className="text-primary hover:text-primary/80 transition-smooth"
+            data-testid="terms-link"
+          >
             Terms of Service
           </a>{' '}
           and{' '}
-          <a href="#" className="text-primary hover:text-primary/80 transition-smooth">
+          <a
+            href="#"
+            className="text-primary hover:text-primary/80 transition-smooth"
+            data-testid="privacy-policy-link"
+          >
             Privacy Policy
           </a>
         </motion.div>

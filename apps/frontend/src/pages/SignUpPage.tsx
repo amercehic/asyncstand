@@ -101,6 +101,7 @@ export const SignUpPage = React.memo(() => {
           transition={{ delay: 0.1 }}
           onClick={() => navigate('/')}
           className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-smooth mb-8 group"
+          data-testid="back-to-home-button"
         >
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform duration-200" />
           Back to home
@@ -127,6 +128,7 @@ export const SignUpPage = React.memo(() => {
               variant="secondary"
               className="w-full justify-center gap-3"
               onClick={() => handleSocialSignup('Google')}
+              data-testid="google-signup-button"
             >
               <Mail className="w-5 h-5" />
               Continue with Google
@@ -135,6 +137,7 @@ export const SignUpPage = React.memo(() => {
               variant="secondary"
               className="w-full justify-center gap-3"
               onClick={() => handleSocialSignup('GitHub')}
+              data-testid="github-signup-button"
             >
               <Github className="w-5 h-5" />
               Continue with GitHub
@@ -151,7 +154,7 @@ export const SignUpPage = React.memo(() => {
           </div>
 
           {/* Signup Form */}
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6" data-testid="signup-form">
             <FormField
               label="Full Name"
               id="name"
@@ -160,6 +163,7 @@ export const SignUpPage = React.memo(() => {
               onChange={e => handleInputChange('name', e.target.value)}
               error={errors.name}
               required
+              data-testid="name-input"
             />
 
             <FormField
@@ -171,6 +175,7 @@ export const SignUpPage = React.memo(() => {
               onChange={e => handleInputChange('email', e.target.value)}
               error={errors.email}
               required
+              data-testid="email-input"
             />
 
             <div className="space-y-2">
@@ -182,11 +187,13 @@ export const SignUpPage = React.memo(() => {
                 value={formData.password}
                 onChange={e => handleInputChange('password', e.target.value)}
                 error={errors.password}
+                data-testid="password-input"
                 rightElement={
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="text-muted-foreground hover:text-foreground transition-smooth"
+                    data-testid="toggle-password-visibility"
                   >
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
@@ -243,14 +250,23 @@ export const SignUpPage = React.memo(() => {
                   checked={formData.agreeToTerms}
                   onChange={e => handleInputChange('agreeToTerms', e.target.checked)}
                   className="mt-1 w-4 h-4 rounded border-border bg-input text-primary focus:ring-2 focus:ring-primary/20"
+                  data-testid="terms-checkbox"
                 />
                 <label htmlFor="terms" className="text-sm text-muted-foreground leading-relaxed">
                   I agree to the{' '}
-                  <a href="#" className="text-primary hover:text-primary/80 transition-smooth">
+                  <a
+                    href="#"
+                    className="text-primary hover:text-primary/80 transition-smooth"
+                    data-testid="terms-link"
+                  >
                     Terms of Service
                   </a>{' '}
                   and{' '}
-                  <a href="#" className="text-primary hover:text-primary/80 transition-smooth">
+                  <a
+                    href="#"
+                    className="text-primary hover:text-primary/80 transition-smooth"
+                    data-testid="privacy-policy-link"
+                  >
                     Privacy Policy
                   </a>
                 </label>
@@ -264,6 +280,7 @@ export const SignUpPage = React.memo(() => {
               size="lg"
               isLoading={isLoading}
               disabled={!formData.agreeToTerms}
+              data-testid="create-account-submit-button"
             >
               {isLoading ? 'Creating Account...' : 'Create Account'}
             </ModernButton>
@@ -275,6 +292,7 @@ export const SignUpPage = React.memo(() => {
               <button
                 onClick={() => navigate('/login')}
                 className="text-primary hover:text-primary/80 transition-smooth font-medium"
+                data-testid="sign-in-link"
               >
                 Sign in
               </button>

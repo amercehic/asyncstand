@@ -5,6 +5,7 @@ interface ThemeContextType {
   theme: Theme;
   setTheme: (theme: Theme) => void;
   toggleTheme: () => void;
+  isLoaded: boolean;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -15,6 +16,7 @@ interface ThemeProviderProps {
 }
 
 export function ThemeProvider({ children, defaultTheme = 'system' }: ThemeProviderProps) {
+  const [isLoaded, setIsLoaded] = useState(false);
   const [theme, setTheme] = useState<Theme>(() => {
     // Check localStorage first
     if (typeof window !== 'undefined') {
@@ -25,6 +27,11 @@ export function ThemeProvider({ children, defaultTheme = 'system' }: ThemeProvid
     }
     return defaultTheme;
   });
+
+  // Initial sync with already applied theme
+  useEffect(() => {
+    setIsLoaded(true);
+  }, []);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -42,6 +49,7 @@ export function ThemeProvider({ children, defaultTheme = 'system' }: ThemeProvid
     }
 
     root.classList.add(effectiveTheme);
+    root.setAttribute('data-theme', effectiveTheme);
 
     // Save to localStorage
     localStorage.setItem('theme', theme);
@@ -79,8 +87,9 @@ export function ThemeProvider({ children, defaultTheme = 'system' }: ThemeProvid
       theme,
       setTheme,
       toggleTheme,
+      isLoaded,
     }),
-    [theme, setTheme, toggleTheme]
+    [theme, setTheme, toggleTheme, isLoaded]
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

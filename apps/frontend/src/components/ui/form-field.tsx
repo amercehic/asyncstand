@@ -14,6 +14,7 @@ interface FormFieldProps {
   required?: boolean;
   className?: string;
   rightElement?: React.ReactNode;
+  'data-testid'?: string;
 }
 
 export const FormField = React.memo<FormFieldProps>(function FormField({
@@ -27,6 +28,7 @@ export const FormField = React.memo<FormFieldProps>(function FormField({
   required = false,
   className,
   rightElement,
+  'data-testid': dataTestId,
 }: FormFieldProps) {
   return (
     <div className="space-y-2">
@@ -45,6 +47,7 @@ export const FormField = React.memo<FormFieldProps>(function FormField({
             className
           )}
           required={required}
+          data-testid={dataTestId}
         />
         {rightElement && (
           <div className="absolute right-3 top-1/2 -translate-y-1/2">{rightElement}</div>

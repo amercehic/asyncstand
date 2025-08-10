@@ -90,18 +90,33 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               )}
 
               <div className="flex flex-col sm:flex-row gap-3">
-                <ModernButton onClick={this.handleReset} variant="primary" className="flex-1">
+                <ModernButton
+                  onClick={this.handleReset}
+                  variant="primary"
+                  className="flex-1"
+                  data-testid="try-again-button"
+                >
                   <RefreshCw className="w-4 h-4 mr-2" />
                   Try Again
                 </ModernButton>
 
-                <ModernButton onClick={this.handleGoHome} variant="secondary" className="flex-1">
+                <ModernButton
+                  onClick={this.handleGoHome}
+                  variant="secondary"
+                  className="flex-1"
+                  data-testid="go-home-button"
+                >
                   <Home className="w-4 h-4 mr-2" />
                   Go Home
                 </ModernButton>
               </div>
 
-              <ModernButton onClick={this.handleReload} variant="ghost" className="w-full mt-3">
+              <ModernButton
+                onClick={this.handleReload}
+                variant="ghost"
+                className="w-full mt-3"
+                data-testid="reload-page-button"
+              >
                 Reload Page
               </ModernButton>
             </div>

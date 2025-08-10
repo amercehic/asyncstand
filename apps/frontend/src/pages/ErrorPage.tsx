@@ -124,7 +124,13 @@ export const ErrorPage = React.memo(() => {
           transition={{ duration: 0.6, delay: 0.4 }}
           className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8"
         >
-          <ModernButton variant="primary" size="lg" onClick={handleReload} className="group">
+          <ModernButton
+            variant="primary"
+            size="lg"
+            onClick={handleReload}
+            className="group"
+            data-testid="try-again-button"
+          >
             <RefreshCw className="w-5 h-5 mr-2 group-hover:rotate-180 transition-transform duration-500" />
             Try Again
           </ModernButton>
@@ -134,12 +140,19 @@ export const ErrorPage = React.memo(() => {
             size="lg"
             onClick={() => navigate('/')}
             className="group"
+            data-testid="go-home-button"
           >
             <Home className="w-5 h-5 mr-2" />
             Go to Homepage
           </ModernButton>
 
-          <ModernButton variant="ghost" size="lg" onClick={handleReportError} className="group">
+          <ModernButton
+            variant="ghost"
+            size="lg"
+            onClick={handleReportError}
+            className="group"
+            data-testid="report-issue-button"
+          >
             <Mail className="w-5 h-5 mr-2" />
             Report Issue
           </ModernButton>
@@ -158,6 +171,7 @@ export const ErrorPage = React.memo(() => {
               <button
                 onClick={handleReportError}
                 className="text-primary hover:text-primary/80 transition-smooth font-medium"
+                data-testid="let-us-know-button"
               >
                 let us know
               </button>
@@ -169,6 +183,7 @@ export const ErrorPage = React.memo(() => {
               <button
                 onClick={handleReportError}
                 className="text-primary hover:text-primary/80 transition-smooth font-medium"
+                data-testid="contact-support-button"
               >
                 contact support
               </button>

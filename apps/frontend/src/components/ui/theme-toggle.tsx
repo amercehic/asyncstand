@@ -4,7 +4,7 @@ import { useTheme } from '@/contexts';
 import { ModernButton } from '@/components/ui/modern-button';
 
 export const ThemeToggle = React.memo(() => {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, isLoaded } = useTheme();
 
   const handleThemeChange = () => {
     if (theme === 'light') {
@@ -42,16 +42,21 @@ export const ThemeToggle = React.memo(() => {
     }
   };
 
+  // Don't render until theme is loaded to prevent flash
+  if (!isLoaded) {
+    return <div className="w-6 h-6 bg-muted rounded-full animate-pulse" />;
+  }
+
   return (
     <ModernButton
       variant="ghost"
       size="sm"
       onClick={handleThemeChange}
-      className="gap-2"
+      className="focus:ring-0 focus:ring-transparent focus:outline-none w-full h-full rounded-full hover:bg-accent/80 p-0 flex items-center justify-center"
       title={`Switch theme - currently ${getLabel().toLowerCase()}`}
+      data-testid="theme-toggle-button"
     >
       {getIcon()}
-      <span className="hidden sm:inline">{getLabel()}</span>
     </ModernButton>
   );
 });

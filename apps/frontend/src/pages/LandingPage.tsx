@@ -103,10 +103,18 @@ export const LandingPage = React.memo(() => {
           AsyncStand
         </motion.div>
         <div className="flex items-center gap-4">
-          <ModernButton variant="ghost" onClick={() => handleNavigation('/login')}>
+          <ModernButton
+            variant="ghost"
+            onClick={() => handleNavigation('/login')}
+            data-testid="login-button"
+          >
             Log In
           </ModernButton>
-          <ModernButton variant="primary" onClick={() => handleNavigation('/signup')}>
+          <ModernButton
+            variant="primary"
+            onClick={() => handleNavigation('/signup')}
+            data-testid="get-started-button"
+          >
             Get Started
           </ModernButton>
         </div>
@@ -141,11 +149,16 @@ export const LandingPage = React.memo(() => {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-20"
           >
-            <ModernButton size="lg" onClick={() => handleNavigation('/signup')} className="group">
+            <ModernButton
+              size="lg"
+              onClick={() => handleNavigation('/signup')}
+              className="group"
+              data-testid="start-trial-button"
+            >
               Start Free Trial
               <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform duration-200" />
             </ModernButton>
-            <ModernButton variant="secondary" size="lg">
+            <ModernButton variant="secondary" size="lg" data-testid="watch-demo-button">
               Watch Demo
             </ModernButton>
           </motion.div>
@@ -186,13 +199,25 @@ export const LandingPage = React.memo(() => {
               © 2025 AsyncStand. All rights reserved.
             </div>
             <div className="flex gap-6 text-muted-foreground">
-              <a href="#" className="hover:text-foreground transition-smooth">
+              <a
+                href="#"
+                className="hover:text-foreground transition-smooth"
+                data-testid="privacy-link"
+              >
                 Privacy
               </a>
-              <a href="#" className="hover:text-foreground transition-smooth">
+              <a
+                href="#"
+                className="hover:text-foreground transition-smooth"
+                data-testid="terms-link"
+              >
                 Terms
               </a>
-              <a href="#" className="hover:text-foreground transition-smooth">
+              <a
+                href="#"
+                className="hover:text-foreground transition-smooth"
+                data-testid="support-link"
+              >
                 Support
               </a>
             </div>

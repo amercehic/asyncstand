@@ -29,6 +29,30 @@
       content="An async standup platform for distributed teams with Slack integration."
     />
     <title>AsyncStand - Async Standup Platform</title>
+    <script>
+      (function () {
+        // Prevent theme flash by setting theme immediately
+        function getTheme() {
+          if (typeof Storage !== 'undefined') {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme && ['light', 'dark', 'system'].includes(savedTheme)) {
+              if (savedTheme === 'system') {
+                return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+              }
+              return savedTheme;
+            }
+          }
+          // Default to system preference
+          return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+
+        const theme = getTheme();
+        document.documentElement.classList.add(theme);
+
+        // Also set attribute for CSS targeting
+        document.documentElement.setAttribute('data-theme', theme);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

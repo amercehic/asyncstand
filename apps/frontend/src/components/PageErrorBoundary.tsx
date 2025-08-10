@@ -26,11 +26,21 @@ function PageErrorFallback({ resetError }: Pick<PageErrorFallbackProps, 'resetEr
           </p>
 
           <div className="flex flex-col gap-3">
-            <ModernButton onClick={resetError} variant="primary" className="w-full">
+            <ModernButton
+              onClick={resetError}
+              variant="primary"
+              className="w-full"
+              data-testid="try-again-button"
+            >
               Try Again
             </ModernButton>
 
-            <ModernButton onClick={() => navigate(-1)} variant="secondary" className="w-full">
+            <ModernButton
+              onClick={() => navigate(-1)}
+              variant="secondary"
+              className="w-full"
+              data-testid="go-back-button"
+            >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Go Back
             </ModernButton>

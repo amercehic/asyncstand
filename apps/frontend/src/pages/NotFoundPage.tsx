@@ -77,7 +77,13 @@ export const NotFoundPage = React.memo(() => {
           transition={{ duration: 0.6, delay: 0.4 }}
           className="flex flex-col sm:flex-row gap-4 justify-center items-center"
         >
-          <ModernButton variant="primary" size="lg" onClick={() => navigate('/')} className="group">
+          <ModernButton
+            variant="primary"
+            size="lg"
+            onClick={() => navigate('/')}
+            className="group"
+            data-testid="go-home-button"
+          >
             <Home className="w-5 h-5 mr-2" />
             Go to Homepage
           </ModernButton>
@@ -87,6 +93,7 @@ export const NotFoundPage = React.memo(() => {
             size="lg"
             onClick={() => window.history.back()}
             className="group"
+            data-testid="go-back-button"
           >
             <ArrowLeft className="w-5 h-5 mr-2 group-hover:-translate-x-1 transition-transform duration-200" />
             Go Back
@@ -104,6 +111,7 @@ export const NotFoundPage = React.memo(() => {
           <button
             onClick={() => (window.location.href = 'mailto:support@asyncstand.com')}
             className="text-primary hover:text-primary/80 transition-smooth font-medium"
+            data-testid="contact-support-button"
           >
             Contact Support
           </button>
