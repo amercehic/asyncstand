@@ -84,8 +84,6 @@ export function validate(config: Record<string, unknown>) {
     throw new Error(errors.toString());
   }
 
-  console.log(validatedConfig);
-
   return validatedConfig;
 }
 
