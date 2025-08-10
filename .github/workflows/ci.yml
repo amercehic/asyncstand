@@ -10,6 +10,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  security-events: write
+
 jobs:
   # Job to detect what changed
   changes:
@@ -286,6 +290,9 @@ jobs:
   # Security Scan
   security-scan:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -297,10 +304,11 @@ jobs:
           scan-ref: '.'
           format: 'sarif'
           output: 'trivy-results.sarif'
+          exit-code: '0'
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: always() && hashFiles('trivy-results.sarif') != ''
         with:
           sarif_file: 'trivy-results.sarif'
 
@@ -312,11 +320,20 @@ jobs:
     steps:
       - name: Check overall status
         run: |
+          echo "Job Results:"
+          echo "  frontend-test: ${{ needs.frontend-test.result }}"
+          echo "  backend-test: ${{ needs.backend-test.result }}"
+          echo "  build-test: ${{ needs.build-test.result }}"
+          echo "  security-scan: ${{ needs.security-scan.result }}"
+
+          # Check for any failures
           if [[ "${{ needs.frontend-test.result }}" == "failure" || "${{ needs.backend-test.result }}" == "failure" || "${{ needs.build-test.result }}" == "failure" || "${{ needs.security-scan.result }}" == "failure" ]]; then
             echo "❌ One or more jobs failed"
             exit 1
-          elif [[ "${{ needs.frontend-test.result }}" == "skipped" && "${{ needs.backend-test.result }}" == "skipped" ]]; then
+          # Check if all test jobs were skipped (no relevant changes)
+          elif [[ "${{ needs.frontend-test.result }}" == "skipped" && "${{ needs.backend-test.result }}" == "skipped" && "${{ needs.build-test.result }}" == "skipped" ]]; then
             echo "⚠️ All tests were skipped - no relevant changes detected"
+            # Security scan always runs, so don't fail if only that succeeded
             exit 0
           else
             echo "✅ All jobs passed or were skipped appropriately"

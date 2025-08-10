@@ -32,7 +32,7 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": false,
-    "types": ["@testing-library/jest-dom", "vitest/globals"]
+    "types": ["vitest/globals"]
   },
   "include": ["src", "../../packages/shared/src"],
   "exclude": ["dist", "node_modules"]
