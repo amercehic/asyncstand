@@ -16,6 +16,7 @@ export const LoginPage = React.memo(() => {
   const [formData, setFormData] = useState<LoginFormData>({
     email: '',
     password: '',
+    rememberMe: false,
   });
   const [errors, setErrors] = useState<FormFieldError>({});
 
@@ -49,7 +50,7 @@ export const LoginPage = React.memo(() => {
 
       try {
         toast.loading('Signing you in...', { id: 'login' });
-        await login(formData.email, formData.password);
+        await login(formData.email, formData.password, formData.rememberMe);
         toast.success('Welcome back!', { id: 'login' });
 
         // Redirect to intended page or dashboard
@@ -60,11 +61,19 @@ export const LoginPage = React.memo(() => {
         toast.error(message, { id: 'login' });
       }
     },
-    [validateForm, login, formData.email, formData.password, navigate]
+    [
+      validateForm,
+      login,
+      formData.email,
+      formData.password,
+      formData.rememberMe,
+      navigate,
+      location.state?.from?.pathname,
+    ]
   );
 
   const handleInputChange = useCallback(
-    (field: keyof LoginFormData, value: string) => {
+    (field: keyof LoginFormData, value: string | boolean) => {
       setFormData(prev => ({ ...prev, [field]: value }));
       if (errors[field]) {
         setErrors(prev => ({ ...prev, [field]: '' }));
@@ -177,7 +186,26 @@ export const LoginPage = React.memo(() => {
               }
               required
             />
-            <div className="flex justify-end -mt-1">
+
+            {/* Remember Me and Forgot Password */}
+            <div className="flex items-center justify-between -mt-1">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="rememberMe"
+                  checked={formData.rememberMe}
+                  onChange={e => handleInputChange('rememberMe', e.target.checked)}
+                  className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary focus:ring-2 focus:ring-offset-0"
+                  data-testid="remember-me-checkbox"
+                />
+                <label
+                  htmlFor="rememberMe"
+                  className="text-sm text-muted-foreground cursor-pointer select-none"
+                  data-testid="remember-me-label"
+                >
+                  Remember me
+                </label>
+              </div>
               <button
                 type="button"
                 className="text-sm text-primary hover:text-primary/80 transition-smooth"

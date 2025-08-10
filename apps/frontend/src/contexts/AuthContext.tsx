@@ -9,6 +9,69 @@ import React, {
 import { authApi, setAuthToken } from '@/lib/api';
 import type { User, AuthTokens, SignUpRequest } from '@/types';
 
+// Storage keys
+const STORAGE_KEYS = {
+  TOKENS: 'auth_tokens',
+  USER: 'auth_user',
+  ORGANIZATIONS: 'user_organizations',
+  REMEMBER_ME: 'auth_remember_me',
+} as const;
+
+// Helper functions for storage management
+const getStorageType = (rememberMe: boolean) => (rememberMe ? localStorage : sessionStorage);
+
+const saveAuthData = (
+  user: User,
+  tokens: AuthTokens,
+  organizations: unknown[],
+  rememberMe: boolean = false
+) => {
+  const storage = getStorageType(rememberMe);
+
+  // Save auth data to appropriate storage
+  storage.setItem(STORAGE_KEYS.TOKENS, JSON.stringify(tokens));
+  storage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+  storage.setItem(STORAGE_KEYS.ORGANIZATIONS, JSON.stringify(organizations));
+
+  // Always save remember me preference to localStorage for restoration
+  localStorage.setItem(STORAGE_KEYS.REMEMBER_ME, JSON.stringify(rememberMe));
+};
+
+const clearAuthData = () => {
+  // Clear from both storages to ensure complete cleanup
+  [localStorage, sessionStorage].forEach(storage => {
+    storage.removeItem(STORAGE_KEYS.TOKENS);
+    storage.removeItem(STORAGE_KEYS.USER);
+    storage.removeItem(STORAGE_KEYS.ORGANIZATIONS);
+  });
+  localStorage.removeItem(STORAGE_KEYS.REMEMBER_ME);
+};
+
+const restoreAuthData = () => {
+  // Check remember me preference first
+  const rememberMeStr = localStorage.getItem(STORAGE_KEYS.REMEMBER_ME);
+  const rememberMe = rememberMeStr ? JSON.parse(rememberMeStr) : false;
+
+  // Try to restore from appropriate storage
+  const storage = getStorageType(rememberMe);
+  const tokensStr = storage.getItem(STORAGE_KEYS.TOKENS);
+  const userStr = storage.getItem(STORAGE_KEYS.USER);
+
+  if (tokensStr && userStr) {
+    try {
+      return {
+        tokens: JSON.parse(tokensStr) as AuthTokens,
+        user: JSON.parse(userStr) as User,
+        rememberMe,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+};
+
 interface AuthState {
   user: User | null;
   tokens: AuthTokens | null;
@@ -24,7 +87,7 @@ type AuthAction =
   | { type: 'RESTORE_SESSION'; payload: { user: User; tokens: AuthTokens } };
 
 interface AuthContextType extends AuthState {
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
   signup: (data: SignUpRequest) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (updates: Partial<User>) => void;
@@ -78,18 +141,16 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  // Restore session from localStorage on app start
+  // Restore session from storage on app start
   useEffect(() => {
     let isMounted = true;
 
     const restoreSession = async () => {
       try {
-        const savedTokens = localStorage.getItem('auth_tokens');
-        const savedUser = localStorage.getItem('auth_user');
+        const authData = restoreAuthData();
 
-        if (savedTokens && savedUser) {
-          const tokens: AuthTokens = JSON.parse(savedTokens);
-          const user: User = JSON.parse(savedUser);
+        if (authData) {
+          const { tokens, user } = authData;
 
           // Check if token is still valid (not expired)
           const isTokenValid = new Date(tokens.expiresAt) > new Date();
@@ -101,15 +162,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
             return;
           } else {
             // Clear expired tokens
-            localStorage.removeItem('auth_tokens');
-            localStorage.removeItem('auth_user');
+            clearAuthData();
           }
         }
       } catch (error) {
         console.error('Failed to restore session:', error);
         // Clear corrupted data
-        localStorage.removeItem('auth_tokens');
-        localStorage.removeItem('auth_user');
+        clearAuthData();
       }
 
       if (isMounted) {
@@ -124,44 +183,49 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
-    dispatch({ type: 'SET_LOADING', payload: true });
+  const login = useCallback(
+    async (email: string, password: string, rememberMe: boolean = false) => {
+      dispatch({ type: 'SET_LOADING', payload: true });
 
-    try {
-      const response = await authApi.login({ email, password });
+      try {
+        // Only send email and password to the backend; rememberMe is client-side only
+        const response = await authApi.login({ email, password });
 
-      // Convert backend response to our frontend format
-      const user: User = {
-        id: response.user.id,
-        email: response.user.email,
-        name: response.user.name,
-        role: response.user.role as 'user' | 'admin',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
+        // Convert backend response to our frontend format
+        const user: User = {
+          id: response.user.id,
+          email: response.user.email,
+          name: response.user.name,
+          role: response.user.role as 'user' | 'admin',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
 
-      const tokens: AuthTokens = {
-        accessToken: response.accessToken,
-        refreshToken: '', // Backend uses HTTP-only cookies for refresh tokens
-        expiresAt: new Date(Date.now() + response.expiresIn * 1000).toISOString(),
-      };
+        // Adjust token expiration based on rememberMe
+        const expirationTime = rememberMe
+          ? 30 * 24 * 60 * 60 * 1000 // 30 days for remember me
+          : response.expiresIn * 1000; // Default expiration from backend
 
-      // Set token in API client
-      setAuthToken(response.accessToken);
+        const tokens: AuthTokens = {
+          accessToken: response.accessToken,
+          refreshToken: '', // Backend uses HTTP-only cookies for refresh tokens
+          expiresAt: new Date(Date.now() + expirationTime).toISOString(),
+        };
 
-      // Save to localStorage
-      localStorage.setItem('auth_tokens', JSON.stringify(tokens));
-      localStorage.setItem('auth_user', JSON.stringify(user));
+        // Set token in API client
+        setAuthToken(response.accessToken);
 
-      // Store organizations info for future use
-      localStorage.setItem('user_organizations', JSON.stringify(response.organizations));
+        // Save auth data using helper function
+        saveAuthData(user, tokens, response.organizations, rememberMe);
 
-      dispatch({ type: 'LOGIN_SUCCESS', payload: { user, tokens } });
-    } catch (error) {
-      dispatch({ type: 'SET_LOADING', payload: false });
-      throw error;
-    }
-  }, []);
+        dispatch({ type: 'LOGIN_SUCCESS', payload: { user, tokens } });
+      } catch (error) {
+        dispatch({ type: 'SET_LOADING', payload: false });
+        throw error;
+      }
+    },
+    []
+  );
 
   const signup = useCallback(
     async (data: SignUpRequest) => {
@@ -195,10 +259,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // Clear API token
     setAuthToken(null);
 
-    // Clear localStorage
-    localStorage.removeItem('auth_tokens');
-    localStorage.removeItem('auth_user');
-    localStorage.removeItem('user_organizations');
+    // Clear all auth data using helper function
+    clearAuthData();
 
     dispatch({ type: 'LOGOUT' });
   }, []);
@@ -207,10 +269,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     (updates: Partial<User>) => {
       dispatch({ type: 'UPDATE_USER', payload: updates });
 
-      // Update localStorage
+      // Update storage (check where the current data is stored)
       if (state.user) {
         const updatedUser = { ...state.user, ...updates };
-        localStorage.setItem('auth_user', JSON.stringify(updatedUser));
+        const rememberMeStr = localStorage.getItem(STORAGE_KEYS.REMEMBER_ME);
+        const rememberMe = rememberMeStr ? JSON.parse(rememberMeStr) : false;
+        const storage = getStorageType(rememberMe);
+
+        storage.setItem(STORAGE_KEYS.USER, JSON.stringify(updatedUser));
       }
     },
     [state.user]

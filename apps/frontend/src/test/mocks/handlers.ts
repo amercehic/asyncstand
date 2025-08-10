@@ -7,7 +7,7 @@ export const handlers = [
   // Auth: login (match any host)
   http.post('*/auth/login', async ({ request }) => {
     const body = await request.json();
-    const { email, password } = body as { email: string; password: string };
+    const { email, password } = body as { email: string; password: string; rememberMe?: boolean };
 
     if (email === 'test@example.com' && password === 'password') {
       return HttpResponse.json({

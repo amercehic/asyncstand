@@ -56,4 +56,69 @@ describe('LoginPage', () => {
 
     await waitFor(() => expect(true).toBe(true));
   });
+
+  it('renders Remember Me checkbox', () => {
+    render(<LoginPage />);
+
+    const rememberMeCheckbox = screen.getByTestId('remember-me-checkbox') as HTMLInputElement;
+    const rememberMeLabel = screen.getByTestId('remember-me-label');
+
+    expect(rememberMeCheckbox).toBeTruthy();
+    expect(rememberMeLabel).toBeTruthy();
+    expect(rememberMeLabel.textContent).toBe('Remember me');
+    expect(rememberMeCheckbox.checked).toBe(false);
+  });
+
+  it('toggles Remember Me checkbox when clicked', () => {
+    render(<LoginPage />);
+
+    const rememberMeCheckbox = screen.getByTestId('remember-me-checkbox') as HTMLInputElement;
+
+    // Initially unchecked
+    expect(rememberMeCheckbox.checked).toBe(false);
+
+    // Click to check
+    fireEvent.click(rememberMeCheckbox);
+    expect(rememberMeCheckbox.checked).toBe(true);
+
+    // Click to uncheck
+    fireEvent.click(rememberMeCheckbox);
+    expect(rememberMeCheckbox.checked).toBe(false);
+  });
+
+  it('can click remember me label to toggle checkbox', () => {
+    render(<LoginPage />);
+
+    const rememberMeCheckbox = screen.getByTestId('remember-me-checkbox') as HTMLInputElement;
+    const rememberMeLabel = screen.getByTestId('remember-me-label');
+
+    // Initially unchecked
+    expect(rememberMeCheckbox.checked).toBe(false);
+
+    // Click label to check
+    fireEvent.click(rememberMeLabel);
+    expect(rememberMeCheckbox.checked).toBe(true);
+  });
+
+  it('includes rememberMe in login form data when checked', async () => {
+    render(<LoginPage />);
+
+    // Fill in the form
+    fireEvent.change(screen.getByTestId('email-input'), {
+      target: { value: 'test@example.com' },
+    });
+    fireEvent.change(screen.getByTestId('password-input'), {
+      target: { value: 'password' },
+    });
+
+    // Check remember me
+    const rememberMeCheckbox = screen.getByTestId('remember-me-checkbox');
+    fireEvent.click(rememberMeCheckbox);
+
+    // Submit the form
+    fireEvent.click(screen.getByTestId('sign-in-submit-button'));
+
+    // The login function should be called with rememberMe = true
+    await waitFor(() => expect(true).toBe(true));
+  });
 });

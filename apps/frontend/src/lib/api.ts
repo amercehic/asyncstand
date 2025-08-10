@@ -65,8 +65,12 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && authToken) {
       // Clear invalid token and redirect to login
       setAuthToken(null);
-      localStorage.removeItem('auth_tokens');
-      localStorage.removeItem('auth_user');
+      // Clear from both localStorage and sessionStorage
+      ['auth_tokens', 'auth_user', 'user_organizations'].forEach(key => {
+        localStorage.removeItem(key);
+        sessionStorage.removeItem(key);
+      });
+      localStorage.removeItem('auth_remember_me');
 
       // Only show auth error if not already on login/signup pages
       if (
