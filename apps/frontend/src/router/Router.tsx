@@ -18,6 +18,18 @@ const SignUpPage = React.lazy(() =>
 const DashboardPage = React.lazy(() =>
   import('@/pages/DashboardPage').then(module => ({ default: module.DashboardPage }))
 );
+const TeamsPage = React.lazy(() =>
+  import('@/pages/TeamsPage').then(module => ({ default: module.TeamsPage }))
+);
+const TeamDetailPage = React.lazy(() =>
+  import('@/pages/TeamDetailPage').then(module => ({ default: module.TeamDetailPage }))
+);
+const StandupConfigPage = React.lazy(() =>
+  import('@/pages/StandupConfigPage').then(module => ({ default: module.StandupConfigPage }))
+);
+const StandupResponsePage = React.lazy(() =>
+  import('@/pages/StandupResponsePage').then(module => ({ default: module.StandupResponsePage }))
+);
 
 // Loading component
 const PageLoader = () => (
@@ -68,6 +80,50 @@ const router = createBrowserRouter([
           <ProtectedRoute>
             <Suspense fallback={<PageLoader />}>
               <DashboardPage />
+            </Suspense>
+          </ProtectedRoute>
+        ),
+        errorElement: <ErrorPage />,
+      },
+      {
+        path: 'teams',
+        element: (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <TeamsPage />
+            </Suspense>
+          </ProtectedRoute>
+        ),
+        errorElement: <ErrorPage />,
+      },
+      {
+        path: 'teams/:teamId',
+        element: (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <TeamDetailPage />
+            </Suspense>
+          </ProtectedRoute>
+        ),
+        errorElement: <ErrorPage />,
+      },
+      {
+        path: 'teams/:teamId/standups/create',
+        element: (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <StandupConfigPage />
+            </Suspense>
+          </ProtectedRoute>
+        ),
+        errorElement: <ErrorPage />,
+      },
+      {
+        path: 'standups/:instanceId/respond',
+        element: (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <StandupResponsePage />
             </Suspense>
           </ProtectedRoute>
         ),

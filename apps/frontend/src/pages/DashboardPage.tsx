@@ -2,27 +2,16 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ModernButton } from '@/components/ui';
-import { LogOut, Users, Calendar, Settings, Plus, Bell } from 'lucide-react';
+import { Users, Calendar, Settings, Plus, Bell } from 'lucide-react';
 import { useAuth } from '@/contexts';
 import { toast } from 'sonner';
 
 export const DashboardPage = React.memo(() => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-      toast.success('Logged out successfully');
-      navigate('/');
-    } catch (error) {
-      console.error('Logout error:', error);
-      toast.error('Error logging out');
-    }
-  };
-
   const handleNavigation = (path: string) => {
-    toast.info(`Navigation to ${path} - Coming soon!`);
+    navigate(path);
   };
 
   const stats = [
@@ -32,78 +21,18 @@ export const DashboardPage = React.memo(() => {
   ];
 
   const quickActions = [
-    { label: 'Create Team', icon: Plus, action: () => handleNavigation('/teams/create') },
-    { label: 'Join Team', icon: Users, action: () => handleNavigation('/teams/join') },
+    { label: 'Create Team', icon: Plus, action: () => toast.info('Create team - Coming soon!') },
+    { label: 'Join Team', icon: Users, action: () => toast.info('Join team - Coming soon!') },
     {
-      label: 'Schedule Standup',
-      icon: Calendar,
-      action: () => handleNavigation('/standups/create'),
+      label: 'View Teams',
+      icon: Users,
+      action: () => handleNavigation('/teams'),
     },
-    { label: 'Settings', icon: Settings, action: () => handleNavigation('/settings') },
+    { label: 'Settings', icon: Settings, action: () => toast.info('Settings - Coming soon!') },
   ];
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <motion.header
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="bg-card border-b border-border px-6 py-4"
-      >
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <div className="text-2xl font-semibold gradient-text">AsyncStand</div>
-            <nav className="hidden md:flex items-center gap-6">
-              <button
-                className="text-muted-foreground hover:text-foreground transition-smooth"
-                onClick={() => handleNavigation('/dashboard')}
-                data-testid="nav-dashboard"
-              >
-                Dashboard
-              </button>
-              <button
-                className="text-muted-foreground hover:text-foreground transition-smooth"
-                onClick={() => handleNavigation('/teams')}
-                data-testid="nav-teams"
-              >
-                Teams
-              </button>
-              <button
-                className="text-muted-foreground hover:text-foreground transition-smooth"
-                onClick={() => handleNavigation('/standups')}
-                data-testid="nav-standups"
-              >
-                Standups
-              </button>
-            </nav>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-gradient-to-r from-primary to-primary/80 rounded-full flex items-center justify-center">
-                <span className="text-white font-medium text-sm">
-                  {user?.name?.charAt(0)?.toUpperCase() || 'U'}
-                </span>
-              </div>
-              <div className="hidden sm:block">
-                <p className="text-sm font-medium">{user?.name}</p>
-                <p className="text-xs text-muted-foreground">{user?.email}</p>
-              </div>
-            </div>
-            <ModernButton
-              variant="ghost"
-              size="sm"
-              onClick={handleLogout}
-              data-testid="logout-button"
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline ml-2">Logout</span>
-            </ModernButton>
-          </div>
-        </div>
-      </motion.header>
-
       <main className="max-w-7xl mx-auto px-6 py-8">
         {/* Welcome Section */}
         <motion.div
@@ -188,11 +117,11 @@ export const DashboardPage = React.memo(() => {
           </p>
           <ModernButton
             variant="primary"
-            onClick={() => handleNavigation('/teams/create')}
-            data-testid="create-first-team-button"
+            onClick={() => handleNavigation('/teams')}
+            data-testid="view-teams-button"
           >
-            <Plus className="w-4 h-4 mr-2" />
-            Create Your First Team
+            <Users className="w-4 h-4 mr-2" />
+            View Teams
           </ModernButton>
         </motion.div>
       </main>

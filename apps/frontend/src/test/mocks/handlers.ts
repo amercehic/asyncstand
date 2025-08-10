@@ -47,4 +47,123 @@ export const handlers = [
   http.post('*/auth/logout', () => {
     return HttpResponse.json({ success: true });
   }),
+
+  // Teams
+  http.get('*/teams', () => {
+    return HttpResponse.json([]);
+  }),
+
+  http.get('*/teams/:teamId', ({ params }) => {
+    const { teamId } = params;
+    return HttpResponse.json({
+      id: teamId,
+      name: 'Sample Team',
+      description: 'A sample team for testing',
+      members: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+  }),
+
+  http.post('*/teams', async ({ request }) => {
+    const body = await request.json();
+    const { name, description } = body as { name: string; description?: string };
+
+    return HttpResponse.json(
+      {
+        id: '1',
+        name,
+        description: description || '',
+        members: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      { status: 201 }
+    );
+  }),
+
+  // Team Standups
+  http.get('*/teams/:teamId/standups', () => {
+    return HttpResponse.json([]);
+  }),
+
+  http.post('*/teams/:teamId/standups', async ({ request, params }) => {
+    const body = await request.json();
+    const { teamId } = params;
+    const { name, questions, schedule, slackChannelId } = body as {
+      name: string;
+      questions: string[];
+      schedule: {
+        time: string;
+        days: string[];
+        timezone: string;
+      };
+      slackChannelId?: string;
+    };
+
+    return HttpResponse.json(
+      {
+        id: '1',
+        teamId,
+        name,
+        questions,
+        schedule,
+        slackChannelId,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      { status: 201 }
+    );
+  }),
+
+  // Standups
+  http.get('*/standups/:standupId', ({ params }) => {
+    const { standupId } = params;
+    return HttpResponse.json({
+      id: standupId,
+      teamId: '1',
+      name: 'Daily Standup',
+      questions: [
+        'What did you work on yesterday?',
+        'What are you working on today?',
+        'Any blockers or challenges?',
+      ],
+      schedule: {
+        time: '09:00',
+        days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+        timezone: 'UTC',
+      },
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+  }),
+
+  http.get('*/standups/:standupId/instances', () => {
+    return HttpResponse.json([]);
+  }),
+
+  // Instances
+  http.get('*/instances/:instanceId', ({ params }) => {
+    const { instanceId } = params;
+    return HttpResponse.json({
+      id: instanceId,
+      configId: '1',
+      date: new Date().toISOString().split('T')[0],
+      status: 'active',
+      participants: ['1', '2', '3'],
+      responses: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+  }),
+
+  http.post('*/instances/:instanceId/responses', async () => {
+    return HttpResponse.json({ success: true, message: 'Response submitted successfully' });
+  }),
+
+  http.put('*/instances/:instanceId/responses', async () => {
+    return HttpResponse.json({ success: true, message: 'Response updated successfully' });
+  }),
 ];
