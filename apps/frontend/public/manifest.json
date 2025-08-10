@@ -1,0 +1,16 @@
+{
+  "name": "AsyncStand - Async Standup Platform",
+  "short_name": "AsyncStand",
+  "description": "An async standup platform for distributed teams with Slack integration",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#6366F1",
+  "background_color": "#ffffff"
+}

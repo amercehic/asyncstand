@@ -64,6 +64,15 @@ export default [
     },
   },
 
+  // E2E tests overrides - allow relative imports for test organization
+  {
+    files: ['apps/frontend/src/e2e/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': 'off',
+      'no-console': 'off', // Allow console.log in E2E tests
+    },
+  },
+
   // Backend & Worker overrides
   {
     files: ['apps/backend/src/**/*.ts', 'apps/worker/src/**/*.ts'],

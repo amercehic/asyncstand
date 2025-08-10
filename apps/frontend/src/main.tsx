@@ -1,12 +1,19 @@
-import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from '@/App';
-import { AppErrorBoundary } from '@/components/AppErrorBoundary';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { AccessibilityProvider } from '@/components/AccessibilityProvider';
+import { AuthProvider, ThemeProvider } from '@/contexts';
+import '@/styles/globals.css';
+import '@/styles/accessibility.css';
 
 createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <AppErrorBoundary>
-      <App />
-    </AppErrorBoundary>
-  </StrictMode>,
+  <ErrorBoundary>
+    <AccessibilityProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </ThemeProvider>
+    </AccessibilityProvider>
+  </ErrorBoundary>
 );

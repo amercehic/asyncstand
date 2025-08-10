@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
+import { ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AuthService } from '@/auth/services/auth.service';
@@ -31,9 +32,12 @@ import { AuditLogService } from '@/common/audit/audit-log.service';
     ]),
     // Only import ScheduleModule in non-test environments
     ...(process.env.NODE_ENV !== 'test' ? [ScheduleModule.forRoot()] : []),
-    JwtModule.register({
-      secret: process.env.JWT_SECRET,
-      signOptions: { expiresIn: '15m' },
+    JwtModule.registerAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        secret: configService.get<string>('jwtSecret'),
+        signOptions: { expiresIn: '15m' },
+      }),
     }),
   ],
   providers: [
