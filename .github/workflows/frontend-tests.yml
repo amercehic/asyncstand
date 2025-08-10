@@ -24,8 +24,6 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -37,12 +35,15 @@ jobs:
         run: pnpm -w install --frozen-lockfile
 
       - name: Typecheck
-        run: pnpm --filter ./apps/frontend typecheck
+        working-directory: apps/frontend
+        run: pnpm typecheck
 
       - name: Lint
-        run: pnpm --filter ./apps/frontend lint
+        working-directory: apps/frontend
+        run: pnpm lint
 
       - name: Run unit tests
         env:
           CI: true
-        run: pnpm --filter ./apps/frontend test:run
+        working-directory: apps/frontend
+        run: pnpm test:run
