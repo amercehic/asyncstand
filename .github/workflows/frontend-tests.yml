@@ -33,6 +33,8 @@ jobs:
 
       - name: Install dependencies
         run: pnpm -w install --frozen-lockfile
+        env:
+          CI: true
 
       - name: Typecheck
         working-directory: apps/frontend

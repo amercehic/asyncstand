@@ -1,7 +1,5 @@
-import React from 'react';
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@/test/utils';
-import { toast } from 'sonner';
 import { LoginPage } from '@/pages/LoginPage';
 
 describe('LoginPage', () => {
