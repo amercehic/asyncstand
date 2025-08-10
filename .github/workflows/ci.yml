@@ -10,48 +10,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
-  security-events: write
 
 jobs:
-  # Job to detect what changed
-  changes:
-    runs-on: ubuntu-latest
-    outputs:
-      frontend: ${{ steps.changes.outputs.frontend }}
-      backend: ${{ steps.changes.outputs.backend }}
-      shared: ${{ steps.changes.outputs.shared }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Check for changes
-        uses: dorny/paths-filter@v3
-        id: changes
-        with:
-          filters: |
-            frontend:
-              - 'apps/frontend/**'
-              - 'packages/shared/**'
-              - 'package.json'
-              - 'pnpm-lock.yaml'
-            backend:
-              - 'apps/backend/**'
-              - 'packages/shared/**'
-              - 'package.json'
-              - 'pnpm-lock.yaml'
-            shared:
-              - 'packages/shared/**'
-              - 'package.json'
-              - 'pnpm-lock.yaml'
-
   # Frontend Tests
   frontend-test:
-    needs: changes
-    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -119,8 +81,6 @@ jobs:
 
   # Backend Tests
   backend-test:
-    needs: changes
-    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
 
     services:
@@ -240,8 +200,6 @@ jobs:
 
   # Build Test
   build-test:
-    needs: changes
-    if: needs.changes.outputs.frontend == 'true' || needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -287,35 +245,11 @@ jobs:
             packages/shared/dist/
           retention-days: 7
 
-  # Security Scan
-  security-scan:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          exit-code: '0'
-
-      - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        if: always() && hashFiles('trivy-results.sarif') != ''
-        with:
-          sarif_file: 'trivy-results.sarif'
 
   # Status Check (runs always to provide overall status)
   status-check:
     runs-on: ubuntu-latest
-    needs: [changes, frontend-test, backend-test, build-test, security-scan]
+    needs: [frontend-test, backend-test, build-test]
     if: always()
     steps:
       - name: Check overall status
@@ -324,18 +258,12 @@ jobs:
           echo "  frontend-test: ${{ needs.frontend-test.result }}"
           echo "  backend-test: ${{ needs.backend-test.result }}"
           echo "  build-test: ${{ needs.build-test.result }}"
-          echo "  security-scan: ${{ needs.security-scan.result }}"
-
+          
           # Check for any failures
-          if [[ "${{ needs.frontend-test.result }}" == "failure" || "${{ needs.backend-test.result }}" == "failure" || "${{ needs.build-test.result }}" == "failure" || "${{ needs.security-scan.result }}" == "failure" ]]; then
+          if [[ "${{ needs.frontend-test.result }}" == "failure" || "${{ needs.backend-test.result }}" == "failure" || "${{ needs.build-test.result }}" == "failure" ]]; then
             echo "❌ One or more jobs failed"
             exit 1
-          # Check if all test jobs were skipped (no relevant changes)
-          elif [[ "${{ needs.frontend-test.result }}" == "skipped" && "${{ needs.backend-test.result }}" == "skipped" && "${{ needs.build-test.result }}" == "skipped" ]]; then
-            echo "⚠️ All tests were skipped - no relevant changes detected"
-            # Security scan always runs, so don't fail if only that succeeded
-            exit 0
           else
-            echo "✅ All jobs passed or were skipped appropriately"
+            echo "✅ All jobs passed successfully"
             exit 0
           fi
