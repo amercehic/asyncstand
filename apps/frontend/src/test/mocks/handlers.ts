@@ -1,60 +1,50 @@
 import { http, HttpResponse } from 'msw';
 
 export const handlers = [
-  // Mock API endpoints
-  http.get('/api/health', () => {
-    return HttpResponse.json({ status: 'ok' });
-  }),
+  // Health
+  http.get('*/health', () => HttpResponse.json({ status: 'ok' })),
 
-  http.post('/api/auth/login', async ({ request }) => {
+  // Auth: login (match any host)
+  http.post('*/auth/login', async ({ request }) => {
     const body = await request.json();
     const { email, password } = body as { email: string; password: string };
 
-    // Mock authentication logic
     if (email === 'test@example.com' && password === 'password') {
       return HttpResponse.json({
+        accessToken: 'mock-access-token',
+        expiresIn: 3600,
         user: {
           id: '1',
           email: 'test@example.com',
           name: 'Test User',
+          role: 'user',
         },
-        token: 'mock-jwt-token',
+        organizations: [],
       });
     }
 
-    return new HttpResponse(null, { status: 401 });
+    return HttpResponse.json({ message: 'Invalid credentials' }, { status: 401 });
   }),
 
-  http.post('/api/auth/register', async ({ request }) => {
+  // Auth: signup
+  http.post('*/auth/signup', async ({ request }) => {
     const body = await request.json();
-    const { email, name } = body as {
-      email: string;
-      password: string;
-      name: string;
-    };
+    const { email, name } = body as { email: string; password: string; name: string };
 
-    // Mock registration logic
-    return HttpResponse.json({
-      user: {
-        id: '2',
-        email,
-        name,
-      },
-      token: 'mock-jwt-token',
-    });
+    return HttpResponse.json({ id: '2', email, name }, { status: 201 });
   }),
 
-  http.get('/api/auth/me', ({ request }) => {
+  // Auth: me
+  http.get('*/auth/me', ({ request }) => {
     const authorization = request.headers.get('authorization');
-
     if (!authorization || !authorization.includes('Bearer')) {
-      return new HttpResponse(null, { status: 401 });
+      return HttpResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
+    return HttpResponse.json({ id: '1', email: 'test@example.com', name: 'Test User' });
+  }),
 
-    return HttpResponse.json({
-      id: '1',
-      email: 'test@example.com',
-      name: 'Test User',
-    });
+  // Auth: logout
+  http.post('*/auth/logout', () => {
+    return HttpResponse.json({ success: true });
   }),
 ];

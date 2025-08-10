@@ -9,7 +9,7 @@ interface PageErrorFallbackProps {
   resetError: () => void;
 }
 
-function PageErrorFallback({ resetError }: Pick<PageErrorFallbackProps, 'resetError'>) {
+function PageErrorFallback({ resetError }: PageErrorFallbackProps) {
   const navigate = useNavigate();
 
   return (

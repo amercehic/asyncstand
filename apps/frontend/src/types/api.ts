@@ -92,8 +92,20 @@ export interface CreateStandupConfigRequest {
 
 // API Response types
 export interface AuthResponse {
-  user: User;
-  tokens: AuthTokens;
+  accessToken: string;
+  expiresIn: number;
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+  };
+  organizations: Array<{
+    id: string;
+    name: string;
+    role: string;
+    isPrimary: boolean;
+  }>;
 }
 
 export interface PaginatedResponse<T> {

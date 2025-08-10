@@ -1,9 +1,10 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ModernButton } from '@/components/ui';
 import { ArrowRight, Zap, Shield, TrendingUp } from 'lucide-react';
 import { usePerformanceMonitor } from '@/hooks';
+import { useAuth } from '@/contexts';
 import type { FeatureItem, StatItem } from '@/types';
 
 interface FeatureCardProps extends FeatureItem {
@@ -43,8 +44,16 @@ const StatCard = React.memo<StatCardProps>(({ value, label, index }) => (
 
 export const LandingPage = React.memo(() => {
   const navigate = useNavigate();
+  const { isAuthenticated, isLoading } = useAuth();
   const isNavigatingRef = useRef(false);
   usePerformanceMonitor('LandingPage');
+
+  // Redirect authenticated users to dashboard
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isAuthenticated, isLoading, navigate]);
 
   const handleNavigation = useCallback(
     (path: string) => {

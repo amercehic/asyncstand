@@ -6,7 +6,8 @@ import React, {
   useEffect,
   useMemo,
 } from 'react';
-import type { User, AuthTokens } from '@/types';
+import { authApi, setAuthToken } from '@/lib/api';
+import type { User, AuthTokens, SignUpRequest } from '@/types';
 
 interface AuthState {
   user: User | null;
@@ -24,7 +25,8 @@ type AuthAction =
 
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  signup: (data: SignUpRequest) => Promise<void>;
+  logout: () => Promise<void>;
   updateUser: (updates: Partial<User>) => void;
 }
 
@@ -93,12 +95,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
           const isTokenValid = new Date(tokens.expiresAt) > new Date();
 
           if (isTokenValid && isMounted) {
+            // Set the token in API client
+            setAuthToken(tokens.accessToken);
             dispatch({ type: 'RESTORE_SESSION', payload: { user, tokens } });
             return;
+          } else {
+            // Clear expired tokens
+            localStorage.removeItem('auth_tokens');
+            localStorage.removeItem('auth_user');
           }
         }
       } catch (error) {
         console.error('Failed to restore session:', error);
+        // Clear corrupted data
+        localStorage.removeItem('auth_tokens');
+        localStorage.removeItem('auth_user');
       }
 
       if (isMounted) {
@@ -113,48 +124,81 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
   }, []);
 
-  const login = useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string) => {
+    dispatch({ type: 'SET_LOADING', payload: true });
+
+    try {
+      const response = await authApi.login({ email, password });
+
+      // Convert backend response to our frontend format
+      const user: User = {
+        id: response.user.id,
+        email: response.user.email,
+        name: response.user.name,
+        role: response.user.role as 'user' | 'admin',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      const tokens: AuthTokens = {
+        accessToken: response.accessToken,
+        refreshToken: '', // Backend uses HTTP-only cookies for refresh tokens
+        expiresAt: new Date(Date.now() + response.expiresIn * 1000).toISOString(),
+      };
+
+      // Set token in API client
+      setAuthToken(response.accessToken);
+
+      // Save to localStorage
+      localStorage.setItem('auth_tokens', JSON.stringify(tokens));
+      localStorage.setItem('auth_user', JSON.stringify(user));
+
+      // Store organizations info for future use
+      localStorage.setItem('user_organizations', JSON.stringify(response.organizations));
+
+      dispatch({ type: 'LOGIN_SUCCESS', payload: { user, tokens } });
+    } catch (error) {
+      dispatch({ type: 'SET_LOADING', payload: false });
+      throw error;
+    }
+  }, []);
+
+  const signup = useCallback(
+    async (data: SignUpRequest) => {
       dispatch({ type: 'SET_LOADING', payload: true });
 
       try {
-        // TODO: Replace with actual API call - password will be used when implementing real auth
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await authApi.signup({
+          name: data.name,
+          email: data.email,
+          password: data.password,
+        });
 
-        // Mock successful login
-        const mockUser: User = {
-          id: '1',
-          email,
-          name: email.split('@')[0],
-          role: 'user',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-
-        const mockTokens: AuthTokens = {
-          accessToken: 'mock_access_token',
-          refreshToken: 'mock_refresh_token',
-          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
-        };
-
-        // Save to localStorage
-        localStorage.setItem('auth_tokens', JSON.stringify(mockTokens));
-        localStorage.setItem('auth_user', JSON.stringify(mockUser));
-
-        dispatch({ type: 'LOGIN_SUCCESS', payload: { user: mockUser, tokens: mockTokens } });
+        // After successful signup, automatically log the user in
+        await login(data.email, data.password);
       } catch (error) {
         dispatch({ type: 'SET_LOADING', payload: false });
         throw error;
       }
     },
-    []
+    [login]
   );
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    try {
+      await authApi.logout();
+    } catch (error) {
+      // Continue with local logout even if API call fails
+      console.warn('Logout API call failed:', error);
+    }
+
+    // Clear API token
+    setAuthToken(null);
+
     // Clear localStorage
     localStorage.removeItem('auth_tokens');
     localStorage.removeItem('auth_user');
+    localStorage.removeItem('user_organizations');
 
     dispatch({ type: 'LOGOUT' });
   }, []);
@@ -176,10 +220,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     (): AuthContextType => ({
       ...state,
       login,
+      signup,
       logout,
       updateUser,
     }),
-    [state, login, logout, updateUser]
+    [state, login, signup, logout, updateUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

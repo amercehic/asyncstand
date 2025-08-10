@@ -96,11 +96,11 @@ describe('AuthContext', () => {
 
     // Wait a bit more for localStorage to be updated
     await waitFor(() => {
-      const storedUser = localStorage.getItem('auth-user');
+      const storedUser = localStorage.getItem('auth_user');
       expect(storedUser).toBeTruthy();
     });
 
-    const storedUser = localStorage.getItem('auth-user');
+    const storedUser = localStorage.getItem('auth_user');
     expect(JSON.parse(storedUser!)).toMatchObject({
       email: 'test@example.com',
     });
@@ -112,7 +112,7 @@ describe('AuthContext', () => {
     futureDate.setHours(futureDate.getHours() + 1); // 1 hour from now
 
     localStorage.setItem(
-      'auth-user',
+      'auth_user',
       JSON.stringify({
         id: '1',
         email: 'stored@example.com',
@@ -120,7 +120,7 @@ describe('AuthContext', () => {
       })
     );
     localStorage.setItem(
-      'auth-tokens',
+      'auth_tokens',
       JSON.stringify({
         accessToken: 'stored-token',
         refreshToken: 'refresh-token',

@@ -1,14 +1,16 @@
 import React, { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { ModernButton, FormField } from '@/components/ui';
 import { ArrowLeft, Eye, EyeOff, Github, Mail } from 'lucide-react';
 import { useAuth } from '@/contexts';
 import type { LoginFormData, FormFieldError, FormSubmitHandler } from '@/types';
+import { normalizeApiError } from '@/utils';
 
 export const LoginPage = React.memo(() => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login, isLoading: authLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState<LoginFormData>({
@@ -49,9 +51,13 @@ export const LoginPage = React.memo(() => {
         toast.loading('Signing you in...', { id: 'login' });
         await login(formData.email, formData.password);
         toast.success('Welcome back!', { id: 'login' });
-        navigate('/'); // Redirect to home page
-      } catch {
-        toast.error('Invalid email or password', { id: 'login' });
+
+        // Redirect to intended page or dashboard
+        const from = location.state?.from?.pathname ?? '/dashboard';
+        navigate(from, { replace: true });
+      } catch (error) {
+        const { message } = normalizeApiError(error, 'Invalid email or password');
+        toast.error(message, { id: 'login' });
       }
     },
     [validateForm, login, formData.email, formData.password, navigate]
@@ -150,40 +156,35 @@ export const LoginPage = React.memo(() => {
               data-testid="email-input"
             />
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                  Password
-                </label>
+            <FormField
+              label="Password"
+              id="password"
+              type={showPassword ? 'text' : 'password'}
+              placeholder="Enter your password"
+              value={formData.password}
+              onChange={e => handleInputChange('password', e.target.value)}
+              error={errors.password}
+              data-testid="password-input"
+              rightElement={
                 <button
                   type="button"
-                  className="text-sm text-primary hover:text-primary/80 transition-smooth"
-                  data-testid="forgot-password-button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="text-muted-foreground hover:text-foreground transition-smooth"
+                  data-testid="toggle-password-visibility"
                 >
-                  Forgot password?
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
-              </div>
-              <FormField
-                label=""
-                id="password"
-                type={showPassword ? 'text' : 'password'}
-                placeholder="Enter your password"
-                value={formData.password}
-                onChange={e => handleInputChange('password', e.target.value)}
-                error={errors.password}
-                data-testid="password-input"
-                rightElement={
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="text-muted-foreground hover:text-foreground transition-smooth"
-                    data-testid="toggle-password-visibility"
-                  >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
-                }
-                required
-              />
+              }
+              required
+            />
+            <div className="flex justify-end -mt-1">
+              <button
+                type="button"
+                className="text-sm text-primary hover:text-primary/80 transition-smooth"
+                data-testid="forgot-password-button"
+              >
+                Forgot password?
+              </button>
             </div>
 
             <ModernButton

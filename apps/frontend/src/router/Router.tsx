@@ -3,6 +3,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { Layout } from '@/router/Layout';
 import { ErrorPage } from '@/pages/ErrorPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
 
 // Lazy load pages for better performance
 const LandingPage = React.lazy(() =>
@@ -13,6 +14,9 @@ const LoginPage = React.lazy(() =>
 );
 const SignUpPage = React.lazy(() =>
   import('@/pages/SignUpPage').then(module => ({ default: module.SignUpPage }))
+);
+const DashboardPage = React.lazy(() =>
+  import('@/pages/DashboardPage').then(module => ({ default: module.DashboardPage }))
 );
 
 // Loading component
@@ -55,6 +59,17 @@ const router = createBrowserRouter([
           <Suspense fallback={<PageLoader />}>
             <SignUpPage />
           </Suspense>
+        ),
+        errorElement: <ErrorPage />,
+      },
+      {
+        path: 'dashboard',
+        element: (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <DashboardPage />
+            </Suspense>
+          </ProtectedRoute>
         ),
         errorElement: <ErrorPage />,
       },

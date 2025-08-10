@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { ModernButton, FormField } from '@/components/ui';
-import { ArrowLeft, Eye, EyeOff, Github, Mail, Check, X } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, Github, Mail, X, CheckCircle2 } from 'lucide-react';
+import { useAuth } from '@/contexts';
 import type { SignUpFormData, FormFieldError } from '@/types';
 
 export const SignUpPage = React.memo(() => {
   const navigate = useNavigate();
+  const { signup, isLoading: authLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState<SignUpFormData>({
     name: '',
@@ -16,13 +18,13 @@ export const SignUpPage = React.memo(() => {
     agreeToTerms: false,
   });
   const [errors, setErrors] = useState<FormFieldError>({});
-  const [isLoading, setIsLoading] = useState(false);
 
   const passwordRequirements = [
     { text: 'At least 8 characters', test: (pwd: string) => pwd.length >= 8 },
     { text: 'Contains uppercase letter', test: (pwd: string) => /[A-Z]/.test(pwd) },
     { text: 'Contains lowercase letter', test: (pwd: string) => /[a-z]/.test(pwd) },
     { text: 'Contains number', test: (pwd: string) => /\d/.test(pwd) },
+    { text: 'Contains special character', test: (pwd: string) => /[@$!%*?&]/.test(pwd) },
   ];
 
   const validateForm = () => {
@@ -61,17 +63,48 @@ export const SignUpPage = React.memo(() => {
       return;
     }
 
-    setIsLoading(true);
-
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      toast.success('Account created successfully! Welcome to AsyncStand!');
-      console.log('Signup attempt:', formData);
-    } catch {
-      toast.error('Something went wrong. Please try again.');
-    } finally {
-      setIsLoading(false);
+      toast.loading('Creating your account...', { id: 'signup' });
+      await signup({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+      });
+      toast.success('Account created successfully! Welcome to AsyncStand!', { id: 'signup' });
+      navigate('/dashboard');
+    } catch (error) {
+      // Extract message from different possible error response formats
+      let message = 'Something went wrong. Please try again.';
+
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'response' in error &&
+        typeof (error as { response?: unknown }).response === 'object' &&
+        (error as { response?: { data?: unknown } }).response !== null &&
+        'data' in (error as { response?: { data?: unknown } }).response!
+      ) {
+        const data = (error as { response: { data: Record<string, unknown> } }).response.data;
+        if (typeof data === 'object' && data !== null) {
+          // Try different message properties based on backend response format
+          message =
+            (typeof data.message === 'string' && data.message) ||
+            (typeof data.title === 'string' && data.title) ||
+            (typeof data.detail === 'string' && data.detail) ||
+            message;
+
+          // Handle validation errors specifically
+          if (
+            'code' in data &&
+            data.code === 'EMAIL_ALREADY_EXISTS' &&
+            typeof data.title === 'string'
+          ) {
+            message = data.title;
+          }
+        }
+      }
+
+      toast.error(message, { id: 'signup' });
     }
   };
 
@@ -218,16 +251,33 @@ export const SignUpPage = React.memo(() => {
                         transition={{ delay: index * 0.1 }}
                         className="flex items-center gap-2 text-sm"
                       >
-                        <div
-                          className={`w-4 h-4 rounded-full flex items-center justify-center transition-all duration-200 ${
-                            isMet ? 'bg-secondary scale-110' : 'bg-muted'
-                          }`}
-                        >
-                          {isMet ? (
-                            <Check className="w-3 h-3 text-white" />
-                          ) : (
-                            <X className="w-3 h-3 text-muted-foreground" />
-                          )}
+                        <div className="w-5 h-5 flex items-center justify-center">
+                          <AnimatePresence mode="wait" initial={false}>
+                            {isMet ? (
+                              <motion.div
+                                key="met"
+                                initial={{ scale: 0.6, rotate: -90, opacity: 0 }}
+                                animate={{ scale: 1, rotate: 0, opacity: 1 }}
+                                exit={{ scale: 0.6, rotate: 90, opacity: 0 }}
+                                transition={{ type: 'spring', stiffness: 400, damping: 24 }}
+                                className="text-secondary"
+                              >
+                                <CheckCircle2 className="w-5 h-5" />
+                              </motion.div>
+                            ) : (
+                              <motion.div
+                                key="unmet"
+                                initial={{ scale: 0.6, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                exit={{ scale: 0.6, opacity: 0 }}
+                                transition={{ type: 'spring', stiffness: 400, damping: 24 }}
+                              >
+                                <div className="w-4 h-4 rounded-full flex items-center justify-center bg-muted">
+                                  <X className="w-3 h-3 text-muted-foreground" />
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
                         <span
                           className={`transition-colors duration-200 ${isMet ? 'text-secondary' : 'text-muted-foreground'}`}
@@ -278,11 +328,11 @@ export const SignUpPage = React.memo(() => {
               type="submit"
               className="w-full"
               size="lg"
-              isLoading={isLoading}
+              isLoading={authLoading}
               disabled={!formData.agreeToTerms}
               data-testid="create-account-submit-button"
             >
-              {isLoading ? 'Creating Account...' : 'Create Account'}
+              {authLoading ? 'Creating Account...' : 'Create Account'}
             </ModernButton>
           </form>
 
