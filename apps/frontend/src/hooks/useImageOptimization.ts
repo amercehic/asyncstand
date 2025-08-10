@@ -43,7 +43,7 @@ export function useImageOptimization(
   const generateSrcSet = useCallback(
     (src: string) => {
       const widths = [320, 640, 768, 1024, 1280, 1536];
-      return widths.map(width => `${generateOptimizedUrl(src, width)} ${width}w`).join(', ');
+      return widths.map(width => `${generateOptimizedUrl(src)} ${width}w`).join(', ');
     },
     [generateOptimizedUrl]
   );

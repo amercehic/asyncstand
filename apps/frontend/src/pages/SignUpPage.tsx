@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { ModernButton, FormField } from '@/components/ui';
 import { ArrowLeft, Eye, EyeOff, Github, Mail, X, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '@/contexts';
+import { normalizeApiError } from '@/utils';
 import type { SignUpFormData, FormFieldError } from '@/types';
 
 export const SignUpPage = React.memo(() => {
@@ -73,37 +74,7 @@ export const SignUpPage = React.memo(() => {
       toast.success('Account created successfully! Welcome to AsyncStand!', { id: 'signup' });
       navigate('/dashboard');
     } catch (error) {
-      // Extract message from different possible error response formats
-      let message = 'Something went wrong. Please try again.';
-
-      if (
-        typeof error === 'object' &&
-        error !== null &&
-        'response' in error &&
-        typeof (error as { response?: unknown }).response === 'object' &&
-        (error as { response?: { data?: unknown } }).response !== null &&
-        'data' in (error as { response?: { data?: unknown } }).response!
-      ) {
-        const data = (error as { response: { data: Record<string, unknown> } }).response.data;
-        if (typeof data === 'object' && data !== null) {
-          // Try different message properties based on backend response format
-          message =
-            (typeof data.message === 'string' && data.message) ||
-            (typeof data.title === 'string' && data.title) ||
-            (typeof data.detail === 'string' && data.detail) ||
-            message;
-
-          // Handle validation errors specifically
-          if (
-            'code' in data &&
-            data.code === 'EMAIL_ALREADY_EXISTS' &&
-            typeof data.title === 'string'
-          ) {
-            message = data.title;
-          }
-        }
-      }
-
+      const { message } = normalizeApiError(error, 'Something went wrong. Please try again.');
       toast.error(message, { id: 'signup' });
     }
   };

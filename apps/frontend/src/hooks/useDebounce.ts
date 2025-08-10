@@ -40,7 +40,7 @@ export function useDebouncedCallback<TArgs extends unknown[], TReturn>(
   }, []);
 
   const debouncedCallback = useCallback(
-    (...args: Parameters<T>) => {
+    (...args: TArgs) => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
@@ -68,7 +68,7 @@ export function useThrottledCallback<TArgs extends unknown[], TReturn>(
   }, [callback]);
 
   const throttledCallback = useCallback(
-    (...args: Parameters<T>) => {
+    (...args: TArgs) => {
       if (Date.now() - lastRun.current >= delay) {
         callbackRef.current(...args);
         lastRun.current = Date.now();

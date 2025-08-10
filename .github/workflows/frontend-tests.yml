@@ -2,17 +2,9 @@ name: Frontend Tests
 
 on:
   push:
-    paths:
-      - 'apps/frontend/**'
-      - 'packages/**'
-      - '.github/workflows/frontend-tests.yml'
-      - 'pnpm-lock.yaml'
+    branches: [main, develop]
   pull_request:
-    paths:
-      - 'apps/frontend/**'
-      - 'packages/**'
-      - '.github/workflows/frontend-tests.yml'
-      - 'pnpm-lock.yaml'
+    branches: [main, develop]
 
 jobs:
   test:

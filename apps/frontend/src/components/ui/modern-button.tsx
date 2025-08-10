@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 import { cn } from '@/components/ui/utils';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -35,8 +34,7 @@ export const ModernButton = React.memo<ButtonProps>(function ModernButton({
   };
 
   return (
-    <motion.button
-      whileTap={{ scale: 0.98 }}
+    <button
       className={cn(baseClasses, variants[variant], sizes[size], className)}
       disabled={disabled || isLoading}
       {...props}
@@ -45,6 +43,6 @@ export const ModernButton = React.memo<ButtonProps>(function ModernButton({
         <div className="mr-2 w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
       )}
       {children}
-    </motion.button>
+    </button>
   );
 });

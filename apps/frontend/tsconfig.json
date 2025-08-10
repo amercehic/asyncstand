@@ -31,7 +31,8 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "verbatimModuleSyntax": false
+    "verbatimModuleSyntax": false,
+    "types": ["@testing-library/jest-dom", "vitest/globals"]
   },
   "include": ["src", "../../packages/shared/src"],
   "exclude": ["dist", "node_modules"]
