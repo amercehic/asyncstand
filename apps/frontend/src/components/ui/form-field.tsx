@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/components/ui/utils';
 
 interface FormFieldProps {
-  label: string;
+  label?: string;
   id: string;
   type?: string;
   placeholder?: string;
@@ -12,6 +12,8 @@ interface FormFieldProps {
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   error?: string;
   required?: boolean;
+  disabled?: boolean;
+  maxLength?: number;
   className?: string;
   rightElement?: React.ReactNode;
   'data-testid'?: string;
@@ -26,6 +28,8 @@ export const FormField = React.memo<FormFieldProps>(function FormField({
   onChange,
   error,
   required = false,
+  disabled = false,
+  maxLength,
   className,
   rightElement,
   'data-testid': dataTestId,
@@ -47,6 +51,8 @@ export const FormField = React.memo<FormFieldProps>(function FormField({
             className
           )}
           required={required}
+          disabled={disabled}
+          maxLength={maxLength}
           data-testid={dataTestId}
         />
         {rightElement && (

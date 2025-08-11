@@ -47,7 +47,7 @@ export const StandupDetailsPage = React.memo(() => {
 
         // For now, we'll use mock data structure
         const mockStandup: StandupDetails = {
-          id: standupId,
+          id: standupId || 'mock-standup-id',
           teamId: 'team-1',
           teamName: 'Engineering Team',
           targetDate: '2024-01-15',
@@ -55,7 +55,6 @@ export const StandupDetailsPage = React.memo(() => {
           totalMembers: 5,
           respondedMembers: 3,
           responseRate: 60,
-          createdAt: new Date().toISOString(),
           questions: [
             'What did you work on yesterday?',
             'What will you work on today?',
@@ -63,6 +62,7 @@ export const StandupDetailsPage = React.memo(() => {
           ],
           timezone: 'UTC',
           timeLocal: '09:00',
+          createdAt: '2024-01-15T00:00:00Z',
           answers: [
             {
               id: '1',

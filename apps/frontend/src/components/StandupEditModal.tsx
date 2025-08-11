@@ -190,7 +190,9 @@ export const StandupEditModal: React.FC<StandupEditModalProps> = ({
     }));
   };
 
-  const toggleDay = (day: (typeof DAYS_OF_WEEK)[0]['key']) => {
+  const toggleDay = (
+    day: 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday'
+  ) => {
     setFormData(prev => ({
       ...prev,
       schedule: {

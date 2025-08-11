@@ -260,7 +260,7 @@ export const IntegrationDetailsPage = React.memo(() => {
               <div>
                 <h2 className="text-2xl font-semibold mb-6">Permissions & Scopes</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {integration.scopes.map((scope, index) => (
+                  {integration.scopes.map((scope: string, index: number) => (
                     <div
                       key={index}
                       className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg border border-border"
@@ -474,7 +474,7 @@ export const IntegrationDetailsPage = React.memo(() => {
                       <div className="border-t border-border pt-4">
                         <p className="text-sm text-muted-foreground mb-2">Questions:</p>
                         <div className="space-y-1">
-                          {standup.questions.slice(0, 2).map((question, index) => (
+                          {standup.questions.slice(0, 2).map((question: string, index: number) => (
                             <p key={index} className="text-sm text-foreground">
                               {index + 1}. {question}
                             </p>

@@ -4,8 +4,8 @@ import { toast } from 'sonner';
 import React from 'react';
 
 import { CreateTeamModal } from '@/components/CreateTeamModal';
-import { TeamsProvider } from '@/contexts/TeamsContext';
-import { AuthProvider } from '@/contexts/AuthContext';
+// import { TeamsProvider } from '@/contexts/TeamsContext';
+// import { AuthProvider } from '@/contexts/AuthContext';
 import { teamsApi, integrationsApi } from '@/lib/api';
 
 // Mock dependencies
@@ -61,15 +61,15 @@ vi.mock('@/contexts/AuthContext', () => ({
 }));
 
 // Test wrapper component
-const TestWrapper = ({ children }: { children: React.ReactNode }) => (
-  <AuthProvider>
-    <TeamsProvider>{children}</TeamsProvider>
-  </AuthProvider>
-);
+// const TestWrapper = ({ children }: { children: React.ReactNode }) => (
+//   <AuthProvider>
+//     <TeamsProvider>{children}</TeamsProvider>
+//   </AuthProvider>
+// );
 
 // Custom render function with providers
 const renderWithProviders = (ui: React.ReactElement) => {
-  return render(ui, { wrapper: TestWrapper });
+  return render(ui);
 };
 
 describe('CreateTeamModal', () => {
@@ -177,7 +177,14 @@ describe('CreateTeamModal', () => {
   });
 
   it('submits form with valid data', async () => {
-    vi.mocked(teamsApi.createTeam).mockResolvedValue({ id: 'new-team-id' });
+    const mockTeam = {
+      id: 'new-team-id',
+      name: 'Test Team',
+      members: [],
+      createdAt: '2023-01-01T00:00:00.000Z',
+      updatedAt: '2023-01-01T00:00:00.000Z',
+    };
+    vi.mocked(teamsApi.createTeam).mockResolvedValue(mockTeam);
 
     renderWithProviders(<CreateTeamModal {...mockProps} />);
 
