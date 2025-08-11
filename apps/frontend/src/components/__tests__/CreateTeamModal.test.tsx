@@ -1,8 +1,11 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@/test/utils';
 import { toast } from 'sonner';
+import React from 'react';
 
 import { CreateTeamModal } from '@/components/CreateTeamModal';
+import { TeamsProvider } from '@/contexts/TeamsContext';
+import { AuthProvider } from '@/contexts/AuthContext';
 import { teamsApi, integrationsApi } from '@/lib/api';
 
 // Mock dependencies
@@ -10,9 +13,13 @@ vi.mock('@/lib/api', () => ({
   teamsApi: {
     createTeam: vi.fn(),
     getAvailableChannels: vi.fn(),
+    getTeams: vi.fn(),
+    getTeam: vi.fn(),
+    updateTeam: vi.fn(),
+    deleteTeam: vi.fn(),
   },
   integrationsApi: {
-    getSlackIntegrations: vi.fn(),
+    getSlackIntegrationsForTeamCreation: vi.fn(),
   },
 }));
 
@@ -28,6 +35,42 @@ vi.mock('sonner', () => ({
 vi.mock('@/utils', () => ({
   normalizeApiError: vi.fn(() => ({ message: 'Test error message' })),
 }));
+
+// Mock auth context to provide a user with orgId
+const mockUser = {
+  id: 'test-user-id',
+  email: 'test@example.com',
+  name: 'Test User',
+  role: 'user' as const,
+  orgId: 'test-org-id',
+  createdAt: '2023-01-01T00:00:00.000Z',
+  updatedAt: '2023-01-01T00:00:00.000Z',
+};
+
+vi.mock('@/contexts/AuthContext', () => ({
+  AuthProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  useAuth: () => ({
+    user: mockUser,
+    isAuthenticated: true,
+    isLoading: false,
+    login: vi.fn(),
+    signup: vi.fn(),
+    logout: vi.fn(),
+    updateUser: vi.fn(),
+  }),
+}));
+
+// Test wrapper component
+const TestWrapper = ({ children }: { children: React.ReactNode }) => (
+  <AuthProvider>
+    <TeamsProvider>{children}</TeamsProvider>
+  </AuthProvider>
+);
+
+// Custom render function with providers
+const renderWithProviders = (ui: React.ReactElement) => {
+  return render(ui, { wrapper: TestWrapper });
+};
 
 describe('CreateTeamModal', () => {
   const mockProps = {
@@ -50,11 +93,14 @@ describe('CreateTeamModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(teamsApi.getAvailableChannels).mockResolvedValue({ channels: mockChannels });
-    vi.mocked(integrationsApi.getSlackIntegrations).mockResolvedValue(mockIntegrations);
+    vi.mocked(integrationsApi.getSlackIntegrationsForTeamCreation).mockResolvedValue(
+      mockIntegrations
+    );
+    vi.mocked(teamsApi.getTeams).mockResolvedValue([]);
   });
 
   it('renders modal when open', async () => {
-    render(<CreateTeamModal {...mockProps} />);
+    renderWithProviders(<CreateTeamModal {...mockProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('Set up a new team for async standups')).toBeInTheDocument();
@@ -69,16 +115,16 @@ describe('CreateTeamModal', () => {
   });
 
   it('does not render when closed', () => {
-    render(<CreateTeamModal {...mockProps} isOpen={false} />);
+    renderWithProviders(<CreateTeamModal {...mockProps} isOpen={false} />);
     expect(screen.queryByText('Create Team')).not.toBeInTheDocument();
   });
 
   it('loads and displays available integrations and channels', async () => {
-    render(<CreateTeamModal {...mockProps} />);
+    renderWithProviders(<CreateTeamModal {...mockProps} />);
 
     await waitFor(() => {
       expect(teamsApi.getAvailableChannels).toHaveBeenCalled();
-      expect(integrationsApi.getSlackIntegrations).toHaveBeenCalled();
+      expect(integrationsApi.getSlackIntegrationsForTeamCreation).toHaveBeenCalled();
     });
 
     const integrationSelect = screen.getByTestId('integration-select');
@@ -98,7 +144,7 @@ describe('CreateTeamModal', () => {
   });
 
   it('has basic form validation structure and disables submit when invalid', async () => {
-    render(<CreateTeamModal {...mockProps} />);
+    renderWithProviders(<CreateTeamModal {...mockProps} />);
 
     await waitFor(() => {
       expect(screen.getByTestId('team-name-input')).toBeInTheDocument();
@@ -133,7 +179,7 @@ describe('CreateTeamModal', () => {
   it('submits form with valid data', async () => {
     vi.mocked(teamsApi.createTeam).mockResolvedValue({ id: 'new-team-id' });
 
-    render(<CreateTeamModal {...mockProps} />);
+    renderWithProviders(<CreateTeamModal {...mockProps} />);
 
     await waitFor(() => {
       expect(screen.getByTestId('team-name-input')).toBeInTheDocument();
@@ -175,7 +221,7 @@ describe('CreateTeamModal', () => {
   });
 
   it('closes modal when close button is clicked', async () => {
-    render(<CreateTeamModal {...mockProps} />);
+    renderWithProviders(<CreateTeamModal {...mockProps} />);
 
     await waitFor(() => {
       expect(screen.getByTestId('close-modal')).toBeInTheDocument();
@@ -186,7 +232,7 @@ describe('CreateTeamModal', () => {
   });
 
   it('closes modal when cancel button is clicked', async () => {
-    render(<CreateTeamModal {...mockProps} />);
+    renderWithProviders(<CreateTeamModal {...mockProps} />);
 
     await waitFor(() => {
       expect(screen.getByTestId('cancel-button')).toBeInTheDocument();
@@ -200,7 +246,7 @@ describe('CreateTeamModal', () => {
     const error = new Error('API Error');
     vi.mocked(teamsApi.createTeam).mockRejectedValue(error);
 
-    render(<CreateTeamModal {...mockProps} />);
+    renderWithProviders(<CreateTeamModal {...mockProps} />);
 
     await waitFor(() => {
       expect(screen.getByTestId('team-name-input')).toBeInTheDocument();

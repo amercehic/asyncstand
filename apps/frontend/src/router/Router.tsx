@@ -30,6 +30,9 @@ const StandupConfigPage = React.lazy(() =>
 const StandupResponsePage = React.lazy(() =>
   import('@/pages/StandupResponsePage').then(module => ({ default: module.StandupResponsePage }))
 );
+const IntegrationsPage = React.lazy(() =>
+  import('@/pages/IntegrationsPage').then(module => ({ default: module.IntegrationsPage }))
+);
 
 // Loading component
 const PageLoader = () => (
@@ -124,6 +127,17 @@ const router = createBrowserRouter([
           <ProtectedRoute>
             <Suspense fallback={<PageLoader />}>
               <StandupResponsePage />
+            </Suspense>
+          </ProtectedRoute>
+        ),
+        errorElement: <ErrorPage />,
+      },
+      {
+        path: 'integrations',
+        element: (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <IntegrationsPage />
             </Suspense>
           </ProtectedRoute>
         ),

@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { X, Building2, Hash, Clock, Globe } from 'lucide-react';
 import { teamsApi, integrationsApi } from '@/lib/api';
-import { normalizeApiError } from '@/utils';
+import { useTeams } from '@/contexts';
 import type { CreateTeamRequest } from '@/types';
 
 interface CreateTeamModalProps {
@@ -44,6 +44,7 @@ const TIMEZONES = [
 
 export const CreateTeamModal = React.memo<CreateTeamModalProps>(
   ({ isOpen, onClose, onSuccess }) => {
+    const { createTeam, isCreating } = useTeams();
     const [formData, setFormData] = useState<CreateTeamFormData>({
       name: '',
       description: '',
@@ -52,7 +53,6 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
       timezone: 'America/New_York',
     });
     const [errors, setErrors] = useState<FormFieldError>({});
-    const [isLoading, setIsLoading] = useState(false);
     const [availableChannels, setAvailableChannels] = useState<
       Array<{ id: string; name: string; isAssigned: boolean }>
     >([]);
@@ -67,7 +67,7 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
       try {
         const [channelsResponse, integrationsResponse] = await Promise.all([
           teamsApi.getAvailableChannels(),
-          integrationsApi.getSlackIntegrations(),
+          integrationsApi.getSlackIntegrationsForTeamCreation(),
         ]);
 
         setAvailableChannels(channelsResponse.channels);
@@ -140,7 +140,7 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
     }, [formData]);
 
     const handleClose = useCallback(() => {
-      if (isLoading) return;
+      if (isCreating) return;
       setFormData({
         name: '',
         description: '',
@@ -151,7 +151,7 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
       setErrors({});
       setDataLoaded(false);
       onClose();
-    }, [isLoading, onClose]);
+    }, [isCreating, onClose]);
 
     const handleSubmit = useCallback(
       async (e: React.FormEvent) => {
@@ -162,10 +162,7 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
           return;
         }
 
-        setIsLoading(true);
         try {
-          toast.loading('Creating team...', { id: 'create-team' });
-
           const createTeamData: CreateTeamRequest = {
             name: formData.name.trim(),
             integrationId: formData.integrationId,
@@ -174,19 +171,15 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
             description: formData.description.trim() || undefined,
           };
 
-          await teamsApi.createTeam(createTeamData);
-
-          toast.success('Team created successfully!', { id: 'create-team' });
+          await createTeam(createTeamData);
           onSuccess();
           handleClose();
         } catch (error) {
-          const { message } = normalizeApiError(error, 'Failed to create team');
-          toast.error(message, { id: 'create-team' });
-        } finally {
-          setIsLoading(false);
+          // Error handling is done in the context
+          console.error('Failed to create team:', error);
         }
       },
-      [validateForm, formData, onSuccess, handleClose]
+      [validateForm, formData, createTeam, onSuccess, handleClose]
     );
 
     const handleInputChange = useCallback(
@@ -202,7 +195,7 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
     // Add ESC key handler
     React.useEffect(() => {
       const handleEscKey = (event: KeyboardEvent) => {
-        if (event.key === 'Escape' && isOpen && !isLoading) {
+        if (event.key === 'Escape' && isOpen && !isCreating) {
           handleClose();
         }
       };
@@ -216,7 +209,7 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
           document.removeEventListener('keydown', handleEscKey);
         }
       };
-    }, [isOpen, isLoading, handleClose]);
+    }, [isOpen, isCreating, handleClose]);
 
     if (!isOpen) return null;
 
@@ -253,7 +246,7 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
               </div>
               <button
                 onClick={handleClose}
-                disabled={isLoading}
+                disabled={isCreating}
                 className="w-8 h-8 rounded-lg hover:bg-muted flex items-center justify-center transition-colors"
                 data-testid="close-modal"
               >
@@ -304,7 +297,7 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
                   className="w-full h-12 px-3 rounded-lg border border-border bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                   required
                   data-testid="integration-select"
-                  disabled={isLoading || (!availableIntegrations.length && dataLoaded)}
+                  disabled={isCreating || (!availableIntegrations.length && dataLoaded)}
                 >
                   <option value="">Select workspace...</option>
                   {availableIntegrations.map(integration => (
@@ -339,7 +332,7 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
                   data-testid="channel-select"
                   disabled={
                     !formData.integrationId ||
-                    isLoading ||
+                    isCreating ||
                     (dataLoaded && availableChannels.filter(c => !c.isAssigned).length === 0)
                   }
                 >
@@ -392,7 +385,7 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
                   type="button"
                   variant="secondary"
                   onClick={handleClose}
-                  disabled={isLoading}
+                  disabled={isCreating}
                   className="flex-1"
                   data-testid="cancel-button"
                 >
@@ -401,9 +394,9 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
                 <ModernButton
                   type="submit"
                   variant="primary"
-                  isLoading={isLoading}
+                  isLoading={isCreating}
                   disabled={
-                    isLoading ||
+                    isCreating ||
                     !isFormValid ||
                     (dataLoaded && availableIntegrations.length === 0) ||
                     (dataLoaded && availableChannels.filter(c => !c.isAssigned).length === 0)

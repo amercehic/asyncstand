@@ -9,9 +9,9 @@ import type {
   Team,
   CreateTeamRequest,
   UpdateTeamRequest,
-  StandupConfig,
-  CreateStandupConfigRequest,
+  Standup,
   StandupInstance,
+  StandupResponse,
 } from '@/types';
 
 export const api = axios.create({
@@ -193,46 +193,89 @@ export const teamsApi = {
   },
 };
 
+// Slack Integration Types
+export interface SlackIntegration {
+  id: string;
+  externalTeamId: string;
+  tokenStatus: 'ok' | 'expired' | 'revoked' | 'error';
+  scopes: string[];
+  installedAt: string;
+  syncState?: {
+    lastUsersSyncAt?: string;
+    lastChannelsSyncAt?: string;
+    errorMsg?: string;
+  };
+}
+
+export interface SlackSyncResponse {
+  success: boolean;
+  usersAdded: number;
+  usersUpdated: number;
+  channelsAdded: number;
+  channelsUpdated: number;
+  errors: string[];
+}
+
 // Integrations API functions
 export const integrationsApi = {
-  async getSlackIntegrations(): Promise<
+  async getSlackIntegrations(): Promise<SlackIntegration[]> {
+    const response = await api.get<SlackIntegration[]>('/slack/integrations');
+    return response.data;
+  },
+
+  async triggerSlackSync(integrationId: string): Promise<SlackSyncResponse> {
+    const response = await api.post<SlackSyncResponse>(`/slack/integrations/${integrationId}/sync`);
+    return response.data;
+  },
+
+  async removeSlackIntegration(integrationId: string): Promise<{ success: boolean }> {
+    const response = await api.delete<{ success: boolean }>(`/slack/integrations/${integrationId}`);
+    return response.data;
+  },
+
+  // Helper method for the Create Team modal
+  async getSlackIntegrationsForTeamCreation(): Promise<
     Array<{ id: string; teamName: string; isActive: boolean; platform: string }>
   > {
-    const response = await api.get('/slack/integrations');
-    // Transform backend response to match frontend interface
-    return response.data.map(
-      (integration: { id: string; externalTeamId: string; tokenStatus: string }) => ({
-        id: integration.id,
-        teamName: integration.externalTeamId, // Using externalTeamId as team name for now
-        isActive: integration.tokenStatus === 'ok',
-        platform: 'Slack',
-      })
-    );
+    const integrations = await this.getSlackIntegrations();
+    return integrations.map(integration => ({
+      id: integration.id,
+      teamName: integration.externalTeamId,
+      isActive: integration.tokenStatus === 'ok',
+      platform: 'Slack',
+    }));
+  },
+
+  // OAuth flow methods
+  async startSlackOAuth(orgId: string): Promise<string> {
+    // This returns the OAuth URL for redirection
+    const response = await api.get(`/slack/oauth/start?orgId=${orgId}`, {
+      maxRedirects: 0,
+      validateStatus: status => status === 302, // Accept redirect response
+    });
+    return response.headers.location;
   },
 };
 
 // Standups API functions
 export const standupsApi = {
-  async getTeamStandups(teamId: string): Promise<StandupConfig[]> {
-    const response = await api.get<StandupConfig[]>(`/teams/${teamId}/standups`);
+  async getStandupsByTeam(teamId: string): Promise<Standup[]> {
+    const response = await api.get<Standup[]>(`/teams/${teamId}/standups`);
     return response.data;
   },
 
-  async getStandup(standupId: string): Promise<StandupConfig> {
-    const response = await api.get<StandupConfig>(`/standups/${standupId}`);
+  async getStandup(standupId: string): Promise<Standup> {
+    const response = await api.get<Standup>(`/standups/${standupId}`);
     return response.data;
   },
 
-  async createStandup(data: CreateStandupConfigRequest): Promise<StandupConfig> {
-    const response = await api.post<StandupConfig>(`/teams/${data.teamId}/standups`, data);
+  async createStandup(teamId: string, data: Partial<Standup>): Promise<Standup> {
+    const response = await api.post<Standup>(`/teams/${teamId}/standups`, data);
     return response.data;
   },
 
-  async updateStandup(
-    standupId: string,
-    data: Partial<CreateStandupConfigRequest>
-  ): Promise<StandupConfig> {
-    const response = await api.put<StandupConfig>(`/standups/${standupId}`, data);
+  async updateStandup(standupId: string, data: Partial<Standup>): Promise<Standup> {
+    const response = await api.put<Standup>(`/standups/${standupId}`, data);
     return response.data;
   },
 
@@ -250,19 +293,31 @@ export const standupsApi = {
     return response.data;
   },
 
+  async triggerStandup(standupId: string): Promise<StandupInstance> {
+    const response = await api.post<StandupInstance>(`/standups/${standupId}/trigger`);
+    return response.data;
+  },
+
+  async getInstanceResponses(instanceId: string): Promise<StandupResponse[]> {
+    const response = await api.get<StandupResponse[]>(`/instances/${instanceId}/responses`);
+    return response.data;
+  },
+
   async submitResponse(
     instanceId: string,
     answers: Record<string, string>
-  ): Promise<{ success: boolean; message: string }> {
-    const response = await api.post(`/instances/${instanceId}/responses`, { answers });
+  ): Promise<StandupResponse> {
+    const response = await api.post<StandupResponse>(`/instances/${instanceId}/responses`, {
+      answers,
+    });
     return response.data;
   },
 
   async updateResponse(
-    instanceId: string,
+    responseId: string,
     answers: Record<string, string>
-  ): Promise<{ success: boolean; message: string }> {
-    const response = await api.put(`/instances/${instanceId}/responses`, { answers });
+  ): Promise<StandupResponse> {
+    const response = await api.put<StandupResponse>(`/responses/${responseId}`, { answers });
     return response.data;
   },
 };

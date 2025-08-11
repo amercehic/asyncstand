@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ModernButton } from '@/components/ui';
-import { LogOut, Users, Calendar, Settings } from 'lucide-react';
+import { LogOut, Users, Calendar, Settings, Zap } from 'lucide-react';
 import { useAuth } from '@/contexts';
 import { toast } from 'sonner';
 
@@ -30,6 +30,7 @@ export const Navbar = React.memo(() => {
   const navItems = [
     { path: '/dashboard', label: 'Dashboard', icon: Calendar },
     { path: '/teams', label: 'Teams', icon: Users },
+    { path: '/integrations', label: 'Integrations', icon: Zap },
   ];
 
   const isActiveRoute = (path: string) => {

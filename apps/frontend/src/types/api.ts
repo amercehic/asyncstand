@@ -12,6 +12,7 @@ export interface User {
   name: string;
   avatar?: string;
   role: 'user' | 'admin';
+  orgId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -25,7 +26,7 @@ export interface Team {
   updatedAt: string;
 }
 
-export interface StandupConfig {
+export interface Standup {
   id: string;
   teamId: string;
   name: string;
@@ -40,6 +41,9 @@ export interface StandupConfig {
   createdAt: string;
   updatedAt: string;
 }
+
+// Alias for backward compatibility
+export type StandupConfig = Standup;
 
 export interface StandupInstance {
   id: string;

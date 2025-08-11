@@ -4,34 +4,13 @@ import { motion } from 'framer-motion';
 import { ModernButton } from '@/components/ui';
 import { CreateTeamModal } from '@/components/CreateTeamModal';
 import { Plus, Users, Settings, Calendar, ArrowRight } from 'lucide-react';
-import { toast } from 'sonner';
-import { teamsApi } from '@/lib/api';
-import type { Team } from '@/types';
+import { useTeams } from '@/contexts';
 
 export const TeamsPage = React.memo(() => {
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { teams, isLoading, refreshTeams } = useTeams();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const fetchTeams = async () => {
-      try {
-        setIsLoading(true);
-        const teamsData = await teamsApi.getTeams();
-        setTeams(teamsData);
-      } catch (error) {
-        console.error('Error fetching teams:', error);
-        toast.error('Failed to load teams');
-        setTeams([]); // Set empty array on error
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchTeams();
-  }, []);
 
   // Auto-open create modal if query param present: ?create=1
   useEffect(() => {
@@ -50,12 +29,7 @@ export const TeamsPage = React.memo(() => {
 
   const handleCreateSuccess = async () => {
     // Refresh teams list after successful creation
-    try {
-      const teamsData = await teamsApi.getTeams();
-      setTeams(teamsData);
-    } catch (error) {
-      console.error('Error refreshing teams:', error);
-    }
+    await refreshTeams();
   };
 
   const handleJoinTeam = () => {
