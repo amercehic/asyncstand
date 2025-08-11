@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ModernButton } from '@/components/ui';
+import { ModernButton, Dropdown } from '@/components/ui';
 import {
   ArrowLeft,
   Settings,
@@ -11,13 +11,17 @@ import {
   CheckCircle,
   AlertCircle,
   MoreVertical,
+  Eye,
+  Edit,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { teamsApi, standupsApi } from '@/lib/api';
 import type { Team, StandupConfig, StandupInstance } from '@/types';
+import type { AxiosError } from 'axios';
 
 export const TeamDetailPage = React.memo(() => {
   const { teamId } = useParams<{ teamId: string }>();
+  const navigate = useNavigate();
   const [team, setTeam] = useState<Team | null>(null);
   const [standups, setStandups] = useState<StandupConfig[]>([]);
   const [recentInstances, setRecentInstances] = useState<StandupInstance[]>([]);
@@ -30,11 +34,31 @@ export const TeamDetailPage = React.memo(() => {
       try {
         setIsLoading(true);
 
-        // Fetch team details and standups in parallel
-        const [teamData, standupsData] = await Promise.all([
-          teamsApi.getTeam(teamId),
-          standupsApi.getTeamStandups(teamId),
-        ]);
+        // Fetch team details first
+        const teamData = await teamsApi.getTeam(teamId);
+
+        // Then try to fetch standups, but handle case where config doesn't exist yet
+        let standupsData: StandupConfig[] = [];
+        try {
+          standupsData = await standupsApi.getTeamStandups(teamId);
+        } catch (standupsError: unknown) {
+          // If standup config doesn't exist, that's okay - show empty state
+          const axiosError = standupsError as AxiosError;
+          const errorData = axiosError?.response?.data as
+            | { code?: string; detail?: string }
+            | undefined;
+
+          if (
+            axiosError?.response?.status === 404 ||
+            errorData?.code === 'STANDUP_CONFIG_NOT_FOUND' ||
+            (errorData?.detail && errorData.detail.includes('STANDUP_CONFIG_NOT_FOUND'))
+          ) {
+            console.log('No standup config found for team, showing empty state');
+          } else {
+            console.error('Error fetching standups:', standupsError);
+            toast.error('Failed to load standup configurations');
+          }
+        }
 
         setTeam(teamData);
         setStandups(standupsData);
@@ -55,9 +79,13 @@ export const TeamDetailPage = React.memo(() => {
 
           setRecentInstances(sortedInstances);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error fetching team data:', error);
-        toast.error('Failed to load team data');
+        if ((error as AxiosError)?.response?.status === 404) {
+          toast.error('Team not found');
+        } else {
+          toast.error('Failed to load team data');
+        }
         setTeam(null);
         setStandups([]);
         setRecentInstances([]);
@@ -165,6 +193,27 @@ export const TeamDetailPage = React.memo(() => {
               </motion.div>
             )}
 
+            {/* Team Integration Info */}
+            {team.channel && (
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.15 }}
+                className="bg-card rounded-2xl p-6 border border-border"
+              >
+                <h2 className="text-xl font-semibold mb-4">Integration</h2>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-green-600 rounded-lg flex items-center justify-center">
+                    <span className="text-white font-bold text-sm">#</span>
+                  </div>
+                  <div>
+                    <p className="font-medium">#{team.channel.name}</p>
+                    <p className="text-sm text-muted-foreground">Slack channel</p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
             {/* Active Standups */}
             <motion.div
               initial={{ opacity: 0, y: 30 }}
@@ -187,7 +236,18 @@ export const TeamDetailPage = React.memo(() => {
                   {standups.map(standup => (
                     <div
                       key={standup.id}
-                      className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors"
+                      className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors cursor-pointer"
+                      onClick={() => {
+                        // Find a recent instance for this standup to navigate to
+                        const recentInstance = recentInstances.find(
+                          instance => instance.configId === standup.id
+                        );
+                        if (recentInstance) {
+                          navigate(`/standups/${recentInstance.id}`);
+                        } else {
+                          toast.info('No recent standup instances found');
+                        }
+                      }}
                     >
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 bg-gradient-to-r from-primary to-primary/80 rounded-lg flex items-center justify-center">
@@ -213,9 +273,43 @@ export const TeamDetailPage = React.memo(() => {
                             Active
                           </span>
                         )}
-                        <ModernButton variant="ghost" size="sm">
-                          <MoreVertical className="w-4 h-4" />
-                        </ModernButton>
+                        <Dropdown
+                          trigger={
+                            <ModernButton variant="ghost" size="sm">
+                              <MoreVertical className="w-4 h-4" />
+                            </ModernButton>
+                          }
+                          items={[
+                            {
+                              label: 'View Details',
+                              icon: Eye,
+                              onClick: () => {
+                                const recentInstance = recentInstances.find(
+                                  instance => instance.configId === standup.id
+                                );
+                                if (recentInstance) {
+                                  navigate(`/standups/${recentInstance.id}`);
+                                } else {
+                                  toast.info('No recent standup instances found');
+                                }
+                              },
+                            },
+                            {
+                              label: 'Edit Configuration',
+                              icon: Edit,
+                              onClick: () => {
+                                toast.info('Edit standup configuration - Coming soon!');
+                              },
+                            },
+                            {
+                              label: 'Configure Settings',
+                              icon: Settings,
+                              onClick: () => {
+                                toast.info('Standup settings - Coming soon!');
+                              },
+                            },
+                          ]}
+                        />
                       </div>
                     </div>
                   ))}
@@ -250,7 +344,8 @@ export const TeamDetailPage = React.memo(() => {
                     return (
                       <div
                         key={instance.id}
-                        className="flex items-center gap-4 p-3 rounded-lg border border-border"
+                        className="flex items-center gap-4 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors cursor-pointer"
+                        onClick={() => navigate(`/standups/${instance.id}`)}
                       >
                         {getStatusIcon(instance.status)}
                         <div className="flex-1">

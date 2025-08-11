@@ -33,6 +33,14 @@ const StandupResponsePage = React.lazy(() =>
 const IntegrationsPage = React.lazy(() =>
   import('@/pages/IntegrationsPage').then(module => ({ default: module.IntegrationsPage }))
 );
+const IntegrationDetailsPage = React.lazy(() =>
+  import('@/pages/IntegrationDetailsPage').then(module => ({
+    default: module.IntegrationDetailsPage,
+  }))
+);
+const StandupDetailsPage = React.lazy(() =>
+  import('@/pages/StandupDetailsPage').then(module => ({ default: module.StandupDetailsPage }))
+);
 
 // Loading component
 const PageLoader = () => (
@@ -138,6 +146,28 @@ const router = createBrowserRouter([
           <ProtectedRoute>
             <Suspense fallback={<PageLoader />}>
               <IntegrationsPage />
+            </Suspense>
+          </ProtectedRoute>
+        ),
+        errorElement: <ErrorPage />,
+      },
+      {
+        path: 'integrations/:integrationId',
+        element: (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <IntegrationDetailsPage />
+            </Suspense>
+          </ProtectedRoute>
+        ),
+        errorElement: <ErrorPage />,
+      },
+      {
+        path: 'standups/:standupId',
+        element: (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <StandupDetailsPage />
             </Suspense>
           </ProtectedRoute>
         ),

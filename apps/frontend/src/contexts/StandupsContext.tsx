@@ -3,6 +3,7 @@ import { standupsApi, type Standup, type StandupInstance, type StandupResponse }
 import { normalizeApiError } from '@/utils';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import type { AxiosError } from 'axios';
 
 interface StandupsState {
   standups: Standup[];
@@ -213,10 +214,27 @@ export function StandupsProvider({ children }: StandupsProviderProps) {
     try {
       const standups = await standupsApi.getStandupsByTeam(teamId);
       dispatch({ type: 'SET_STANDUPS', payload: standups });
-    } catch (error) {
-      const { message } = normalizeApiError(error, 'Failed to load standups');
-      dispatch({ type: 'SET_ERROR', payload: message });
-      console.error('Error fetching standups:', error);
+    } catch (error: unknown) {
+      // Check if this is a 404 for standup config not found - this is expected for new teams
+      const axiosError = error as AxiosError;
+      const errorData = axiosError?.response?.data as
+        | { code?: string; detail?: string }
+        | undefined;
+
+      if (
+        axiosError?.response?.status === 404 ||
+        errorData?.code === 'STANDUP_CONFIG_NOT_FOUND' ||
+        (errorData?.detail && errorData.detail.includes('STANDUP_CONFIG_NOT_FOUND'))
+      ) {
+        // For standup config not found, just set empty standups without showing error
+        dispatch({ type: 'SET_STANDUPS', payload: [] });
+        console.log('No standup config found for team, showing empty state');
+      } else {
+        // For other errors, show the error message
+        const { message } = normalizeApiError(error, 'Failed to load standups');
+        dispatch({ type: 'SET_ERROR', payload: message });
+        console.error('Error fetching standups:', error);
+      }
     }
   }, []);
 

@@ -86,12 +86,19 @@ api.interceptors.response.use(
     }
 
     const payload = error?.response?.data as ApiErrorPayload | undefined;
+    const errorCode =
+      (payload as { code?: string })?.code ||
+      (error?.response?.data as { response?: { code?: string } })?.response?.code;
     const message =
       payload?.message ??
       (error.code === 'ERR_NETWORK' ? 'Network error – check connection' : 'Unexpected error');
 
     // Don't show toast for auth endpoints - let components handle these
-    if (!error.config?.url?.includes('/auth/')) {
+    // Also suppress toasts for expected-not-found cases like missing standup config
+    const isAuthEndpoint = Boolean(error.config?.url?.includes('/auth/'));
+    const isMissingStandupConfig =
+      error.response?.status === 404 && errorCode === 'STANDUP_CONFIG_NOT_FOUND';
+    if (!isAuthEndpoint && !isMissingStandupConfig) {
       toast.error('API Error', {
         description: message,
       });

@@ -52,7 +52,7 @@ export class StandupConfigController {
   @Post()
   @SwaggerCreateStandupConfig()
   @UseGuards(RolesGuard)
-  @Roles(OrgRole.admin)
+  @Roles(OrgRole.owner, OrgRole.admin)
   async createStandupConfigFromBody(
     @CurrentOrg() orgId: string,
     @CurrentUser('userId') userId: string,
@@ -80,7 +80,7 @@ export class StandupConfigController {
   @Post(':id/members/bulk')
   @SwaggerBulkUpdateParticipation()
   @UseGuards(RolesGuard)
-  @Roles(OrgRole.admin)
+  @Roles(OrgRole.owner, OrgRole.admin)
   async bulkUpdateParticipationById(
     @Param('id') configId: string,
     @CurrentOrg() orgId: string,
@@ -113,7 +113,7 @@ export class StandupConfigController {
   @Put(':id')
   @SwaggerUpdateStandupConfig()
   @UseGuards(RolesGuard)
-  @Roles(OrgRole.admin)
+  @Roles(OrgRole.owner, OrgRole.admin)
   async updateStandupConfigById(
     @Param('id') configId: string,
     @CurrentOrg() orgId: string,
@@ -137,7 +137,7 @@ export class StandupConfigController {
   @Delete(':id')
   @SwaggerDeleteStandupConfig()
   @UseGuards(RolesGuard)
-  @Roles(OrgRole.admin)
+  @Roles(OrgRole.owner, OrgRole.admin)
   async deleteStandupConfigById(
     @Param('id') configId: string,
     @CurrentOrg() orgId: string,

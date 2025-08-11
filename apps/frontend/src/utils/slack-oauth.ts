@@ -23,7 +23,7 @@ export const startSlackOAuth = async ({ orgId, onSuccess, onError }: SlackOAuthO
     }
 
     // Start the OAuth flow - this will redirect the popup to Slack
-    const oauthUrl = `/api/slack/oauth/start?orgId=${orgId}`;
+    const oauthUrl = `/slack/oauth/start?orgId=${orgId}`;
     popup.location = oauthUrl;
 
     // Monitor the popup for completion

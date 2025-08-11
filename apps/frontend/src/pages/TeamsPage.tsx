@@ -1,14 +1,30 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ModernButton } from '@/components/ui';
+import { ModernButton, Dropdown } from '@/components/ui';
 import { CreateTeamModal } from '@/components/CreateTeamModal';
-import { Plus, Users, Settings, Calendar, ArrowRight } from 'lucide-react';
+import { TeamSettingsModal } from '@/components/TeamSettingsModal';
+import {
+  Plus,
+  Users,
+  Hash,
+  Activity,
+  TrendingUp,
+  Users2,
+  MoreVertical,
+  Eye,
+  Settings,
+  Calendar,
+} from 'lucide-react';
 import { useTeams } from '@/contexts';
+import { toast } from 'sonner';
+import type { Team } from '@/types';
 
 export const TeamsPage = React.memo(() => {
   const { teams, isLoading, refreshTeams } = useTeams();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [selectedTeamForSettings, setSelectedTeamForSettings] = useState<Team | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -32,9 +48,25 @@ export const TeamsPage = React.memo(() => {
     await refreshTeams();
   };
 
+  const handleTeamSettings = (team: Team) => {
+    setSelectedTeamForSettings(team);
+    setIsSettingsModalOpen(true);
+  };
+
+  const handleSettingsSuccess = async () => {
+    // Refresh teams list after successful update
+    await refreshTeams();
+  };
+
   const handleJoinTeam = () => {
     toast.info('Join team functionality - Coming soon!');
   };
+
+  // Calculate statistics
+  const totalTeams = teams.length;
+  const totalMembers = teams.reduce((acc, team) => acc + team.members.length, 0);
+  const teamsWithChannels = teams.filter(team => team.channel).length;
+  const averageMembersPerTeam = totalTeams > 0 ? Math.round(totalMembers / totalTeams) : 0;
 
   if (isLoading) {
     return (
@@ -83,93 +115,230 @@ export const TeamsPage = React.memo(() => {
           </div>
         </motion.div>
 
-        {/* Teams Grid */}
-        {teams.length > 0 ? (
+        {/* Statistics Dashboard */}
+        {teams.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+            className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"
           >
-            {teams.map((team, index) => (
-              <motion.div
-                key={team.id}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.4, delay: 0.2 + index * 0.1 }}
-                className="bg-card rounded-2xl p-6 border border-border hover:shadow-lg transition-all duration-300 group"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-gradient-to-r from-primary to-primary/80 rounded-xl flex items-center justify-center">
-                      <Users className="w-6 h-6 text-white" />
+            <div className="bg-card rounded-xl p-6 border border-border">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 bg-blue-500/10 rounded-lg flex items-center justify-center">
+                  <Users2 className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{totalTeams}</p>
+                  <p className="text-sm text-muted-foreground">Total Teams</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-card rounded-xl p-6 border border-border">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 bg-green-500/10 rounded-lg flex items-center justify-center">
+                  <Users className="w-5 h-5 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{totalMembers}</p>
+                  <p className="text-sm text-muted-foreground">Total Members</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-card rounded-xl p-6 border border-border">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 bg-purple-500/10 rounded-lg flex items-center justify-center">
+                  <Hash className="w-5 h-5 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{teamsWithChannels}</p>
+                  <p className="text-sm text-muted-foreground">With Slack</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-card rounded-xl p-6 border border-border">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 bg-orange-500/10 rounded-lg flex items-center justify-center">
+                  <TrendingUp className="w-5 h-5 text-orange-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{averageMembersPerTeam}</p>
+                  <p className="text-sm text-muted-foreground">Avg per Team</p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Teams Table/List */}
+        {teams.length > 0 ? (
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="bg-card rounded-xl border border-border overflow-hidden"
+          >
+            {/* Table Header */}
+            <div className="px-6 py-4 border-b border-border bg-muted/30">
+              <div className="grid grid-cols-12 gap-4 items-center text-sm font-medium text-muted-foreground">
+                <div className="col-span-4">Team</div>
+                <div className="col-span-2">Members</div>
+                <div className="col-span-2">Integration</div>
+                <div className="col-span-2">Activity</div>
+                <div className="col-span-2 text-center">Actions</div>
+              </div>
+            </div>
+
+            {/* Table Body */}
+            <div className="divide-y divide-border">
+              {teams.map((team, index) => (
+                <motion.div
+                  key={team.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.4, delay: 0.1 + index * 0.05 }}
+                  className="px-6 py-4 hover:bg-muted/20 transition-colors group cursor-pointer"
+                  onClick={() => navigate(`/teams/${team.id}`)}
+                >
+                  <div className="grid grid-cols-12 gap-4 items-center">
+                    {/* Team Name & Description */}
+                    <div className="col-span-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center">
+                          <span className="text-white font-medium text-sm">
+                            {team.name.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">
+                            {team.name}
+                          </h3>
+                          {team.description && (
+                            <p className="text-sm text-muted-foreground truncate max-w-[200px]">
+                              {team.description}
+                            </p>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-lg">{team.name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {team.members.length} member{team.members.length !== 1 ? 's' : ''}
-                      </p>
+
+                    {/* Members */}
+                    <div className="col-span-2">
+                      <div className="flex items-center gap-2">
+                        <div className="flex -space-x-1">
+                          {team.members.slice(0, 3).map((member, memberIndex) => (
+                            <div
+                              key={member.id}
+                              className="w-6 h-6 bg-gradient-to-br from-primary to-primary/80 rounded-full border-2 border-card flex items-center justify-center"
+                              style={{ zIndex: team.members.length - memberIndex }}
+                            >
+                              <span className="text-white font-medium text-xs">
+                                {member.name.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                          ))}
+                          {team.members.length > 3 && (
+                            <div className="w-6 h-6 bg-muted rounded-full border-2 border-card flex items-center justify-center">
+                              <span className="text-muted-foreground font-medium text-xs">
+                                +{team.members.length - 3}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <span className="text-sm text-muted-foreground">{team.members.length}</span>
+                      </div>
+                    </div>
+
+                    {/* Integration */}
+                    <div className="col-span-2">
+                      {team.channel ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 bg-green-500/10 rounded-md flex items-center justify-center">
+                            <Hash className="w-3 h-3 text-green-600" />
+                          </div>
+                          <span className="text-sm font-medium">#{team.channel.name}</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 bg-muted rounded-md flex items-center justify-center">
+                            <Hash className="w-3 h-3 text-muted-foreground" />
+                          </div>
+                          <span className="text-sm text-muted-foreground">Not connected</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Activity */}
+                    <div className="col-span-2">
+                      <div className="flex items-center gap-2">
+                        <Activity className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">Recent</span>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="col-span-2">
+                      <div className="flex items-center justify-center gap-2">
+                        <ModernButton
+                          variant="ghost"
+                          size="sm"
+                          onClick={e => {
+                            e.stopPropagation();
+                            navigate(`/teams/${team.id}`);
+                          }}
+                          data-testid={`view-team-${team.id}`}
+                        >
+                          <Eye className="w-4 h-4 mr-1" />
+                          View
+                        </ModernButton>
+                        <Dropdown
+                          trigger={
+                            <ModernButton
+                              variant="ghost"
+                              size="sm"
+                              data-testid={`team-actions-${team.id}`}
+                            >
+                              <MoreVertical className="w-4 h-4" />
+                            </ModernButton>
+                          }
+                          items={[
+                            {
+                              label: 'Team Settings',
+                              icon: Settings,
+                              onClick: () => handleTeamSettings(team),
+                            },
+                            {
+                              label: 'View Standups',
+                              icon: Calendar,
+                              onClick: () => navigate(`/teams/${team.id}`),
+                            },
+                            {
+                              label: 'Create Standup',
+                              icon: Plus,
+                              onClick: () => navigate(`/teams/${team.id}/standups/create`),
+                            },
+                          ]}
+                        />
+                      </div>
                     </div>
                   </div>
-                  <ModernButton
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => toast.info('Team settings - Coming soon!')}
-                    data-testid={`team-settings-${team.id}`}
-                  >
-                    <Settings className="w-4 h-4" />
-                  </ModernButton>
-                </div>
-
-                {team.description && (
-                  <p className="text-muted-foreground mb-4 text-sm">{team.description}</p>
-                )}
-
-                <div className="flex items-center justify-between">
-                  <div className="flex -space-x-2">
-                    {team.members.slice(0, 3).map((member, memberIndex) => (
-                      <div
-                        key={member.id}
-                        className="w-8 h-8 bg-gradient-to-r from-primary to-primary/80 rounded-full border-2 border-card flex items-center justify-center"
-                        style={{ zIndex: team.members.length - memberIndex }}
-                      >
-                        <span className="text-white font-medium text-xs">
-                          {member.name.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                    ))}
-                    {team.members.length > 3 && (
-                      <div className="w-8 h-8 bg-muted rounded-full border-2 border-card flex items-center justify-center">
-                        <span className="text-muted-foreground font-medium text-xs">
-                          +{team.members.length - 3}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  <Link to={`/teams/${team.id}`}>
-                    <ModernButton
-                      variant="ghost"
-                      size="sm"
-                      className="group-hover:bg-primary/10"
-                      data-testid={`view-team-${team.id}`}
-                    >
-                      View
-                      <ArrowRight className="w-4 h-4 ml-1" />
-                    </ModernButton>
-                  </Link>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              ))}
+            </div>
           </motion.div>
         ) : (
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
-            className="bg-card rounded-2xl p-12 border border-border text-center"
+            className="bg-card rounded-xl p-12 border border-border text-center"
           >
-            <Users className="w-16 h-16 text-muted-foreground mx-auto mb-6" />
+            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Users2 className="w-8 h-8 text-primary" />
+            </div>
             <h3 className="text-xl font-semibold mb-3">No Teams Yet</h3>
             <p className="text-muted-foreground mb-8 max-w-md mx-auto">
               Get started by creating your first team or joining an existing one to begin
@@ -195,40 +364,6 @@ export const TeamsPage = React.memo(() => {
             </div>
           </motion.div>
         )}
-
-        {/* Quick Stats */}
-        {teams.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-            className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8"
-          >
-            <div className="bg-card rounded-2xl p-6 border border-border">
-              <div className="flex items-center gap-3 mb-2">
-                <Users className="w-5 h-5 text-primary" />
-                <span className="font-medium">Total Teams</span>
-              </div>
-              <p className="text-2xl font-bold text-primary">{teams.length}</p>
-            </div>
-            <div className="bg-card rounded-2xl p-6 border border-border">
-              <div className="flex items-center gap-3 mb-2">
-                <Users className="w-5 h-5 text-primary" />
-                <span className="font-medium">Total Members</span>
-              </div>
-              <p className="text-2xl font-bold text-primary">
-                {teams.reduce((acc, team) => acc + team.members.length, 0)}
-              </p>
-            </div>
-            <div className="bg-card rounded-2xl p-6 border border-border">
-              <div className="flex items-center gap-3 mb-2">
-                <Calendar className="w-5 h-5 text-primary" />
-                <span className="font-medium">Active Standups</span>
-              </div>
-              <p className="text-2xl font-bold text-primary">0</p>
-            </div>
-          </motion.div>
-        )}
       </main>
 
       {/* Create Team Modal */}
@@ -237,6 +372,19 @@ export const TeamsPage = React.memo(() => {
         onClose={() => setIsCreateModalOpen(false)}
         onSuccess={handleCreateSuccess}
       />
+
+      {/* Team Settings Modal */}
+      {selectedTeamForSettings && (
+        <TeamSettingsModal
+          isOpen={isSettingsModalOpen}
+          onClose={() => {
+            setIsSettingsModalOpen(false);
+            setSelectedTeamForSettings(null);
+          }}
+          onSuccess={handleSettingsSuccess}
+          team={selectedTeamForSettings}
+        />
+      )}
     </div>
   );
 });

@@ -1,25 +1,80 @@
 import type { CreateTeamRequest, Team, UpdateTeamRequest } from '@/types';
+import type {
+  TeamListResponse,
+  TeamDetailsResponse,
+  AvailableChannelsResponse,
+  AvailableMembersResponse,
+} from '@/types/backend';
 import { api } from '@/lib/api-client/client';
+
+// Helpers to adapt backend responses to frontend Team shape
+function mapListItemToTeam(item: TeamListResponse['teams'][0]): Team {
+  return {
+    id: String(item.id),
+    name: String(item.name),
+    description: undefined,
+    members: [],
+    createdAt: new Date(item.createdAt).toISOString(),
+    updatedAt: new Date(item.createdAt).toISOString(),
+  };
+}
+
+function mapDetailsToTeam(details: TeamDetailsResponse): Team {
+  return {
+    id: String(details.id),
+    name: String(details.name),
+    description: details.description ?? undefined,
+    members: Array.isArray(details.members)
+      ? details.members.map(m => ({
+          id: String(m.id),
+          email: '',
+          name: String(m.name),
+          role: 'user' as const,
+          createdAt: new Date(details.createdAt).toISOString(),
+          updatedAt: new Date(details.createdAt).toISOString(),
+        }))
+      : [],
+    channel: details.channel
+      ? {
+          id: String(details.channel.id),
+          name: String(details.channel.name),
+        }
+      : undefined,
+    createdAt: new Date(details.createdAt).toISOString(),
+    updatedAt: new Date(details.createdAt).toISOString(),
+  };
+}
 
 export const teamsApi = {
   async getTeams(): Promise<Team[]> {
-    const response = await api.get<Team[]>('/teams');
-    return response.data;
+    const response = await api.get('/teams');
+    const data = response.data as TeamListResponse | Team[] | unknown;
+    if (Array.isArray(data)) {
+      return data as Team[];
+    }
+    if (data && typeof data === 'object' && 'teams' in data) {
+      return (data as TeamListResponse).teams.map(mapListItemToTeam);
+    }
+    return [];
   },
 
   async getTeam(teamId: string): Promise<Team> {
-    const response = await api.get<Team>(`/teams/${teamId}`);
-    return response.data;
+    const response = await api.get(`/teams/${teamId}`);
+    const data = response.data as TeamDetailsResponse;
+    return mapDetailsToTeam(data);
   },
 
-  async createTeam(data: CreateTeamRequest): Promise<{ id: string }> {
+  async createTeam(data: CreateTeamRequest): Promise<Team> {
     const response = await api.post<{ id: string }>('/teams', data);
-    return response.data;
+    const created = response.data;
+    // Fetch full details to align with Team shape
+    return this.getTeam(created.id);
   },
 
   async updateTeam(teamId: string, data: UpdateTeamRequest): Promise<Team> {
-    const response = await api.put<Team>(`/teams/${teamId}`, data);
-    return response.data;
+    await api.put(`/teams/${teamId}`, data);
+    // Return fresh details after update
+    return this.getTeam(teamId);
   },
 
   async deleteTeam(teamId: string): Promise<void> {
@@ -35,17 +90,13 @@ export const teamsApi = {
     await api.delete(`/teams/${teamId}/members/${userId}`);
   },
 
-  async getAvailableChannels(): Promise<{
-    channels: Array<{ id: string; name: string; isAssigned: boolean }>;
-  }> {
+  async getAvailableChannels(): Promise<AvailableChannelsResponse> {
     const response = await api.get('/teams/slack/channels');
-    return response.data;
+    return response.data as AvailableChannelsResponse;
   },
 
-  async getAvailableMembers(): Promise<{
-    members: Array<{ id: string; name: string; platformUserId: string }>;
-  }> {
+  async getAvailableMembers(): Promise<AvailableMembersResponse> {
     const response = await api.get('/teams/slack/members');
-    return response.data;
+    return response.data as AvailableMembersResponse;
   },
 };

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ModernButton, Tooltip } from '@/components/ui';
 import {
@@ -11,7 +12,6 @@ import {
   Clock,
   Users,
   MessageSquare,
-  Zap,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { type SlackIntegration } from '@/lib/api';
@@ -21,6 +21,7 @@ import { SlackIcon, TeamsIcon, DiscordIcon } from '@/components/icons/Integratio
 
 export const IntegrationsPage = React.memo(() => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const {
     integrations,
     isLoading,
@@ -73,6 +74,10 @@ export const IntegrationsPage = React.memo(() => {
 
   const handleDisconnect = async (integrationId: string, teamName: string) => {
     await removeIntegration(integrationId, teamName);
+  };
+
+  const handleViewIntegration = (integration: SlackIntegration) => {
+    navigate(`/integrations/${integration.id}`);
   };
 
   const getStatusIcon = (status: SlackIntegration['tokenStatus']) => {
@@ -140,12 +145,74 @@ export const IntegrationsPage = React.memo(() => {
           </div>
         </motion.div>
 
+        {/* Connection Buttons */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+          className="bg-card rounded-2xl p-8 border border-border mb-8"
+        >
+          <h2 className="text-xl font-semibold mb-4">Available Platforms</h2>
+          <p className="text-muted-foreground mb-6">
+            Connect your workspace tools to get started with async standups.
+          </p>
+          <div className="flex items-center gap-4">
+            {integrations.length > 0 ? (
+              <ModernButton
+                variant="secondary"
+                size="lg"
+                className="border-2 border-green-500 bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-300 cursor-default"
+                disabled
+              >
+                <SlackIcon className="mr-3" size={20} />
+                Slack Already Connected
+              </ModernButton>
+            ) : (
+              <ModernButton
+                variant="primary"
+                size="lg"
+                className="bg-gradient-to-r from-[#4A154B] to-[#350d36] hover:from-[#4A154B]/90 hover:to-[#350d36]/90 text-white border-0"
+                onClick={() => handleConnectIntegration('slack')}
+              >
+                <SlackIcon className="mr-3" size={20} />
+                Connect Slack Workspace
+              </ModernButton>
+            )}
+
+            <Tooltip content="Microsoft Teams integration coming soon!" position="top">
+              <ModernButton
+                variant="secondary"
+                size="lg"
+                className="border-2 border-dashed border-gray-300 dark:border-gray-600 text-muted-foreground cursor-not-allowed opacity-60"
+                onClick={() => handleConnectIntegration('teams')}
+                disabled
+              >
+                <TeamsIcon className="mr-3" size={20} />
+                Microsoft Teams
+              </ModernButton>
+            </Tooltip>
+
+            <Tooltip content="Discord integration coming soon!" position="top">
+              <ModernButton
+                variant="secondary"
+                size="lg"
+                className="border-2 border-dashed border-gray-300 dark:border-gray-600 text-muted-foreground cursor-not-allowed opacity-60"
+                onClick={() => handleConnectIntegration('discord')}
+                disabled
+              >
+                <DiscordIcon className="mr-3" size={20} />
+                Discord
+              </ModernButton>
+            </Tooltip>
+          </div>
+        </motion.div>
+
         {/* Integrations List */}
-        {integrations.length > 0 ? (
+        {integrations.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
             className="space-y-6"
           >
             {integrations.map((integration, index) => (
@@ -154,7 +221,8 @@ export const IntegrationsPage = React.memo(() => {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.4, delay: 0.2 + index * 0.1 }}
-                className="bg-card rounded-2xl p-6 border border-border hover:shadow-lg transition-all duration-300"
+                className="bg-card rounded-2xl p-6 border border-border hover:shadow-lg transition-all duration-300 cursor-pointer"
+                onClick={() => handleViewIntegration(integration)}
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-4">
@@ -179,7 +247,10 @@ export const IntegrationsPage = React.memo(() => {
                     <ModernButton
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleSync(integration.id)}
+                      onClick={e => {
+                        e.stopPropagation();
+                        handleSync(integration.id);
+                      }}
                       disabled={
                         isIntegrationSyncing(integration.id) || integration.tokenStatus !== 'ok'
                       }
@@ -193,7 +264,10 @@ export const IntegrationsPage = React.memo(() => {
                     <ModernButton
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleDisconnect(integration.id, integration.externalTeamId)}
+                      onClick={e => {
+                        e.stopPropagation();
+                        handleDisconnect(integration.id, integration.externalTeamId);
+                      }}
                       data-testid={`disconnect-${integration.id}`}
                     >
                       <Trash2 className="w-4 h-4 text-red-500" />
@@ -241,76 +315,23 @@ export const IntegrationsPage = React.memo(() => {
               </motion.div>
             ))}
           </motion.div>
-        ) : (
+        )}
+
+        {integrations.length === 0 && (
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
             className="bg-card rounded-2xl p-12 border border-border text-center"
           >
-            <div className="flex items-center justify-center gap-6 mb-8">
-              <div className="w-20 h-20 bg-gradient-to-r from-[#4A154B] to-[#350d36] rounded-2xl flex items-center justify-center">
-                <SlackIcon className="text-white" size={28} />
-              </div>
-              <div className="w-20 h-20 bg-gradient-to-r from-[#464EB8] to-[#6264A7] rounded-2xl flex items-center justify-center opacity-50">
-                <TeamsIcon className="text-white" size={28} />
-              </div>
-              <div className="w-20 h-20 bg-gradient-to-r from-[#5865F2] to-[#7289DA] rounded-2xl flex items-center justify-center opacity-50">
-                <DiscordIcon className="text-white" size={28} />
-              </div>
+            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-6">
+              <Settings className="w-8 h-8 text-muted-foreground" />
             </div>
-            <h3 className="text-2xl font-bold mb-4">Connect Your Workspace</h3>
-            <p className="text-muted-foreground mb-8 max-w-lg mx-auto text-center">
-              Choose your preferred communication platform to start managing async standups with
-              your team.
+            <h3 className="text-xl font-semibold mb-3">No Integrations Connected</h3>
+            <p className="text-muted-foreground max-w-md mx-auto">
+              Use the connection buttons above to integrate with your workspace tools and start
+              managing async standups.
             </p>
-            <div className="flex flex-col items-center gap-4 max-w-sm mx-auto">
-              <ModernButton
-                variant="primary"
-                size="lg"
-                className="w-full bg-gradient-to-r from-[#4A154B] to-[#350d36] hover:from-[#4A154B]/90 hover:to-[#350d36]/90 text-white border-0"
-                onClick={() => handleConnectIntegration('slack')}
-                data-testid="empty-connect-slack-button"
-              >
-                <SlackIcon className="mr-3" size={20} />
-                Connect Slack Workspace
-              </ModernButton>
-
-              <div className="flex items-center gap-3 w-full">
-                <Tooltip content="Microsoft Teams integration coming soon!" position="top">
-                  <ModernButton
-                    variant="secondary"
-                    size="lg"
-                    className="flex-1 border-2 border-dashed border-gray-300 dark:border-gray-600 text-muted-foreground cursor-not-allowed opacity-60 whitespace-nowrap"
-                    onClick={() => handleConnectIntegration('teams')}
-                    data-testid="empty-connect-teams-button"
-                    disabled
-                  >
-                    <TeamsIcon className="mr-3" size={20} />
-                    Microsoft Teams
-                  </ModernButton>
-                </Tooltip>
-
-                <Tooltip content="Discord integration coming soon!" position="top">
-                  <ModernButton
-                    variant="secondary"
-                    size="lg"
-                    className="flex-1 border-2 border-dashed border-gray-300 dark:border-gray-600 text-muted-foreground cursor-not-allowed opacity-60 whitespace-nowrap"
-                    onClick={() => handleConnectIntegration('discord')}
-                    data-testid="empty-connect-discord-button"
-                    disabled
-                  >
-                    <DiscordIcon className="mr-3" size={20} />
-                    Discord
-                  </ModernButton>
-                </Tooltip>
-              </div>
-
-              <p className="text-xs text-muted-foreground mt-4 text-center">
-                <Zap className="w-4 h-4 inline mr-1" />
-                More integrations coming soon
-              </p>
-            </div>
           </motion.div>
         )}
       </main>

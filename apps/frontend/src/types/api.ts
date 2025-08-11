@@ -22,6 +22,10 @@ export interface Team {
   name: string;
   description?: string;
   members: User[];
+  channel?: {
+    id: string;
+    name: string;
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -64,6 +68,21 @@ export interface StandupResponse {
   submittedAt: string;
 }
 
+export interface ActiveStandup {
+  id: string;
+  teamId: string;
+  teamName: string;
+  targetDate: string;
+  state: 'pending' | 'collecting' | 'completed' | 'cancelled';
+  totalMembers: number;
+  respondedMembers: number;
+  responseRate: number;
+  createdAt: string;
+  questions: string[];
+  timezone: string;
+  timeLocal: string;
+}
+
 // API Request types
 export interface LoginRequest {
   email: string;
@@ -87,6 +106,9 @@ export interface CreateTeamRequest {
 export interface UpdateTeamRequest {
   name?: string;
   description?: string;
+  integrationId?: string;
+  channelId?: string;
+  timezone?: string;
 }
 
 export interface CreateStandupConfigRequest {

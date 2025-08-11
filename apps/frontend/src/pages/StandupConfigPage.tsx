@@ -6,6 +6,7 @@ import { ArrowLeft, Plus, Trash2, Calendar, Clock, Users, Save } from 'lucide-re
 import { toast } from 'sonner';
 import { teamsApi, standupsApi } from '@/lib/api';
 import type { Team } from '@/types';
+import type { AxiosError } from 'axios';
 
 interface StandupFormData {
   name: string;
@@ -38,6 +39,9 @@ export const StandupConfigPage = React.memo(() => {
   const { teamId } = useParams<{ teamId: string }>();
   const navigate = useNavigate();
   const [team, setTeam] = useState<Team | null>(null);
+  const [availableChannels, setAvailableChannels] = useState<
+    Array<{ id: string; name: string; isAssigned: boolean }>
+  >([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState<StandupFormData>({
@@ -46,29 +50,79 @@ export const StandupConfigPage = React.memo(() => {
     schedule: {
       time: '09:00',
       days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+      timezone: 'UTC',
     },
     slackChannelId: '',
   });
 
   useEffect(() => {
-    const fetchTeam = async () => {
+    const fetchTeamData = async () => {
       if (!teamId) return;
 
       try {
         setIsLoading(true);
-        const teamData = await teamsApi.getTeam(teamId);
+
+        // Fetch team and available channels in parallel
+        const [teamData, channelsData] = await Promise.all([
+          teamsApi.getTeam(teamId),
+          teamsApi.getAvailableChannels().catch(() => ({ channels: [] })),
+        ]);
+
         setTeam(teamData);
-      } catch (error) {
+        setAvailableChannels(channelsData.channels);
+
+        // If team has a channel, auto-select it for new standups
+        if (teamData.channel) {
+          setFormData(prev => ({
+            ...prev,
+            slackChannelId: teamData.channel!.name,
+          }));
+        }
+
+        // Try to fetch existing standup config, but don't fail if it doesn't exist
+        try {
+          const standups = await standupsApi.getTeamStandups(teamId);
+          if (standups.length > 0) {
+            const existingStandup = standups[0];
+            setFormData({
+              name: existingStandup.name,
+              questions: existingStandup.questions,
+              schedule: existingStandup.schedule,
+              slackChannelId: existingStandup.slackChannelId || '',
+            });
+          }
+        } catch (configError: unknown) {
+          // If standup config doesn't exist, that's okay - user can create one
+          const axiosError = configError as AxiosError;
+          const errorData = axiosError?.response?.data as
+            | { code?: string; detail?: string }
+            | undefined;
+
+          if (
+            axiosError?.response?.status === 404 ||
+            errorData?.code === 'STANDUP_CONFIG_NOT_FOUND' ||
+            (errorData?.detail && errorData.detail.includes('STANDUP_CONFIG_NOT_FOUND'))
+          ) {
+            console.log('No existing standup config found, user can create one');
+          } else {
+            console.error('Error fetching standup config:', configError);
+            toast.error('Failed to load existing standup configuration');
+          }
+        }
+      } catch (error: unknown) {
         console.error('Error fetching team:', error);
-        toast.error('Failed to load team data');
+        if ((error as AxiosError)?.response?.status === 404) {
+          toast.error('Team not found');
+        } else {
+          toast.error('Failed to load team data');
+        }
         setTeam(null);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchTeam();
+    fetchTeamData();
   }, [teamId]);
 
   const handleInputChange = (field: keyof StandupFormData, value: string) => {
@@ -151,7 +205,7 @@ export const StandupConfigPage = React.memo(() => {
         slackChannelId: formData.slackChannelId || undefined,
       };
 
-      await standupsApi.createStandup(standupData);
+      await standupsApi.createStandup(teamId!, standupData);
       toast.success('Standup configuration saved successfully');
       navigate(`/teams/${teamId}`);
     } catch (error) {
@@ -244,18 +298,38 @@ export const StandupConfigPage = React.memo(() => {
                     <label htmlFor="slackChannel" className="block text-sm font-medium mb-2">
                       Slack Channel (Optional)
                     </label>
-                    <input
-                      id="slackChannel"
-                      type="text"
-                      value={formData.slackChannelId || ''}
-                      onChange={e =>
-                        setFormData(prev => ({ ...prev, slackChannelId: e.target.value }))
-                      }
-                      className="w-full px-4 py-3 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                      placeholder="#general"
-                    />
+                    {availableChannels.length > 0 ? (
+                      <select
+                        id="slackChannel"
+                        value={formData.slackChannelId || ''}
+                        onChange={e =>
+                          setFormData(prev => ({ ...prev, slackChannelId: e.target.value }))
+                        }
+                        className="w-full px-4 py-3 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                      >
+                        <option value="">Select a channel...</option>
+                        {availableChannels.map(channel => (
+                          <option key={channel.id} value={channel.name}>
+                            #{channel.name} {channel.isAssigned ? '(assigned)' : ''}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        id="slackChannel"
+                        type="text"
+                        value={formData.slackChannelId || ''}
+                        onChange={e =>
+                          setFormData(prev => ({ ...prev, slackChannelId: e.target.value }))
+                        }
+                        className="w-full px-4 py-3 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        placeholder="#general"
+                      />
+                    )}
                     <p className="text-sm text-muted-foreground mt-1">
-                      Responses will be posted to this Slack channel
+                      {availableChannels.length > 0
+                        ? 'Select a channel where standup responses will be posted'
+                        : 'Responses will be posted to this Slack channel (enter manually)'}
                     </p>
                   </div>
                 </div>
@@ -386,13 +460,47 @@ export const StandupConfigPage = React.memo(() => {
                       className="w-full px-4 py-3 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                     >
                       <option value="UTC">UTC</option>
-                      <option value="America/New_York">Eastern Time</option>
-                      <option value="America/Chicago">Central Time</option>
-                      <option value="America/Denver">Mountain Time</option>
-                      <option value="America/Los_Angeles">Pacific Time</option>
-                      <option value="Europe/London">London</option>
-                      <option value="Europe/Berlin">Berlin</option>
-                      <option value="Asia/Tokyo">Tokyo</option>
+                      <optgroup label="Americas">
+                        <option value="America/New_York">Eastern Time (New York)</option>
+                        <option value="America/Chicago">Central Time (Chicago)</option>
+                        <option value="America/Denver">Mountain Time (Denver)</option>
+                        <option value="America/Los_Angeles">Pacific Time (Los Angeles)</option>
+                        <option value="America/Toronto">Toronto</option>
+                        <option value="America/Vancouver">Vancouver</option>
+                      </optgroup>
+                      <optgroup label="Europe">
+                        <option value="Europe/London">London</option>
+                        <option value="Europe/Paris">Paris</option>
+                        <option value="Europe/Berlin">Berlin</option>
+                        <option value="Europe/Rome">Rome</option>
+                        <option value="Europe/Madrid">Madrid</option>
+                        <option value="Europe/Amsterdam">Amsterdam</option>
+                        <option value="Europe/Stockholm">Stockholm</option>
+                        <option value="Europe/Oslo">Oslo</option>
+                        <option value="Europe/Copenhagen">Copenhagen</option>
+                        <option value="Europe/Helsinki">Helsinki</option>
+                        <option value="Europe/Warsaw">Warsaw</option>
+                        <option value="Europe/Prague">Prague</option>
+                        <option value="Europe/Vienna">Vienna</option>
+                        <option value="Europe/Zurich">Zurich</option>
+                      </optgroup>
+                      <optgroup label="Asia">
+                        <option value="Asia/Tokyo">Tokyo</option>
+                        <option value="Asia/Seoul">Seoul</option>
+                        <option value="Asia/Shanghai">Shanghai</option>
+                        <option value="Asia/Hong_Kong">Hong Kong</option>
+                        <option value="Asia/Singapore">Singapore</option>
+                        <option value="Asia/Bangkok">Bangkok</option>
+                        <option value="Asia/Mumbai">Mumbai</option>
+                        <option value="Asia/Dubai">Dubai</option>
+                        <option value="Asia/Jerusalem">Jerusalem</option>
+                      </optgroup>
+                      <optgroup label="Australia & Pacific">
+                        <option value="Australia/Sydney">Sydney</option>
+                        <option value="Australia/Melbourne">Melbourne</option>
+                        <option value="Australia/Perth">Perth</option>
+                        <option value="Pacific/Auckland">Auckland</option>
+                      </optgroup>
                     </select>
                   </div>
                 </div>
