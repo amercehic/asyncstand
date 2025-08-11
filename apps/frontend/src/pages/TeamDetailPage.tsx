@@ -18,6 +18,8 @@ import { toast } from 'sonner';
 import { teamsApi, standupsApi } from '@/lib/api';
 import type { Team, StandupConfig, StandupInstance } from '@/types';
 import type { AxiosError } from 'axios';
+import { TeamSettingsModal } from '@/components/TeamSettingsModal';
+import { StandupEditModal } from '@/components/StandupEditModal';
 
 export const TeamDetailPage = React.memo(() => {
   const { teamId } = useParams<{ teamId: string }>();
@@ -26,6 +28,9 @@ export const TeamDetailPage = React.memo(() => {
   const [standups, setStandups] = useState<StandupConfig[]>([]);
   const [recentInstances, setRecentInstances] = useState<StandupInstance[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isTeamSettingsOpen, setIsTeamSettingsOpen] = useState(false);
+  const [isStandupEditOpen, setIsStandupEditOpen] = useState(false);
+  const [selectedStandup, setSelectedStandup] = useState<StandupConfig | null>(null);
 
   useEffect(() => {
     const fetchTeamData = async () => {
@@ -97,6 +102,35 @@ export const TeamDetailPage = React.memo(() => {
     fetchTeamData();
   }, [teamId]);
 
+  const handleTeamSettingsSuccess = async () => {
+    // Refetch team data after successful update
+    if (teamId) {
+      try {
+        const teamData = await teamsApi.getTeam(teamId);
+        setTeam(teamData);
+      } catch (error) {
+        console.error('Error refreshing team data:', error);
+      }
+    }
+  };
+
+  const handleEditStandup = (standup: StandupConfig) => {
+    setSelectedStandup(standup);
+    setIsStandupEditOpen(true);
+  };
+
+  const handleStandupEditSuccess = async () => {
+    // Refetch standup data after successful update
+    if (teamId) {
+      try {
+        const standupsData = await standupsApi.getTeamStandups(teamId);
+        setStandups(standupsData);
+      } catch (error) {
+        console.error('Error refreshing standups:', error);
+      }
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -162,7 +196,7 @@ export const TeamDetailPage = React.memo(() => {
           <div className="flex gap-3">
             <ModernButton
               variant="secondary"
-              onClick={() => toast.info('Team settings - Coming soon!')}
+              onClick={() => setIsTeamSettingsOpen(true)}
               data-testid="team-settings-button"
             >
               <Settings className="w-4 h-4 mr-2" />
@@ -281,7 +315,7 @@ export const TeamDetailPage = React.memo(() => {
                           }
                           items={[
                             {
-                              label: 'View Details',
+                              label: 'View Recent',
                               icon: Eye,
                               onClick: () => {
                                 const recentInstance = recentInstances.find(
@@ -295,17 +329,15 @@ export const TeamDetailPage = React.memo(() => {
                               },
                             },
                             {
-                              label: 'Edit Configuration',
+                              label: 'Edit Standup',
                               icon: Edit,
-                              onClick: () => {
-                                toast.info('Edit standup configuration - Coming soon!');
-                              },
+                              onClick: () => handleEditStandup(standup),
                             },
                             {
-                              label: 'Configure Settings',
-                              icon: Settings,
+                              label: 'View History',
+                              icon: Calendar,
                               onClick: () => {
-                                toast.info('Standup settings - Coming soon!');
+                                toast.info('View all standup history - Coming soon!');
                               },
                             },
                           ]}
@@ -448,6 +480,29 @@ export const TeamDetailPage = React.memo(() => {
           </div>
         </div>
       </main>
+
+      {/* Team Settings Modal */}
+      {team && (
+        <TeamSettingsModal
+          isOpen={isTeamSettingsOpen}
+          onClose={() => setIsTeamSettingsOpen(false)}
+          onSuccess={handleTeamSettingsSuccess}
+          team={team}
+        />
+      )}
+
+      {/* Standup Edit Modal */}
+      {selectedStandup && (
+        <StandupEditModal
+          isOpen={isStandupEditOpen}
+          onClose={() => {
+            setIsStandupEditOpen(false);
+            setSelectedStandup(null);
+          }}
+          onSuccess={handleStandupEditSuccess}
+          standup={selectedStandup}
+        />
+      )}
     </div>
   );
 });

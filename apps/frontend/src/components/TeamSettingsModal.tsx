@@ -263,7 +263,7 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ duration: 0.2 }}
-            className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden"
+            className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col"
             onClick={e => e.stopPropagation()}
           >
             {/* Header */}
@@ -291,187 +291,190 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
             </div>
 
             {/* Form */}
-            <form onSubmit={handleSubmit} className="p-6 overflow-y-auto">
-              <div className="space-y-6">
-                {/* Team Name */}
-                <div>
-                  <Label
-                    htmlFor="name"
-                    className="flex items-center gap-2 text-sm font-medium mb-2"
-                  >
-                    <Building2 className="w-4 h-4" />
-                    Team Name
-                  </Label>
-                  <FormField
-                    id="name"
-                    type="text"
-                    value={formData.name}
-                    onChange={e => handleInputChange('name', e.target.value)}
-                    placeholder="Enter team name"
-                    error={errors.name}
-                    maxLength={100}
-                    required
-                    disabled={isUpdating}
-                  />
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {formData.name.length}/100 characters
-                  </div>
-                </div>
-
-                {/* Description */}
-                <div>
-                  <Label htmlFor="description" className="text-sm font-medium mb-2 block">
-                    Description (Optional)
-                  </Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={e => handleInputChange('description', e.target.value)}
-                    placeholder="Describe your team's purpose and goals..."
-                    className="min-h-[100px] px-4 py-3 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-150 disabled:opacity-50"
-                    maxLength={500}
-                    disabled={isUpdating}
-                  />
-                  {errors.description && (
-                    <p className="text-sm text-red-600 mt-1">{errors.description}</p>
-                  )}
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {formData.description.length}/500 characters
-                  </div>
-                </div>
-
-                {/* Timezone */}
-                <div>
-                  <Label
-                    htmlFor="timezone"
-                    className="flex items-center gap-2 text-sm font-medium mb-2"
-                  >
-                    <Globe className="w-4 h-4" />
-                    Timezone
-                  </Label>
-                  <select
-                    id="timezone"
-                    value={formData.timezone}
-                    onChange={e => handleInputChange('timezone', e.target.value)}
-                    className="w-full px-4 py-3 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50"
-                    required
-                    disabled={isUpdating}
-                  >
-                    {TIMEZONES.map(({ value, label }) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.timezone && (
-                    <p className="text-sm text-red-600 mt-1">{errors.timezone}</p>
-                  )}
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Used for standup scheduling and notifications
-                  </p>
-                </div>
-
-                {/* Channel Info (Read-only) */}
-                {team.channel && (
+            <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+              <div className="p-6 overflow-y-auto flex-1">
+                <div className="space-y-6">
+                  {/* Team Name */}
                   <div>
-                    <Label className="flex items-center gap-2 text-sm font-medium mb-2">
-                      <Hash className="w-4 h-4" />
-                      Slack Channel
-                    </Label>
-                    <div className="px-4 py-3 bg-muted/50 rounded-lg border border-border">
-                      <div className="flex items-center gap-2">
-                        <Hash className="w-4 h-4 text-muted-foreground" />
-                        <span className="font-medium">#{team.channel.name}</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Channel assignment cannot be changed from here
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Danger Zone */}
-              <div className="mt-8 p-6 bg-red-50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-800">
-                <div className="flex items-center gap-2 mb-4">
-                  <AlertTriangle className="w-5 h-5 text-red-600" />
-                  <h3 className="text-lg font-semibold text-red-800 dark:text-red-200">
-                    Danger Zone
-                  </h3>
-                </div>
-
-                {!showDeleteConfirmation ? (
-                  <div>
-                    <p className="text-sm text-red-700 dark:text-red-300 mb-4">
-                      Once you delete a team, there is no going back. This will permanently delete
-                      the team, all its standups, and remove all members.
-                    </p>
-                    <ModernButton
-                      type="button"
-                      variant="ghost"
-                      onClick={() => setShowDeleteConfirmation(true)}
-                      disabled={isUpdating || isDeleting}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/50"
+                    <Label
+                      htmlFor="name"
+                      className="flex items-center gap-2 text-sm font-medium mb-2"
                     >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Delete Team
-                    </ModernButton>
-                  </div>
-                ) : (
-                  <div>
-                    <p className="text-sm text-red-700 dark:text-red-300 mb-4">
-                      This action cannot be undone. Type{' '}
-                      <span className="font-mono font-bold">{team.name}</span> to confirm deletion.
-                    </p>
-                    <div className="space-y-4">
-                      <input
-                        type="text"
-                        value={deleteConfirmationText}
-                        onChange={e => setDeleteConfirmationText(e.target.value)}
-                        placeholder={`Type "${team.name}" to confirm`}
-                        className="w-full px-4 py-3 rounded-lg border border-red-300 bg-background focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                        disabled={isDeleting}
-                      />
-                      <div className="flex gap-3">
-                        <ModernButton
-                          type="button"
-                          variant="ghost"
-                          onClick={() => {
-                            setShowDeleteConfirmation(false);
-                            setDeleteConfirmationText('');
-                          }}
-                          disabled={isDeleting}
-                          className="flex-1"
-                        >
-                          Cancel
-                        </ModernButton>
-                        <ModernButton
-                          type="button"
-                          variant="ghost"
-                          onClick={handleDeleteTeam}
-                          disabled={isDeleting || deleteConfirmationText !== team.name}
-                          className="flex-1 text-red-600 hover:text-white hover:bg-red-600 disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-red-600"
-                        >
-                          {isDeleting ? (
-                            <>
-                              <div className="w-4 h-4 border-2 border-red-300 border-t-red-600 rounded-full animate-spin mr-2" />
-                              Deleting...
-                            </>
-                          ) : (
-                            <>
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Delete Team
-                            </>
-                          )}
-                        </ModernButton>
-                      </div>
+                      <Building2 className="w-4 h-4" />
+                      Team Name
+                    </Label>
+                    <FormField
+                      id="name"
+                      type="text"
+                      value={formData.name}
+                      onChange={e => handleInputChange('name', e.target.value)}
+                      placeholder="Enter team name"
+                      error={errors.name}
+                      maxLength={100}
+                      required
+                      disabled={isUpdating}
+                    />
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {formData.name.length}/100 characters
                     </div>
                   </div>
-                )}
+
+                  {/* Description */}
+                  <div>
+                    <Label htmlFor="description" className="text-sm font-medium mb-2 block">
+                      Description (Optional)
+                    </Label>
+                    <Textarea
+                      id="description"
+                      value={formData.description}
+                      onChange={e => handleInputChange('description', e.target.value)}
+                      placeholder="Describe your team's purpose and goals..."
+                      className="min-h-[100px] px-4 py-3 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-150 disabled:opacity-50"
+                      maxLength={500}
+                      disabled={isUpdating}
+                    />
+                    {errors.description && (
+                      <p className="text-sm text-red-600 mt-1">{errors.description}</p>
+                    )}
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {formData.description.length}/500 characters
+                    </div>
+                  </div>
+
+                  {/* Timezone */}
+                  <div>
+                    <Label
+                      htmlFor="timezone"
+                      className="flex items-center gap-2 text-sm font-medium mb-2"
+                    >
+                      <Globe className="w-4 h-4" />
+                      Timezone
+                    </Label>
+                    <select
+                      id="timezone"
+                      value={formData.timezone}
+                      onChange={e => handleInputChange('timezone', e.target.value)}
+                      className="w-full px-4 py-3 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50"
+                      required
+                      disabled={isUpdating}
+                    >
+                      {TIMEZONES.map(({ value, label }) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.timezone && (
+                      <p className="text-sm text-red-600 mt-1">{errors.timezone}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Used for standup scheduling and notifications
+                    </p>
+                  </div>
+
+                  {/* Channel Info (Read-only) */}
+                  {team.channel && (
+                    <div>
+                      <Label className="flex items-center gap-2 text-sm font-medium mb-2">
+                        <Hash className="w-4 h-4" />
+                        Slack Channel
+                      </Label>
+                      <div className="px-4 py-3 bg-muted/50 rounded-lg border border-border">
+                        <div className="flex items-center gap-2">
+                          <Hash className="w-4 h-4 text-muted-foreground" />
+                          <span className="font-medium">#{team.channel.name}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Channel assignment cannot be changed from here
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Danger Zone */}
+                <div className="mt-8 p-6 bg-red-50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-800">
+                  <div className="flex items-center gap-2 mb-4">
+                    <AlertTriangle className="w-5 h-5 text-red-600" />
+                    <h3 className="text-lg font-semibold text-red-800 dark:text-red-200">
+                      Danger Zone
+                    </h3>
+                  </div>
+
+                  {!showDeleteConfirmation ? (
+                    <div>
+                      <p className="text-sm text-red-700 dark:text-red-300 mb-4">
+                        Once you delete a team, there is no going back. This will permanently delete
+                        the team, all its standups, and remove all members.
+                      </p>
+                      <ModernButton
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setShowDeleteConfirmation(true)}
+                        disabled={isUpdating || isDeleting}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/50"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete Team
+                      </ModernButton>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-sm text-red-700 dark:text-red-300 mb-4">
+                        This action cannot be undone. Type{' '}
+                        <span className="font-mono font-bold">{team.name}</span> to confirm
+                        deletion.
+                      </p>
+                      <div className="space-y-4">
+                        <input
+                          type="text"
+                          value={deleteConfirmationText}
+                          onChange={e => setDeleteConfirmationText(e.target.value)}
+                          placeholder={`Type "${team.name}" to confirm`}
+                          className="w-full px-4 py-3 rounded-lg border border-red-300 bg-background focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                          disabled={isDeleting}
+                        />
+                        <div className="flex gap-3">
+                          <ModernButton
+                            type="button"
+                            variant="ghost"
+                            onClick={() => {
+                              setShowDeleteConfirmation(false);
+                              setDeleteConfirmationText('');
+                            }}
+                            disabled={isDeleting}
+                            className="flex-1"
+                          >
+                            Cancel
+                          </ModernButton>
+                          <ModernButton
+                            type="button"
+                            variant="ghost"
+                            onClick={handleDeleteTeam}
+                            disabled={isDeleting || deleteConfirmationText !== team.name}
+                            className="flex-1 text-red-600 hover:text-white hover:bg-red-600 disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-red-600"
+                          >
+                            {isDeleting ? (
+                              <>
+                                <div className="w-4 h-4 border-2 border-red-300 border-t-red-600 rounded-full animate-spin mr-2" />
+                                Deleting...
+                              </>
+                            ) : (
+                              <>
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Delete Team
+                              </>
+                            )}
+                          </ModernButton>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Actions */}
-              <div className="flex gap-3 mt-8 pt-6 border-t border-border">
+              {/* Actions - Fixed at bottom */}
+              <div className="flex gap-3 p-6 pt-4 border-t border-border bg-background rounded-b-2xl">
                 <ModernButton
                   type="button"
                   variant="ghost"

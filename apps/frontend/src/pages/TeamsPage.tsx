@@ -179,7 +179,7 @@ export const TeamsPage = React.memo(() => {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="bg-card rounded-xl border border-border overflow-hidden"
+            className="bg-card rounded-xl border border-border overflow-visible"
           >
             {/* Table Header */}
             <div className="px-6 py-4 border-b border-border bg-muted/30">
