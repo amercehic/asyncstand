@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ModernButton } from '@/components/ui';
+import { CreateTeamModal } from '@/components/CreateTeamModal';
 import { Plus, Users, Settings, Calendar, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { teamsApi } from '@/lib/api';
@@ -10,6 +11,9 @@ import type { Team } from '@/types';
 export const TeamsPage = React.memo(() => {
   const [teams, setTeams] = useState<Team[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchTeams = async () => {
@@ -29,8 +33,29 @@ export const TeamsPage = React.memo(() => {
     fetchTeams();
   }, []);
 
+  // Auto-open create modal if query param present: ?create=1
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const shouldOpen = searchParams.get('create') === '1';
+    if (shouldOpen) {
+      setIsCreateModalOpen(true);
+      // Clean the URL so refresh/back doesn't keep reopening
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location.search, location.pathname, navigate]);
+
   const handleCreateTeam = () => {
-    toast.info('Create team functionality - Coming soon!');
+    setIsCreateModalOpen(true);
+  };
+
+  const handleCreateSuccess = async () => {
+    // Refresh teams list after successful creation
+    try {
+      const teamsData = await teamsApi.getTeams();
+      setTeams(teamsData);
+    } catch (error) {
+      console.error('Error refreshing teams:', error);
+    }
   };
 
   const handleJoinTeam = () => {
@@ -231,6 +256,13 @@ export const TeamsPage = React.memo(() => {
           </motion.div>
         )}
       </main>
+
+      {/* Create Team Modal */}
+      <CreateTeamModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSuccess={handleCreateSuccess}
+      />
     </div>
   );
 });

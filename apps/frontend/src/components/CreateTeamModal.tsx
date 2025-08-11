@@ -1,0 +1,425 @@
+import React, { useState, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
+import { ModernButton, FormField } from '@/components/ui';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { X, Building2, Hash, Clock, Globe } from 'lucide-react';
+import { teamsApi, integrationsApi } from '@/lib/api';
+import { normalizeApiError } from '@/utils';
+import type { CreateTeamRequest } from '@/types';
+
+interface CreateTeamModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+interface CreateTeamFormData {
+  name: string;
+  description: string;
+  integrationId: string;
+  channelId: string;
+  timezone: string;
+}
+
+interface FormFieldError {
+  [key: string]: string;
+}
+
+const TIMEZONES = [
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Los_Angeles',
+  'America/Toronto',
+  'Europe/London',
+  'Europe/Berlin',
+  'Europe/Paris',
+  'Asia/Tokyo',
+  'Asia/Shanghai',
+  'Australia/Sydney',
+  'UTC',
+];
+
+export const CreateTeamModal = React.memo<CreateTeamModalProps>(
+  ({ isOpen, onClose, onSuccess }) => {
+    const [formData, setFormData] = useState<CreateTeamFormData>({
+      name: '',
+      description: '',
+      integrationId: '',
+      channelId: '',
+      timezone: 'America/New_York',
+    });
+    const [errors, setErrors] = useState<FormFieldError>({});
+    const [isLoading, setIsLoading] = useState(false);
+    const [availableChannels, setAvailableChannels] = useState<
+      Array<{ id: string; name: string; isAssigned: boolean }>
+    >([]);
+    const [availableIntegrations, setAvailableIntegrations] = useState<
+      Array<{ id: string; teamName: string; isActive: boolean; platform: string }>
+    >([]);
+    const [dataLoaded, setDataLoaded] = useState(false);
+
+    const loadFormData = useCallback(async () => {
+      if (dataLoaded || !isOpen) return;
+
+      try {
+        const [channelsResponse, integrationsResponse] = await Promise.all([
+          teamsApi.getAvailableChannels(),
+          integrationsApi.getSlackIntegrations(),
+        ]);
+
+        setAvailableChannels(channelsResponse.channels);
+        setAvailableIntegrations(integrationsResponse);
+        setDataLoaded(true);
+      } catch (error) {
+        console.error('Error loading form data:', error);
+        toast.error('Failed to load team creation data');
+      }
+    }, [isOpen, dataLoaded]);
+
+    React.useEffect(() => {
+      if (isOpen) {
+        loadFormData();
+      }
+    }, [isOpen, loadFormData]);
+
+    // Prevent background scroll when modal is open
+    React.useEffect(() => {
+      if (!isOpen) return;
+
+      const originalOverflow = document.body.style.overflow;
+      const originalPaddingRight = document.body.style.paddingRight;
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+
+      document.body.style.overflow = 'hidden';
+      if (scrollbarWidth > 0) {
+        document.body.style.paddingRight = `${scrollbarWidth}px`;
+      }
+
+      return () => {
+        document.body.style.overflow = originalOverflow;
+        document.body.style.paddingRight = originalPaddingRight;
+      };
+    }, [isOpen]);
+
+    const validateForm = useCallback((): boolean => {
+      const newErrors: FormFieldError = {};
+
+      if (!formData.name.trim()) {
+        newErrors.name = 'Team name is required';
+      } else if (formData.name.trim().length < 2) {
+        newErrors.name = 'Team name must be at least 2 characters';
+      }
+
+      if (!formData.integrationId) {
+        newErrors.integrationId = 'Integration is required';
+      }
+
+      if (!formData.channelId) {
+        newErrors.channelId = 'Channel is required';
+      }
+
+      if (!formData.timezone) {
+        newErrors.timezone = 'Timezone is required';
+      }
+
+      setErrors(newErrors);
+      return Object.keys(newErrors).length === 0;
+    }, [formData]);
+
+    // Check if form is valid for button enabling
+    const isFormValid = React.useMemo(() => {
+      return (
+        formData.name.trim().length >= 2 &&
+        formData.integrationId &&
+        formData.channelId &&
+        formData.timezone
+      );
+    }, [formData]);
+
+    const handleClose = useCallback(() => {
+      if (isLoading) return;
+      setFormData({
+        name: '',
+        description: '',
+        integrationId: '',
+        channelId: '',
+        timezone: 'America/New_York',
+      });
+      setErrors({});
+      setDataLoaded(false);
+      onClose();
+    }, [isLoading, onClose]);
+
+    const handleSubmit = useCallback(
+      async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (!validateForm()) {
+          toast.error('Please fix the errors below');
+          return;
+        }
+
+        setIsLoading(true);
+        try {
+          toast.loading('Creating team...', { id: 'create-team' });
+
+          const createTeamData: CreateTeamRequest = {
+            name: formData.name.trim(),
+            integrationId: formData.integrationId,
+            channelId: formData.channelId,
+            timezone: formData.timezone,
+            description: formData.description.trim() || undefined,
+          };
+
+          await teamsApi.createTeam(createTeamData);
+
+          toast.success('Team created successfully!', { id: 'create-team' });
+          onSuccess();
+          handleClose();
+        } catch (error) {
+          const { message } = normalizeApiError(error, 'Failed to create team');
+          toast.error(message, { id: 'create-team' });
+        } finally {
+          setIsLoading(false);
+        }
+      },
+      [validateForm, formData, onSuccess, handleClose]
+    );
+
+    const handleInputChange = useCallback(
+      (field: keyof CreateTeamFormData, value: string) => {
+        setFormData(prev => ({ ...prev, [field]: value }));
+        if (errors[field]) {
+          setErrors(prev => ({ ...prev, [field]: '' }));
+        }
+      },
+      [errors]
+    );
+
+    // Add ESC key handler
+    React.useEffect(() => {
+      const handleEscKey = (event: KeyboardEvent) => {
+        if (event.key === 'Escape' && isOpen && !isLoading) {
+          handleClose();
+        }
+      };
+
+      if (isOpen) {
+        document.addEventListener('keydown', handleEscKey);
+      }
+
+      return () => {
+        if (isOpen) {
+          document.removeEventListener('keydown', handleEscKey);
+        }
+      };
+    }, [isOpen, isLoading, handleClose]);
+
+    if (!isOpen) return null;
+
+    return (
+      <AnimatePresence>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+          onClick={handleClose}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ duration: 0.2 }}
+            className="bg-card rounded-2xl border border-border w-full max-w-md max-h-[90vh] overflow-auto shadow-xl"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-border">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-r from-primary to-primary/80 rounded-lg flex items-center justify-center">
+                  <Building2 className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold">Create Team</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Set up a new team for async standups
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleClose}
+                disabled={isLoading}
+                className="w-8 h-8 rounded-lg hover:bg-muted flex items-center justify-center transition-colors"
+                data-testid="close-modal"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+              {/* Team Name */}
+              <FormField
+                label="Team Name"
+                id="name"
+                placeholder="Engineering Team"
+                value={formData.name}
+                onChange={e => handleInputChange('name', e.target.value)}
+                error={errors.name}
+                required
+                data-testid="team-name-input"
+              />
+
+              {/* Description */}
+              <div className="space-y-2">
+                <Label htmlFor="description">Description (Optional)</Label>
+                <Textarea
+                  id="description"
+                  placeholder="Brief description of your team's purpose..."
+                  value={formData.description}
+                  onChange={e => handleInputChange('description', e.target.value)}
+                  className="min-h-20 resize-none border-border"
+                  data-testid="team-description-input"
+                />
+                {errors.description && (
+                  <p className="text-sm text-destructive">{errors.description}</p>
+                )}
+              </div>
+
+              {/* Slack Integration */}
+              <div className="space-y-2">
+                <Label htmlFor="integrationId">
+                  <Globe className="w-4 h-4 inline mr-2" />
+                  Integration Workspace
+                </Label>
+                <select
+                  id="integrationId"
+                  value={formData.integrationId}
+                  onChange={e => handleInputChange('integrationId', e.target.value)}
+                  className="w-full h-12 px-3 rounded-lg border border-border bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  required
+                  data-testid="integration-select"
+                  disabled={isLoading || (!availableIntegrations.length && dataLoaded)}
+                >
+                  <option value="">Select workspace...</option>
+                  {availableIntegrations.map(integration => (
+                    <option key={integration.id} value={integration.id}>
+                      {integration.platform}: {integration.teamName}
+                    </option>
+                  ))}
+                </select>
+                {dataLoaded && availableIntegrations.length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    No workspaces connected yet. Connect your Slack workspace first to create a
+                    team.
+                  </p>
+                )}
+                {errors.integrationId && (
+                  <p className="text-sm text-destructive">{errors.integrationId}</p>
+                )}
+              </div>
+
+              {/* Slack Channel */}
+              <div className="space-y-2">
+                <Label htmlFor="channelId">
+                  <Hash className="w-4 h-4 inline mr-2" />
+                  Channel
+                </Label>
+                <select
+                  id="channelId"
+                  value={formData.channelId}
+                  onChange={e => handleInputChange('channelId', e.target.value)}
+                  className="w-full h-12 px-3 rounded-lg border border-border bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  required
+                  data-testid="channel-select"
+                  disabled={
+                    !formData.integrationId ||
+                    isLoading ||
+                    (dataLoaded && availableChannels.filter(c => !c.isAssigned).length === 0)
+                  }
+                >
+                  <option value="">Select channel...</option>
+                  {availableChannels
+                    .filter(channel => !channel.isAssigned)
+                    .map(channel => (
+                      <option key={channel.id} value={channel.id}>
+                        #{channel.name}
+                      </option>
+                    ))}
+                </select>
+                {dataLoaded &&
+                  formData.integrationId &&
+                  availableChannels.filter(c => !c.isAssigned).length === 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      No available channels found or all channels are already assigned to teams.
+                      Please pick a different workspace or free up a channel.
+                    </p>
+                  )}
+                {errors.channelId && <p className="text-sm text-destructive">{errors.channelId}</p>}
+              </div>
+
+              {/* Timezone */}
+              <div className="space-y-2">
+                <Label htmlFor="timezone">
+                  <Clock className="w-4 h-4 inline mr-2" />
+                  Timezone
+                </Label>
+                <select
+                  id="timezone"
+                  value={formData.timezone}
+                  onChange={e => handleInputChange('timezone', e.target.value)}
+                  className="w-full h-12 px-3 rounded-lg border border-border bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  required
+                  data-testid="timezone-select"
+                >
+                  {TIMEZONES.map(tz => (
+                    <option key={tz} value={tz}>
+                      {tz}
+                    </option>
+                  ))}
+                </select>
+                {errors.timezone && <p className="text-sm text-destructive">{errors.timezone}</p>}
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-4">
+                <ModernButton
+                  type="button"
+                  variant="secondary"
+                  onClick={handleClose}
+                  disabled={isLoading}
+                  className="flex-1"
+                  data-testid="cancel-button"
+                >
+                  Cancel
+                </ModernButton>
+                <ModernButton
+                  type="submit"
+                  variant="primary"
+                  isLoading={isLoading}
+                  disabled={
+                    isLoading ||
+                    !isFormValid ||
+                    (dataLoaded && availableIntegrations.length === 0) ||
+                    (dataLoaded && availableChannels.filter(c => !c.isAssigned).length === 0)
+                  }
+                  className="flex-1"
+                  data-testid="create-team-submit-button"
+                >
+                  Create Team
+                </ModernButton>
+              </div>
+            </form>
+          </motion.div>
+        </motion.div>
+      </AnimatePresence>
+    );
+  }
+);
+
+CreateTeamModal.displayName = 'CreateTeamModal';

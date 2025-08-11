@@ -155,8 +155,8 @@ export const teamsApi = {
     return response.data;
   },
 
-  async createTeam(data: CreateTeamRequest): Promise<Team> {
-    const response = await api.post<Team>('/teams', data);
+  async createTeam(data: CreateTeamRequest): Promise<{ id: string }> {
+    const response = await api.post<{ id: string }>('/teams', data);
     return response.data;
   },
 
@@ -176,6 +176,38 @@ export const teamsApi = {
 
   async removeUser(teamId: string, userId: string): Promise<void> {
     await api.delete(`/teams/${teamId}/members/${userId}`);
+  },
+
+  async getAvailableChannels(): Promise<{
+    channels: Array<{ id: string; name: string; isAssigned: boolean }>;
+  }> {
+    const response = await api.get('/teams/slack/channels');
+    return response.data;
+  },
+
+  async getAvailableMembers(): Promise<{
+    members: Array<{ id: string; name: string; platformUserId: string }>;
+  }> {
+    const response = await api.get('/teams/slack/members');
+    return response.data;
+  },
+};
+
+// Integrations API functions
+export const integrationsApi = {
+  async getSlackIntegrations(): Promise<
+    Array<{ id: string; teamName: string; isActive: boolean; platform: string }>
+  > {
+    const response = await api.get('/slack/integrations');
+    // Transform backend response to match frontend interface
+    return response.data.map(
+      (integration: { id: string; externalTeamId: string; tokenStatus: string }) => ({
+        id: integration.id,
+        teamName: integration.externalTeamId, // Using externalTeamId as team name for now
+        isActive: integration.tokenStatus === 'ok',
+        platform: 'Slack',
+      })
+    );
   },
 };
 

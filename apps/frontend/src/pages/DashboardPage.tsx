@@ -21,7 +21,7 @@ export const DashboardPage = React.memo(() => {
   ];
 
   const quickActions = [
-    { label: 'Create Team', icon: Plus, action: () => toast.info('Create team - Coming soon!') },
+    { label: 'Create Team', icon: Plus, action: () => handleNavigation('/teams?create=1') },
     { label: 'Join Team', icon: Users, action: () => toast.info('Join team - Coming soon!') },
     {
       label: 'View Teams',
