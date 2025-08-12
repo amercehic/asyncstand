@@ -124,9 +124,7 @@ export const TeamsPage = React.memo(() => {
           >
             <div className="bg-card rounded-xl p-6 border border-border">
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 bg-blue-500/10 rounded-lg flex items-center justify-center">
-                  <Users2 className="w-5 h-5 text-blue-600" />
-                </div>
+                <Users2 className="w-10 h-10 text-blue-600" />
                 <div>
                   <p className="text-2xl font-bold">{totalTeams}</p>
                   <p className="text-sm text-muted-foreground">Total Teams</p>
@@ -136,9 +134,7 @@ export const TeamsPage = React.memo(() => {
 
             <div className="bg-card rounded-xl p-6 border border-border">
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 bg-green-500/10 rounded-lg flex items-center justify-center">
-                  <Users className="w-5 h-5 text-green-600" />
-                </div>
+                <Users className="w-10 h-10 text-green-600" />
                 <div>
                   <p className="text-2xl font-bold">{totalMembers}</p>
                   <p className="text-sm text-muted-foreground">Total Members</p>
@@ -148,9 +144,7 @@ export const TeamsPage = React.memo(() => {
 
             <div className="bg-card rounded-xl p-6 border border-border">
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 bg-purple-500/10 rounded-lg flex items-center justify-center">
-                  <Hash className="w-5 h-5 text-purple-600" />
-                </div>
+                <Hash className="w-10 h-10 text-purple-600" />
                 <div>
                   <p className="text-2xl font-bold">{teamsWithChannels}</p>
                   <p className="text-sm text-muted-foreground">With Slack</p>
@@ -160,9 +154,7 @@ export const TeamsPage = React.memo(() => {
 
             <div className="bg-card rounded-xl p-6 border border-border">
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 bg-orange-500/10 rounded-lg flex items-center justify-center">
-                  <TrendingUp className="w-5 h-5 text-orange-600" />
-                </div>
+                <TrendingUp className="w-10 h-10 text-orange-600" />
                 <div>
                   <p className="text-2xl font-bold">{averageMembersPerTeam}</p>
                   <p className="text-sm text-muted-foreground">Avg per Team</p>

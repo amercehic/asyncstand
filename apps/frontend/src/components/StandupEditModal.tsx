@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ModernButton } from '@/components/ui';
 import { X, Plus, Trash2, Calendar, Clock, Users, Save } from 'lucide-react';
@@ -66,6 +66,37 @@ export const StandupEditModal: React.FC<StandupEditModalProps> = ({
   });
 
   const [isSaving, setIsSaving] = useState(false);
+
+  // Check if form has changes
+  const hasChanges = React.useMemo(() => {
+    if (!standup) return false;
+    
+    // Compare name
+    if (formData.name !== standup.name) return true;
+    
+    // Compare questions
+    if (formData.questions.length !== standup.questions.length) return true;
+    for (let i = 0; i < formData.questions.length; i++) {
+      if (formData.questions[i] !== standup.questions[i]) return true;
+    }
+    
+    // Compare schedule
+    if (formData.schedule.time !== standup.schedule.time) return true;
+    if (formData.schedule.timezone !== standup.schedule.timezone) return true;
+    if (formData.schedule.days.length !== standup.schedule.days.length) return true;
+    
+    // Compare days (order matters for this comparison)
+    const sortedFormDays = [...formData.schedule.days].sort();
+    const sortedStandupDays = [...standup.schedule.days].sort();
+    for (let i = 0; i < sortedFormDays.length; i++) {
+      if (sortedFormDays[i] !== sortedStandupDays[i]) return true;
+    }
+    
+    // Compare slack channel
+    if (formData.slackChannelId !== standup.slackChannelId) return true;
+    
+    return false;
+  }, [formData, standup]);
 
   // Reset form when standup changes
   useEffect(() => {
@@ -397,7 +428,7 @@ export const StandupEditModal: React.FC<StandupEditModalProps> = ({
               <ModernButton type="button" variant="secondary" onClick={onClose} className="flex-1">
                 Cancel
               </ModernButton>
-              <ModernButton type="submit" variant="primary" disabled={isSaving} className="flex-1">
+              <ModernButton type="submit" variant="primary" disabled={isSaving || !hasChanges} className="flex-1">
                 {isSaving ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin mr-2" />
