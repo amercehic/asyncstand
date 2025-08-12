@@ -41,7 +41,7 @@ describe('TeamSettingsModal', () => {
         id: 'member-2',
         name: 'Jane Smith',
         email: 'jane@example.com',
-        role: 'user',
+        role: 'member',
         createdAt: '2023-01-01T00:00:00.000Z',
         updatedAt: '2023-01-01T00:00:00.000Z',
       },

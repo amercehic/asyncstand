@@ -99,7 +99,7 @@ const router = createBrowserRouter([
       {
         path: 'teams',
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={['owner', 'admin']}>
             <Suspense fallback={<PageLoader />}>
               <TeamsPage />
             </Suspense>
@@ -143,7 +143,7 @@ const router = createBrowserRouter([
       {
         path: 'integrations',
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={['owner', 'admin']}>
             <Suspense fallback={<PageLoader />}>
               <IntegrationsPage />
             </Suspense>
@@ -154,7 +154,7 @@ const router = createBrowserRouter([
       {
         path: 'integrations/:integrationId',
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={['owner', 'admin']}>
             <Suspense fallback={<PageLoader />}>
               <IntegrationDetailsPage />
             </Suspense>

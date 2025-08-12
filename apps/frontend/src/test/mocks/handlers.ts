@@ -17,7 +17,7 @@ export const handlers = [
           id: '1',
           email: 'test@example.com',
           name: 'Test User',
-          role: 'user',
+          role: 'admin',
         },
         organizations: [],
       });

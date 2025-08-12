@@ -200,7 +200,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           id: response.user.id,
           email: response.user.email,
           name: response.user.name,
-          role: response.user.role as 'user' | 'admin',
+          role: (response.user.role as 'owner' | 'admin' | 'member') ?? 'member',
           orgId: primaryOrg?.id,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),

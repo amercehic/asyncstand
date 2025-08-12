@@ -16,7 +16,7 @@ export interface User {
   email: string;
   name: string;
   avatar?: string;
-  role: 'user' | 'admin';
+  role: 'owner' | 'admin' | 'member';
   orgId?: string;
   createdAt: string;
   updatedAt: string;

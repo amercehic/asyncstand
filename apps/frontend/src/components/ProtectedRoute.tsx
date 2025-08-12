@@ -2,16 +2,20 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts';
 
+type Role = 'owner' | 'admin' | 'member';
+
 interface ProtectedRouteProps {
   children: React.ReactNode;
   redirectTo?: string;
+  allowedRoles?: Role[];
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
   redirectTo = '/login',
+  allowedRoles,
 }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const location = useLocation();
 
   // Show loading spinner while checking authentication
@@ -29,6 +33,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   // Redirect to login if not authenticated, preserving the intended destination
   if (!isAuthenticated) {
     return <Navigate to={redirectTo} state={{ from: location }} replace />;
+  }
+
+  // Optional role guard
+  if (allowedRoles && user && !allowedRoles.includes(user.role as Role)) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;

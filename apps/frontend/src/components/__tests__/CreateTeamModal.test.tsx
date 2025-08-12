@@ -41,7 +41,7 @@ const mockUser = {
   id: 'test-user-id',
   email: 'test@example.com',
   name: 'Test User',
-  role: 'user' as const,
+  role: 'admin' as const,
   orgId: 'test-org-id',
   createdAt: '2023-01-01T00:00:00.000Z',
   updatedAt: '2023-01-01T00:00:00.000Z',

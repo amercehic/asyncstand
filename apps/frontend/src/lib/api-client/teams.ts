@@ -29,7 +29,7 @@ function mapDetailsToTeam(details: TeamDetailsResponse): Team {
           id: String(m.id),
           email: '',
           name: String(m.name),
-          role: 'user' as const,
+          role: 'member' as const,
           createdAt: new Date(details.createdAt).toISOString(),
           updatedAt: new Date(details.createdAt).toISOString(),
         }))

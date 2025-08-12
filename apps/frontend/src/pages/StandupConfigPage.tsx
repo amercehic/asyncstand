@@ -391,7 +391,7 @@ export const StandupConfigPage = React.memo(() => {
                       size="sm"
                       onClick={() => setShowTemplateSelection(false)}
                     >
-                      Skip
+                      Hide
                     </ModernButton>
                   </div>
 
