@@ -70,18 +70,24 @@ export class StandupConfigService {
       );
     }
 
-    // Check if standup config already exists
-    const existingConfig = await this.prisma.standupConfig.findUnique({
-      where: { teamId },
+    // Check for name conflicts
+    const existingConfigByName = await this.prisma.standupConfig.findFirst({
+      where: {
+        teamId,
+        name: data.name,
+      },
     });
 
-    if (existingConfig) {
+    if (existingConfigByName) {
       throw new ApiError(
         ErrorCode.STANDUP_CONFIG_ALREADY_EXISTS,
-        'Standup configuration already exists for this team',
+        `A standup configuration with name "${data.name}" already exists for this team`,
         HttpStatus.CONFLICT,
       );
     }
+
+    // Check for time conflicts with existing configs
+    await this.validateTimeConflicts(teamId, data.weekdays, data.timeLocal, data.timezone);
 
     // Validate input data
     ValidationUtils.validateSchedule(data.weekdays, data.timeLocal, data.timezone);
@@ -93,6 +99,7 @@ export class StandupConfigService {
       const config = await tx.standupConfig.create({
         data: {
           teamId,
+          name: data.name,
           questions: data.questions,
           weekdays: data.weekdays,
           timeLocal: data.timeLocal,
@@ -162,13 +169,14 @@ export class StandupConfigService {
   ): Promise<void> {
     this.logger.info('Updating standup configuration', { teamId, orgId });
 
-    // Verify config exists and team belongs to org
+    // For backwards compatibility, get the first (usually only) config for this team
     const config = await this.prisma.standupConfig.findFirst({
       where: {
         teamId,
         team: { orgId },
       },
       include: { team: true },
+      orderBy: { createdAt: 'asc' }, // Get the oldest one for consistency
     });
 
     if (!config) {
@@ -180,18 +188,52 @@ export class StandupConfigService {
     }
 
     // Validate any provided data
-    if (data.weekdays && data.timeLocal && data.timezone) {
-      ValidationUtils.validateSchedule(data.weekdays, data.timeLocal, data.timezone);
+    const updatedWeekdays = data.weekdays || config.weekdays;
+    const updatedTimeLocal = data.timeLocal || config.timeLocal;
+    const updatedTimezone = data.timezone || config.timezone;
+
+    if (data.weekdays || data.timeLocal || data.timezone) {
+      ValidationUtils.validateSchedule(updatedWeekdays, updatedTimeLocal, updatedTimezone);
     }
 
     if (data.questions) {
       ValidationUtils.validateQuestions(data.questions);
     }
 
+    // Check for time conflicts if schedule is being updated
+    if (data.weekdays || data.timeLocal || data.timezone) {
+      await this.validateTimeConflicts(
+        config.teamId,
+        updatedWeekdays,
+        updatedTimeLocal,
+        updatedTimezone,
+        config.id, // Exclude current config from conflict check
+      );
+    }
+
+    // Check for name conflicts if name is being updated
+    if (data.name && data.name !== config.name) {
+      const existingConfigByName = await this.prisma.standupConfig.findFirst({
+        where: {
+          teamId: config.teamId,
+          name: data.name,
+        },
+      });
+
+      if (existingConfigByName) {
+        throw new ApiError(
+          ErrorCode.STANDUP_CONFIG_ALREADY_EXISTS,
+          `A standup configuration with name "${data.name}" already exists for this team`,
+          HttpStatus.CONFLICT,
+        );
+      }
+    }
+
     // Update the config
     await this.prisma.standupConfig.update({
       where: { id: config.id },
       data: {
+        ...(data.name && { name: data.name }),
         ...(data.questions && { questions: data.questions }),
         ...(data.weekdays && { weekdays: data.weekdays }),
         ...(data.timeLocal && { timeLocal: data.timeLocal }),
@@ -212,6 +254,7 @@ export class StandupConfigService {
   async getStandupConfig(teamId: string, orgId: string): Promise<StandupConfigResponse> {
     this.logger.info('Getting standup configuration', { teamId, orgId });
 
+    // For backwards compatibility, get the first (usually the primary/oldest) config for this team
     const config = await this.prisma.standupConfig.findFirst({
       where: {
         teamId,
@@ -234,6 +277,10 @@ export class StandupConfigService {
           },
         },
       },
+      orderBy: [
+        { isActive: 'desc' }, // Prefer active configs
+        { createdAt: 'asc' }, // Then oldest (original) config
+      ],
     });
 
     if (!config) {
@@ -262,6 +309,7 @@ export class StandupConfigService {
     return {
       id: config.id,
       teamId: config.teamId,
+      name: config.name,
       questions: config.questions,
       weekdays: config.weekdays,
       timeLocal: config.timeLocal,
@@ -283,12 +331,17 @@ export class StandupConfigService {
   async deleteStandupConfig(teamId: string, orgId: string): Promise<void> {
     this.logger.info('Deleting standup configuration', { teamId, orgId });
 
+    // For backwards compatibility, delete the first config for this team
     const config = await this.prisma.standupConfig.findFirst({
       where: {
         teamId,
         team: { orgId },
       },
       include: { team: true },
+      orderBy: [
+        { isActive: 'desc' }, // Prefer active configs
+        { createdAt: 'asc' }, // Then oldest (original) config
+      ],
     });
 
     if (!config) {
@@ -331,21 +384,51 @@ export class StandupConfigService {
     }
 
     // Validate input data if provided
+    const updatedWeekdays = data.weekdays || config.weekdays;
+    const updatedTimeLocal = data.timeLocal || config.timeLocal;
+    const updatedTimezone = data.timezone || config.timezone;
+
     if (data.weekdays || data.timeLocal || data.timezone) {
-      ValidationUtils.validateSchedule(
-        data.weekdays || config.weekdays,
-        data.timeLocal || config.timeLocal,
-        data.timezone || config.timezone,
-      );
+      ValidationUtils.validateSchedule(updatedWeekdays, updatedTimeLocal, updatedTimezone);
     }
     if (data.questions) {
       ValidationUtils.validateQuestions(data.questions);
+    }
+
+    // Check for time conflicts if schedule is being updated
+    if (data.weekdays || data.timeLocal || data.timezone) {
+      await this.validateTimeConflicts(
+        config.teamId,
+        updatedWeekdays,
+        updatedTimeLocal,
+        updatedTimezone,
+        configId, // Exclude current config from conflict check
+      );
+    }
+
+    // Check for name conflicts if name is being updated
+    if (data.name && data.name !== config.name) {
+      const existingConfigByName = await this.prisma.standupConfig.findFirst({
+        where: {
+          teamId: config.teamId,
+          name: data.name,
+        },
+      });
+
+      if (existingConfigByName) {
+        throw new ApiError(
+          ErrorCode.STANDUP_CONFIG_ALREADY_EXISTS,
+          `A standup configuration with name "${data.name}" already exists for this team`,
+          HttpStatus.CONFLICT,
+        );
+      }
     }
 
     // Update the config
     await this.prisma.standupConfig.update({
       where: { id: configId },
       data: {
+        ...(data.name && { name: data.name }),
         ...(data.questions && { questions: data.questions }),
         ...(data.weekdays && { weekdays: data.weekdays }),
         ...(data.timeLocal && { timeLocal: data.timeLocal }),
@@ -417,9 +500,13 @@ export class StandupConfigService {
   ): Promise<void> {
     this.logger.info('Updating member participation', { teamId, memberId });
 
-    // Verify standup config exists
-    const config = await this.prisma.standupConfig.findUnique({
+    // Verify standup config exists - use first config for backward compatibility
+    const config = await this.prisma.standupConfig.findFirst({
       where: { teamId },
+      orderBy: [
+        { isActive: 'desc' }, // Prefer active configs
+        { createdAt: 'asc' }, // Then oldest (original) config
+      ],
     });
 
     if (!config) {
@@ -473,7 +560,7 @@ export class StandupConfigService {
   async getMemberParticipation(teamId: string): Promise<MemberParticipationResponse[]> {
     this.logger.info('Getting member participation', { teamId });
 
-    const config = await this.prisma.standupConfig.findUnique({
+    const config = await this.prisma.standupConfig.findFirst({
       where: { teamId },
       include: {
         configMembers: {
@@ -487,6 +574,10 @@ export class StandupConfigService {
           },
         },
       },
+      orderBy: [
+        { isActive: 'desc' }, // Prefer active configs
+        { createdAt: 'asc' }, // Then oldest (original) config
+      ],
     });
 
     if (!config) {
@@ -524,8 +615,12 @@ export class StandupConfigService {
       memberCount: data.members.length,
     });
 
-    const config = await this.prisma.standupConfig.findUnique({
+    const config = await this.prisma.standupConfig.findFirst({
       where: { teamId },
+      orderBy: [
+        { isActive: 'desc' }, // Prefer active configs
+        { createdAt: 'asc' }, // Then oldest (original) config
+      ],
     });
 
     if (!config) {
@@ -659,5 +754,116 @@ export class StandupConfigService {
 
   getValidTimezones(): string[] {
     return ValidationUtils.getValidTimezones();
+  }
+
+  // NEW: Get all standup configurations for a team
+  async getTeamStandupConfigs(teamId: string, orgId: string): Promise<StandupConfigResponse[]> {
+    this.logger.info('Getting all standup configurations for team', { teamId, orgId });
+
+    const configs = await this.prisma.standupConfig.findMany({
+      where: {
+        teamId,
+        team: { orgId },
+      },
+      include: {
+        team: {
+          include: {
+            channel: true,
+          },
+        },
+        configMembers: {
+          include: {
+            teamMember: {
+              include: {
+                user: true,
+                integrationUser: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: [{ isActive: 'desc' }, { createdAt: 'asc' }],
+    });
+
+    return configs.map((config) => {
+      const memberParticipation: MemberParticipationResponse[] = config.configMembers.map((cm) => ({
+        teamMember: {
+          id: cm.teamMember.id,
+          name:
+            cm.teamMember.user?.name ||
+            cm.teamMember.integrationUser?.name ||
+            cm.teamMember.name ||
+            'Unknown',
+          platformUserId:
+            cm.teamMember.platformUserId || cm.teamMember.integrationUser?.externalUserId || '',
+        },
+        include: cm.include,
+        role: cm.role,
+      }));
+
+      return {
+        id: config.id,
+        teamId: config.teamId,
+        name: config.name,
+        questions: config.questions,
+        weekdays: config.weekdays,
+        timeLocal: config.timeLocal,
+        timezone: config.timezone,
+        reminderMinutesBefore: config.reminderMinutesBefore,
+        responseTimeoutHours: config.responseTimeoutHours,
+        isActive: config.isActive,
+        team: {
+          id: config.team.id,
+          name: config.team.name,
+          channelName: config.team.channel?.name || 'Unknown Channel',
+        },
+        memberParticipation,
+        createdAt: config.createdAt,
+        updatedAt: config.updatedAt,
+      };
+    });
+  }
+
+  // Time conflict validation method
+  private async validateTimeConflicts(
+    teamId: string,
+    weekdays: number[],
+    timeLocal: string,
+    timezone: string,
+    excludeConfigId?: string,
+  ): Promise<void> {
+    const existingConfigs = await this.prisma.standupConfig.findMany({
+      where: {
+        teamId,
+        isActive: true,
+        ...(excludeConfigId && { id: { not: excludeConfigId } }),
+      },
+      select: {
+        id: true,
+        name: true,
+        weekdays: true,
+        timeLocal: true,
+        timezone: true,
+      },
+    });
+
+    // Check for conflicts
+    for (const existing of existingConfigs) {
+      // Check if any weekdays overlap
+      const hasOverlappingDays = weekdays.some((day) => existing.weekdays.includes(day));
+
+      if (hasOverlappingDays) {
+        // Check if times are the same (accounting for timezone differences)
+        const isSameTime = existing.timeLocal === timeLocal && existing.timezone === timezone;
+
+        if (isSameTime) {
+          throw new ApiError(
+            ErrorCode.STANDUP_CONFIG_ALREADY_EXISTS,
+            `A standup configuration "${existing.name}" already exists at the same time (${timeLocal} ${timezone}) on overlapping days`,
+            HttpStatus.CONFLICT,
+          );
+        }
+      }
+    }
   }
 }

@@ -77,6 +77,16 @@ export class StandupConfigController {
     return this.standupConfigService.getStandupConfig(teamId, orgId);
   }
 
+  // NEW: Get all standup configurations for a team
+  @Get('teams/:teamId/standups')
+  @SwaggerGetStandupConfig()
+  async getTeamStandupConfigs(
+    @Param('teamId') teamId: string,
+    @CurrentOrg() orgId: string,
+  ): Promise<StandupConfigResponse[]> {
+    return this.standupConfigService.getTeamStandupConfigs(teamId, orgId);
+  }
+
   @Post(':id/members/bulk')
   @SwaggerBulkUpdateParticipation()
   @UseGuards(RolesGuard)

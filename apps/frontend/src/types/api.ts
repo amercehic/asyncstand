@@ -26,6 +26,14 @@ export interface Team {
     id: string;
     name: string;
   };
+  standupConfig?: {
+    id: string;
+    questions: string[];
+    weekdays: number[];
+    timeLocal: string;
+    reminderMinutesBefore: number;
+    isActive: boolean;
+  };
   isActive?: boolean;
   createdAt: string;
   updatedAt: string;

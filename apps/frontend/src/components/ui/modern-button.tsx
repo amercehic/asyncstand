@@ -2,7 +2,7 @@ import React from 'react';
 import { cn } from '@/components/ui/utils';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'ghost' | 'outline';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'outline' | 'destructive';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
   children: React.ReactNode;
@@ -27,6 +27,8 @@ export const ModernButton = React.memo<ButtonProps>(function ModernButton({
     ghost: 'text-muted-foreground hover:text-foreground hover:bg-accent',
     outline:
       'bg-transparent border border-primary text-primary hover:bg-primary hover:text-primary-foreground',
+    destructive:
+      'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-[0_4px_20px_rgba(220,38,38,0.15)] hover:shadow-[0_8px_30px_rgba(220,38,38,0.25)] hover:-translate-y-0.5',
   };
 
   const sizes = {

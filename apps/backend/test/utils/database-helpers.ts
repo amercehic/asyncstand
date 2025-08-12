@@ -187,6 +187,7 @@ export class DatabaseHelpers {
     return prisma.standupConfig.create({
       data: {
         teamId,
+        name: 'Test Standup Config',
         questions: [
           'What did you accomplish yesterday?',
           'What will you work on today?',

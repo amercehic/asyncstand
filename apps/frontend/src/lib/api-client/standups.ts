@@ -4,11 +4,31 @@ import { api } from '@/lib/api-client/client';
 
 export const standupsApi = {
   async getTeamStandups(teamId: string): Promise<Standup[]> {
-    // Backend provides standup config per team under standups/config
-    const response = await api.get(`/standups/config/${teamId}`);
-    const data = response.data as StandupConfigResponse | null;
-    if (!data) return [];
+    try {
+      // First try the new endpoint for multiple standups
+      const response = await api.get(`/standups/config/teams/${teamId}/standups`);
+      const dataArray = response.data as StandupConfigResponse[];
+      if (Array.isArray(dataArray) && dataArray.length > 0) {
+        return this.mapStandupConfigsToStandups(dataArray, teamId);
+      }
+    } catch {
+      // Fall back to single standup endpoint for backward compatibility
+      console.log('Using fallback single standup endpoint');
+    }
 
+    try {
+      const response = await api.get(`/standups/config/${teamId}`);
+      const data = response.data as StandupConfigResponse | null;
+      if (!data) return [];
+
+      return this.mapStandupConfigsToStandups([data], teamId);
+    } catch (error) {
+      console.error('Error fetching standups:', error);
+      return [];
+    }
+  },
+
+  mapStandupConfigsToStandups(configs: StandupConfigResponse[], teamId: string): Standup[] {
     const weekdayNumToName = (
       n: number
     ): 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' => {
@@ -24,10 +44,10 @@ export const standupsApi = {
       return dayNames[n] as (typeof dayNames)[number];
     };
 
-    const standup: Standup = {
+    return configs.map(data => ({
       id: String(data.id || teamId),
       teamId: String(data.team?.id || teamId),
-      name: data.team?.name || 'Daily Standup',
+      name: String(data.name || 'Daily Standup'),
       questions: Array.isArray(data.questions) ? data.questions : [],
       schedule: {
         time: String(data.timeLocal || '09:00'),
@@ -40,9 +60,7 @@ export const standupsApi = {
       isActive: Boolean(data.isActive ?? true),
       createdAt: new Date(data.createdAt || Date.now()).toISOString(),
       updatedAt: new Date(data.updatedAt || Date.now()).toISOString(),
-    };
-
-    return [standup];
+    }));
   },
 
   async getStandupsByTeam(teamId: string): Promise<Standup[]> {
@@ -75,20 +93,51 @@ export const standupsApi = {
           };
           return dayMap[day as keyof typeof dayMap];
         }) || [],
-      channelName: data.slackChannelId || undefined,
+      reminderMinutesBefore: 10,
+      responseTimeoutHours: 2,
+      isActive: true,
     };
 
     const response = await api.post(`/standups/config`, createData);
-    return response.data;
+
+    // Map response back to frontend Standup type
+    const configData = response.data as StandupConfigResponse;
+    return this.mapStandupConfigsToStandups([configData], teamId)[0];
   },
 
   async updateStandup(standupId: string, data: Partial<Standup>): Promise<Standup> {
-    const response = await api.put<Standup>(`/standups/${standupId}`, data);
-    return response.data;
+    // Map frontend Standup type to backend UpdateStandupConfigDto
+    const updateData = {
+      ...(data.name && { name: data.name }),
+      ...(data.questions && { questions: data.questions }),
+      ...(data.schedule?.time && { timeLocal: data.schedule.time }),
+      ...(data.schedule?.timezone && { timezone: data.schedule.timezone }),
+      ...(data.schedule?.days && {
+        weekdays: data.schedule.days.map(day => {
+          const dayMap = {
+            sunday: 0,
+            monday: 1,
+            tuesday: 2,
+            wednesday: 3,
+            thursday: 4,
+            friday: 5,
+            saturday: 6,
+          };
+          return dayMap[day as keyof typeof dayMap];
+        }),
+      }),
+      ...(data.isActive !== undefined && { isActive: data.isActive }),
+    };
+
+    const response = await api.put(`/standups/config/${standupId}`, updateData);
+
+    // The PUT response should contain the updated standup config
+    const configData = response.data as StandupConfigResponse;
+    return this.mapStandupConfigsToStandups([configData], data.teamId || '')[0];
   },
 
   async deleteStandup(standupId: string): Promise<void> {
-    await api.delete(`/standups/${standupId}`);
+    await api.delete(`/standups/config/${standupId}`);
   },
 
   async getStandupInstances(standupId: string): Promise<StandupInstance[]> {

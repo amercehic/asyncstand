@@ -1,25 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ModernButton, Dropdown } from '@/components/ui';
-import {
-  ArrowLeft,
-  Settings,
-  Calendar,
-  Plus,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  MoreVertical,
-  Eye,
-  Edit,
-} from 'lucide-react';
+import { ModernButton } from '@/components/ui';
+import { ArrowLeft, Settings, Plus, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { teamsApi, standupsApi } from '@/lib/api';
 import type { Team, StandupConfig, StandupInstance } from '@/types';
 import type { AxiosError } from 'axios';
 import { TeamSettingsModal } from '@/components/TeamSettingsModal';
-import { StandupEditModal } from '@/components/StandupEditModal';
+import { ActiveStandupsList } from '@/components/ActiveStandupsList';
 
 export const TeamDetailPage = React.memo(() => {
   const { teamId } = useParams<{ teamId: string }>();
@@ -29,8 +18,6 @@ export const TeamDetailPage = React.memo(() => {
   const [recentInstances, setRecentInstances] = useState<StandupInstance[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isTeamSettingsOpen, setIsTeamSettingsOpen] = useState(false);
-  const [isStandupEditOpen, setIsStandupEditOpen] = useState(false);
-  const [selectedStandup, setSelectedStandup] = useState<StandupConfig | null>(null);
 
   useEffect(() => {
     const fetchTeamData = async () => {
@@ -110,23 +97,6 @@ export const TeamDetailPage = React.memo(() => {
         setTeam(teamData);
       } catch (error) {
         console.error('Error refreshing team data:', error);
-      }
-    }
-  };
-
-  const handleEditStandup = (standup: StandupConfig) => {
-    setSelectedStandup(standup);
-    setIsStandupEditOpen(true);
-  };
-
-  const handleStandupEditSuccess = async () => {
-    // Refetch standup data after successful update
-    if (teamId) {
-      try {
-        const standupsData = await standupsApi.getTeamStandups(teamId);
-        setStandups(standupsData);
-      } catch (error) {
-        console.error('Error refreshing standups:', error);
       }
     }
   };
@@ -253,111 +223,8 @@ export const TeamDetailPage = React.memo(() => {
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
-              className="bg-card rounded-2xl p-6 border border-border"
             >
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold">Active Standups</h2>
-                <Link to={`/teams/${teamId}/standups/create`}>
-                  <ModernButton variant="outline" size="sm">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create
-                  </ModernButton>
-                </Link>
-              </div>
-
-              {standups.length > 0 ? (
-                <div className="space-y-4">
-                  {standups.map(standup => (
-                    <div
-                      key={standup.id}
-                      className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors cursor-pointer"
-                      onClick={() => {
-                        // Find a recent instance for this standup to navigate to
-                        const recentInstance = recentInstances.find(
-                          instance => instance.configId === standup.id
-                        );
-                        if (recentInstance) {
-                          navigate(`/standups/${recentInstance.id}`);
-                        } else {
-                          toast.info('No recent standup instances found');
-                        }
-                      }}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-gradient-to-r from-primary to-primary/80 rounded-lg flex items-center justify-center">
-                          <Calendar className="w-5 h-5 text-white" />
-                        </div>
-                        <div>
-                          <h3 className="font-medium">{standup.name}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            {standup.schedule.days.length === 5 &&
-                            standup.schedule.days.includes('monday') &&
-                            standup.schedule.days.includes('friday')
-                              ? 'Weekdays'
-                              : standup.schedule.days
-                                  .map(day => day.charAt(0).toUpperCase() + day.slice(1))
-                                  .join(', ')}{' '}
-                            at {standup.schedule.time}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {standup.isActive && (
-                          <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                            Active
-                          </span>
-                        )}
-                        <Dropdown
-                          trigger={
-                            <ModernButton variant="ghost" size="sm">
-                              <MoreVertical className="w-4 h-4" />
-                            </ModernButton>
-                          }
-                          items={[
-                            {
-                              label: 'View Recent',
-                              icon: Eye,
-                              onClick: () => {
-                                const recentInstance = recentInstances.find(
-                                  instance => instance.configId === standup.id
-                                );
-                                if (recentInstance) {
-                                  navigate(`/standups/${recentInstance.id}`);
-                                } else {
-                                  toast.info('No recent standup instances found');
-                                }
-                              },
-                            },
-                            {
-                              label: 'Edit Standup',
-                              icon: Edit,
-                              onClick: () => handleEditStandup(standup),
-                            },
-                            {
-                              label: 'View History',
-                              icon: Calendar,
-                              onClick: () => {
-                                toast.info('View all standup history - Coming soon!');
-                              },
-                            },
-                          ]}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground mb-4">No standups configured yet</p>
-                  <Link to={`/teams/${teamId}/standups/create`}>
-                    <ModernButton variant="outline">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Create First Standup
-                    </ModernButton>
-                  </Link>
-                </div>
-              )}
+              <ActiveStandupsList teamId={teamId} showHeader={true} showCreateButton={true} />
             </motion.div>
 
             {/* Recent Activity */}
@@ -488,19 +355,6 @@ export const TeamDetailPage = React.memo(() => {
           onClose={() => setIsTeamSettingsOpen(false)}
           onSuccess={handleTeamSettingsSuccess}
           team={team}
-        />
-      )}
-
-      {/* Standup Edit Modal */}
-      {selectedStandup && (
-        <StandupEditModal
-          isOpen={isStandupEditOpen}
-          onClose={() => {
-            setIsStandupEditOpen(false);
-            setSelectedStandup(null);
-          }}
-          onSuccess={handleStandupEditSuccess}
-          standup={selectedStandup}
         />
       )}
     </div>

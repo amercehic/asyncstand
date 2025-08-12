@@ -5,6 +5,7 @@ export class StandupConfigFactory {
     return {
       id: faker.string.uuid(),
       teamId: faker.string.uuid(),
+      name: 'Daily Standup',
       questions: [
         'What did you accomplish yesterday?',
         'What will you work on today?',
@@ -36,6 +37,7 @@ export class StandupConfigFactory {
 
   static createMockCreateStandupConfigDto(overrides: Partial<Record<string, unknown>> = {}) {
     return {
+      name: 'Daily Standup',
       questions: [
         'What did you accomplish yesterday?',
         'What will you work on today?',
@@ -53,6 +55,7 @@ export class StandupConfigFactory {
 
   static createMockUpdateStandupConfigDto(overrides: Partial<Record<string, unknown>> = {}) {
     return {
+      name: 'Updated Standup',
       questions: [
         'What did you complete since the last standup?',
         'What are you focusing on next?',

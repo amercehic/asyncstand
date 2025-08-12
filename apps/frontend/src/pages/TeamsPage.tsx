@@ -8,7 +8,6 @@ import {
   Plus,
   Users,
   Hash,
-  Activity,
   TrendingUp,
   Users2,
   MoreVertical,
@@ -187,7 +186,7 @@ export const TeamsPage = React.memo(() => {
                 <div className="col-span-4">Team</div>
                 <div className="col-span-2">Members</div>
                 <div className="col-span-2">Integration</div>
-                <div className="col-span-2">Activity</div>
+                <div className="col-span-2">Standups</div>
                 <div className="col-span-2 text-center">Actions</div>
               </div>
             </div>
@@ -271,12 +270,29 @@ export const TeamsPage = React.memo(() => {
                       )}
                     </div>
 
-                    {/* Activity */}
+                    {/* Standups */}
                     <div className="col-span-2">
-                      <div className="flex items-center gap-2">
-                        <Activity className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">Recent</span>
-                      </div>
+                      {team.standupConfig ? (
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-4 h-4 text-green-600" />
+                            <span className="text-sm font-medium text-green-700">Active</span>
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {team.standupConfig.weekdays.length === 5 &&
+                            team.standupConfig.weekdays.includes(1) &&
+                            team.standupConfig.weekdays.includes(5)
+                              ? 'Weekdays'
+                              : `${team.standupConfig.weekdays.length} days`}
+                            • {team.standupConfig.timeLocal}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-sm text-muted-foreground">No standups</span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Actions */}

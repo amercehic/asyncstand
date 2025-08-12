@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ModernButton } from '@/components/ui';
-import { ArrowLeft, Plus, Trash2, Calendar, Clock, Users, Save } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Calendar, Clock, Users, Save, Hash } from 'lucide-react';
 import { toast } from 'sonner';
 import { teamsApi, standupsApi } from '@/lib/api';
 import type { Team } from '@/types';
@@ -29,27 +29,99 @@ const DAYS_OF_WEEK = [
   { key: 'sunday', label: 'Sunday' },
 ] as const;
 
-const DEFAULT_QUESTIONS = [
-  'What did you work on yesterday?',
-  'What are you working on today?',
-  'Any blockers or challenges?',
-];
+const STANDUP_TEMPLATES = [
+  {
+    id: 'daily-scrum',
+    name: 'Daily Scrum',
+    description: 'Traditional agile standup questions',
+    icon: '🏃‍♂️',
+    questions: [
+      'What did you work on yesterday?',
+      'What are you working on today?',
+      'Any blockers or challenges?',
+    ],
+    schedule: {
+      time: '09:00',
+      days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'] as const,
+    },
+  },
+  {
+    id: 'weekly-sync',
+    name: 'Weekly Team Sync',
+    description: 'Weekly check-in for broader updates',
+    icon: '📅',
+    questions: [
+      'What were your key accomplishments this week?',
+      'What are your priorities for next week?',
+      'Any support or resources needed?',
+    ],
+    schedule: {
+      time: '10:00',
+      days: ['monday'] as const,
+    },
+  },
+  {
+    id: 'project-update',
+    name: 'Project Status Update',
+    description: 'Focus on project progress and milestones',
+    icon: '🎯',
+    questions: [
+      'What progress have you made on your current project?',
+      'Are you on track to meet your deadlines?',
+      'Any risks or issues to highlight?',
+      'Do you need help from the team?',
+    ],
+    schedule: {
+      time: '14:00',
+      days: ['wednesday', 'friday'] as const,
+    },
+  },
+  {
+    id: 'mood-check',
+    name: 'Team Mood & Wellness',
+    description: 'Check in on team wellbeing and morale',
+    icon: '😊',
+    questions: [
+      'How are you feeling today? (1-10)',
+      "What's energizing you this week?",
+      'Any concerns or stress points?',
+    ],
+    schedule: {
+      time: '09:30',
+      days: ['friday'] as const,
+    },
+  },
+  {
+    id: 'custom',
+    name: 'Custom Template',
+    description: 'Start from scratch with your own questions',
+    icon: '✏️',
+    questions: [
+      'What did you work on yesterday?',
+      'What are you working on today?',
+      'Any blockers or challenges?',
+    ],
+    schedule: {
+      time: '09:00',
+      days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'] as const,
+    },
+  },
+] as const;
 
 export const StandupConfigPage = React.memo(() => {
   const { teamId } = useParams<{ teamId: string }>();
   const navigate = useNavigate();
   const [team, setTeam] = useState<Team | null>(null);
-  const [availableChannels, setAvailableChannels] = useState<
-    Array<{ id: string; name: string; isAssigned: boolean }>
-  >([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+  const [showTemplateSelection, setShowTemplateSelection] = useState(true);
   const [formData, setFormData] = useState<StandupFormData>({
     name: 'Daily Standup',
-    questions: [...DEFAULT_QUESTIONS],
+    questions: [...STANDUP_TEMPLATES[0].questions],
     schedule: {
-      time: '09:00',
-      days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+      time: STANDUP_TEMPLATES[0].schedule.time,
+      days: [...STANDUP_TEMPLATES[0].schedule.days],
       timezone: 'UTC',
     },
     slackChannelId: '',
@@ -62,20 +134,15 @@ export const StandupConfigPage = React.memo(() => {
       try {
         setIsLoading(true);
 
-        // Fetch team and available channels in parallel
-        const [teamData, channelsData] = await Promise.all([
-          teamsApi.getTeam(teamId),
-          teamsApi.getAvailableChannels().catch(() => ({ channels: [] })),
-        ]);
-
+        // Fetch team data
+        const teamData = await teamsApi.getTeam(teamId);
         setTeam(teamData);
-        setAvailableChannels(channelsData.channels);
 
-        // If team has a channel, auto-select it for new standups
+        // If team has a channel, auto-set it for new standups
         if (teamData.channel) {
           setFormData(prev => ({
             ...prev,
-            slackChannelId: teamData.channel!.name,
+            slackChannelId: teamData.channel!.id,
           }));
         }
 
@@ -176,6 +243,24 @@ export const StandupConfigPage = React.memo(() => {
     }));
   };
 
+  const handleTemplateSelect = (templateId: string) => {
+    const template = STANDUP_TEMPLATES.find(t => t.id === templateId);
+    if (!template) return;
+
+    setSelectedTemplate(templateId);
+    setFormData(prev => ({
+      ...prev,
+      name: template.name,
+      questions: [...template.questions],
+      schedule: {
+        ...prev.schedule,
+        time: template.schedule.time,
+        days: [...template.schedule.days],
+      },
+    }));
+    setShowTemplateSelection(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -269,14 +354,99 @@ export const StandupConfigPage = React.memo(() => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main Form */}
             <div className="lg:col-span-2 space-y-8">
+              {/* Template Selection */}
+              {showTemplateSelection && (
+                <motion.div
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.1 }}
+                  className="bg-card rounded-2xl p-6 border border-border"
+                >
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h2 className="text-xl font-semibold">Choose a Template</h2>
+                      <p className="text-muted-foreground">
+                        Start with a predefined template or create your own
+                      </p>
+                    </div>
+                    <ModernButton
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowTemplateSelection(false)}
+                    >
+                      Skip
+                    </ModernButton>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {STANDUP_TEMPLATES.map(template => (
+                      <motion.div
+                        key={template.id}
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.3, delay: 0.1 }}
+                        className={`p-4 rounded-lg border-2 cursor-pointer transition-all hover:shadow-md ${
+                          selectedTemplate === template.id
+                            ? 'border-primary bg-primary/5'
+                            : 'border-border hover:border-primary/50'
+                        }`}
+                        onClick={() => handleTemplateSelect(template.id)}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="text-2xl">{template.icon}</div>
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-sm">{template.name}</h3>
+                            <p className="text-xs text-muted-foreground mb-2">
+                              {template.description}
+                            </p>
+                            <div className="text-xs text-muted-foreground">
+                              <div className="flex items-center gap-1 mb-1">
+                                <Calendar className="w-3 h-3" />
+                                <span>
+                                  {template.schedule.days.length === 5 &&
+                                  template.schedule.days.includes(
+                                    'monday' as (typeof template.schedule.days)[number]
+                                  ) &&
+                                  template.schedule.days.includes(
+                                    'friday' as (typeof template.schedule.days)[number]
+                                  )
+                                    ? 'Weekdays'
+                                    : `${template.schedule.days.length} day${template.schedule.days.length !== 1 ? 's' : ''}`}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                <span>{template.schedule.time}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
               {/* Basic Information */}
               <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.1 }}
+                transition={{ duration: 0.6, delay: showTemplateSelection ? 0.2 : 0.1 }}
                 className="bg-card rounded-2xl p-6 border border-border"
               >
-                <h2 className="text-xl font-semibold mb-6">Basic Information</h2>
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-semibold">Basic Information</h2>
+                  {!showTemplateSelection && (
+                    <ModernButton
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowTemplateSelection(true)}
+                    >
+                      Change Template
+                    </ModernButton>
+                  )}
+                </div>
 
                 <div className="space-y-4">
                   <div>
@@ -294,44 +464,21 @@ export const StandupConfigPage = React.memo(() => {
                     />
                   </div>
 
-                  <div>
-                    <label htmlFor="slackChannel" className="block text-sm font-medium mb-2">
-                      Slack Channel (Optional)
-                    </label>
-                    {availableChannels.length > 0 ? (
-                      <select
-                        id="slackChannel"
-                        value={formData.slackChannelId || ''}
-                        onChange={e =>
-                          setFormData(prev => ({ ...prev, slackChannelId: e.target.value }))
-                        }
-                        className="w-full px-4 py-3 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                      >
-                        <option value="">Select a channel...</option>
-                        {availableChannels.map(channel => (
-                          <option key={channel.id} value={channel.name}>
-                            #{channel.name} {channel.isAssigned ? '(assigned)' : ''}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input
-                        id="slackChannel"
-                        type="text"
-                        value={formData.slackChannelId || ''}
-                        onChange={e =>
-                          setFormData(prev => ({ ...prev, slackChannelId: e.target.value }))
-                        }
-                        className="w-full px-4 py-3 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                        placeholder="#general"
-                      />
-                    )}
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {availableChannels.length > 0
-                        ? 'Select a channel where standup responses will be posted'
-                        : 'Responses will be posted to this Slack channel (enter manually)'}
-                    </p>
-                  </div>
+                  {/* Slack Channel Info - Read-only display */}
+                  {team.channel && (
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Slack Channel</label>
+                      <div className="px-4 py-3 bg-muted/50 rounded-lg border border-border">
+                        <div className="flex items-center gap-2">
+                          <Hash className="w-4 h-4 text-muted-foreground" />
+                          <span className="font-medium">#{team.channel.name}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Standup responses will be posted to your team's channel
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </motion.div>
 
@@ -339,7 +486,7 @@ export const StandupConfigPage = React.memo(() => {
               <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
+                transition={{ duration: 0.6, delay: showTemplateSelection ? 0.3 : 0.2 }}
                 className="bg-card rounded-2xl p-6 border border-border"
               >
                 <div className="flex items-center justify-between mb-6">
@@ -405,7 +552,7 @@ export const StandupConfigPage = React.memo(() => {
               <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.3 }}
+                transition={{ duration: 0.6, delay: showTemplateSelection ? 0.4 : 0.3 }}
                 className="bg-card rounded-2xl p-6 border border-border"
               >
                 <h2 className="text-xl font-semibold mb-6">Schedule</h2>

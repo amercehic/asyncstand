@@ -314,7 +314,8 @@ model TeamMember {
 model StandupConfig {
   id                     String        @id @default(uuid())
   team                   Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  teamId                 String        @unique // Only one config per team
+  teamId                 String        // Allow multiple configs per team
+  name                   String        // Name to distinguish multiple configs
   questions              String[]
   weekdays               Int[]         // 0 = Sunday
   timeLocal              String
@@ -329,6 +330,8 @@ model StandupConfig {
 
   // Relations
   configMembers          StandupConfigMember[]
+
+  @@unique([teamId, name]) // Prevent duplicate names per team
 }
 
 model StandupConfigMember {

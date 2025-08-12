@@ -245,6 +245,7 @@ describe('Standup Configuration (e2e)', () => {
     it('should create standup configuration successfully (admin)', async () => {
       const createConfigDto = {
         teamId: testData.teamId,
+        name: 'Test Standup Config',
         questions: [
           'What did you work on yesterday?',
           'What will you work on today?',
@@ -289,6 +290,7 @@ describe('Standup Configuration (e2e)', () => {
     it('should not allow members to create standup configurations', async () => {
       const createConfigDto = {
         teamId: testData.teamId,
+        name: 'Test Standup Config',
         questions: ['What did you work on?'],
         weekdays: [1, 2, 3, 4, 5],
         timeLocal: '09:00',
@@ -308,6 +310,7 @@ describe('Standup Configuration (e2e)', () => {
     it('should require authentication', async () => {
       const createConfigDto = {
         teamId: testData.teamId,
+        name: 'Test Standup Config',
         questions: ['What did you work on?'],
         weekdays: [1, 2, 3, 4, 5],
         timeLocal: '09:00',
@@ -358,6 +361,7 @@ describe('Standup Configuration (e2e)', () => {
     it('should reject duplicate configuration for same team', async () => {
       const createConfigDto = {
         teamId: testData.teamId,
+        name: 'Test Standup Config',
         questions: ['What did you work on?'],
         weekdays: [1, 2, 3, 4, 5],
         timeLocal: '09:00',
@@ -427,6 +431,7 @@ describe('Standup Configuration (e2e)', () => {
       const config = await prisma.standupConfig.create({
         data: {
           teamId: testData.teamId,
+          name: 'Test Daily Standup',
           questions: [
             'What did you work on yesterday?',
             'What will you work on today?',
@@ -508,6 +513,7 @@ describe('Standup Configuration (e2e)', () => {
       const config = await prisma.standupConfig.create({
         data: {
           teamId: testData.teamId,
+          name: 'Original Standup Config',
           questions: ['Original question'],
           weekdays: [1, 2, 3],
           timeLocal: '09:00',
@@ -624,6 +630,7 @@ describe('Standup Configuration (e2e)', () => {
       const config = await prisma.standupConfig.create({
         data: {
           teamId: testData.teamId,
+          name: 'Config to Delete',
           questions: ['Question to delete'],
           weekdays: [1, 2, 3, 4, 5],
           timeLocal: '09:00',
@@ -705,6 +712,7 @@ describe('Standup Configuration (e2e)', () => {
       const config = await prisma.standupConfig.create({
         data: {
           teamId: testData.teamId,
+          name: 'Bulk Test Standup',
           questions: ['Bulk test question'],
           weekdays: [1, 2, 3, 4, 5],
           timeLocal: '09:00',
@@ -904,6 +912,7 @@ describe('Standup Configuration (e2e)', () => {
       const otherConfig = await prisma.standupConfig.create({
         data: {
           teamId: otherTeam.id,
+          name: 'Other Org Standup',
           questions: ['Other org question'],
           weekdays: [1, 2, 3, 4, 5],
           timeLocal: '09:00',

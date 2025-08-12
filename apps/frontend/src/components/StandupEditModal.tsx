@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ModernButton } from '@/components/ui';
 import { X, Plus, Trash2, Calendar, Clock, Users, Save } from 'lucide-react';
 import { toast } from 'sonner';
-import { teamsApi, standupsApi } from '@/lib/api';
+import { standupsApi } from '@/lib/api';
 import type { StandupConfig } from '@/types';
 
 interface StandupEditModalProps {
@@ -65,9 +65,6 @@ export const StandupEditModal: React.FC<StandupEditModalProps> = ({
     slackChannelId: standup.slackChannelId,
   });
 
-  const [availableChannels, setAvailableChannels] = useState<
-    Array<{ id: string; name: string; isAssigned: boolean }>
-  >([]);
   const [isSaving, setIsSaving] = useState(false);
 
   // Reset form when standup changes
@@ -85,22 +82,6 @@ export const StandupEditModal: React.FC<StandupEditModalProps> = ({
       });
     }
   }, [standup]);
-
-  // Load available channels when modal opens
-  useEffect(() => {
-    const loadChannels = async () => {
-      if (!isOpen) return;
-
-      try {
-        const channelsData = await teamsApi.getAvailableChannels();
-        setAvailableChannels(channelsData.channels);
-      } catch (error) {
-        console.error('Error loading channels:', error);
-      }
-    };
-
-    loadChannels();
-  }, [isOpen]);
 
   // Prevent background scroll when modal is open
   useEffect(() => {
@@ -409,30 +390,6 @@ export const StandupEditModal: React.FC<StandupEditModalProps> = ({
                 </div>
               </div>
             </div>
-
-            {/* Slack Channel */}
-            {availableChannels.length > 0 && (
-              <div>
-                <label className="block text-sm font-medium mb-2">Slack Channel (Optional)</label>
-                <select
-                  value={formData.slackChannelId || ''}
-                  onChange={e =>
-                    setFormData(prev => ({
-                      ...prev,
-                      slackChannelId: e.target.value || undefined,
-                    }))
-                  }
-                  className="w-full px-4 py-3 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-150"
-                >
-                  <option value="">Select a channel (optional)</option>
-                  {availableChannels.map(channel => (
-                    <option key={channel.id} value={channel.id} disabled={channel.isAssigned}>
-                      #{channel.name} {channel.isAssigned ? '(assigned)' : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
 
             {/* Actions */}
             <div className="flex gap-3 pt-4">

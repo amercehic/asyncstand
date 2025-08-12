@@ -2,10 +2,12 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface DropdownItem {
-  label: string;
-  onClick: () => void;
+  label?: string;
+  onClick?: () => void;
   icon?: React.ComponentType<{ className?: string }>;
   variant?: 'default' | 'destructive';
+  type?: 'item' | 'separator';
+  className?: string;
 }
 
 interface DropdownProps {
@@ -32,6 +34,7 @@ export const Dropdown: React.FC<DropdownProps> = ({ trigger, items, align = 'rig
   }, []);
 
   const handleItemClick = (item: DropdownItem) => {
+    if (item.type === 'separator' || !item.onClick) return;
     item.onClick();
     setIsOpen(false);
   };
@@ -59,23 +62,27 @@ export const Dropdown: React.FC<DropdownProps> = ({ trigger, items, align = 'rig
             }`}
           >
             <div className="py-1">
-              {items.map((item, index) => (
-                <button
-                  key={index}
-                  onClick={e => {
-                    e.stopPropagation();
-                    handleItemClick(item);
-                  }}
-                  className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-muted transition-colors ${
-                    item.variant === 'destructive'
-                      ? 'text-red-600 hover:text-red-700'
-                      : 'text-foreground'
-                  }`}
-                >
-                  {item.icon && <item.icon className="w-4 h-4" />}
-                  {item.label}
-                </button>
-              ))}
+              {items.map((item, index) =>
+                item.type === 'separator' ? (
+                  <div key={index} className="h-px bg-border my-1" />
+                ) : (
+                  <button
+                    key={index}
+                    onClick={e => {
+                      e.stopPropagation();
+                      handleItemClick(item);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-left hover:bg-muted transition-colors ${
+                      item.variant === 'destructive' || item.className?.includes('text-red')
+                        ? 'text-red-600 hover:text-red-700'
+                        : 'text-foreground'
+                    } ${item.className || ''}`}
+                  >
+                    {item.icon && <item.icon className="w-4 h-4" />}
+                    {item.label}
+                  </button>
+                )
+              )}
             </div>
           </motion.div>
         )}
