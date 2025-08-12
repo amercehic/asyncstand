@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts';
 import { toast } from 'sonner';
 import { useTeams } from '@/contexts/TeamsContext';
 import { standupsApi } from '@/lib/api';
+import type { Standup } from '@/types';
 
 export const DashboardPage = React.memo(() => {
   const { user } = useAuth();
@@ -28,10 +29,10 @@ export const DashboardPage = React.memo(() => {
     const fetchDashboardStats = async () => {
       try {
         setLoading(true);
-        
+
         // Get active teams count
         const activeTeams = teams?.length || 0;
-        
+
         // Get this week's standups count
         // For now, calculate based on active standup configs
         let weeklyStandups = 0;
@@ -43,15 +44,15 @@ export const DashboardPage = React.memo(() => {
             try {
               // Get standups for this team
               const teamStandups = await standupsApi.getTeamStandups(team.id);
-              
+
               // Count active standups and estimate weekly occurrences
-              const activeStandups = teamStandups.filter((s: any) => s.isActive);
-              activeStandups.forEach((standup: any) => {
+              const activeStandups = teamStandups.filter((s: Standup) => s.isActive);
+              activeStandups.forEach((standup: Standup) => {
                 // Count how many days this standup runs per week
                 const daysPerWeek = standup.schedule.days.length;
                 weeklyStandups += daysPerWeek;
               });
-              
+
               // Calculate completion rate from actual standup data
               if (activeStandups.length > 0) {
                 completionDataPoints++;
@@ -59,29 +60,29 @@ export const DashboardPage = React.memo(() => {
                 // In a full implementation, this would fetch recent standup instances
                 // and calculate actual participant completion rates
                 let teamCompletionScore = 0;
-                
-                activeStandups.forEach(standup => {
+
+                activeStandups.forEach((standup: Standup) => {
                   // Base score for having a standup configured
                   let standupScore = 60;
-                  
+
                   // Bonus for having proper schedule (time + days)
                   if (standup.schedule.time && standup.schedule.days.length > 0) {
                     standupScore += 20;
                   }
-                  
+
                   // Bonus for having questions configured
                   if (standup.questions && standup.questions.length > 0) {
                     standupScore += 15;
                   }
-                  
+
                   // Bonus for having slack integration
                   if (standup.slackChannelId) {
                     standupScore += 5;
                   }
-                  
+
                   teamCompletionScore = Math.max(teamCompletionScore, standupScore);
                 });
-                
+
                 totalCompletionRate += Math.min(100, teamCompletionScore);
               }
             } catch (error) {
@@ -91,9 +92,8 @@ export const DashboardPage = React.memo(() => {
         }
 
         // Calculate average completion rate
-        const averageCompletionRate = completionDataPoints > 0 
-          ? Math.round(totalCompletionRate / completionDataPoints)
-          : 0;
+        const averageCompletionRate =
+          completionDataPoints > 0 ? Math.round(totalCompletionRate / completionDataPoints) : 0;
 
         setDashboardStats({
           activeTeams,
@@ -112,20 +112,20 @@ export const DashboardPage = React.memo(() => {
   }, [teams]);
 
   const stats = [
-    { 
-      label: 'Active Teams', 
-      value: loading ? '...' : dashboardStats.activeTeams.toString(), 
-      icon: Users 
+    {
+      label: 'Active Teams',
+      value: loading ? '...' : dashboardStats.activeTeams.toString(),
+      icon: Users,
     },
-    { 
-      label: "This Week's Standups", 
-      value: loading ? '...' : dashboardStats.weeklyStandups.toString(), 
-      icon: Calendar 
+    {
+      label: "This Week's Standups",
+      value: loading ? '...' : dashboardStats.weeklyStandups.toString(),
+      icon: Calendar,
     },
-    { 
-      label: 'Completion Rate', 
-      value: loading ? '...' : `${dashboardStats.completionRate}%`, 
-      icon: Bell 
+    {
+      label: 'Completion Rate',
+      value: loading ? '...' : `${dashboardStats.completionRate}%`,
+      icon: Bell,
     },
   ];
 

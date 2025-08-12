@@ -286,7 +286,11 @@ export const SignUpPage = React.memo(() => {
                   className="text-muted-foreground hover:text-foreground transition-smooth"
                   data-testid="toggle-confirm-password-visibility"
                 >
-                  {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showConfirmPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
                 </button>
               }
               required
