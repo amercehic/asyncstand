@@ -1,8 +1,14 @@
 // Backend response types
+
+export enum StandupDeliveryType {
+  channel = 'channel',
+  direct_message = 'direct_message',
+}
 export interface StandupConfigResponse {
   id: string;
   teamId: string;
   name: string;
+  deliveryType: StandupDeliveryType;
   questions: string[];
   weekdays: number[];
   timeLocal: string;

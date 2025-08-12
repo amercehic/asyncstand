@@ -358,6 +358,7 @@ describe('SlackMessagingService', () => {
         name: 'Test Team',
         channelId: mockChannelId,
         integrationId: mockIntegrationId,
+        configs: [{ deliveryType: 'channel' }],
       },
       configSnapshot: {
         questions: ['Question 1', 'Question 2'],
@@ -370,7 +371,12 @@ describe('SlackMessagingService', () => {
       mockPrisma.standupInstance.findFirst.mockResolvedValue(
         mockInstance as {
           id: string;
-          team: { name: string; channelId: string; integrationId: string };
+          team: {
+            name: string;
+            channelId: string;
+            integrationId: string;
+            configs: Array<{ deliveryType: string }>;
+          };
           configSnapshot: {
             questions: string[];
             responseTimeoutHours: number;
@@ -400,6 +406,12 @@ describe('SlackMessagingService', () => {
               name: true,
               channelId: true,
               integrationId: true,
+              configs: {
+                where: { isActive: true },
+                select: { deliveryType: true },
+                orderBy: { createdAt: 'desc' },
+                take: 1,
+              },
             },
           },
         },

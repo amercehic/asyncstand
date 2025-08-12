@@ -4,6 +4,7 @@ import { SlackOauthService } from '@/integrations/slack/slack-oauth.service';
 import { SlackMessageFormatterService } from '@/integrations/slack/slack-message-formatter.service';
 import { LoggerService } from '@/common/logger.service';
 import { PrismaService } from '@/prisma/prisma.service';
+import { StandupDeliveryType } from '@prisma/client';
 
 export interface MessageResponse {
   ok: boolean;
@@ -288,6 +289,12 @@ export class SlackMessagingService {
               name: true,
               channelId: true,
               integrationId: true,
+              configs: {
+                where: { isActive: true },
+                select: { deliveryType: true },
+                orderBy: { createdAt: 'desc' },
+                take: 1,
+              },
             },
           },
         },
@@ -319,14 +326,31 @@ export class SlackMessagingService {
         },
       };
 
+      // Get the delivery type from the active config
+      const config = instance.team.configs[0];
+      const deliveryType = config?.deliveryType || StandupDeliveryType.channel;
+
       const { text, blocks } = this.formatter.formatStandupReminder(instanceData, teamName);
 
-      const result = await this.sendChannelMessage(
-        instance.team.integrationId,
-        instance.team.channelId,
-        text,
-        blocks,
-      );
+      let result: MessageResponse;
+
+      if (deliveryType === StandupDeliveryType.direct_message) {
+        // Send direct messages to each participating member
+        result = await this.sendStandupReminderDMs(
+          instance.team.integrationId,
+          configSnapshot.participatingMembers,
+          text,
+          blocks,
+        );
+      } else {
+        // Send to channel (default behavior)
+        result = await this.sendChannelMessage(
+          instance.team.integrationId,
+          instance.team.channelId,
+          text,
+          blocks,
+        );
+      }
 
       // Store the message timestamp for future updates
       if (result.ok && result.ts) {
@@ -340,6 +364,92 @@ export class SlackMessagingService {
     } catch (error) {
       this.logger.error('Failed to send standup reminder', {
         instanceId,
+        error: this.getErrorMessage(error),
+      });
+
+      return {
+        ok: false,
+        error: this.getErrorMessage(error),
+      };
+    }
+  }
+
+  /**
+   * Send standup reminder as direct messages to all participating members
+   */
+  async sendStandupReminderDMs(
+    integrationId: string,
+    participatingMembers: Array<{
+      id: string;
+      name: string;
+      platformUserId: string;
+    }>,
+    text: string,
+    blocks: (Block | KnownBlock)[],
+  ): Promise<MessageResponse> {
+    try {
+      const results: MessageResponse[] = [];
+      let successCount = 0;
+      let firstSuccessTs: string | undefined;
+
+      // Send DM to each participating member
+      for (const member of participatingMembers) {
+        if (!member.platformUserId) {
+          this.logger.warn('Skipping member without platformUserId', {
+            memberId: member.id,
+            memberName: member.name,
+          });
+          continue;
+        }
+
+        const result = await this.sendDirectMessage(
+          integrationId,
+          member.platformUserId,
+          text,
+          blocks,
+        );
+
+        results.push(result);
+
+        if (result.ok) {
+          successCount++;
+          if (!firstSuccessTs && result.ts) {
+            firstSuccessTs = result.ts;
+          }
+          this.logger.debug('Sent DM standup reminder', {
+            memberId: member.id,
+            memberName: member.name,
+            platformUserId: member.platformUserId,
+            ts: result.ts,
+          });
+        } else {
+          this.logger.warn('Failed to send DM standup reminder', {
+            memberId: member.id,
+            memberName: member.name,
+            platformUserId: member.platformUserId,
+            error: result.error,
+          });
+        }
+      }
+
+      // Return aggregate result
+      const isSuccess = successCount > 0;
+      const allSucceeded =
+        successCount === participatingMembers.filter((m) => m.platformUserId).length;
+
+      return {
+        ok: isSuccess,
+        ts: firstSuccessTs, // Use first successful message timestamp
+        error: isSuccess
+          ? allSucceeded
+            ? undefined
+            : `Sent to ${successCount}/${participatingMembers.length} members`
+          : 'Failed to send to any members',
+      };
+    } catch (error) {
+      this.logger.error('Failed to send standup reminder DMs', {
+        integrationId,
+        memberCount: participatingMembers.length,
         error: this.getErrorMessage(error),
       });
 

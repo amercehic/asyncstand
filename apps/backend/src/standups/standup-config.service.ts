@@ -100,6 +100,7 @@ export class StandupConfigService {
         data: {
           teamId,
           name: data.name,
+          deliveryType: data.deliveryType,
           questions: data.questions,
           weekdays: data.weekdays,
           timeLocal: data.timeLocal,
@@ -234,6 +235,7 @@ export class StandupConfigService {
       where: { id: config.id },
       data: {
         ...(data.name && { name: data.name }),
+        ...(data.deliveryType && { deliveryType: data.deliveryType }),
         ...(data.questions && { questions: data.questions }),
         ...(data.weekdays && { weekdays: data.weekdays }),
         ...(data.timeLocal && { timeLocal: data.timeLocal }),
@@ -310,6 +312,7 @@ export class StandupConfigService {
       id: config.id,
       teamId: config.teamId,
       name: config.name,
+      deliveryType: config.deliveryType,
       questions: config.questions,
       weekdays: config.weekdays,
       timeLocal: config.timeLocal,
@@ -805,6 +808,7 @@ export class StandupConfigService {
         id: config.id,
         teamId: config.teamId,
         name: config.name,
+        deliveryType: config.deliveryType,
         questions: config.questions,
         weekdays: config.weekdays,
         timeLocal: config.timeLocal,

@@ -2,14 +2,27 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ModernButton } from '@/components/ui';
-import { ArrowLeft, Plus, Trash2, Calendar, Clock, Users, Save, Hash } from 'lucide-react';
+import {
+  ArrowLeft,
+  Plus,
+  Trash2,
+  Calendar,
+  Clock,
+  Users,
+  Save,
+  Hash,
+  MessageSquare,
+  Send,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { teamsApi, standupsApi } from '@/lib/api';
 import type { Team } from '@/types';
+import { StandupDeliveryType } from '@/types/backend';
 import type { AxiosError } from 'axios';
 
 interface StandupFormData {
   name: string;
+  deliveryType: StandupDeliveryType;
   questions: string[];
   schedule: {
     time: string;
@@ -118,6 +131,7 @@ export const StandupConfigPage = React.memo(() => {
   const [showTemplateSelection, setShowTemplateSelection] = useState(true);
   const [formData, setFormData] = useState<StandupFormData>({
     name: 'Daily Standup',
+    deliveryType: StandupDeliveryType.channel,
     questions: [...STANDUP_TEMPLATES[0].questions],
     schedule: {
       time: STANDUP_TEMPLATES[0].schedule.time,
@@ -153,6 +167,7 @@ export const StandupConfigPage = React.memo(() => {
             const existingStandup = standups[0];
             setFormData({
               name: existingStandup.name,
+              deliveryType: existingStandup.deliveryType,
               questions: existingStandup.questions,
               schedule: existingStandup.schedule,
               slackChannelId: existingStandup.slackChannelId || '',
@@ -285,6 +300,7 @@ export const StandupConfigPage = React.memo(() => {
       const standupData = {
         teamId: teamId!,
         name: formData.name,
+        deliveryType: formData.deliveryType,
         questions: formData.questions,
         schedule: formData.schedule,
         slackChannelId: formData.slackChannelId || undefined,
@@ -482,11 +498,89 @@ export const StandupConfigPage = React.memo(() => {
                 </div>
               </motion.div>
 
+              {/* Delivery Type */}
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: showTemplateSelection ? 0.25 : 0.15 }}
+                className="bg-card rounded-2xl p-6 border border-border"
+              >
+                <h2 className="text-xl font-semibold mb-6">Delivery Type</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFormData(prev => ({ ...prev, deliveryType: StandupDeliveryType.channel }))
+                    }
+                    className={`p-6 rounded-lg border transition-all duration-200 text-left ${
+                      formData.deliveryType === StandupDeliveryType.channel
+                        ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
+                        : 'border-border bg-background hover:border-primary/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-4 mb-3">
+                      <div
+                        className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                          formData.deliveryType === StandupDeliveryType.channel
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        <MessageSquare className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-lg">Channel</h3>
+                        <p className="text-sm text-muted-foreground">Send to Slack channel</p>
+                      </div>
+                    </div>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      Send standup reminders to a Slack channel where team members respond in
+                      threads. Great for transparency and team visibility.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFormData(prev => ({
+                        ...prev,
+                        deliveryType: StandupDeliveryType.direct_message,
+                      }))
+                    }
+                    className={`p-6 rounded-lg border transition-all duration-200 text-left ${
+                      formData.deliveryType === StandupDeliveryType.direct_message
+                        ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
+                        : 'border-border bg-background hover:border-primary/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-4 mb-3">
+                      <div
+                        className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                          formData.deliveryType === StandupDeliveryType.direct_message
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        <Send className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-lg">Direct Message</h3>
+                        <p className="text-sm text-muted-foreground">Send individual DMs</p>
+                      </div>
+                    </div>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      Send individual direct messages to each team member. Perfect for private
+                      updates and sensitive information.
+                    </p>
+                  </button>
+                </div>
+              </motion.div>
+
               {/* Questions */}
               <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: showTemplateSelection ? 0.3 : 0.2 }}
+                transition={{ duration: 0.6, delay: showTemplateSelection ? 0.35 : 0.25 }}
                 className="bg-card rounded-2xl p-6 border border-border"
               >
                 <div className="flex items-center justify-between mb-6">
@@ -552,7 +646,7 @@ export const StandupConfigPage = React.memo(() => {
               <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: showTemplateSelection ? 0.4 : 0.3 }}
+                transition={{ duration: 0.6, delay: showTemplateSelection ? 0.45 : 0.35 }}
                 className="bg-card rounded-2xl p-6 border border-border"
               >
                 <h2 className="text-xl font-semibold mb-6">Schedule</h2>

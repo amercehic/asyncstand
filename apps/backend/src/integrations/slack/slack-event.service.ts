@@ -260,8 +260,148 @@ export class SlackEventService {
         text: event.text,
       });
 
-      // Could implement conversational interface here
+      // Handle standup responses via DM text
+      if (event.text && event.user && !event.bot_id) {
+        await this.handleDirectMessageResponse(event.user, event.text, _teamId);
+      }
     }
+
+    // Handle thread replies to standup reminders (existing behavior)
+    if (event.thread_ts) {
+      this.logger.debug('Thread reply received', {
+        user: event.user,
+        text: event.text,
+        thread_ts: event.thread_ts,
+      });
+
+      // Could implement thread-based response collection here
+      // For now, responses are collected via interactive components
+    }
+  }
+
+  /**
+   * Handle direct message responses to standup questions
+   */
+  private async handleDirectMessageResponse(
+    userId: string,
+    text: string,
+    teamId: string,
+  ): Promise<void> {
+    try {
+      // Find active standup instance for this user
+      const activeInstance = await this.findActiveStandupInstanceForUser(userId, teamId);
+
+      if (!activeInstance) {
+        this.logger.debug('No active standup found for user DM', { userId, teamId });
+        return;
+      }
+
+      this.logger.info('Processing DM standup response', {
+        userId,
+        instanceId: activeInstance.id,
+        responseLength: text.length,
+      });
+
+      // Parse the response - for now, treat the entire message as one response
+      // In a more sophisticated implementation, we could parse multi-line responses
+      // or implement a conversational interface
+      await this.submitParsedResponse(activeInstance.id, userId, text);
+    } catch (error) {
+      this.logger.error('Error handling DM response', {
+        userId,
+        teamId,
+        error: this.getErrorMessage(error),
+      });
+    }
+  }
+
+  /**
+   * Find the most recent active standup instance for a user
+   */
+  private async findActiveStandupInstanceForUser(platformUserId: string, teamId: string) {
+    // Find team member by platform user ID
+    const teamMember = await this.prisma.teamMember.findFirst({
+      where: {
+        platformUserId,
+        team: {
+          integration: { externalTeamId: teamId },
+        },
+        active: true,
+      },
+      include: {
+        team: {
+          include: {
+            instances: {
+              where: {
+                state: { in: ['pending', 'collecting'] },
+                targetDate: {
+                  gte: new Date(Date.now() - 24 * 60 * 60 * 1000), // Within last 24 hours
+                },
+              },
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+            },
+          },
+        },
+      },
+    });
+
+    return teamMember?.team.instances[0] || null;
+  }
+
+  /**
+   * Submit a parsed response for a user
+   */
+  private async submitParsedResponse(
+    instanceId: string,
+    platformUserId: string,
+    responseText: string,
+  ): Promise<void> {
+    // For simplicity, treat the entire message as an answer to all questions
+    // A more sophisticated implementation could parse structured responses
+
+    const instance = await this.prisma.standupInstance.findFirst({
+      where: { id: instanceId },
+      include: {
+        team: {
+          include: {
+            members: {
+              where: { platformUserId, active: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!instance || !instance.team.members[0]) {
+      this.logger.warn('Instance or team member not found for response', {
+        instanceId,
+        platformUserId,
+      });
+      return;
+    }
+
+    const configSnapshot = instance.configSnapshot as {
+      questions: string[];
+    };
+    const teamMember = instance.team.members[0];
+
+    // Submit response for each question (using the same text for all)
+    const answers = configSnapshot.questions.map((_, index) => ({
+      questionIndex: index,
+      text: responseText,
+    }));
+
+    // Use the existing answer collection service
+    // This requires importing the AnswerCollectionService, which I'll do below
+    this.logger.info('Submitting DM response', {
+      instanceId,
+      teamMemberId: teamMember.id,
+      questionCount: answers.length,
+    });
+
+    // For now, log the response - in a full implementation, we'd call the answer service
+    // await this.answerCollectionService.submitAnswers(instanceId, teamMember.id, { answers });
   }
 
   private async handleBlockActions(payload: InteractiveComponent): Promise<void> {

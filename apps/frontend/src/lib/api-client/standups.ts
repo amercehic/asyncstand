@@ -1,5 +1,6 @@
 import type { Standup, StandupInstance, StandupResponse, ActiveStandup } from '@/types';
 import type { StandupConfigResponse, StandupInstanceResponse } from '@/types/backend';
+import { StandupDeliveryType } from '@/types/backend';
 import { api } from '@/lib/api-client/client';
 
 export const standupsApi = {
@@ -48,6 +49,7 @@ export const standupsApi = {
       id: String(data.id || teamId),
       teamId: String(data.team?.id || teamId),
       name: String(data.name || 'Daily Standup'),
+      deliveryType: data.deliveryType || StandupDeliveryType.channel,
       questions: Array.isArray(data.questions) ? data.questions : [],
       schedule: {
         time: String(data.timeLocal || '09:00'),
@@ -77,6 +79,7 @@ export const standupsApi = {
     const createData = {
       teamId,
       name: data.name || 'Daily Standup',
+      deliveryType: data.deliveryType || StandupDeliveryType.channel,
       questions: data.questions || [],
       timeLocal: data.schedule?.time || '09:00',
       timezone: data.schedule?.timezone || 'UTC',
@@ -109,6 +112,7 @@ export const standupsApi = {
     // Map frontend Standup type to backend UpdateStandupConfigDto
     const updateData = {
       ...(data.name && { name: data.name }),
+      ...(data.deliveryType && { deliveryType: data.deliveryType }),
       ...(data.questions && { questions: data.questions }),
       ...(data.schedule?.time && { timeLocal: data.schedule.time }),
       ...(data.schedule?.timezone && { timezone: data.schedule.timezone }),

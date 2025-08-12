@@ -265,7 +265,7 @@ model Team {
   integrationId  String
   channel        Channel?     @relation(fields: [channelId], references: [id], onDelete: SetNull)
   channelId      String?      // Now references Channel.id, not Slack channel ID
-  slackChannelId String       // The actual Slack channel ID (e.g., C1234567890)
+  slackChannelId String?      // The actual Slack channel ID (e.g., C1234567890) - optional for DM standups
   name           String
   timezone       String
   createdBy      User?        @relation("TeamCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
@@ -280,7 +280,6 @@ model Team {
 
   @@index([integrationId, slackChannelId])
   @@index([orgId, createdAt])
-  @@unique([integrationId, slackChannelId])
 }
 
 model TeamMember {
@@ -312,21 +311,22 @@ model TeamMember {
 }
 
 model StandupConfig {
-  id                     String        @id @default(uuid())
-  team                   Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  teamId                 String        // Allow multiple configs per team
-  name                   String        // Name to distinguish multiple configs
+  id                     String               @id @default(uuid())
+  team                   Team                 @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  teamId                 String               // Allow multiple configs per team
+  name                   String               // Name to distinguish multiple configs
+  deliveryType           StandupDeliveryType  @default(channel)
   questions              String[]
-  weekdays               Int[]         // 0 = Sunday
+  weekdays               Int[]                // 0 = Sunday
   timeLocal              String
   timezone               String
-  reminderMinutesBefore  Int           @default(10)
-  responseTimeoutHours   Int           @default(2)
-  isActive               Boolean       @default(true)
-  createdBy              User?         @relation("StandupConfigCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  reminderMinutesBefore  Int                  @default(10)
+  responseTimeoutHours   Int                  @default(2)
+  isActive               Boolean              @default(true)
+  createdBy              User?                @relation("StandupConfigCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
   createdByUserId        String?
-  createdAt              DateTime      @default(now())
-  updatedAt              DateTime      @updatedAt
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
 
   // Relations
   configMembers          StandupConfigMember[]
@@ -344,6 +344,11 @@ model StandupConfigMember {
   updatedAt        DateTime      @updatedAt
 
   @@id([standupConfigId, teamMemberId])
+}
+
+enum StandupDeliveryType {
+  channel
+  direct_message
 }
 
 enum StandupInstanceState {

@@ -1,7 +1,10 @@
+import { StandupDeliveryType } from '@prisma/client';
+
 export interface StandupConfigResponse {
   id: string;
   teamId: string;
   name: string;
+  deliveryType: StandupDeliveryType;
   questions: string[];
   weekdays: number[];
   timeLocal: string;

@@ -7,6 +7,7 @@ import { CreateStandupConfigDto } from '@/standups/dto/create-standup-config.dto
 import { UpdateStandupConfigDto } from '@/standups/dto/update-standup-config.dto';
 import { UpdateMemberParticipationDto } from '@/standups/dto/update-member-participation.dto';
 import { BulkUpdateParticipationDto } from '@/standups/dto/bulk-update-participation.dto';
+import { StandupDeliveryType } from '@prisma/client';
 import {
   StandupConfigResponse,
   MemberParticipationResponse,
@@ -65,6 +66,7 @@ describe('StandupConfigController', () => {
   describe('createStandupConfig', () => {
     const createDto: CreateStandupConfigDto = {
       name: 'Daily Standup',
+      deliveryType: StandupDeliveryType.channel,
       questions: [
         'What did you accomplish yesterday?',
         'What will you work on today?',
@@ -114,6 +116,7 @@ describe('StandupConfigController', () => {
         id: mockConfigId,
         teamId: mockTeamId,
         name: 'Daily Standup',
+        deliveryType: StandupDeliveryType.channel,
         team: {
           id: mockTeamId,
           name: 'Test Team',
