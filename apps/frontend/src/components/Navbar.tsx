@@ -38,8 +38,6 @@ export const Navbar = React.memo(() => {
     { path: '/integrations', label: 'Integrations', icon: Zap, roles: ['owner', 'admin'] as const },
   ] as const;
 
-  type UserRole = 'owner' | 'admin' | 'member';
-
   const isActiveRoute = (path: string) => {
     if (path === '/dashboard') {
       return location.pathname === '/dashboard';
@@ -61,7 +59,11 @@ export const Navbar = React.memo(() => {
           </Link>
           <nav className="hidden md:flex items-center gap-6">
             {navItems
-              .filter(item => (user?.role ? item.roles.includes(user.role as UserRole) : false))
+              .filter(item => {
+                if (!user?.role) return false;
+                // TypeScript will narrow the type based on the actual roles array
+                return (item.roles as readonly string[]).includes(user.role);
+              })
               .map(item => (
                 <Link
                   key={item.path}
@@ -121,7 +123,11 @@ export const Navbar = React.memo(() => {
       <div className="md:hidden mt-4 pt-4 border-t border-border">
         <nav className="flex items-center gap-2">
           {navItems
-            .filter(item => (user?.role ? item.roles.includes(user.role as UserRole) : false))
+            .filter(item => {
+              if (!user?.role) return false;
+              // TypeScript will narrow the type based on the actual roles array
+              return (item.roles as readonly string[]).includes(user.role);
+            })
             .map(item => (
               <Link
                 key={item.path}
