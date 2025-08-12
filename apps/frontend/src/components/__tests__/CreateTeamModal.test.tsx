@@ -129,6 +129,11 @@ describe('CreateTeamModal', () => {
       expect(integrationsApi.getSlackIntegrationsForTeamCreation).toHaveBeenCalled();
     });
 
+    // Wait for the integrations to actually appear in the UI
+    await waitFor(() => {
+      expect(screen.getByText('Slack: Test Workspace')).toBeInTheDocument();
+    });
+
     const integrationSelect = screen.getByTestId('integration-select');
     expect(integrationSelect).toHaveTextContent('Slack: Test Workspace');
     expect(integrationSelect).toHaveTextContent('Discord: Another Workspace');
