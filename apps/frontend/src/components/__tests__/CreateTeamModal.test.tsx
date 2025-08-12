@@ -1,5 +1,5 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@/test/utils';
+import { render, screen, fireEvent, waitFor, act } from '@/test/utils';
 import { toast } from 'sonner';
 import React from 'react';
 
@@ -114,8 +114,10 @@ describe('CreateTeamModal', () => {
     expect(screen.getByTestId('timezone-select')).toBeInTheDocument();
   });
 
-  it('does not render when closed', () => {
-    renderWithProviders(<CreateTeamModal {...mockProps} isOpen={false} />);
+  it('does not render when closed', async () => {
+    await act(async () => {
+      renderWithProviders(<CreateTeamModal {...mockProps} isOpen={false} />);
+    });
     expect(screen.queryByText('Create Team')).not.toBeInTheDocument();
   });
 
@@ -234,7 +236,9 @@ describe('CreateTeamModal', () => {
       expect(screen.getByTestId('close-modal')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByTestId('close-modal'));
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('close-modal'));
+    });
     expect(mockProps.onClose).toHaveBeenCalled();
   });
 
@@ -245,7 +249,9 @@ describe('CreateTeamModal', () => {
       expect(screen.getByTestId('cancel-button')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByTestId('cancel-button'));
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('cancel-button'));
+    });
     expect(mockProps.onClose).toHaveBeenCalled();
   });
 

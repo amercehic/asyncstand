@@ -286,6 +286,7 @@ export const StandupEditModal: React.FC<StandupEditModalProps> = ({
                         size="sm"
                         onClick={() => removeQuestion(index)}
                         className="text-red-600 hover:text-red-700 px-3"
+                        aria-label="Delete question"
                       >
                         <Trash2 className="w-4 h-4" />
                       </ModernButton>

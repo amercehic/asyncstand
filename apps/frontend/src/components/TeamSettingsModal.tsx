@@ -413,6 +413,7 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
                         onClick={() => setShowDeleteConfirmation(true)}
                         disabled={isUpdating || isDeleting}
                         className="text-red-600 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/50"
+                        data-testid="show-delete-confirmation"
                       >
                         <Trash2 className="w-4 h-4 mr-2" />
                         Delete Team
@@ -453,6 +454,7 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
                             onClick={handleDeleteTeam}
                             disabled={isDeleting || deleteConfirmationText !== team.name}
                             className="flex-1 text-red-600 hover:text-white hover:bg-red-600 disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-red-600"
+                            data-testid="confirm-delete-team"
                           >
                             {isDeleting ? (
                               <>
