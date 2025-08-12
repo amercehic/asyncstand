@@ -8,4 +8,5 @@ export { ThemeToggle } from '@/components/ui/theme-toggle';
 export { Tooltip } from '@/components/ui/Tooltip';
 export { SkipLinks } from '@/components/ui/SkipLinks';
 export { Dropdown } from '@/components/ui/Dropdown';
+export { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 export { cn } from '@/components/ui/utils';

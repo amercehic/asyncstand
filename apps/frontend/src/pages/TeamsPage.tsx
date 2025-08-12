@@ -10,37 +10,18 @@ import {
   MoreVertical,
   Eye,
   Settings,
-  Calendar,
-  Sparkles,
-  Building2,
-  UserCheck,
-  Activity,
-  Shield,
-  Award,
-  Target,
-  Rocket,
   ChevronRight,
-  CheckCircle2,
+  Building2,
   Link2,
-  Globe,
-  MessageCircle,
+  Calendar,
+  Slack,
+  UserCheck,
+  Sparkles,
 } from 'lucide-react';
 import { useTeams } from '@/contexts';
 import { toast } from 'sonner';
 import type { Team, Standup } from '@/types';
 import { standupsApi } from '@/lib/api';
-
-// Helper function to get platform icon based on integration type
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const getPlatformIcon = (team: Team) => {
-  // TODO: When platform field is added to Team type, use it to return specific icons:
-  // if (team.integration?.platform === 'slack') return Slack;
-  // if (team.integration?.platform === 'teams') return Users;
-  // if (team.integration?.platform === 'discord') return MessageCircle;
-
-  // For now, return a generic communication icon for all integrations
-  return MessageCircle;
-};
 
 export const TeamsPage = React.memo(() => {
   const { teams, isLoading, refreshTeams } = useTeams();
@@ -142,145 +123,142 @@ export const TeamsPage = React.memo(() => {
           className="flex items-center justify-between mb-8"
         >
           <div>
-            <h1 className="text-3xl font-bold mb-2">Your Teams</h1>
-            <p className="text-muted-foreground text-lg">
+            <motion.h1
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent"
+            >
+              Your Teams
+            </motion.h1>
+            <motion.p
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="text-muted-foreground text-lg"
+            >
               Manage your teams and collaborate on async standups.
-            </p>
+            </motion.p>
           </div>
-          <div className="flex gap-3">
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="flex gap-3"
+          >
             <ModernButton
               variant="secondary"
               onClick={handleJoinTeam}
               data-testid="join-team-button"
+              className="group"
             >
-              <Users className="w-4 h-4 mr-2" />
+              <Users className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
               Join Team
             </ModernButton>
             <ModernButton
               variant="primary"
               onClick={handleCreateTeam}
               data-testid="create-team-button"
+              className="group shadow-lg shadow-primary/20"
             >
-              <Plus className="w-4 h-4 mr-2" />
+              <Plus className="w-4 h-4 mr-2 group-hover:rotate-90 transition-transform" />
               Create Team
             </ModernButton>
-          </div>
+          </motion.div>
         </motion.div>
 
-        {/* Statistics Dashboard */}
+        {/* Statistics Dashboard - Modern & Beautiful */}
         {teams.length > 0 && (
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
             className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"
           >
             <motion.div
-              whileHover={{ scale: 1.02 }}
-              className="bg-gradient-to-br from-blue-50/50 to-blue-100/30 dark:from-blue-950/20 dark:to-blue-900/10 rounded-xl p-6 border border-blue-200/50 dark:border-blue-800/30 relative overflow-hidden group"
+              whileHover={{ y: -2, scale: 1.02 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+              className="bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-950/30 dark:to-blue-900/20 rounded-lg p-4 border border-blue-200/60 dark:border-blue-800/40 shadow-md shadow-blue-500/10 hover:shadow-lg hover:shadow-blue-500/20 transition-shadow group relative overflow-hidden"
             >
               <div className="absolute inset-0 bg-gradient-to-br from-blue-400/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="flex items-center gap-4 relative z-10">
-                <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25 group-hover:shadow-xl group-hover:shadow-blue-500/30 transition-shadow">
-                  <Building2 className="w-7 h-7 text-white" />
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
+                    <Building2 className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
                 </div>
-                <div>
-                  <motion.p
-                    className="text-3xl font-bold text-foreground"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                  >
-                    {totalTeams}
-                  </motion.p>
-                  <p className="text-sm text-muted-foreground font-medium">Active Teams</p>
-                </div>
-                <Sparkles className="w-4 h-4 text-blue-500 absolute top-4 right-4 opacity-40" />
+                <p className="text-2xl font-bold text-foreground mb-0.5">{totalTeams}</p>
+                <p className="text-xs text-muted-foreground font-medium">Active Teams</p>
               </div>
             </motion.div>
 
             <motion.div
-              whileHover={{ scale: 1.02 }}
-              className="bg-gradient-to-br from-emerald-50/50 to-emerald-100/30 dark:from-emerald-950/20 dark:to-emerald-900/10 rounded-xl p-6 border border-emerald-200/50 dark:border-emerald-800/30 relative overflow-hidden group"
+              whileHover={{ y: -2, scale: 1.02 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+              className="bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-950/30 dark:to-emerald-900/20 rounded-lg p-4 border border-emerald-200/60 dark:border-emerald-800/40 shadow-md shadow-emerald-500/10 hover:shadow-lg hover:shadow-emerald-500/20 transition-shadow group relative overflow-hidden"
             >
               <div className="absolute inset-0 bg-gradient-to-br from-emerald-400/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="flex items-center gap-4 relative z-10">
-                <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/25 group-hover:shadow-xl group-hover:shadow-emerald-500/30 transition-shadow">
-                  <UserCheck className="w-7 h-7 text-white" />
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
+                    <Users className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
                 </div>
-                <div>
-                  <motion.p
-                    className="text-3xl font-bold text-foreground"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.15 }}
-                  >
-                    {totalMembers}
-                  </motion.p>
-                  <p className="text-sm text-muted-foreground font-medium">Team Members</p>
-                </div>
-                <Award className="w-4 h-4 text-emerald-500 absolute top-4 right-4 opacity-40" />
+                <p className="text-2xl font-bold text-foreground mb-0.5">{totalMembers}</p>
+                <p className="text-xs text-muted-foreground font-medium">Team Members</p>
               </div>
             </motion.div>
 
             <motion.div
-              whileHover={{ scale: 1.02 }}
-              className="bg-gradient-to-br from-purple-50/50 to-purple-100/30 dark:from-purple-950/20 dark:to-purple-900/10 rounded-xl p-6 border border-purple-200/50 dark:border-purple-800/30 relative overflow-hidden group"
+              whileHover={{ y: -2, scale: 1.02 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+              className="bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-950/30 dark:to-purple-900/20 rounded-lg p-4 border border-purple-200/60 dark:border-purple-800/40 shadow-md shadow-purple-500/10 hover:shadow-lg hover:shadow-purple-500/20 transition-shadow group relative overflow-hidden"
             >
               <div className="absolute inset-0 bg-gradient-to-br from-purple-400/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="flex items-center gap-4 relative z-10">
-                <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/25 group-hover:shadow-xl group-hover:shadow-purple-500/30 transition-shadow relative">
-                  <Link2 className="w-7 h-7 text-white" />
-                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-background animate-pulse" />
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center shadow-md group-hover:scale-105 transition-transform relative">
+                    <Link2 className="w-5 h-5 text-white" />
+                    {teamsWithIntegrations > 0 && (
+                      <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border border-white dark:border-background" />
+                    )}
+                  </div>
+                  <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" />
                 </div>
-                <div>
-                  <motion.p
-                    className="text-3xl font-bold text-foreground"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                  >
-                    {teamsWithIntegrations}
-                  </motion.p>
-                  <p className="text-sm text-muted-foreground font-medium">With Integration</p>
-                </div>
-                <Globe className="w-4 h-4 text-purple-500 absolute top-4 right-4 opacity-40" />
+                <p className="text-2xl font-bold text-foreground mb-0.5">{teamsWithIntegrations}</p>
+                <p className="text-xs text-muted-foreground font-medium">With Integration</p>
               </div>
             </motion.div>
 
             <motion.div
-              whileHover={{ scale: 1.02 }}
-              className="bg-gradient-to-br from-orange-50/50 to-orange-100/30 dark:from-orange-950/20 dark:to-orange-900/10 rounded-xl p-6 border border-orange-200/50 dark:border-orange-800/30 relative overflow-hidden group"
+              whileHover={{ y: -2, scale: 1.02 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+              className="bg-gradient-to-br from-orange-50 to-orange-100/50 dark:from-orange-950/30 dark:to-orange-900/20 rounded-lg p-4 border border-orange-200/60 dark:border-orange-800/40 shadow-md shadow-orange-500/10 hover:shadow-lg hover:shadow-orange-500/20 transition-shadow group relative overflow-hidden"
             >
               <div className="absolute inset-0 bg-gradient-to-br from-orange-400/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="flex items-center gap-4 relative z-10">
-                <div className="w-14 h-14 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/25 group-hover:shadow-xl group-hover:shadow-orange-500/30 transition-shadow">
-                  <Activity className="w-7 h-7 text-white" />
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
+                    <Users className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse" />
                 </div>
-                <div>
-                  <motion.p
-                    className="text-3xl font-bold text-foreground"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.25 }}
-                  >
-                    {averageMembersPerTeam}
-                  </motion.p>
-                  <p className="text-sm text-muted-foreground font-medium">Avg Size</p>
-                </div>
-                <Target className="w-4 h-4 text-orange-500 absolute top-4 right-4 opacity-40" />
+                <p className="text-2xl font-bold text-foreground mb-0.5">{averageMembersPerTeam}</p>
+                <p className="text-xs text-muted-foreground font-medium">Avg Team Size</p>
               </div>
             </motion.div>
           </motion.div>
         )}
 
-        {/* Teams Table/List */}
+        {/* Teams Table */}
         {teams.length > 0 ? (
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="bg-card rounded-xl border border-border overflow-visible"
+            className="bg-card rounded-lg border border-border overflow-visible"
           >
             {/* Table Header */}
             <div className="px-6 py-4 border-b border-border bg-muted/30">
@@ -301,25 +279,21 @@ export const TeamsPage = React.memo(() => {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.4, delay: 0.1 + index * 0.05 }}
-                  className="px-6 py-4 hover:bg-muted/20 transition-colors group cursor-pointer"
+                  className="px-6 py-4 hover:bg-muted/30 transition-colors cursor-pointer group"
                   onClick={() => navigate(`/teams/${team.id}`)}
                 >
                   <div className="grid grid-cols-12 gap-4 items-center">
                     {/* Team Name & Description */}
                     <div className="col-span-4">
                       <div className="flex items-center gap-3">
-                        <motion.div
-                          whileHover={{ rotate: [0, -5, 5, 0] }}
-                          transition={{ duration: 0.3 }}
-                          className="relative"
-                        >
-                          <div className="w-12 h-12 bg-gradient-to-br from-primary via-primary/90 to-primary/70 rounded-xl flex items-center justify-center shadow-lg shadow-primary/20 group-hover:shadow-xl group-hover:shadow-primary/30 transition-all">
-                            <Shield className="w-6 h-6 text-white" />
+                        <div className="relative">
+                          <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center">
+                            <Building2 className="w-5 h-5 text-white" />
                           </div>
                           {(teamStandups[team.id] || []).some(s => s.isActive) && (
                             <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-background animate-pulse" />
                           )}
-                        </motion.div>
+                        </div>
                         <div>
                           <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors flex items-center gap-2">
                             {team.name}
@@ -341,7 +315,7 @@ export const TeamsPage = React.memo(() => {
                           {team.members.slice(0, 3).map((member, memberIndex) => (
                             <div
                               key={member.id}
-                              className="w-6 h-6 bg-gradient-to-br from-primary to-primary/80 rounded-full border-2 border-card flex items-center justify-center"
+                              className="w-6 h-6 bg-primary rounded-full border-2 border-card flex items-center justify-center"
                               style={{ zIndex: team.members.length - memberIndex }}
                             >
                               <span className="text-white font-medium text-xs">
@@ -364,33 +338,20 @@ export const TeamsPage = React.memo(() => {
                     {/* Integration */}
                     <div className="col-span-2">
                       {team.channel ? (
-                        (() => {
-                          const PlatformIcon = getPlatformIcon(team);
-                          return (
-                            <div className="flex items-center gap-2">
-                              <motion.div whileHover={{ scale: 1.1 }} className="relative">
-                                <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center shadow-md shadow-purple-500/20">
-                                  <PlatformIcon className="w-4 h-4 text-white" />
-                                </div>
-                                <div className="absolute -bottom-1 -right-1">
-                                  <CheckCircle2 className="w-4 h-4 text-green-500 fill-green-500 bg-background rounded-full" />
-                                </div>
-                              </motion.div>
-                              <div className="flex flex-col">
-                                <span className="text-sm font-medium text-foreground">
-                                  #{team.channel.name}
-                                </span>
-                                <span className="text-xs text-green-600 flex items-center gap-1">
-                                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-                                  Connected
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })()
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
+                            <Slack className="w-4 h-4 text-white" />
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-sm font-medium text-foreground">
+                              #{team.channel.name}
+                            </span>
+                            <span className="text-xs text-green-600">Connected</span>
+                          </div>
+                        </div>
                       ) : (
                         <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 bg-muted/50 border border-dashed border-muted-foreground/30 rounded-lg flex items-center justify-center">
+                          <div className="w-8 h-8 bg-muted border border-dashed border-muted-foreground/30 rounded-lg flex items-center justify-center">
                             <Link2 className="w-4 h-4 text-muted-foreground" />
                           </div>
                           <div className="flex flex-col">
@@ -409,24 +370,12 @@ export const TeamsPage = React.memo(() => {
 
                         if (activeStandups.length > 0) {
                           return (
-                            <div className="flex items-center gap-3">
-                              <motion.div
-                                animate={{ rotate: 360 }}
-                                transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-                                className="relative"
-                              >
-                                <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg flex items-center justify-center shadow-md shadow-green-500/20">
-                                  <Rocket className="w-4 h-4 text-white" />
-                                </div>
-                                {activeStandups.length > 1 && (
-                                  <div className="absolute -top-1 -right-1 w-5 h-5 bg-primary rounded-full flex items-center justify-center text-xs font-bold text-white border-2 border-background">
-                                    {activeStandups.length}
-                                  </div>
-                                )}
-                              </motion.div>
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
+                                <Calendar className="w-4 h-4 text-white" />
+                              </div>
                               <div className="flex flex-col">
-                                <span className="text-sm font-medium text-foreground flex items-center gap-1">
-                                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                                <span className="text-sm font-medium text-foreground">
                                   {activeStandups.length === 1
                                     ? 'Active'
                                     : `${activeStandups.length} Active`}
@@ -440,10 +389,9 @@ export const TeamsPage = React.memo(() => {
                             </div>
                           );
                         } else if (standups.length > 0) {
-                          // Has standups but none are active
                           return (
                             <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 bg-yellow-500/10 rounded-lg flex items-center justify-center">
+                              <div className="w-8 h-8 bg-yellow-500/20 rounded-lg flex items-center justify-center">
                                 <Calendar className="w-4 h-4 text-yellow-600" />
                               </div>
                               <div className="flex flex-col">
@@ -455,10 +403,9 @@ export const TeamsPage = React.memo(() => {
                             </div>
                           );
                         } else {
-                          // No standups at all
                           return (
                             <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 bg-muted/30 rounded-lg flex items-center justify-center border border-dashed border-muted-foreground/20">
+                              <div className="w-8 h-8 bg-muted border border-dashed border-muted-foreground/20 rounded-lg flex items-center justify-center">
                                 <Calendar className="w-4 h-4 text-muted-foreground" />
                               </div>
                               <div className="flex flex-col">
@@ -494,6 +441,7 @@ export const TeamsPage = React.memo(() => {
                               variant="ghost"
                               size="sm"
                               data-testid={`team-actions-${team.id}`}
+                              onClick={e => e.stopPropagation()}
                             >
                               <MoreVertical className="w-4 h-4" />
                             </ModernButton>
@@ -525,16 +473,16 @@ export const TeamsPage = React.memo(() => {
           </motion.div>
         ) : (
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
-            className="bg-gradient-to-br from-card to-card/50 rounded-2xl p-12 border border-border text-center relative overflow-hidden"
+            className="bg-gradient-to-br from-card to-card/80 rounded-xl p-12 border border-border/50 text-center relative overflow-hidden shadow-lg"
           >
             <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5 opacity-50" />
             <motion.div
               animate={{
-                y: [0, -10, 0],
-                rotate: [0, 5, 0],
+                y: [0, -8, 0],
+                scale: [1, 1.02, 1],
               }}
               transition={{
                 duration: 4,

@@ -1,14 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ModernButton } from '@/components/ui';
-import { ArrowLeft, Settings, Plus, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { ModernButton, ConfirmationModal } from '@/components/ui';
+import {
+  ArrowLeft,
+  Settings,
+  Plus,
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  UserPlus,
+  Users,
+  Link2,
+  Slack,
+  Minus,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { teamsApi, standupsApi } from '@/lib/api';
 import type { Team, StandupConfig, StandupInstance } from '@/types';
 import type { AxiosError } from 'axios';
 import { TeamSettingsModal } from '@/components/TeamSettingsModal';
 import { ActiveStandupsList } from '@/components/ActiveStandupsList';
+import { TeamMemberAssignmentModal } from '@/components/TeamMemberAssignmentModal';
 
 export const TeamDetailPage = React.memo(() => {
   const { teamId } = useParams<{ teamId: string }>();
@@ -18,6 +31,9 @@ export const TeamDetailPage = React.memo(() => {
   const [recentInstances, setRecentInstances] = useState<StandupInstance[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isTeamSettingsOpen, setIsTeamSettingsOpen] = useState(false);
+  const [isMemberAssignmentOpen, setIsMemberAssignmentOpen] = useState(false);
+  const [memberToRemove, setMemberToRemove] = useState<Team['members'][0] | null>(null);
+  const [isRemovingMember, setIsRemovingMember] = useState(false);
 
   useEffect(() => {
     const fetchTeamData = async () => {
@@ -99,6 +115,53 @@ export const TeamDetailPage = React.memo(() => {
         console.error('Error refreshing team data:', error);
       }
     }
+  };
+
+  const handleMemberAssignmentSuccess = async () => {
+    // Refetch team data after member assignment changes
+    if (teamId) {
+      try {
+        const teamData = await teamsApi.getTeam(teamId);
+        setTeam(teamData);
+        toast.success('Team members updated successfully');
+      } catch (error) {
+        console.error('Error refreshing team data:', error);
+        toast.error('Failed to refresh team data');
+      }
+    }
+  };
+
+  const getPlatformIcon = (platformUserId?: string) => {
+    // For now, assume Slack - in the future this could be determined by platform prefix or integration type
+    if (platformUserId) {
+      return <Slack className="w-4 h-4 text-muted-foreground" />;
+    }
+    return <Link2 className="w-4 h-4 text-muted-foreground" />;
+  };
+
+  const handleRemoveMember = async () => {
+    if (!memberToRemove || !teamId) return;
+
+    setIsRemovingMember(true);
+    try {
+      await teamsApi.removeUser(teamId, memberToRemove.id);
+
+      // Refresh team data
+      const teamData = await teamsApi.getTeam(teamId);
+      setTeam(teamData);
+
+      toast.success(`${memberToRemove.name} has been removed from the team`);
+      setMemberToRemove(null);
+    } catch (error) {
+      console.error('Error removing team member:', error);
+      toast.error('Failed to remove team member');
+    } finally {
+      setIsRemovingMember(false);
+    }
+  };
+
+  const handleCancelRemove = () => {
+    setMemberToRemove(null);
   };
 
   if (isLoading) {
@@ -224,7 +287,7 @@ export const TeamDetailPage = React.memo(() => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
             >
-              <ActiveStandupsList teamId={teamId} showHeader={true} showCreateButton={true} />
+              <ActiveStandupsList teamId={teamId} showHeader={true} showCreateButton={false} />
             </motion.div>
 
             {/* Recent Activity */}
@@ -288,35 +351,91 @@ export const TeamDetailPage = React.memo(() => {
               className="bg-card rounded-2xl p-6 border border-border"
             >
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold">Team Members</h3>
-                <ModernButton
-                  variant="outline"
-                  size="sm"
-                  onClick={() => toast.info('Invite members - Coming soon!')}
-                >
-                  <Plus className="w-4 h-4" />
-                </ModernButton>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-semibold">Team Members</h3>
+                  <span className="text-sm text-muted-foreground">({team.members.length})</span>
+                </div>
+                <div className="flex gap-2">
+                  <ModernButton
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsMemberAssignmentOpen(true)}
+                    title="Assign platform members to this team"
+                  >
+                    <UserPlus className="w-4 h-4 mr-1" />
+                    Assign
+                  </ModernButton>
+                  <ModernButton
+                    variant="outline"
+                    size="sm"
+                    onClick={() => toast.info('Invite external members - Coming soon!')}
+                    title="Invite external members via email"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </ModernButton>
+                </div>
               </div>
 
               <div className="space-y-3">
-                {team.members.map(member => (
-                  <div key={member.id} className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-primary to-primary/80 rounded-full flex items-center justify-center">
-                      <span className="text-white font-medium text-sm">
-                        {member.name.charAt(0).toUpperCase()}
-                      </span>
+                {team.members.length > 0 ? (
+                  team.members.map(member => (
+                    <div
+                      key={member.id}
+                      className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/30 transition-colors"
+                    >
+                      <div className="w-10 h-10 bg-gradient-to-r from-primary to-primary/80 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-white font-medium text-sm">
+                          {member.name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="font-medium truncate">{member.name}</p>
+                          {getPlatformIcon()}
+                        </div>
+                        <p className="text-sm text-muted-foreground truncate">
+                          {member.email || 'Team member'}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {member.role === 'admin' && (
+                          <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
+                            Admin
+                          </span>
+                        )}
+                        <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                          Active
+                        </span>
+
+                        <ModernButton
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 border border-red-200 hover:border-red-300"
+                          onClick={() => setMemberToRemove(member)}
+                          title="Remove from team"
+                        >
+                          <Minus className="w-4 h-4" />
+                        </ModernButton>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{member.name}</p>
-                      <p className="text-sm text-muted-foreground truncate">{member.email}</p>
-                    </div>
-                    {member.role === 'admin' && (
-                      <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
-                        Admin
-                      </span>
-                    )}
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <h4 className="text-lg font-medium mb-2">No team members</h4>
+                    <p className="text-muted-foreground mb-4">
+                      Get started by assigning platform members from your workspace
+                    </p>
+                    <ModernButton
+                      variant="primary"
+                      size="sm"
+                      onClick={() => setIsMemberAssignmentOpen(true)}
+                    >
+                      <UserPlus className="w-4 h-4 mr-2" />
+                      Assign Members
+                    </ModernButton>
                   </div>
-                ))}
+                )}
               </div>
             </motion.div>
 
@@ -357,6 +476,35 @@ export const TeamDetailPage = React.memo(() => {
           team={team}
         />
       )}
+
+      {/* Team Member Assignment Modal */}
+      {team && (
+        <TeamMemberAssignmentModal
+          isOpen={isMemberAssignmentOpen}
+          onClose={() => setIsMemberAssignmentOpen(false)}
+          onSuccess={handleMemberAssignmentSuccess}
+          team={team}
+        />
+      )}
+
+      {/* Remove Member Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={!!memberToRemove}
+        onClose={handleCancelRemove}
+        onConfirm={handleRemoveMember}
+        title="Remove Team Member"
+        description={
+          memberToRemove
+            ? `Are you sure you want to remove ${memberToRemove.name} from ${team?.name}? They will lose access to all team standups and data.`
+            : ''
+        }
+        confirmText="Remove Member"
+        cancelText="Cancel"
+        isLoading={isRemovingMember}
+        loadingText="Removing..."
+        variant="danger"
+        icon={Minus}
+      />
     </div>
   );
 });
