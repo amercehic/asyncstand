@@ -6,6 +6,7 @@ import React from 'react';
 import { StandupEditModal } from '@/components/StandupEditModal';
 import { teamsApi, standupsApi } from '@/lib/api';
 import type { StandupConfig } from '@/types';
+import { StandupDeliveryType } from '@/types/backend';
 
 // Mock dependencies
 vi.mock('@/lib/api', () => ({
@@ -31,6 +32,7 @@ describe('StandupEditModal', () => {
     id: 'standup-1',
     teamId: 'team-1',
     name: 'Daily Standup',
+    deliveryType: StandupDeliveryType.channel,
     questions: ['What did you work on yesterday?', 'What will you work on today?', 'Any blockers?'],
     schedule: {
       time: '09:00',
@@ -301,33 +303,36 @@ describe('StandupEditModal', () => {
   });
 
   it('validates that at least one day is selected', async () => {
-    const standupWithNoDays = {
-      ...mockStandup,
-      schedule: {
-        ...mockStandup.schedule,
-        days: [] as (
-          | 'monday'
-          | 'tuesday'
-          | 'wednesday'
-          | 'thursday'
-          | 'friday'
-          | 'saturday'
-          | 'sunday'
-        )[],
-      },
-    };
-
-    render(<StandupEditModal {...mockProps} standup={standupWithNoDays} />);
+    render(<StandupEditModal {...mockProps} />);
 
     await waitFor(() => {
-      const updateButton = screen.getByText('Update Standup');
-      fireEvent.click(updateButton);
+      expect(screen.getByDisplayValue('Daily Standup')).toBeInTheDocument();
     });
+
+    // First make a change to enable the button
+    const nameInput = screen.getByDisplayValue('Daily Standup');
+    fireEvent.change(nameInput, { target: { value: 'Updated Standup' } });
+
+    // Now unselect all days by clicking on each selected day
+    const mondayButton = screen.getByText('Mon');
+    const tuesdayButton = screen.getByText('Tue');
+    const wednesdayButton = screen.getByText('Wed');
+    const thursdayButton = screen.getByText('Thu');
+    const fridayButton = screen.getByText('Fri');
+
+    fireEvent.click(mondayButton);
+    fireEvent.click(tuesdayButton);
+    fireEvent.click(wednesdayButton);
+    fireEvent.click(thursdayButton);
+    fireEvent.click(fridayButton);
+
+    // Now try to submit with no days selected
+    const updateButton = screen.getByText('Update Standup');
+    fireEvent.click(updateButton);
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith('Please select at least one day');
     });
-
     expect(standupsApi.updateStandup).not.toHaveBeenCalled();
   });
 
@@ -338,9 +343,16 @@ describe('StandupEditModal', () => {
     render(<StandupEditModal {...mockProps} />);
 
     await waitFor(() => {
-      const updateButton = screen.getByText('Update Standup');
-      fireEvent.click(updateButton);
+      expect(screen.getByDisplayValue('Daily Standup')).toBeInTheDocument();
     });
+
+    // Make a change to enable the button
+    const nameInput = screen.getByDisplayValue('Daily Standup');
+    fireEvent.change(nameInput, { target: { value: 'Updated Standup' } });
+
+    // Now click the enabled update button
+    const updateButton = screen.getByText('Update Standup');
+    fireEvent.click(updateButton);
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith('Failed to update standup');
@@ -368,12 +380,21 @@ describe('StandupEditModal', () => {
     render(<StandupEditModal {...mockProps} />);
 
     await waitFor(() => {
-      const updateButton = screen.getByText('Update Standup');
-      fireEvent.click(updateButton);
+      expect(screen.getByDisplayValue('Daily Standup')).toBeInTheDocument();
     });
 
+    // Make a change to enable the button
+    const nameInput = screen.getByDisplayValue('Daily Standup');
+    fireEvent.change(nameInput, { target: { value: 'Updated Standup' } });
+
+    // Now click the enabled update button
+    const updateButton = screen.getByText('Update Standup');
+    fireEvent.click(updateButton);
+
     // Should show loading state
-    expect(screen.getByText('Updating...')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Updating...')).toBeInTheDocument();
+    });
     const submitButton = screen.getByText('Updating...');
     expect(submitButton).toBeDisabled();
   });

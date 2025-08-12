@@ -4,6 +4,7 @@ import {
   IsInt,
   IsBoolean,
   IsOptional,
+  IsEnum,
   Length,
   ArrayMinSize,
   ArrayMaxSize,
@@ -14,6 +15,7 @@ import {
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
+import { StandupDeliveryType } from '@prisma/client';
 
 export class CreateStandupConfigDto {
   @ApiProperty({
@@ -25,6 +27,16 @@ export class CreateStandupConfigDto {
   @Length(1, 100, { message: 'Name must be between 1-100 characters' })
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   name: string;
+
+  @ApiProperty({
+    description: 'Delivery type for standup messages',
+    enum: StandupDeliveryType,
+    example: StandupDeliveryType.channel,
+  })
+  @IsEnum(StandupDeliveryType, {
+    message: 'Delivery type must be either channel or direct_message',
+  })
+  deliveryType: StandupDeliveryType;
 
   @ApiProperty({
     description: 'Standup questions (1-10 questions, each 10-200 characters)',

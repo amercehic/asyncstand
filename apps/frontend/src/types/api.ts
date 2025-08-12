@@ -1,5 +1,10 @@
 // API-specific types
 
+export enum StandupDeliveryType {
+  channel = 'channel',
+  direct_message = 'direct_message',
+}
+
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
@@ -11,7 +16,7 @@ export interface User {
   email: string;
   name: string;
   avatar?: string;
-  role: 'user' | 'admin';
+  role: 'owner' | 'admin' | 'member';
   orgId?: string;
   createdAt: string;
   updatedAt: string;
@@ -43,6 +48,7 @@ export interface Standup {
   id: string;
   teamId: string;
   name: string;
+  deliveryType: StandupDeliveryType;
   questions: string[];
   schedule: {
     time: string;
@@ -123,6 +129,7 @@ export interface UpdateTeamRequest {
 export interface CreateStandupConfigRequest {
   teamId: string;
   name: string;
+  deliveryType: StandupDeliveryType;
   questions: string[];
   schedule: StandupConfig['schedule'];
   slackChannelId?: string;

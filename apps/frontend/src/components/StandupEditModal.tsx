@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ModernButton } from '@/components/ui';
-import { X, Plus, Trash2, Calendar, Clock, Users, Save } from 'lucide-react';
+import { X, Plus, Trash2, Calendar, Clock, Users, Save, MessageSquare, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { standupsApi } from '@/lib/api';
 import type { StandupConfig } from '@/types';
+import { StandupDeliveryType } from '@/types/backend';
 
 interface StandupEditModalProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ interface StandupEditModalProps {
 
 interface StandupFormData {
   name: string;
+  deliveryType: StandupDeliveryType;
   questions: string[];
   schedule: {
     time: string;
@@ -56,6 +58,7 @@ export const StandupEditModal: React.FC<StandupEditModalProps> = ({
 }) => {
   const [formData, setFormData] = useState<StandupFormData>({
     name: standup.name,
+    deliveryType: standup.deliveryType,
     questions: [...standup.questions],
     schedule: {
       time: standup.schedule.time,
@@ -73,6 +76,9 @@ export const StandupEditModal: React.FC<StandupEditModalProps> = ({
 
     // Compare name
     if (formData.name !== standup.name) return true;
+
+    // Compare delivery type
+    if (formData.deliveryType !== standup.deliveryType) return true;
 
     // Compare questions
     if (formData.questions.length !== standup.questions.length) return true;
@@ -103,6 +109,7 @@ export const StandupEditModal: React.FC<StandupEditModalProps> = ({
     if (standup) {
       setFormData({
         name: standup.name,
+        deliveryType: standup.deliveryType,
         questions: [...standup.questions],
         schedule: {
           time: standup.schedule.time,
@@ -286,6 +293,71 @@ export const StandupEditModal: React.FC<StandupEditModalProps> = ({
                 placeholder="e.g., Daily Standup"
                 required
               />
+            </div>
+
+            {/* Delivery Type */}
+            <div>
+              <label className="block text-sm font-medium mb-3">Delivery Type</label>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFormData(prev => ({ ...prev, deliveryType: StandupDeliveryType.channel }))
+                  }
+                  className={`p-4 rounded-lg border transition-all duration-200 text-left ${
+                    formData.deliveryType === StandupDeliveryType.channel
+                      ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
+                      : 'border-border bg-background hover:border-primary/50'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <div
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                        formData.deliveryType === StandupDeliveryType.channel
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted text-muted-foreground'
+                      }`}
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                    </div>
+                    <span className="font-medium">Channel</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Send standup reminders to a Slack channel where team members respond in threads
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFormData(prev => ({
+                      ...prev,
+                      deliveryType: StandupDeliveryType.direct_message,
+                    }))
+                  }
+                  className={`p-4 rounded-lg border transition-all duration-200 text-left ${
+                    formData.deliveryType === StandupDeliveryType.direct_message
+                      ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
+                      : 'border-border bg-background hover:border-primary/50'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <div
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                        formData.deliveryType === StandupDeliveryType.direct_message
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted text-muted-foreground'
+                      }`}
+                    >
+                      <Send className="w-4 h-4" />
+                    </div>
+                    <span className="font-medium">Direct Message</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Send individual direct messages to each team member
+                  </p>
+                </button>
+              </div>
             </div>
 
             {/* Questions */}

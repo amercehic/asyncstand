@@ -1,4 +1,5 @@
 import { faker } from '@faker-js/faker';
+import { StandupDeliveryType } from '@prisma/client';
 
 export class StandupConfigFactory {
   static createMockStandupConfig(overrides: Partial<Record<string, unknown>> = {}) {
@@ -6,6 +7,7 @@ export class StandupConfigFactory {
       id: faker.string.uuid(),
       teamId: faker.string.uuid(),
       name: 'Daily Standup',
+      deliveryType: StandupDeliveryType.channel,
       questions: [
         'What did you accomplish yesterday?',
         'What will you work on today?',
@@ -38,6 +40,7 @@ export class StandupConfigFactory {
   static createMockCreateStandupConfigDto(overrides: Partial<Record<string, unknown>> = {}) {
     return {
       name: 'Daily Standup',
+      deliveryType: StandupDeliveryType.channel,
       questions: [
         'What did you accomplish yesterday?',
         'What will you work on today?',

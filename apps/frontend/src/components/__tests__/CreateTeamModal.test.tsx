@@ -41,7 +41,7 @@ const mockUser = {
   id: 'test-user-id',
   email: 'test@example.com',
   name: 'Test User',
-  role: 'user' as const,
+  role: 'admin' as const,
   orgId: 'test-org-id',
   createdAt: '2023-01-01T00:00:00.000Z',
   updatedAt: '2023-01-01T00:00:00.000Z',
@@ -127,6 +127,11 @@ describe('CreateTeamModal', () => {
     await waitFor(() => {
       expect(teamsApi.getAvailableChannels).toHaveBeenCalled();
       expect(integrationsApi.getSlackIntegrationsForTeamCreation).toHaveBeenCalled();
+    });
+
+    // Wait for the integrations to actually appear in the UI
+    await waitFor(() => {
+      expect(screen.getByText('Slack: Test Workspace')).toBeInTheDocument();
     });
 
     const integrationSelect = screen.getByTestId('integration-select');

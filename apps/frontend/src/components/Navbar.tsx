@@ -28,10 +28,15 @@ export const Navbar = React.memo(() => {
   };
 
   const navItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: Calendar },
-    { path: '/teams', label: 'Teams', icon: Users },
-    { path: '/integrations', label: 'Integrations', icon: Zap },
-  ];
+    {
+      path: '/dashboard',
+      label: 'Dashboard',
+      icon: Calendar,
+      roles: ['owner', 'admin', 'member'] as const,
+    },
+    { path: '/teams', label: 'Teams', icon: Users, roles: ['owner', 'admin'] as const },
+    { path: '/integrations', label: 'Integrations', icon: Zap, roles: ['owner', 'admin'] as const },
+  ] as const;
 
   const isActiveRoute = (path: string) => {
     if (path === '/dashboard') {
@@ -53,21 +58,27 @@ export const Navbar = React.memo(() => {
             AsyncStand
           </Link>
           <nav className="hidden md:flex items-center gap-6">
-            {navItems.map(item => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
-                  isActiveRoute(item.path)
-                    ? 'text-primary bg-primary/10'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                }`}
-                data-testid={`nav-${item.label.toLowerCase()}`}
-              >
-                <item.icon className="w-4 h-4" />
-                <span>{item.label}</span>
-              </Link>
-            ))}
+            {navItems
+              .filter(item => {
+                if (!user?.role) return false;
+                // TypeScript will narrow the type based on the actual roles array
+                return (item.roles as readonly string[]).includes(user.role);
+              })
+              .map(item => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                    isActiveRoute(item.path)
+                      ? 'text-primary bg-primary/10'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                  }`}
+                  data-testid={`nav-${item.label.toLowerCase()}`}
+                >
+                  <item.icon className="w-4 h-4" />
+                  <span>{item.label}</span>
+                </Link>
+              ))}
           </nav>
         </div>
 
@@ -111,21 +122,27 @@ export const Navbar = React.memo(() => {
       {/* Mobile Navigation */}
       <div className="md:hidden mt-4 pt-4 border-t border-border">
         <nav className="flex items-center gap-2">
-          {navItems.map(item => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors flex-1 justify-center ${
-                isActiveRoute(item.path)
-                  ? 'text-primary bg-primary/10'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-              }`}
-              data-testid={`nav-mobile-${item.label.toLowerCase()}`}
-            >
-              <item.icon className="w-4 h-4" />
-              <span className="text-sm">{item.label}</span>
-            </Link>
-          ))}
+          {navItems
+            .filter(item => {
+              if (!user?.role) return false;
+              // TypeScript will narrow the type based on the actual roles array
+              return (item.roles as readonly string[]).includes(user.role);
+            })
+            .map(item => (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors flex-1 justify-center ${
+                  isActiveRoute(item.path)
+                    ? 'text-primary bg-primary/10'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                }`}
+                data-testid={`nav-mobile-${item.label.toLowerCase()}`}
+              >
+                <item.icon className="w-4 h-4" />
+                <span className="text-sm">{item.label}</span>
+              </Link>
+            ))}
         </nav>
       </div>
     </motion.header>
