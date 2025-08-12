@@ -121,13 +121,14 @@ describe('StandupConfigService', () => {
       );
     });
 
-    it('should throw error if standup config already exists', async () => {
+    it('should allow multiple configs per team with different purposes', async () => {
       const mockTeam = TeamFactory.createMockTeam({
         id: mockTeamId,
         orgId: mockOrgId,
       });
-      const existingConfig = StandupConfigFactory.createMockStandupConfig({
+      const mockConfig = StandupConfigFactory.createMockStandupConfig({
         teamId: mockTeamId,
+        createdByUserId: mockUserId,
       });
 
       mockPrisma.team.findFirst.mockResolvedValue({
@@ -135,14 +136,63 @@ describe('StandupConfigService', () => {
         members: [],
         channel: { id: 'channel-id', name: 'test-channel' },
       });
-      mockPrisma.standupConfig.findUnique.mockResolvedValue(existingConfig);
+      mockPrisma.standupConfig.findFirst.mockResolvedValue(null); // No existing config
+
+      // Mock the transaction
+      const createMock = jest.fn().mockResolvedValue(mockConfig);
+      mockPrisma.$transaction.mockImplementation(async (callback) => {
+        const txMock = {
+          standupConfig: {
+            create: createMock,
+          },
+          standupConfigMember: {
+            createMany: jest.fn().mockResolvedValue({ count: 0 }),
+          },
+        };
+        return callback(txMock as unknown as Prisma.TransactionClient);
+      });
+
+      const result = await service.createStandupConfig(
+        mockTeamId,
+        mockOrgId,
+        mockUserId,
+        mockCreateDto,
+      );
+
+      expect(result).toHaveProperty('id');
+      expect(createMock).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          teamId: mockTeamId,
+          purpose: undefined, // No purpose specified
+          questions: mockCreateDto.questions,
+        }),
+      });
+    });
+
+    it('should throw error if standup config with same purpose already exists', async () => {
+      const createDtoWithPurpose = { ...mockCreateDto, purpose: 'daily' as const };
+      const mockTeam = TeamFactory.createMockTeam({
+        id: mockTeamId,
+        orgId: mockOrgId,
+      });
+      const existingConfig = StandupConfigFactory.createMockStandupConfig({
+        teamId: mockTeamId,
+        purpose: 'daily',
+      });
+
+      mockPrisma.team.findFirst.mockResolvedValue({
+        ...mockTeam,
+        members: [],
+        channel: { id: 'channel-id', name: 'test-channel' },
+      });
+      mockPrisma.standupConfig.findFirst.mockResolvedValue(existingConfig);
 
       await expect(
-        service.createStandupConfig(mockTeamId, mockOrgId, mockUserId, mockCreateDto),
+        service.createStandupConfig(mockTeamId, mockOrgId, mockUserId, createDtoWithPurpose),
       ).rejects.toThrow(
         new ApiError(
           ErrorCode.STANDUP_CONFIG_ALREADY_EXISTS,
-          'Standup configuration already exists for this team',
+          "Standup configuration with purpose 'daily' already exists for this team",
           HttpStatus.CONFLICT,
         ),
       );

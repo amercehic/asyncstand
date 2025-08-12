@@ -314,7 +314,8 @@ model TeamMember {
 model StandupConfig {
   id                     String        @id @default(uuid())
   team                   Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  teamId                 String        @unique // Only one config per team
+  teamId                 String        // Multiple configs allowed per team
+  purpose                String?       // Type of standup: 'daily', 'weekly', 'retrospective', 'planning', 'custom'
   questions              String[]
   weekdays               Int[]         // 0 = Sunday
   timeLocal              String

@@ -4,10 +4,10 @@ import { api } from '@/lib/api-client/client';
 
 export const standupsApi = {
   async getTeamStandups(teamId: string): Promise<Standup[]> {
-    // Backend provides standup config per team under standups/config
-    const response = await api.get(`/standups/config/${teamId}`);
-    const data = response.data as StandupConfigResponse | null;
-    if (!data) return [];
+    // Use new backend endpoint that supports multiple configs per team
+    const response = await api.get(`/standups/config/team/${teamId}`);
+    const dataArray = response.data as StandupConfigResponse[] | null;
+    if (!dataArray || !Array.isArray(dataArray)) return [];
 
     const weekdayNumToName = (
       n: number
@@ -24,25 +24,27 @@ export const standupsApi = {
       return dayNames[n] as (typeof dayNames)[number];
     };
 
-    const standup: Standup = {
-      id: String(data.id || teamId),
-      teamId: String(data.team?.id || teamId),
-      name: data.team?.name || 'Daily Standup',
-      questions: Array.isArray(data.questions) ? data.questions : [],
-      schedule: {
-        time: String(data.timeLocal || '09:00'),
-        days: Array.isArray(data.weekdays)
-          ? data.weekdays.map((d: number) => weekdayNumToName(d))
-          : [],
-        timezone: String(data.timezone || 'UTC'),
-      },
-      slackChannelId: data.team?.channelName ? String(data.team.channelName) : undefined,
-      isActive: Boolean(data.isActive ?? true),
-      createdAt: new Date(data.createdAt || Date.now()).toISOString(),
-      updatedAt: new Date(data.updatedAt || Date.now()).toISOString(),
-    };
-
-    return [standup];
+    return dataArray.map(
+      (data): Standup => ({
+        id: String(data.id || teamId),
+        teamId: String(data.team?.id || teamId),
+        name: data.purpose
+          ? `${data.purpose.charAt(0).toUpperCase()}${data.purpose.slice(1)} Standup`
+          : data.team?.name || 'Daily Standup',
+        questions: Array.isArray(data.questions) ? data.questions : [],
+        schedule: {
+          time: String(data.timeLocal || '09:00'),
+          days: Array.isArray(data.weekdays)
+            ? data.weekdays.map((d: number) => weekdayNumToName(d))
+            : [],
+          timezone: String(data.timezone || 'UTC'),
+        },
+        slackChannelId: data.team?.channelName ? String(data.team.channelName) : undefined,
+        isActive: Boolean(data.isActive ?? true),
+        createdAt: new Date(data.createdAt || Date.now()).toISOString(),
+        updatedAt: new Date(data.updatedAt || Date.now()).toISOString(),
+      })
+    );
   },
 
   async getStandupsByTeam(teamId: string): Promise<Standup[]> {
@@ -58,7 +60,15 @@ export const standupsApi = {
     // Map frontend Standup type to backend CreateStandupConfigDto
     const createData = {
       teamId,
-      name: data.name || 'Daily Standup',
+      purpose: data.name?.toLowerCase().includes('daily')
+        ? 'daily'
+        : data.name?.toLowerCase().includes('weekly')
+          ? 'weekly'
+          : data.name?.toLowerCase().includes('retrospective')
+            ? 'retrospective'
+            : data.name?.toLowerCase().includes('planning')
+              ? 'planning'
+              : 'custom',
       questions: data.questions || [],
       timeLocal: data.schedule?.time || '09:00',
       timezone: data.schedule?.timezone || 'UTC',
@@ -83,12 +93,145 @@ export const standupsApi = {
   },
 
   async updateStandup(standupId: string, data: Partial<Standup>): Promise<Standup> {
-    const response = await api.put<Standup>(`/standups/${standupId}`, data);
-    return response.data;
+    // Map frontend Standup type to backend UpdateStandupConfigDto
+    // Only include defined properties to avoid backend validation errors
+    const updateData: Record<string, unknown> = {};
+
+    if (data.name !== undefined) {
+      updateData.purpose = data.name?.toLowerCase().includes('daily')
+        ? 'daily'
+        : data.name?.toLowerCase().includes('weekly')
+          ? 'weekly'
+          : data.name?.toLowerCase().includes('retrospective')
+            ? 'retrospective'
+            : data.name?.toLowerCase().includes('planning')
+              ? 'planning'
+              : 'custom';
+    }
+    if (data.questions !== undefined) {
+      updateData.questions = data.questions;
+    }
+    if (data.schedule?.time !== undefined) {
+      updateData.timeLocal = data.schedule.time;
+    }
+    if (data.schedule?.timezone !== undefined) {
+      updateData.timezone = data.schedule.timezone;
+    }
+    if (data.schedule?.days !== undefined) {
+      updateData.weekdays = data.schedule.days.map(day => {
+        const dayMap = {
+          sunday: 0,
+          monday: 1,
+          tuesday: 2,
+          wednesday: 3,
+          thursday: 4,
+          friday: 5,
+          saturday: 6,
+        };
+        return dayMap[day as keyof typeof dayMap];
+      });
+    }
+
+    // Use the correct backend endpoint for updating standup config
+    const updateResponse = await api.put(`/standups/config/${standupId}`, updateData);
+
+    // Return the updated data directly from the PUT response if available
+    if (updateResponse.data) {
+      const updatedData = updateResponse.data;
+
+      // Transform backend response back to frontend Standup type
+      const weekdayNumToName = (n: number) => {
+        const dayNames = [
+          'sunday',
+          'monday',
+          'tuesday',
+          'wednesday',
+          'thursday',
+          'friday',
+          'saturday',
+        ] as const;
+        return dayNames[n];
+      };
+
+      return {
+        id: String(updatedData.id || standupId),
+        teamId: String(updatedData.team?.id || standupId),
+        name: updatedData.team?.name || data.name || 'Daily Standup',
+        questions: Array.isArray(updatedData.questions) ? updatedData.questions : [],
+        schedule: {
+          time: String(updatedData.timeLocal || '09:00'),
+          days: Array.isArray(updatedData.weekdays)
+            ? updatedData.weekdays.map((d: number) => weekdayNumToName(d))
+            : [],
+          timezone: String(updatedData.timezone || 'UTC'),
+        },
+        slackChannelId: updatedData.team?.channelName || data.slackChannelId,
+        isActive: Boolean(updatedData.isActive ?? true),
+        createdAt: new Date(updatedData.createdAt || Date.now()).toISOString(),
+        updatedAt: new Date(updatedData.updatedAt || Date.now()).toISOString(),
+      };
+    }
+
+    // Fallback: try to fetch the updated standup if PUT didn't return data
+    try {
+      const updatedResponse = await api.get(`/standups/config/${standupId}`);
+      const updatedData = updatedResponse.data;
+
+      // Transform backend response back to frontend Standup type
+      const weekdayNumToName = (n: number) => {
+        const dayNames = [
+          'sunday',
+          'monday',
+          'tuesday',
+          'wednesday',
+          'thursday',
+          'friday',
+          'saturday',
+        ] as const;
+        return dayNames[n];
+      };
+
+      return {
+        id: String(updatedData.id || standupId),
+        teamId: String(updatedData.team?.id || standupId),
+        name: updatedData.team?.name || data.name || 'Daily Standup',
+        questions: Array.isArray(updatedData.questions) ? updatedData.questions : [],
+        schedule: {
+          time: String(updatedData.timeLocal || '09:00'),
+          days: Array.isArray(updatedData.weekdays)
+            ? updatedData.weekdays.map((d: number) => weekdayNumToName(d))
+            : [],
+          timezone: String(updatedData.timezone || 'UTC'),
+        },
+        slackChannelId: updatedData.team?.channelName || data.slackChannelId,
+        isActive: Boolean(updatedData.isActive ?? true),
+        createdAt: new Date(updatedData.createdAt || Date.now()).toISOString(),
+        updatedAt: new Date(updatedData.updatedAt || Date.now()).toISOString(),
+      };
+    } catch {
+      // If we can't fetch the updated config, return a constructed response
+      // based on the input data, since the PUT was successful
+      return {
+        id: standupId,
+        teamId: standupId, // Assuming standupId is actually teamId based on the API usage
+        name: data.name || 'Daily Standup',
+        questions: data.questions || [],
+        schedule: {
+          time: data.schedule?.time || '09:00',
+          days: data.schedule?.days || [],
+          timezone: data.schedule?.timezone || 'UTC',
+        },
+        slackChannelId: data.slackChannelId,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    }
   },
 
   async deleteStandup(standupId: string): Promise<void> {
-    await api.delete(`/standups/${standupId}`);
+    // Use the correct backend endpoint for deleting standup config
+    await api.delete(`/standups/config/${standupId}`);
   },
 
   async getStandupInstances(standupId: string): Promise<StandupInstance[]> {

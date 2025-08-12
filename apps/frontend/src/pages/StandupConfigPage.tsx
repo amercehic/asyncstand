@@ -10,6 +10,7 @@ import type { AxiosError } from 'axios';
 
 interface StandupFormData {
   name: string;
+  purpose: 'daily' | 'weekly' | 'retrospective' | 'planning' | 'custom';
   questions: string[];
   schedule: {
     time: string;
@@ -29,10 +30,81 @@ const DAYS_OF_WEEK = [
   { key: 'sunday', label: 'Sunday' },
 ] as const;
 
+const STANDUP_PURPOSES = [
+  { value: 'daily', label: 'Daily Standup', description: 'Regular daily check-ins' },
+  { value: 'weekly', label: 'Weekly Check-in', description: 'Weekly team updates' },
+  { value: 'retrospective', label: 'Retrospective', description: 'Sprint retrospectives' },
+  { value: 'planning', label: 'Planning', description: 'Sprint or project planning' },
+  { value: 'custom', label: 'Custom', description: 'Custom standup type' },
+] as const;
+
 const DEFAULT_QUESTIONS = [
   'What did you work on yesterday?',
   'What are you working on today?',
   'Any blockers or challenges?',
+];
+
+const PURPOSE_QUESTIONS = {
+  daily: [
+    'What did you work on yesterday?',
+    'What are you working on today?',
+    'Any blockers or challenges?',
+  ],
+  weekly: [
+    'What were your key accomplishments this week?',
+    'What are your priorities for next week?',
+    'Any blockers or support needed?',
+  ],
+  retrospective: [
+    'What went well this sprint?',
+    'What could be improved?',
+    'What should we start/stop/continue doing?',
+  ],
+  planning: [
+    'What are the main goals for this sprint?',
+    'What tasks are you committing to?',
+    'Any dependencies or risks to highlight?',
+  ],
+  custom: DEFAULT_QUESTIONS,
+};
+
+const STANDUP_TEMPLATES = [
+  {
+    id: 'daily',
+    name: 'Daily Standup',
+    description: 'Standard daily team check-ins',
+    icon: '☀️',
+    purpose: 'daily' as const,
+    schedule: {
+      time: '09:00',
+      days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+      timezone: 'UTC',
+    },
+  },
+  {
+    id: 'weekly',
+    name: 'Weekly Check-in',
+    description: 'Weekly team status updates',
+    icon: '📅',
+    purpose: 'weekly' as const,
+    schedule: { time: '14:00', days: ['friday'], timezone: 'UTC' },
+  },
+  {
+    id: 'retro',
+    name: 'Sprint Retrospective',
+    description: 'End-of-sprint reflection',
+    icon: '🔄',
+    purpose: 'retrospective' as const,
+    schedule: { time: '15:00', days: ['friday'], timezone: 'UTC' },
+  },
+  {
+    id: 'planning',
+    name: 'Sprint Planning',
+    description: 'Planning for upcoming sprint',
+    icon: '🎯',
+    purpose: 'planning' as const,
+    schedule: { time: '10:00', days: ['monday'], timezone: 'UTC' },
+  },
 ];
 
 export const StandupConfigPage = React.memo(() => {
@@ -42,10 +114,14 @@ export const StandupConfigPage = React.memo(() => {
   const [availableChannels, setAvailableChannels] = useState<
     Array<{ id: string; name: string; isAssigned: boolean }>
   >([]);
+  const [existingStandups, setExistingStandups] = useState<
+    Array<{ id: string; name: string; slackChannelId?: string }>
+  >([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState<StandupFormData>({
     name: 'Daily Standup',
+    purpose: 'daily',
     questions: [...DEFAULT_QUESTIONS],
     schedule: {
       time: '09:00',
@@ -79,18 +155,19 @@ export const StandupConfigPage = React.memo(() => {
           }));
         }
 
-        // Try to fetch existing standup config, but don't fail if it doesn't exist
+        // Try to fetch existing standups for this team to check for channel conflicts
         try {
           const standups = await standupsApi.getTeamStandups(teamId);
-          if (standups.length > 0) {
-            const existingStandup = standups[0];
-            setFormData({
-              name: existingStandup.name,
-              questions: existingStandup.questions,
-              schedule: existingStandup.schedule,
-              slackChannelId: existingStandup.slackChannelId || '',
-            });
-          }
+          setExistingStandups(
+            standups.map(s => ({
+              id: s.id,
+              name: s.name,
+              slackChannelId: s.slackChannelId,
+            }))
+          );
+
+          // If there are existing standups, this is likely editing an existing config
+          // For now, we'll assume this is a creation flow and show validation warnings
         } catch (configError: unknown) {
           // If standup config doesn't exist, that's okay - user can create one
           const axiosError = configError as AxiosError;
@@ -104,6 +181,7 @@ export const StandupConfigPage = React.memo(() => {
             (errorData?.detail && errorData.detail.includes('STANDUP_CONFIG_NOT_FOUND'))
           ) {
             console.log('No existing standup config found, user can create one');
+            setExistingStandups([]);
           } else {
             console.error('Error fetching standup config:', configError);
             toast.error('Failed to load existing standup configuration');
@@ -176,6 +254,51 @@ export const StandupConfigPage = React.memo(() => {
     }));
   };
 
+  const handlePurposeChange = (purpose: StandupFormData['purpose']) => {
+    const suggestedName = STANDUP_PURPOSES.find(p => p.value === purpose)?.label || 'Standup';
+    const suggestedQuestions = PURPOSE_QUESTIONS[purpose];
+
+    setFormData(prev => ({
+      ...prev,
+      purpose,
+      name: suggestedName,
+      questions: [...suggestedQuestions],
+    }));
+  };
+
+  const applyTemplate = (template: (typeof STANDUP_TEMPLATES)[0]) => {
+    setFormData(prev => ({
+      ...prev,
+      name: template.name,
+      purpose: template.purpose,
+      questions: [...PURPOSE_QUESTIONS[template.purpose]],
+      schedule: {
+        time: template.schedule.time,
+        days: template.schedule.days as (
+          | 'monday'
+          | 'tuesday'
+          | 'wednesday'
+          | 'thursday'
+          | 'friday'
+          | 'saturday'
+          | 'sunday'
+        )[],
+        timezone: template.schedule.timezone,
+      },
+    }));
+    toast.success(`Applied ${template.name} template`);
+  };
+
+  const getChannelConflict = () => {
+    if (!formData.slackChannelId) return null;
+
+    const conflictingStandup = existingStandups.find(
+      standup => standup.slackChannelId === formData.slackChannelId
+    );
+
+    return conflictingStandup;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -194,12 +317,22 @@ export const StandupConfigPage = React.memo(() => {
       return;
     }
 
+    // Check for Slack channel conflicts
+    const channelConflict = getChannelConflict();
+    if (channelConflict) {
+      toast.error(
+        `This Slack channel is already used by "${channelConflict.name}". Please select a different channel.`
+      );
+      return;
+    }
+
     setIsSaving(true);
 
     try {
       const standupData = {
         teamId: teamId!,
         name: formData.name,
+        purpose: formData.purpose,
         questions: formData.questions,
         schedule: formData.schedule,
         slackChannelId: formData.slackChannelId || undefined,
@@ -265,6 +398,45 @@ export const StandupConfigPage = React.memo(() => {
           </div>
         </motion.div>
 
+        {/* Quick Templates */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+          className="mb-8"
+        >
+          <h2 className="text-lg font-semibold mb-4">Quick Start Templates</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {STANDUP_TEMPLATES.map(template => (
+              <motion.button
+                key={template.id}
+                type="button"
+                onClick={() => applyTemplate(template)}
+                className="p-4 rounded-xl border border-border hover:border-primary/20 hover:shadow-md transition-all duration-200 text-left bg-card group"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="text-2xl">{template.icon}</span>
+                  <h3 className="font-semibold group-hover:text-primary transition-colors">
+                    {template.name}
+                  </h3>
+                </div>
+                <p className="text-sm text-muted-foreground mb-2">{template.description}</p>
+                <div className="text-xs text-muted-foreground">
+                  {template.schedule.days.length === 5
+                    ? 'Weekdays'
+                    : template.schedule.days
+                        .map(d => d.charAt(0).toUpperCase() + d.slice(1))
+                        .join(', ')}
+                  {' at '}
+                  {template.schedule.time}
+                </div>
+              </motion.button>
+            ))}
+          </div>
+        </motion.div>
+
         <form onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main Form */}
@@ -279,6 +451,29 @@ export const StandupConfigPage = React.memo(() => {
                 <h2 className="text-xl font-semibold mb-6">Basic Information</h2>
 
                 <div className="space-y-4">
+                  <div>
+                    <label htmlFor="purpose" className="block text-sm font-medium mb-2">
+                      Standup Type
+                    </label>
+                    <select
+                      id="purpose"
+                      value={formData.purpose}
+                      onChange={e =>
+                        handlePurposeChange(e.target.value as StandupFormData['purpose'])
+                      }
+                      className="w-full px-4 py-3 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    >
+                      {STANDUP_PURPOSES.map(purpose => (
+                        <option key={purpose.value} value={purpose.value}>
+                          {purpose.label} - {purpose.description}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      This will suggest appropriate questions and naming
+                    </p>
+                  </div>
+
                   <div>
                     <label htmlFor="name" className="block text-sm font-medium mb-2">
                       Standup Name
@@ -305,14 +500,29 @@ export const StandupConfigPage = React.memo(() => {
                         onChange={e =>
                           setFormData(prev => ({ ...prev, slackChannelId: e.target.value }))
                         }
-                        className="w-full px-4 py-3 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        className={`w-full px-4 py-3 rounded-lg border bg-background focus:outline-none focus:ring-2 focus:border-transparent ${
+                          getChannelConflict()
+                            ? 'border-red-500 focus:ring-red-500'
+                            : 'border-border focus:ring-primary'
+                        }`}
                       >
                         <option value="">Select a channel...</option>
-                        {availableChannels.map(channel => (
-                          <option key={channel.id} value={channel.name}>
-                            #{channel.name} {channel.isAssigned ? '(assigned)' : ''}
-                          </option>
-                        ))}
+                        {availableChannels.map(channel => {
+                          const isUsedByOtherStandup = existingStandups.some(
+                            standup => standup.slackChannelId === channel.name
+                          );
+                          return (
+                            <option
+                              key={channel.id}
+                              value={channel.name}
+                              disabled={isUsedByOtherStandup}
+                            >
+                              #{channel.name}
+                              {channel.isAssigned ? ' (assigned)' : ''}
+                              {isUsedByOtherStandup ? ' (in use)' : ''}
+                            </option>
+                          );
+                        })}
                       </select>
                     ) : (
                       <input
@@ -322,15 +532,27 @@ export const StandupConfigPage = React.memo(() => {
                         onChange={e =>
                           setFormData(prev => ({ ...prev, slackChannelId: e.target.value }))
                         }
-                        className="w-full px-4 py-3 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        className={`w-full px-4 py-3 rounded-lg border bg-background focus:outline-none focus:ring-2 focus:border-transparent ${
+                          getChannelConflict()
+                            ? 'border-red-500 focus:ring-red-500'
+                            : 'border-border focus:ring-primary'
+                        }`}
                         placeholder="#general"
                       />
                     )}
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {availableChannels.length > 0
-                        ? 'Select a channel where standup responses will be posted'
-                        : 'Responses will be posted to this Slack channel (enter manually)'}
-                    </p>
+
+                    {getChannelConflict() ? (
+                      <p className="text-sm text-red-600 mt-1 flex items-center gap-1">
+                        <span>⚠️</span>
+                        This channel is already used by "{getChannelConflict()!.name}"
+                      </p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {availableChannels.length > 0
+                          ? 'Select a channel where standup responses will be posted'
+                          : 'Responses will be posted to this Slack channel (enter manually)'}
+                      </p>
+                    )}
                   </div>
                 </div>
               </motion.div>

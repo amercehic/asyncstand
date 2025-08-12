@@ -68,6 +68,24 @@ export class StandupConfigController {
     return config;
   }
 
+  @Get('by-id/:id')
+  @SwaggerGetStandupConfig()
+  async getStandupConfigById(
+    @Param('id') configId: string,
+    @CurrentOrg() orgId: string,
+  ): Promise<StandupConfigResponse> {
+    return this.standupConfigService.getStandupConfigById(configId, orgId);
+  }
+
+  @Get('team/:teamId')
+  @SwaggerGetStandupConfig()
+  async listStandupConfigsForTeam(
+    @Param('teamId') teamId: string,
+    @CurrentOrg() orgId: string,
+  ): Promise<StandupConfigResponse[]> {
+    return this.standupConfigService.listStandupConfigsForTeam(teamId, orgId);
+  }
+
   @Get(':teamId')
   @SwaggerGetStandupConfig()
   async getStandupConfigByTeamId(

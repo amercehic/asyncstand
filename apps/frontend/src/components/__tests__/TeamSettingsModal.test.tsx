@@ -118,19 +118,19 @@ describe('TeamSettingsModal', () => {
   it('shows character count for name field', () => {
     render(<TeamSettingsModal {...mockProps} />);
 
-    expect(screen.getByText('9/100 characters')).toBeInTheDocument(); // "Test Team" = 9 chars
+    expect(screen.getByTestId('name-char-count')).toHaveTextContent('9/100 characters'); // "Test Team" = 9 chars
   });
 
   it('shows character count for description field', () => {
     render(<TeamSettingsModal {...mockProps} />);
 
-    expect(screen.getByText('35/500 characters')).toBeInTheDocument(); // Description length
+    expect(screen.getByTestId('description-char-count')).toHaveTextContent('32/500 characters'); // Description length
   });
 
   it('disables save button when no changes are made', () => {
     render(<TeamSettingsModal {...mockProps} />);
 
-    const saveButton = screen.getByText('Save Changes');
+    const saveButton = screen.getByTestId('save-button');
     expect(saveButton).toBeDisabled();
   });
 
@@ -141,7 +141,7 @@ describe('TeamSettingsModal', () => {
     fireEvent.change(nameInput, { target: { value: 'Updated Team Name' } });
 
     await waitFor(() => {
-      const saveButton = screen.getByText('Save Changes');
+      const saveButton = screen.getByTestId('save-button');
       expect(saveButton).not.toBeDisabled();
     });
   });
@@ -216,7 +216,7 @@ describe('TeamSettingsModal', () => {
     fireEvent.change(timezoneSelect, { target: { value: 'America/New_York' } });
 
     // Submit the form
-    const saveButton = screen.getByText('Save Changes');
+    const saveButton = screen.getByTestId('save-button');
     fireEvent.click(saveButton);
 
     await waitFor(() => {
@@ -241,7 +241,7 @@ describe('TeamSettingsModal', () => {
     const nameInput = screen.getByDisplayValue('Test Team');
     fireEvent.change(nameInput, { target: { value: 'Updated Team Name' } });
 
-    const saveButton = screen.getByText('Save Changes');
+    const saveButton = screen.getByTestId('save-button');
     fireEvent.click(saveButton);
 
     await waitFor(() => {
@@ -254,7 +254,7 @@ describe('TeamSettingsModal', () => {
   it('closes modal when close button is clicked', () => {
     render(<TeamSettingsModal {...mockProps} />);
 
-    const closeButton = screen.getByRole('button', { name: /close/i });
+    const closeButton = screen.getByRole('button', { name: /close modal/i });
     fireEvent.click(closeButton);
 
     expect(mockProps.onClose).toHaveBeenCalled();
@@ -263,7 +263,7 @@ describe('TeamSettingsModal', () => {
   it('closes modal when cancel button is clicked', () => {
     render(<TeamSettingsModal {...mockProps} />);
 
-    const cancelButton = screen.getByText('Cancel');
+    const cancelButton = screen.getByTestId('cancel-button');
     fireEvent.click(cancelButton);
 
     expect(mockProps.onClose).toHaveBeenCalled();
@@ -281,7 +281,7 @@ describe('TeamSettingsModal', () => {
     const nameInput = screen.getByDisplayValue('Test Team');
     fireEvent.change(nameInput, { target: { value: 'Updated Team Name' } });
 
-    const saveButton = screen.getByText('Save Changes');
+    const saveButton = screen.getByTestId('save-button');
     fireEvent.click(saveButton);
 
     // Should show loading state
@@ -295,7 +295,7 @@ describe('TeamSettingsModal', () => {
     const deleteButton = screen.getByText('Delete Team');
     fireEvent.click(deleteButton);
 
-    expect(screen.getByText('This action cannot be undone. Type')).toBeInTheDocument();
+    expect(screen.getByText(/This action cannot be undone\. Type/)).toBeInTheDocument();
     expect(screen.getByText('Test Team')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Type "Test Team" to confirm')).toBeInTheDocument();
   });
@@ -308,10 +308,10 @@ describe('TeamSettingsModal', () => {
     fireEvent.click(deleteButton);
 
     // Cancel deletion
-    const cancelButton = screen.getAllByText('Cancel')[1]; // Second cancel button (in delete confirmation)
+    const cancelButton = screen.getByTestId('cancel-delete-button');
     fireEvent.click(cancelButton);
 
-    expect(screen.queryByText('This action cannot be undone')).not.toBeInTheDocument();
+    expect(screen.queryByText(/This action cannot be undone/)).not.toBeInTheDocument();
     expect(screen.getByText('Delete Team')).toBeInTheDocument();
   });
 
@@ -323,7 +323,7 @@ describe('TeamSettingsModal', () => {
     fireEvent.click(deleteButton);
 
     const confirmationInput = screen.getByPlaceholderText('Type "Test Team" to confirm');
-    const confirmDeleteButton = screen.getAllByText('Delete Team')[1];
+    const confirmDeleteButton = screen.getByTestId('confirm-delete-button');
 
     // Initially disabled
     expect(confirmDeleteButton).toBeDisabled();
@@ -353,7 +353,7 @@ describe('TeamSettingsModal', () => {
     fireEvent.change(confirmationInput, { target: { value: 'Test Team' } });
 
     // Confirm deletion
-    const confirmDeleteButton = screen.getAllByText('Delete Team')[1];
+    const confirmDeleteButton = screen.getByTestId('confirm-delete-button');
     fireEvent.click(confirmDeleteButton);
 
     await waitFor(() => {
@@ -377,7 +377,7 @@ describe('TeamSettingsModal', () => {
     const confirmationInput = screen.getByPlaceholderText('Type "Test Team" to confirm');
     fireEvent.change(confirmationInput, { target: { value: 'Test Team' } });
 
-    const confirmDeleteButton = screen.getAllByText('Delete Team')[1];
+    const confirmDeleteButton = screen.getByTestId('confirm-delete-button');
     fireEvent.click(confirmDeleteButton);
 
     await waitFor(() => {
@@ -400,13 +400,13 @@ describe('TeamSettingsModal', () => {
     const confirmationInput = screen.getByPlaceholderText('Type "Test Team" to confirm');
     fireEvent.change(confirmationInput, { target: { value: 'Test Team' } });
 
-    const confirmDeleteButton = screen.getAllByText('Delete Team')[1];
+    const confirmDeleteButton = screen.getByTestId('confirm-delete-button');
     fireEvent.click(confirmDeleteButton);
 
     // Should show loading state and disable buttons
     expect(screen.getByText('Deleting...')).toBeInTheDocument();
-    expect(screen.getByText('Cancel')).toBeDisabled();
-    expect(screen.getByText('Save Changes')).toBeDisabled();
+    expect(screen.getByTestId('cancel-button')).toBeDisabled();
+    expect(screen.getByTestId('save-button')).toBeDisabled();
   });
 
   it('handles ESC key to close modal', () => {
@@ -428,7 +428,7 @@ describe('TeamSettingsModal', () => {
     // Start update operation
     const nameInput = screen.getByDisplayValue('Test Team');
     fireEvent.change(nameInput, { target: { value: 'Updated Team Name' } });
-    const saveButton = screen.getByText('Save Changes');
+    const saveButton = screen.getByTestId('save-button');
     fireEvent.click(saveButton);
 
     // Try to close with ESC

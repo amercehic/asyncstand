@@ -35,6 +35,7 @@ export interface Standup {
   id: string;
   teamId: string;
   name: string;
+  purpose?: 'daily' | 'weekly' | 'retrospective' | 'planning' | 'custom';
   questions: string[];
   schedule: {
     time: string;

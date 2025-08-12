@@ -70,17 +70,22 @@ export class StandupConfigService {
       );
     }
 
-    // Check if standup config already exists
-    const existingConfig = await this.prisma.standupConfig.findUnique({
-      where: { teamId },
-    });
+    // Check if standup config with same purpose already exists (if purpose is provided)
+    if (data.purpose) {
+      const existingConfig = await this.prisma.standupConfig.findFirst({
+        where: {
+          teamId,
+          purpose: data.purpose,
+        },
+      });
 
-    if (existingConfig) {
-      throw new ApiError(
-        ErrorCode.STANDUP_CONFIG_ALREADY_EXISTS,
-        'Standup configuration already exists for this team',
-        HttpStatus.CONFLICT,
-      );
+      if (existingConfig) {
+        throw new ApiError(
+          ErrorCode.STANDUP_CONFIG_ALREADY_EXISTS,
+          `Standup configuration with purpose '${data.purpose}' already exists for this team`,
+          HttpStatus.CONFLICT,
+        );
+      }
     }
 
     // Validate input data
@@ -93,6 +98,7 @@ export class StandupConfigService {
       const config = await tx.standupConfig.create({
         data: {
           teamId,
+          purpose: data.purpose,
           questions: data.questions,
           weekdays: data.weekdays,
           timeLocal: data.timeLocal,
@@ -139,6 +145,7 @@ export class StandupConfigService {
         teamId,
         teamName: team.name,
         configId: result.id,
+        purpose: data.purpose,
         questions: data.questions.length,
         weekdays: data.weekdays,
         timeLocal: data.timeLocal,
@@ -192,6 +199,7 @@ export class StandupConfigService {
     await this.prisma.standupConfig.update({
       where: { id: config.id },
       data: {
+        ...(data.purpose && { purpose: data.purpose }),
         ...(data.questions && { questions: data.questions }),
         ...(data.weekdays && { weekdays: data.weekdays }),
         ...(data.timeLocal && { timeLocal: data.timeLocal }),
@@ -262,6 +270,13 @@ export class StandupConfigService {
     return {
       id: config.id,
       teamId: config.teamId,
+      purpose: config.purpose as
+        | 'daily'
+        | 'weekly'
+        | 'retrospective'
+        | 'planning'
+        | 'custom'
+        | undefined,
       questions: config.questions,
       weekdays: config.weekdays,
       timeLocal: config.timeLocal,
@@ -346,6 +361,7 @@ export class StandupConfigService {
     await this.prisma.standupConfig.update({
       where: { id: configId },
       data: {
+        ...(data.purpose && { purpose: data.purpose }),
         ...(data.questions && { questions: data.questions }),
         ...(data.weekdays && { weekdays: data.weekdays }),
         ...(data.timeLocal && { timeLocal: data.timeLocal }),
@@ -410,6 +426,159 @@ export class StandupConfigService {
     }));
   }
 
+  async listStandupConfigsForTeam(teamId: string, orgId: string): Promise<StandupConfigResponse[]> {
+    this.logger.info('Listing standup configurations for team', { teamId, orgId });
+
+    const configs = await this.prisma.standupConfig.findMany({
+      where: {
+        teamId,
+        team: { orgId },
+      },
+      include: {
+        team: {
+          include: {
+            channel: true,
+          },
+        },
+        configMembers: {
+          include: {
+            teamMember: {
+              include: {
+                user: true,
+                integrationUser: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+
+    return configs.map((config) => {
+      const memberParticipation: MemberParticipationResponse[] = config.configMembers.map((cm) => ({
+        teamMember: {
+          id: cm.teamMember.id,
+          name:
+            cm.teamMember.user?.name ||
+            cm.teamMember.integrationUser?.name ||
+            cm.teamMember.name ||
+            'Unknown',
+          platformUserId:
+            cm.teamMember.platformUserId || cm.teamMember.integrationUser?.externalUserId || '',
+        },
+        include: cm.include,
+        role: cm.role,
+      }));
+
+      return {
+        id: config.id,
+        teamId: config.teamId,
+        purpose: config.purpose as
+          | 'daily'
+          | 'weekly'
+          | 'retrospective'
+          | 'planning'
+          | 'custom'
+          | undefined,
+        questions: config.questions,
+        weekdays: config.weekdays,
+        timeLocal: config.timeLocal,
+        timezone: config.timezone,
+        reminderMinutesBefore: config.reminderMinutesBefore,
+        responseTimeoutHours: config.responseTimeoutHours,
+        isActive: config.isActive,
+        team: {
+          id: config.team.id,
+          name: config.team.name,
+          channelName: config.team.channel?.name || 'Unknown Channel',
+        },
+        memberParticipation,
+        createdAt: config.createdAt,
+        updatedAt: config.updatedAt,
+      };
+    });
+  }
+
+  async getStandupConfigById(configId: string, orgId: string): Promise<StandupConfigResponse> {
+    this.logger.info('Getting standup configuration by ID', { configId, orgId });
+
+    const config = await this.prisma.standupConfig.findFirst({
+      where: {
+        id: configId,
+        team: { orgId },
+      },
+      include: {
+        team: {
+          include: {
+            channel: true,
+          },
+        },
+        configMembers: {
+          include: {
+            teamMember: {
+              include: {
+                user: true,
+                integrationUser: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!config) {
+      throw new ApiError(
+        ErrorCode.STANDUP_CONFIG_NOT_FOUND,
+        'Standup configuration not found',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    const memberParticipation: MemberParticipationResponse[] = config.configMembers.map((cm) => ({
+      teamMember: {
+        id: cm.teamMember.id,
+        name:
+          cm.teamMember.user?.name ||
+          cm.teamMember.integrationUser?.name ||
+          cm.teamMember.name ||
+          'Unknown',
+        platformUserId:
+          cm.teamMember.platformUserId || cm.teamMember.integrationUser?.externalUserId || '',
+      },
+      include: cm.include,
+      role: cm.role,
+    }));
+
+    return {
+      id: config.id,
+      teamId: config.teamId,
+      purpose: config.purpose as
+        | 'daily'
+        | 'weekly'
+        | 'retrospective'
+        | 'planning'
+        | 'custom'
+        | undefined,
+      questions: config.questions,
+      weekdays: config.weekdays,
+      timeLocal: config.timeLocal,
+      timezone: config.timezone,
+      reminderMinutesBefore: config.reminderMinutesBefore,
+      responseTimeoutHours: config.responseTimeoutHours,
+      isActive: config.isActive,
+      team: {
+        id: config.team.id,
+        name: config.team.name,
+        channelName: config.team.channel?.name || 'Unknown Channel',
+      },
+      memberParticipation,
+      createdAt: config.createdAt,
+      updatedAt: config.updatedAt,
+    };
+  }
+
   async updateMemberParticipation(
     teamId: string,
     memberId: string,
@@ -418,7 +587,7 @@ export class StandupConfigService {
     this.logger.info('Updating member participation', { teamId, memberId });
 
     // Verify standup config exists
-    const config = await this.prisma.standupConfig.findUnique({
+    const config = await this.prisma.standupConfig.findFirst({
       where: { teamId },
     });
 
@@ -473,7 +642,7 @@ export class StandupConfigService {
   async getMemberParticipation(teamId: string): Promise<MemberParticipationResponse[]> {
     this.logger.info('Getting member participation', { teamId });
 
-    const config = await this.prisma.standupConfig.findUnique({
+    const config = await this.prisma.standupConfig.findFirst({
       where: { teamId },
       include: {
         configMembers: {
@@ -524,7 +693,7 @@ export class StandupConfigService {
       memberCount: data.members.length,
     });
 
-    const config = await this.prisma.standupConfig.findUnique({
+    const config = await this.prisma.standupConfig.findFirst({
       where: { teamId },
     });
 

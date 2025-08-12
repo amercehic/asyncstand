@@ -355,9 +355,50 @@ describe('Standup Configuration (e2e)', () => {
         .expect(404);
     });
 
-    it('should reject duplicate configuration for same team', async () => {
+    it('should allow multiple configurations per team with different purposes', async () => {
+      const createConfigDto1 = {
+        teamId: testData.teamId,
+        purpose: 'daily',
+        questions: ['What did you work on?'],
+        weekdays: [1, 2, 3, 4, 5],
+        timeLocal: '09:00',
+        timezone: 'America/New_York',
+        reminderMinutesBefore: 15,
+        responseTimeoutHours: 2,
+        isActive: true,
+      };
+
+      const createConfigDto2 = {
+        teamId: testData.teamId,
+        purpose: 'retrospective',
+        questions: ['What went well?', 'What could be improved?'],
+        weekdays: [5], // Only Fridays
+        timeLocal: '16:00',
+        timezone: 'America/New_York',
+        reminderMinutesBefore: 30,
+        responseTimeoutHours: 2,
+        isActive: true,
+      };
+
+      // Create first config (daily)
+      await request(app.getHttpServer())
+        .post('/standups/config')
+        .set('Authorization', `Bearer ${testData.adminToken}`)
+        .send(createConfigDto1)
+        .expect(201);
+
+      // Create second config (retrospective) - should succeed
+      await request(app.getHttpServer())
+        .post('/standups/config')
+        .set('Authorization', `Bearer ${testData.adminToken}`)
+        .send(createConfigDto2)
+        .expect(201);
+    });
+
+    it('should reject duplicate configuration with same purpose for same team', async () => {
       const createConfigDto = {
         teamId: testData.teamId,
+        purpose: 'weekly',
         questions: ['What did you work on?'],
         weekdays: [1, 2, 3, 4, 5],
         timeLocal: '09:00',
@@ -374,7 +415,7 @@ describe('Standup Configuration (e2e)', () => {
         .send(createConfigDto)
         .expect(201);
 
-      // Try to create second config for same team
+      // Try to create second config with same purpose for same team
       await request(app.getHttpServer())
         .post('/standups/config')
         .set('Authorization', `Bearer ${testData.adminToken}`)

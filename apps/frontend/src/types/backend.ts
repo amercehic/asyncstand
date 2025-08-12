@@ -2,6 +2,7 @@
 export interface StandupConfigResponse {
   id: string;
   teamId: string;
+  purpose?: 'daily' | 'weekly' | 'retrospective' | 'planning' | 'custom';
   questions: string[];
   weekdays: number[];
   timeLocal: string;

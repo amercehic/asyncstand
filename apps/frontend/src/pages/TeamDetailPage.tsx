@@ -267,84 +267,160 @@ export const TeamDetailPage = React.memo(() => {
 
               {standups.length > 0 ? (
                 <div className="space-y-4">
-                  {standups.map(standup => (
-                    <div
-                      key={standup.id}
-                      className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors cursor-pointer"
-                      onClick={() => {
-                        // Find a recent instance for this standup to navigate to
-                        const recentInstance = recentInstances.find(
-                          instance => instance.configId === standup.id
-                        );
-                        if (recentInstance) {
-                          navigate(`/standups/${recentInstance.id}`);
-                        } else {
-                          toast.info('No recent standup instances found');
-                        }
-                      }}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-gradient-to-r from-primary to-primary/80 rounded-lg flex items-center justify-center">
-                          <Calendar className="w-5 h-5 text-white" />
-                        </div>
-                        <div>
-                          <h3 className="font-medium">{standup.name}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            {standup.schedule.days.length === 5 &&
-                            standup.schedule.days.includes('monday') &&
-                            standup.schedule.days.includes('friday')
-                              ? 'Weekdays'
-                              : standup.schedule.days
-                                  .map(day => day.charAt(0).toUpperCase() + day.slice(1))
-                                  .join(', ')}{' '}
-                            at {standup.schedule.time}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {standup.isActive && (
-                          <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                            Active
-                          </span>
-                        )}
-                        <Dropdown
-                          trigger={
-                            <ModernButton variant="ghost" size="sm">
-                              <MoreVertical className="w-4 h-4" />
-                            </ModernButton>
+                  {standups.map((standup, index) => {
+                    const recentInstance = recentInstances.find(
+                      instance => instance.configId === standup.id
+                    );
+
+                    // Get standup type based on purpose or schedule
+                    const getStandupType = () => {
+                      // Use purpose if available, otherwise fallback to schedule-based detection
+                      if (standup.purpose) {
+                        const purposeConfig = {
+                          daily: { type: 'Daily', color: 'blue' },
+                          weekly: { type: 'Weekly', color: 'purple' },
+                          retrospective: { type: 'Retro', color: 'orange' },
+                          planning: { type: 'Planning', color: 'green' },
+                          custom: { type: 'Custom', color: 'gray' },
+                        };
+                        return purposeConfig[standup.purpose] || { type: 'Custom', color: 'gray' };
+                      }
+
+                      // Fallback to schedule-based detection for legacy standups
+                      const { days } = standup.schedule;
+                      if (days.length === 7) return { type: 'Daily', color: 'blue' };
+                      if (days.length === 5 && days.includes('monday') && days.includes('friday')) {
+                        return { type: 'Weekdays', color: 'green' };
+                      }
+                      if (days.length === 1) return { type: 'Weekly', color: 'purple' };
+                      if (days.length === 2) return { type: 'Bi-weekly', color: 'orange' };
+                      return { type: 'Custom', color: 'gray' };
+                    };
+
+                    const standupType = getStandupType();
+                    const colorClasses = {
+                      blue: 'from-blue-500 to-blue-600 text-blue-700 bg-blue-50',
+                      green: 'from-green-500 to-green-600 text-green-700 bg-green-50',
+                      purple: 'from-purple-500 to-purple-600 text-purple-700 bg-purple-50',
+                      orange: 'from-orange-500 to-orange-600 text-orange-700 bg-orange-50',
+                      gray: 'from-gray-500 to-gray-600 text-gray-700 bg-gray-50',
+                    };
+
+                    return (
+                      <div
+                        key={standup.id}
+                        className="group relative p-4 rounded-xl border border-border hover:border-primary/20 hover:shadow-md transition-all duration-200 cursor-pointer"
+                        onClick={() => {
+                          if (recentInstance) {
+                            navigate(`/standups/${recentInstance.id}`);
+                          } else {
+                            toast.info('No recent standup instances found');
                           }
-                          items={[
-                            {
-                              label: 'View Recent',
-                              icon: Eye,
-                              onClick: () => {
-                                const recentInstance = recentInstances.find(
-                                  instance => instance.configId === standup.id
-                                );
-                                if (recentInstance) {
-                                  navigate(`/standups/${recentInstance.id}`);
-                                } else {
-                                  toast.info('No recent standup instances found');
-                                }
-                              },
-                            },
-                            {
-                              label: 'Edit Standup',
-                              icon: Edit,
-                              onClick: () => handleEditStandup(standup),
-                            },
-                            {
-                              label: 'View History',
-                              icon: Calendar,
-                              onClick: () => {
-                                toast.info('View all standup history - Coming soon!');
-                              },
-                            },
-                          ]}
-                        />
+                        }}
+                      >
+                        {/* Standup Index for multiple standups */}
+                        {standups.length > 1 && (
+                          <div className="absolute top-3 right-3 w-6 h-6 bg-muted rounded-full flex items-center justify-center text-xs font-medium text-muted-foreground">
+                            {index + 1}
+                          </div>
+                        )}
+
+                        <div className="flex items-start gap-4">
+                          <div
+                            className={`w-12 h-12 bg-gradient-to-r ${colorClasses[standupType.color as keyof typeof colorClasses].split(' ').slice(0, 2).join(' ')} rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform`}
+                          >
+                            <Calendar className="w-6 h-6 text-white" />
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2">
+                              <h3 className="font-semibold text-lg text-foreground group-hover:text-primary transition-colors">
+                                {standup.name}
+                              </h3>
+                              <span
+                                className={`px-2 py-1 rounded-full text-xs font-medium ${colorClasses[standupType.color as keyof typeof colorClasses].split(' ').slice(2).join(' ')}`}
+                              >
+                                {standupType.type}
+                              </span>
+                              {standup.isActive && (
+                                <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full font-medium">
+                                  Active
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="space-y-1">
+                              <p className="text-sm text-muted-foreground flex items-center gap-2">
+                                <Clock className="w-4 h-4" />
+                                {standup.schedule.days.length === 5 &&
+                                standup.schedule.days.includes('monday') &&
+                                standup.schedule.days.includes('friday')
+                                  ? 'Weekdays'
+                                  : standup.schedule.days
+                                      .map(day => day.charAt(0).toUpperCase() + day.slice(1))
+                                      .join(', ')}{' '}
+                                at {standup.schedule.time} ({standup.schedule.timezone})
+                              </p>
+
+                              {standup.slackChannelId && (
+                                <p className="text-sm text-muted-foreground flex items-center gap-2">
+                                  <span className="w-4 h-4 bg-green-500 rounded flex items-center justify-center">
+                                    <span className="text-white font-bold text-xs">#</span>
+                                  </span>
+                                  Slack integration
+                                </p>
+                              )}
+
+                              <p className="text-sm text-muted-foreground">
+                                {standup.questions.length} question
+                                {standup.questions.length !== 1 ? 's' : ''}
+                                {recentInstance && (
+                                  <span className="ml-2">• Last run: {recentInstance.date}</span>
+                                )}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Dropdown
+                              trigger={
+                                <ModernButton variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                  <MoreVertical className="w-4 h-4" />
+                                </ModernButton>
+                              }
+                              items={[
+                                {
+                                  label: 'View Recent',
+                                  icon: Eye,
+                                  onClick: () => {
+                                    if (recentInstance) {
+                                      navigate(`/standups/${recentInstance.id}`);
+                                    } else {
+                                      toast.info('No recent standup instances found');
+                                    }
+                                  },
+                                },
+                                {
+                                  label: 'Edit Standup',
+                                  icon: Edit,
+                                  onClick: () => {
+                                    handleEditStandup(standup);
+                                  },
+                                },
+                                {
+                                  label: 'View History',
+                                  icon: Calendar,
+                                  onClick: () => {
+                                    toast.info('View all standup history - Coming soon!');
+                                  },
+                                },
+                              ]}
+                            />
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-8">

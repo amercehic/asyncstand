@@ -14,7 +14,6 @@ interface StandupEditModalProps {
 }
 
 interface StandupFormData {
-  name: string;
   questions: string[];
   schedule: {
     time: string;
@@ -55,7 +54,6 @@ export const StandupEditModal: React.FC<StandupEditModalProps> = ({
   standup,
 }) => {
   const [formData, setFormData] = useState<StandupFormData>({
-    name: standup.name,
     questions: [...standup.questions],
     schedule: {
       time: standup.schedule.time,
@@ -68,13 +66,15 @@ export const StandupEditModal: React.FC<StandupEditModalProps> = ({
   const [availableChannels, setAvailableChannels] = useState<
     Array<{ id: string; name: string; isAssigned: boolean }>
   >([]);
+  const [existingStandups, setExistingStandups] = useState<
+    Array<{ id: string; name: string; slackChannelId?: string }>
+  >([]);
   const [isSaving, setIsSaving] = useState(false);
 
   // Reset form when standup changes
   useEffect(() => {
     if (standup) {
       setFormData({
-        name: standup.name,
         questions: [...standup.questions],
         schedule: {
           time: standup.schedule.time,
@@ -86,21 +86,32 @@ export const StandupEditModal: React.FC<StandupEditModalProps> = ({
     }
   }, [standup]);
 
-  // Load available channels when modal opens
+  // Load available channels and existing standups when modal opens
   useEffect(() => {
-    const loadChannels = async () => {
+    const loadData = async () => {
       if (!isOpen) return;
 
       try {
-        const channelsData = await teamsApi.getAvailableChannels();
+        const [channelsData, existingStandupsData] = await Promise.all([
+          teamsApi.getAvailableChannels().catch(() => ({ channels: [] })),
+          standupsApi.getTeamStandups(standup.teamId).catch(() => []),
+        ]);
+
         setAvailableChannels(channelsData.channels);
+        setExistingStandups(
+          existingStandupsData.map(s => ({
+            id: s.id,
+            name: s.name,
+            slackChannelId: s.slackChannelId,
+          }))
+        );
       } catch (error) {
-        console.error('Error loading channels:', error);
+        console.error('Error loading data:', error);
       }
     };
 
-    loadChannels();
-  }, [isOpen]);
+    loadData();
+  }, [isOpen, standup.teamId]);
 
   // Prevent background scroll when modal is open
   useEffect(() => {
@@ -138,6 +149,18 @@ export const StandupEditModal: React.FC<StandupEditModalProps> = ({
     };
   }, [isOpen, onClose]);
 
+  const getChannelConflict = () => {
+    if (!formData.slackChannelId) return null;
+
+    const conflictingStandup = existingStandups.find(
+      existingStandup =>
+        existingStandup.slackChannelId === formData.slackChannelId &&
+        existingStandup.id !== standup.id // Exclude current standup
+    );
+
+    return conflictingStandup;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -148,6 +171,15 @@ export const StandupEditModal: React.FC<StandupEditModalProps> = ({
 
     if (formData.schedule.days.length === 0) {
       toast.error('Please select at least one day');
+      return;
+    }
+
+    // Check for Slack channel conflicts
+    const channelConflict = getChannelConflict();
+    if (channelConflict) {
+      toast.error(
+        `This Slack channel is already used by "${channelConflict.name}". Please select a different channel.`
+      );
       return;
     }
 
@@ -263,19 +295,6 @@ export const StandupEditModal: React.FC<StandupEditModalProps> = ({
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
-            {/* Name */}
-            <div>
-              <label className="block text-sm font-medium mb-2">Standup Name</label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                className="w-full px-4 py-3 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-150"
-                placeholder="e.g., Daily Standup"
-                required
-              />
-            </div>
-
             {/* Questions */}
             <div>
               <div className="flex items-center justify-between mb-3">
@@ -422,15 +441,39 @@ export const StandupEditModal: React.FC<StandupEditModalProps> = ({
                       slackChannelId: e.target.value || undefined,
                     }))
                   }
-                  className="w-full px-4 py-3 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-150"
+                  className={`w-full px-4 py-3 rounded-lg border bg-background focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-150 ${
+                    getChannelConflict()
+                      ? 'border-red-500 focus:ring-red-500'
+                      : 'border-border focus:ring-primary'
+                  }`}
                 >
                   <option value="">Select a channel (optional)</option>
-                  {availableChannels.map(channel => (
-                    <option key={channel.id} value={channel.id} disabled={channel.isAssigned}>
-                      #{channel.name} {channel.isAssigned ? '(assigned)' : ''}
-                    </option>
-                  ))}
+                  {availableChannels.map(channel => {
+                    const isUsedByOtherStandup = existingStandups.some(
+                      existingStandup =>
+                        existingStandup.slackChannelId === channel.id &&
+                        existingStandup.id !== standup.id
+                    );
+                    return (
+                      <option
+                        key={channel.id}
+                        value={channel.id}
+                        disabled={channel.isAssigned || isUsedByOtherStandup}
+                      >
+                        #{channel.name}
+                        {channel.isAssigned ? ' (assigned)' : ''}
+                        {isUsedByOtherStandup ? ' (in use)' : ''}
+                      </option>
+                    );
+                  })}
                 </select>
+
+                {getChannelConflict() && (
+                  <p className="text-sm text-red-600 mt-1 flex items-center gap-1">
+                    <span>⚠️</span>
+                    This channel is already used by "{getChannelConflict()!.name}"
+                  </p>
+                )}
               </div>
             )}
 

@@ -11,11 +11,24 @@ import {
   Max,
   IsTimeZone,
   Matches,
+  IsIn,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 
 export class CreateStandupConfigDto {
+  @ApiPropertyOptional({
+    description: 'Purpose of the standup configuration',
+    example: 'daily',
+    enum: ['daily', 'weekly', 'retrospective', 'planning', 'custom'],
+  })
+  @IsOptional()
+  @IsString()
+  @IsIn(['daily', 'weekly', 'retrospective', 'planning', 'custom'], {
+    message: 'Purpose must be one of: daily, weekly, retrospective, planning, custom',
+  })
+  purpose?: 'daily' | 'weekly' | 'retrospective' | 'planning' | 'custom';
+
   @ApiProperty({
     description: 'Standup questions (1-10 questions, each 10-200 characters)',
     example: [

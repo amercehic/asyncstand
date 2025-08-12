@@ -284,6 +284,7 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
                   onClick={handleClose}
                   disabled={isUpdating || isDeleting}
                   className="text-muted-foreground hover:text-foreground"
+                  aria-label="Close modal"
                 >
                   <X className="w-5 h-5" />
                 </ModernButton>
@@ -314,7 +315,10 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
                       required
                       disabled={isUpdating}
                     />
-                    <div className="text-xs text-muted-foreground mt-1">
+                    <div
+                      className="text-xs text-muted-foreground mt-1"
+                      data-testid="name-char-count"
+                    >
                       {formData.name.length}/100 characters
                     </div>
                   </div>
@@ -336,7 +340,10 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
                     {errors.description && (
                       <p className="text-sm text-red-600 mt-1">{errors.description}</p>
                     )}
-                    <div className="text-xs text-muted-foreground mt-1">
+                    <div
+                      className="text-xs text-muted-foreground mt-1"
+                      data-testid="description-char-count"
+                    >
                       {formData.description.length}/500 characters
                     </div>
                   </div>
@@ -444,6 +451,7 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
                             }}
                             disabled={isDeleting}
                             className="flex-1"
+                            data-testid="cancel-delete-button"
                           >
                             Cancel
                           </ModernButton>
@@ -453,6 +461,7 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
                             onClick={handleDeleteTeam}
                             disabled={isDeleting || deleteConfirmationText !== team.name}
                             className="flex-1 text-red-600 hover:text-white hover:bg-red-600 disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-red-600"
+                            data-testid="confirm-delete-button"
                           >
                             {isDeleting ? (
                               <>
@@ -481,6 +490,7 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
                   onClick={handleClose}
                   disabled={isUpdating || isDeleting}
                   className="flex-1"
+                  data-testid="cancel-button"
                 >
                   Cancel
                 </ModernButton>
@@ -489,6 +499,7 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
                   variant="primary"
                   disabled={isUpdating || isDeleting || !isFormValid || !hasChanges}
                   className="flex-1"
+                  data-testid="save-button"
                 >
                   {isUpdating ? (
                     <>
