@@ -12,10 +12,12 @@ export const SignUpPage = React.memo(() => {
   const navigate = useNavigate();
   const { signup, isLoading: authLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState<SignUpFormData>({
     name: '',
     email: '',
     password: '',
+    confirmPassword: '',
     agreeToTerms: false,
   });
   const [errors, setErrors] = useState<FormFieldError>({});
@@ -46,6 +48,12 @@ export const SignUpPage = React.memo(() => {
     const unmetRequirements = passwordRequirements.filter(req => !req.test(formData.password));
     if (unmetRequirements.length > 0) {
       newErrors.password = 'Password does not meet all requirements';
+    }
+
+    if (!formData.confirmPassword) {
+      newErrors.confirmPassword = 'Please confirm your password';
+    } else if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match';
     }
 
     if (!formData.agreeToTerms) {
@@ -261,6 +269,32 @@ export const SignUpPage = React.memo(() => {
                 </motion.div>
               )}
             </div>
+
+            <FormField
+              label="Confirm Password"
+              id="confirmPassword"
+              type={showConfirmPassword ? 'text' : 'password'}
+              placeholder="Re-enter your password"
+              value={formData.confirmPassword}
+              onChange={e => handleInputChange('confirmPassword', e.target.value)}
+              error={errors.confirmPassword}
+              data-testid="confirm-password-input"
+              rightElement={
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="text-muted-foreground hover:text-foreground transition-smooth"
+                  data-testid="toggle-confirm-password-visibility"
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
+                </button>
+              }
+              required
+            />
 
             {/* Terms Agreement */}
             <div className="space-y-2">

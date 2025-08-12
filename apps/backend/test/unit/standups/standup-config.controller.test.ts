@@ -64,6 +64,7 @@ describe('StandupConfigController', () => {
 
   describe('createStandupConfig', () => {
     const createDto: CreateStandupConfigDto = {
+      name: 'Daily Standup',
       questions: [
         'What did you accomplish yesterday?',
         'What will you work on today?',
@@ -112,6 +113,7 @@ describe('StandupConfigController', () => {
       const expectedConfig: StandupConfigResponse = {
         id: mockConfigId,
         teamId: mockTeamId,
+        name: 'Daily Standup',
         team: {
           id: mockTeamId,
           name: 'Test Team',

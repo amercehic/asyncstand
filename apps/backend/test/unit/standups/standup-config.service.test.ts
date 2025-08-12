@@ -65,7 +65,8 @@ describe('StandupConfigService', () => {
         members: [],
         channel: { id: 'channel-id', name: 'test-channel' },
       });
-      mockPrisma.standupConfig.findUnique.mockResolvedValue(null);
+      mockPrisma.standupConfig.findFirst.mockResolvedValue(null);
+      mockPrisma.standupConfig.findMany.mockResolvedValue([]); // No existing configs for time conflict check
 
       // Mock the transaction
       mockPrisma.$transaction.mockImplementation(async (callback) => {
@@ -121,13 +122,14 @@ describe('StandupConfigService', () => {
       );
     });
 
-    it('should throw error if standup config already exists', async () => {
+    it('should throw error if standup config with same name already exists', async () => {
       const mockTeam = TeamFactory.createMockTeam({
         id: mockTeamId,
         orgId: mockOrgId,
       });
       const existingConfig = StandupConfigFactory.createMockStandupConfig({
         teamId: mockTeamId,
+        name: mockCreateDto.name, // Same name as new config
       });
 
       mockPrisma.team.findFirst.mockResolvedValue({
@@ -135,14 +137,14 @@ describe('StandupConfigService', () => {
         members: [],
         channel: { id: 'channel-id', name: 'test-channel' },
       });
-      mockPrisma.standupConfig.findUnique.mockResolvedValue(existingConfig);
+      mockPrisma.standupConfig.findFirst.mockResolvedValue(existingConfig);
 
       await expect(
         service.createStandupConfig(mockTeamId, mockOrgId, mockUserId, mockCreateDto),
       ).rejects.toThrow(
         new ApiError(
           ErrorCode.STANDUP_CONFIG_ALREADY_EXISTS,
-          'Standup configuration already exists for this team',
+          `A standup configuration with name "${mockCreateDto.name}" already exists for this team`,
           HttpStatus.CONFLICT,
         ),
       );
@@ -164,7 +166,10 @@ describe('StandupConfigService', () => {
       });
 
       mockPrisma.team.findFirst.mockResolvedValue(mockTeam);
-      mockPrisma.standupConfig.findFirst.mockResolvedValue(mockConfig);
+      // First call: find the existing config, second call: check for name conflicts (should be null)
+      mockPrisma.standupConfig.findFirst
+        .mockResolvedValueOnce(mockConfig) // Find existing config
+        .mockResolvedValueOnce(null); // No name conflict
       mockPrisma.standupConfig.update.mockResolvedValue({
         ...mockConfig,
         ...mockUpdateDto,

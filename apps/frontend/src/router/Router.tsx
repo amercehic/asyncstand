@@ -18,6 +18,29 @@ const SignUpPage = React.lazy(() =>
 const DashboardPage = React.lazy(() =>
   import('@/pages/DashboardPage').then(module => ({ default: module.DashboardPage }))
 );
+const TeamsPage = React.lazy(() =>
+  import('@/pages/TeamsPage').then(module => ({ default: module.TeamsPage }))
+);
+const TeamDetailPage = React.lazy(() =>
+  import('@/pages/TeamDetailPage').then(module => ({ default: module.TeamDetailPage }))
+);
+const StandupConfigPage = React.lazy(() =>
+  import('@/pages/StandupConfigPage').then(module => ({ default: module.StandupConfigPage }))
+);
+const StandupResponsePage = React.lazy(() =>
+  import('@/pages/StandupResponsePage').then(module => ({ default: module.StandupResponsePage }))
+);
+const IntegrationsPage = React.lazy(() =>
+  import('@/pages/IntegrationsPage').then(module => ({ default: module.IntegrationsPage }))
+);
+const IntegrationDetailsPage = React.lazy(() =>
+  import('@/pages/IntegrationDetailsPage').then(module => ({
+    default: module.IntegrationDetailsPage,
+  }))
+);
+const StandupDetailsPage = React.lazy(() =>
+  import('@/pages/StandupDetailsPage').then(module => ({ default: module.StandupDetailsPage }))
+);
 
 // Loading component
 const PageLoader = () => (
@@ -68,6 +91,83 @@ const router = createBrowserRouter([
           <ProtectedRoute>
             <Suspense fallback={<PageLoader />}>
               <DashboardPage />
+            </Suspense>
+          </ProtectedRoute>
+        ),
+        errorElement: <ErrorPage />,
+      },
+      {
+        path: 'teams',
+        element: (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <TeamsPage />
+            </Suspense>
+          </ProtectedRoute>
+        ),
+        errorElement: <ErrorPage />,
+      },
+      {
+        path: 'teams/:teamId',
+        element: (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <TeamDetailPage />
+            </Suspense>
+          </ProtectedRoute>
+        ),
+        errorElement: <ErrorPage />,
+      },
+      {
+        path: 'teams/:teamId/standups/create',
+        element: (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <StandupConfigPage />
+            </Suspense>
+          </ProtectedRoute>
+        ),
+        errorElement: <ErrorPage />,
+      },
+      {
+        path: 'standups/:instanceId/respond',
+        element: (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <StandupResponsePage />
+            </Suspense>
+          </ProtectedRoute>
+        ),
+        errorElement: <ErrorPage />,
+      },
+      {
+        path: 'integrations',
+        element: (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <IntegrationsPage />
+            </Suspense>
+          </ProtectedRoute>
+        ),
+        errorElement: <ErrorPage />,
+      },
+      {
+        path: 'integrations/:integrationId',
+        element: (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <IntegrationDetailsPage />
+            </Suspense>
+          </ProtectedRoute>
+        ),
+        errorElement: <ErrorPage />,
+      },
+      {
+        path: 'standups/:standupId',
+        element: (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <StandupDetailsPage />
             </Suspense>
           </ProtectedRoute>
         ),

@@ -17,6 +17,16 @@ import { Transform } from 'class-transformer';
 
 export class CreateStandupConfigDto {
   @ApiProperty({
+    description: 'Name for the standup configuration',
+    example: 'Daily Standup',
+    maxLength: 100,
+  })
+  @IsString()
+  @Length(1, 100, { message: 'Name must be between 1-100 characters' })
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  name: string;
+
+  @ApiProperty({
     description: 'Standup questions (1-10 questions, each 10-200 characters)',
     example: [
       'What did you accomplish yesterday?',

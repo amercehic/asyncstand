@@ -192,11 +192,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const response = await authApi.login({ email, password });
 
         // Convert backend response to our frontend format
+        // Find primary organization or use the first one
+        const primaryOrg =
+          response.organizations.find(org => org.isPrimary) || response.organizations[0];
+
         const user: User = {
           id: response.user.id,
           email: response.user.email,
           name: response.user.name,
           role: response.user.role as 'user' | 'admin',
+          orgId: primaryOrg?.id,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };

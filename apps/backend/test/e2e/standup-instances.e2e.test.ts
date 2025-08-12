@@ -156,6 +156,7 @@ describe('Standup Instances (e2e)', () => {
     const config = await prisma.standupConfig.create({
       data: {
         teamId: team.id,
+        name: 'Test Instance Standup',
         questions: [
           'What did you work on yesterday?',
           'What will you work on today?',
@@ -1032,6 +1033,7 @@ describe('Standup Instances (e2e)', () => {
       await prisma.standupConfig.create({
         data: {
           teamId: otherTeam.id,
+          name: 'Other Team Standup',
           questions: ['Other question'],
           weekdays: [1, 2, 3, 4, 5],
           timeLocal: '09:00',

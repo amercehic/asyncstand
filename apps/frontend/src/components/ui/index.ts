@@ -5,5 +5,7 @@ export { ModernButton } from '@/components/ui/modern-button';
 export { PageTransition } from '@/components/ui/page-transition';
 export { Toaster } from '@/components/ui/sonner';
 export { ThemeToggle } from '@/components/ui/theme-toggle';
+export { Tooltip } from '@/components/ui/Tooltip';
 export { SkipLinks } from '@/components/ui/SkipLinks';
+export { Dropdown } from '@/components/ui/Dropdown';
 export { cn } from '@/components/ui/utils';

@@ -12,6 +12,7 @@ export interface User {
   name: string;
   avatar?: string;
   role: 'user' | 'admin';
+  orgId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -21,11 +22,24 @@ export interface Team {
   name: string;
   description?: string;
   members: User[];
+  channel?: {
+    id: string;
+    name: string;
+  };
+  standupConfig?: {
+    id: string;
+    questions: string[];
+    weekdays: number[];
+    timeLocal: string;
+    reminderMinutesBefore: number;
+    isActive: boolean;
+  };
+  isActive?: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface StandupConfig {
+export interface Standup {
   id: string;
   teamId: string;
   name: string;
@@ -40,6 +54,9 @@ export interface StandupConfig {
   createdAt: string;
   updatedAt: string;
 }
+
+// Alias for backward compatibility
+export type StandupConfig = Standup;
 
 export interface StandupInstance {
   id: string;
@@ -60,6 +77,21 @@ export interface StandupResponse {
   submittedAt: string;
 }
 
+export interface ActiveStandup {
+  id: string;
+  teamId: string;
+  teamName: string;
+  targetDate: string;
+  state: 'pending' | 'collecting' | 'completed' | 'cancelled';
+  totalMembers: number;
+  respondedMembers: number;
+  responseRate: number;
+  createdAt: string;
+  questions: string[];
+  timezone: string;
+  timeLocal: string;
+}
+
 // API Request types
 export interface LoginRequest {
   email: string;
@@ -74,12 +106,18 @@ export interface SignUpRequest {
 
 export interface CreateTeamRequest {
   name: string;
+  integrationId: string;
+  channelId: string;
+  timezone: string;
   description?: string;
 }
 
 export interface UpdateTeamRequest {
   name?: string;
   description?: string;
+  integrationId?: string;
+  channelId?: string;
+  timezone?: string;
 }
 
 export interface CreateStandupConfigRequest {

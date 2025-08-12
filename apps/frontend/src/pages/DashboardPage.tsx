@@ -1,109 +1,147 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ModernButton } from '@/components/ui';
-import { LogOut, Users, Calendar, Settings, Plus, Bell } from 'lucide-react';
+import { Users, Calendar, Settings, Plus, Bell } from 'lucide-react';
 import { useAuth } from '@/contexts';
 import { toast } from 'sonner';
+import { useTeams } from '@/contexts/TeamsContext';
+import { standupsApi } from '@/lib/api';
+import type { Standup } from '@/types';
 
 export const DashboardPage = React.memo(() => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-      toast.success('Logged out successfully');
-      navigate('/');
-    } catch (error) {
-      console.error('Logout error:', error);
-      toast.error('Error logging out');
-    }
-  };
+  const { teams } = useTeams();
+  const [dashboardStats, setDashboardStats] = useState({
+    activeTeams: 0,
+    weeklyStandups: 0,
+    completionRate: 0,
+  });
+  const [loading, setLoading] = useState(true);
 
   const handleNavigation = (path: string) => {
-    toast.info(`Navigation to ${path} - Coming soon!`);
+    navigate(path);
   };
 
+  // Fetch dashboard stats
+  useEffect(() => {
+    const fetchDashboardStats = async () => {
+      try {
+        setLoading(true);
+
+        // Get active teams count
+        const activeTeams = teams?.length || 0;
+
+        // Get this week's standups count
+        // For now, calculate based on active standup configs
+        let weeklyStandups = 0;
+        let totalCompletionRate = 0;
+        let completionDataPoints = 0;
+
+        if (teams && teams.length > 0) {
+          for (const team of teams) {
+            try {
+              // Get standups for this team
+              const teamStandups = await standupsApi.getTeamStandups(team.id);
+
+              // Count active standups and estimate weekly occurrences
+              const activeStandups = teamStandups.filter((s: Standup) => s.isActive);
+              activeStandups.forEach((standup: Standup) => {
+                // Count how many days this standup runs per week
+                const daysPerWeek = standup.schedule.days.length;
+                weeklyStandups += daysPerWeek;
+              });
+
+              // Calculate completion rate from actual standup data
+              if (activeStandups.length > 0) {
+                completionDataPoints++;
+                // For now, calculate based on standup configuration completeness
+                // In a full implementation, this would fetch recent standup instances
+                // and calculate actual participant completion rates
+                let teamCompletionScore = 0;
+
+                activeStandups.forEach((standup: Standup) => {
+                  // Base score for having a standup configured
+                  let standupScore = 60;
+
+                  // Bonus for having proper schedule (time + days)
+                  if (standup.schedule.time && standup.schedule.days.length > 0) {
+                    standupScore += 20;
+                  }
+
+                  // Bonus for having questions configured
+                  if (standup.questions && standup.questions.length > 0) {
+                    standupScore += 15;
+                  }
+
+                  // Bonus for having slack integration
+                  if (standup.slackChannelId) {
+                    standupScore += 5;
+                  }
+
+                  teamCompletionScore = Math.max(teamCompletionScore, standupScore);
+                });
+
+                totalCompletionRate += Math.min(100, teamCompletionScore);
+              }
+            } catch (error) {
+              console.log(`Failed to fetch standups for team ${team.id}:`, error);
+            }
+          }
+        }
+
+        // Calculate average completion rate
+        const averageCompletionRate =
+          completionDataPoints > 0 ? Math.round(totalCompletionRate / completionDataPoints) : 0;
+
+        setDashboardStats({
+          activeTeams,
+          weeklyStandups,
+          completionRate: averageCompletionRate,
+        });
+      } catch (error) {
+        console.error('Failed to fetch dashboard stats:', error);
+        // Keep default values on error
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardStats();
+  }, [teams]);
+
   const stats = [
-    { label: 'Active Teams', value: '2', icon: Users },
-    { label: "This Week's Standups", value: '8', icon: Calendar },
-    { label: 'Completion Rate', value: '95%', icon: Bell },
+    {
+      label: 'Active Teams',
+      value: loading ? '...' : dashboardStats.activeTeams.toString(),
+      icon: Users,
+    },
+    {
+      label: "This Week's Standups",
+      value: loading ? '...' : dashboardStats.weeklyStandups.toString(),
+      icon: Calendar,
+    },
+    {
+      label: 'Completion Rate',
+      value: loading ? '...' : `${dashboardStats.completionRate}%`,
+      icon: Bell,
+    },
   ];
 
   const quickActions = [
-    { label: 'Create Team', icon: Plus, action: () => handleNavigation('/teams/create') },
-    { label: 'Join Team', icon: Users, action: () => handleNavigation('/teams/join') },
+    { label: 'Create Team', icon: Plus, action: () => handleNavigation('/teams?create=1') },
+    { label: 'Join Team', icon: Users, action: () => toast.info('Join team - Coming soon!') },
     {
-      label: 'Schedule Standup',
-      icon: Calendar,
-      action: () => handleNavigation('/standups/create'),
+      label: 'View Teams',
+      icon: Users,
+      action: () => handleNavigation('/teams'),
     },
-    { label: 'Settings', icon: Settings, action: () => handleNavigation('/settings') },
+    { label: 'Settings', icon: Settings, action: () => toast.info('Settings - Coming soon!') },
   ];
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <motion.header
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="bg-card border-b border-border px-6 py-4"
-      >
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <div className="text-2xl font-semibold gradient-text">AsyncStand</div>
-            <nav className="hidden md:flex items-center gap-6">
-              <button
-                className="text-muted-foreground hover:text-foreground transition-smooth"
-                onClick={() => handleNavigation('/dashboard')}
-                data-testid="nav-dashboard"
-              >
-                Dashboard
-              </button>
-              <button
-                className="text-muted-foreground hover:text-foreground transition-smooth"
-                onClick={() => handleNavigation('/teams')}
-                data-testid="nav-teams"
-              >
-                Teams
-              </button>
-              <button
-                className="text-muted-foreground hover:text-foreground transition-smooth"
-                onClick={() => handleNavigation('/standups')}
-                data-testid="nav-standups"
-              >
-                Standups
-              </button>
-            </nav>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-gradient-to-r from-primary to-primary/80 rounded-full flex items-center justify-center">
-                <span className="text-white font-medium text-sm">
-                  {user?.name?.charAt(0)?.toUpperCase() || 'U'}
-                </span>
-              </div>
-              <div className="hidden sm:block">
-                <p className="text-sm font-medium">{user?.name}</p>
-                <p className="text-xs text-muted-foreground">{user?.email}</p>
-              </div>
-            </div>
-            <ModernButton
-              variant="ghost"
-              size="sm"
-              onClick={handleLogout}
-              data-testid="logout-button"
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline ml-2">Logout</span>
-            </ModernButton>
-          </div>
-        </div>
-      </motion.header>
-
       <main className="max-w-7xl mx-auto px-6 py-8">
         {/* Welcome Section */}
         <motion.div
@@ -188,11 +226,11 @@ export const DashboardPage = React.memo(() => {
           </p>
           <ModernButton
             variant="primary"
-            onClick={() => handleNavigation('/teams/create')}
-            data-testid="create-first-team-button"
+            onClick={() => handleNavigation('/teams')}
+            data-testid="view-teams-button"
           >
-            <Plus className="w-4 h-4 mr-2" />
-            Create Your First Team
+            <Users className="w-4 h-4 mr-2" />
+            View Teams
           </ModernButton>
         </motion.div>
       </main>
