@@ -7,23 +7,47 @@ import { TeamSettingsModal } from '@/components/TeamSettingsModal';
 import {
   Plus,
   Users,
-  Hash,
-  TrendingUp,
-  Users2,
   MoreVertical,
   Eye,
   Settings,
   Calendar,
+  Sparkles,
+  Building2,
+  UserCheck,
+  Activity,
+  Shield,
+  Award,
+  Target,
+  Rocket,
+  ChevronRight,
+  CheckCircle2,
+  Link2,
+  Globe,
+  MessageCircle,
 } from 'lucide-react';
 import { useTeams } from '@/contexts';
 import { toast } from 'sonner';
-import type { Team } from '@/types';
+import type { Team, Standup } from '@/types';
+import { standupsApi } from '@/lib/api';
+
+// Helper function to get platform icon based on integration type
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const getPlatformIcon = (team: Team) => {
+  // TODO: When platform field is added to Team type, use it to return specific icons:
+  // if (team.integration?.platform === 'slack') return Slack;
+  // if (team.integration?.platform === 'teams') return Users;
+  // if (team.integration?.platform === 'discord') return MessageCircle;
+
+  // For now, return a generic communication icon for all integrations
+  return MessageCircle;
+};
 
 export const TeamsPage = React.memo(() => {
   const { teams, isLoading, refreshTeams } = useTeams();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [selectedTeamForSettings, setSelectedTeamForSettings] = useState<Team | null>(null);
+  const [teamStandups, setTeamStandups] = useState<Record<string, Standup[]>>({});
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -37,6 +61,35 @@ export const TeamsPage = React.memo(() => {
       navigate(location.pathname, { replace: true });
     }
   }, [location.search, location.pathname, navigate]);
+
+  // Fetch standups for all teams
+  useEffect(() => {
+    const fetchAllStandups = async () => {
+      if (teams.length === 0) return;
+
+      const standupsMap: Record<string, Standup[]> = {};
+
+      // Fetch standups for each team in parallel
+      const promises = teams.map(async team => {
+        try {
+          const standups = await standupsApi.getTeamStandups(team.id);
+          return { teamId: team.id, standups };
+        } catch (error) {
+          console.error(`Error fetching standups for team ${team.id}:`, error);
+          return { teamId: team.id, standups: [] };
+        }
+      });
+
+      const results = await Promise.all(promises);
+      results.forEach(({ teamId, standups }) => {
+        standupsMap[teamId] = standups;
+      });
+
+      setTeamStandups(standupsMap);
+    };
+
+    fetchAllStandups();
+  }, [teams]);
 
   const handleCreateTeam = () => {
     setIsCreateModalOpen(true);
@@ -64,7 +117,7 @@ export const TeamsPage = React.memo(() => {
   // Calculate statistics
   const totalTeams = teams.length;
   const totalMembers = teams.reduce((acc, team) => acc + team.members.length, 0);
-  const teamsWithChannels = teams.filter(team => team.channel).length;
+  const teamsWithIntegrations = teams.filter(team => team.channel).length;
   const averageMembersPerTeam = totalTeams > 0 ? Math.round(totalMembers / totalTeams) : 0;
 
   if (isLoading) {
@@ -122,45 +175,102 @@ export const TeamsPage = React.memo(() => {
             transition={{ duration: 0.6, delay: 0.1 }}
             className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"
           >
-            <div className="bg-card rounded-xl p-6 border border-border">
-              <div className="flex items-center gap-3 mb-3">
-                <Users2 className="w-10 h-10 text-blue-600" />
-                <div>
-                  <p className="text-2xl font-bold">{totalTeams}</p>
-                  <p className="text-sm text-muted-foreground">Total Teams</p>
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              className="bg-gradient-to-br from-blue-50/50 to-blue-100/30 dark:from-blue-950/20 dark:to-blue-900/10 rounded-xl p-6 border border-blue-200/50 dark:border-blue-800/30 relative overflow-hidden group"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-400/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="flex items-center gap-4 relative z-10">
+                <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25 group-hover:shadow-xl group-hover:shadow-blue-500/30 transition-shadow">
+                  <Building2 className="w-7 h-7 text-white" />
                 </div>
+                <div>
+                  <motion.p
+                    className="text-3xl font-bold text-foreground"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                  >
+                    {totalTeams}
+                  </motion.p>
+                  <p className="text-sm text-muted-foreground font-medium">Active Teams</p>
+                </div>
+                <Sparkles className="w-4 h-4 text-blue-500 absolute top-4 right-4 opacity-40" />
               </div>
-            </div>
+            </motion.div>
 
-            <div className="bg-card rounded-xl p-6 border border-border">
-              <div className="flex items-center gap-3 mb-3">
-                <Users className="w-10 h-10 text-green-600" />
-                <div>
-                  <p className="text-2xl font-bold">{totalMembers}</p>
-                  <p className="text-sm text-muted-foreground">Total Members</p>
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              className="bg-gradient-to-br from-emerald-50/50 to-emerald-100/30 dark:from-emerald-950/20 dark:to-emerald-900/10 rounded-xl p-6 border border-emerald-200/50 dark:border-emerald-800/30 relative overflow-hidden group"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-400/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="flex items-center gap-4 relative z-10">
+                <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/25 group-hover:shadow-xl group-hover:shadow-emerald-500/30 transition-shadow">
+                  <UserCheck className="w-7 h-7 text-white" />
                 </div>
+                <div>
+                  <motion.p
+                    className="text-3xl font-bold text-foreground"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.15 }}
+                  >
+                    {totalMembers}
+                  </motion.p>
+                  <p className="text-sm text-muted-foreground font-medium">Team Members</p>
+                </div>
+                <Award className="w-4 h-4 text-emerald-500 absolute top-4 right-4 opacity-40" />
               </div>
-            </div>
+            </motion.div>
 
-            <div className="bg-card rounded-xl p-6 border border-border">
-              <div className="flex items-center gap-3 mb-3">
-                <Hash className="w-10 h-10 text-purple-600" />
-                <div>
-                  <p className="text-2xl font-bold">{teamsWithChannels}</p>
-                  <p className="text-sm text-muted-foreground">With Slack</p>
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              className="bg-gradient-to-br from-purple-50/50 to-purple-100/30 dark:from-purple-950/20 dark:to-purple-900/10 rounded-xl p-6 border border-purple-200/50 dark:border-purple-800/30 relative overflow-hidden group"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-purple-400/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="flex items-center gap-4 relative z-10">
+                <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/25 group-hover:shadow-xl group-hover:shadow-purple-500/30 transition-shadow relative">
+                  <Link2 className="w-7 h-7 text-white" />
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-background animate-pulse" />
                 </div>
+                <div>
+                  <motion.p
+                    className="text-3xl font-bold text-foreground"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                  >
+                    {teamsWithIntegrations}
+                  </motion.p>
+                  <p className="text-sm text-muted-foreground font-medium">With Integration</p>
+                </div>
+                <Globe className="w-4 h-4 text-purple-500 absolute top-4 right-4 opacity-40" />
               </div>
-            </div>
+            </motion.div>
 
-            <div className="bg-card rounded-xl p-6 border border-border">
-              <div className="flex items-center gap-3 mb-3">
-                <TrendingUp className="w-10 h-10 text-orange-600" />
-                <div>
-                  <p className="text-2xl font-bold">{averageMembersPerTeam}</p>
-                  <p className="text-sm text-muted-foreground">Avg per Team</p>
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              className="bg-gradient-to-br from-orange-50/50 to-orange-100/30 dark:from-orange-950/20 dark:to-orange-900/10 rounded-xl p-6 border border-orange-200/50 dark:border-orange-800/30 relative overflow-hidden group"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-orange-400/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="flex items-center gap-4 relative z-10">
+                <div className="w-14 h-14 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/25 group-hover:shadow-xl group-hover:shadow-orange-500/30 transition-shadow">
+                  <Activity className="w-7 h-7 text-white" />
                 </div>
+                <div>
+                  <motion.p
+                    className="text-3xl font-bold text-foreground"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.25 }}
+                  >
+                    {averageMembersPerTeam}
+                  </motion.p>
+                  <p className="text-sm text-muted-foreground font-medium">Avg Size</p>
+                </div>
+                <Target className="w-4 h-4 text-orange-500 absolute top-4 right-4 opacity-40" />
               </div>
-            </div>
+            </motion.div>
           </motion.div>
         )}
 
@@ -198,14 +308,22 @@ export const TeamsPage = React.memo(() => {
                     {/* Team Name & Description */}
                     <div className="col-span-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center">
-                          <span className="text-white font-medium text-sm">
-                            {team.name.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
+                        <motion.div
+                          whileHover={{ rotate: [0, -5, 5, 0] }}
+                          transition={{ duration: 0.3 }}
+                          className="relative"
+                        >
+                          <div className="w-12 h-12 bg-gradient-to-br from-primary via-primary/90 to-primary/70 rounded-xl flex items-center justify-center shadow-lg shadow-primary/20 group-hover:shadow-xl group-hover:shadow-primary/30 transition-all">
+                            <Shield className="w-6 h-6 text-white" />
+                          </div>
+                          {(teamStandups[team.id] || []).some(s => s.isActive) && (
+                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-background animate-pulse" />
+                          )}
+                        </motion.div>
                         <div>
-                          <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">
+                          <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors flex items-center gap-2">
                             {team.name}
+                            <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
                           </h3>
                           {team.description && (
                             <p className="text-sm text-muted-foreground truncate max-w-[200px]">
@@ -246,45 +364,113 @@ export const TeamsPage = React.memo(() => {
                     {/* Integration */}
                     <div className="col-span-2">
                       {team.channel ? (
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 bg-green-500/10 rounded-md flex items-center justify-center">
-                            <Hash className="w-3 h-3 text-green-600" />
-                          </div>
-                          <span className="text-sm font-medium">#{team.channel.name}</span>
-                        </div>
+                        (() => {
+                          const PlatformIcon = getPlatformIcon(team);
+                          return (
+                            <div className="flex items-center gap-2">
+                              <motion.div whileHover={{ scale: 1.1 }} className="relative">
+                                <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center shadow-md shadow-purple-500/20">
+                                  <PlatformIcon className="w-4 h-4 text-white" />
+                                </div>
+                                <div className="absolute -bottom-1 -right-1">
+                                  <CheckCircle2 className="w-4 h-4 text-green-500 fill-green-500 bg-background rounded-full" />
+                                </div>
+                              </motion.div>
+                              <div className="flex flex-col">
+                                <span className="text-sm font-medium text-foreground">
+                                  #{team.channel.name}
+                                </span>
+                                <span className="text-xs text-green-600 flex items-center gap-1">
+                                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+                                  Connected
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })()
                       ) : (
                         <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 bg-muted rounded-md flex items-center justify-center">
-                            <Hash className="w-3 h-3 text-muted-foreground" />
+                          <div className="w-8 h-8 bg-muted/50 border border-dashed border-muted-foreground/30 rounded-lg flex items-center justify-center">
+                            <Link2 className="w-4 h-4 text-muted-foreground" />
                           </div>
-                          <span className="text-sm text-muted-foreground">Not connected</span>
+                          <div className="flex flex-col">
+                            <span className="text-sm text-muted-foreground">No integration</span>
+                            <span className="text-xs text-muted-foreground/70">Optional</span>
+                          </div>
                         </div>
                       )}
                     </div>
 
                     {/* Standups */}
                     <div className="col-span-2">
-                      {team.standupConfig ? (
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center gap-1">
-                            <Calendar className="w-4 h-4 text-green-600" />
-                            <span className="text-sm font-medium text-green-700">Active</span>
-                          </div>
-                          <span className="text-xs text-muted-foreground">
-                            {team.standupConfig.weekdays.length === 5 &&
-                            team.standupConfig.weekdays.includes(1) &&
-                            team.standupConfig.weekdays.includes(5)
-                              ? 'Weekdays'
-                              : `${team.standupConfig.weekdays.length} days`}
-                            • {team.standupConfig.timeLocal}
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">No standups</span>
-                        </div>
-                      )}
+                      {(() => {
+                        const standups = teamStandups[team.id] || [];
+                        const activeStandups = standups.filter(s => s.isActive);
+
+                        if (activeStandups.length > 0) {
+                          return (
+                            <div className="flex items-center gap-3">
+                              <motion.div
+                                animate={{ rotate: 360 }}
+                                transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
+                                className="relative"
+                              >
+                                <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg flex items-center justify-center shadow-md shadow-green-500/20">
+                                  <Rocket className="w-4 h-4 text-white" />
+                                </div>
+                                {activeStandups.length > 1 && (
+                                  <div className="absolute -top-1 -right-1 w-5 h-5 bg-primary rounded-full flex items-center justify-center text-xs font-bold text-white border-2 border-background">
+                                    {activeStandups.length}
+                                  </div>
+                                )}
+                              </motion.div>
+                              <div className="flex flex-col">
+                                <span className="text-sm font-medium text-foreground flex items-center gap-1">
+                                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                                  {activeStandups.length === 1
+                                    ? 'Active'
+                                    : `${activeStandups.length} Active`}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  {standups.length === activeStandups.length
+                                    ? `${standups.length} standup${standups.length > 1 ? 's' : ''}`
+                                    : `${standups.length} total, ${activeStandups.length} active`}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        } else if (standups.length > 0) {
+                          // Has standups but none are active
+                          return (
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 bg-yellow-500/10 rounded-lg flex items-center justify-center">
+                                <Calendar className="w-4 h-4 text-yellow-600" />
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-sm text-muted-foreground">
+                                  {standups.length} Paused
+                                </span>
+                                <span className="text-xs text-muted-foreground/70">Activate →</span>
+                              </div>
+                            </div>
+                          );
+                        } else {
+                          // No standups at all
+                          return (
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 bg-muted/30 rounded-lg flex items-center justify-center border border-dashed border-muted-foreground/20">
+                                <Calendar className="w-4 h-4 text-muted-foreground" />
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-sm text-muted-foreground">No standups</span>
+                                <span className="text-xs text-muted-foreground/70">
+                                  Configure →
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        }
+                      })()}
                     </div>
 
                     {/* Actions */}
@@ -342,34 +528,52 @@ export const TeamsPage = React.memo(() => {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
-            className="bg-card rounded-xl p-12 border border-border text-center"
+            className="bg-gradient-to-br from-card to-card/50 rounded-2xl p-12 border border-border text-center relative overflow-hidden"
           >
-            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Users2 className="w-8 h-8 text-primary" />
-            </div>
-            <h3 className="text-xl font-semibold mb-3">No Teams Yet</h3>
-            <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-              Get started by creating your first team or joining an existing one to begin
-              collaborating on async standups.
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5 opacity-50" />
+            <motion.div
+              animate={{
+                y: [0, -10, 0],
+                rotate: [0, 5, 0],
+              }}
+              transition={{
+                duration: 4,
+                repeat: Infinity,
+                repeatType: 'reverse',
+              }}
+              className="relative z-10"
+            >
+              <div className="w-20 h-20 bg-gradient-to-br from-primary to-primary/70 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-primary/20">
+                <Building2 className="w-10 h-10 text-white" />
+              </div>
+            </motion.div>
+            <h3 className="text-2xl font-bold mb-3 relative z-10">Start Your Journey</h3>
+            <p className="text-muted-foreground mb-8 max-w-md mx-auto relative z-10">
+              Create your first team to unlock the power of async standups. Connect with Slack, set
+              up daily check-ins, and boost team collaboration.
             </p>
-            <div className="flex gap-4 justify-center">
+            <div className="flex gap-4 justify-center relative z-10">
               <ModernButton
                 variant="secondary"
                 onClick={handleJoinTeam}
                 data-testid="empty-join-team-button"
+                className="group"
               >
-                <Users className="w-4 h-4 mr-2" />
-                Join Team
+                <UserCheck className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
+                Join Existing Team
               </ModernButton>
               <ModernButton
                 variant="primary"
                 onClick={handleCreateTeam}
                 data-testid="empty-create-team-button"
+                className="group shadow-lg shadow-primary/20"
               >
-                <Plus className="w-4 h-4 mr-2" />
-                Create Team
+                <Sparkles className="w-4 h-4 mr-2 group-hover:rotate-12 transition-transform" />
+                Create Your Team
               </ModernButton>
             </div>
+            <div className="absolute -bottom-4 -right-4 w-32 h-32 bg-primary/10 rounded-full blur-3xl" />
+            <div className="absolute -top-4 -left-4 w-24 h-24 bg-primary/10 rounded-full blur-2xl" />
           </motion.div>
         )}
       </main>
