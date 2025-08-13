@@ -101,7 +101,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4">
         {/* Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -116,7 +116,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative bg-background rounded-2xl shadow-2xl border border-border max-w-md w-full p-6"
+          className="relative bg-background rounded-xl sm:rounded-2xl shadow-2xl border border-border max-w-[95vw] sm:max-w-md w-full p-4 sm:p-6"
         >
           <div className="flex items-center gap-3 mb-4">
             <div
@@ -134,7 +134,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
             <p className="text-sm">{description}</p>
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <ModernButton
               variant="secondary"
               onClick={onClose}

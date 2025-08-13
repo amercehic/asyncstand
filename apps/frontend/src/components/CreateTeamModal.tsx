@@ -220,7 +220,7 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+          className="fixed inset-0 bg-black/50 flex items-center justify-center p-2 sm:p-4 z-50"
           onClick={handleClose}
         >
           <motion.div
@@ -228,11 +228,11 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ duration: 0.2 }}
-            className="bg-card rounded-2xl border border-border w-full max-w-md max-h-[90vh] overflow-auto shadow-xl"
+            className="bg-card rounded-xl sm:rounded-2xl border border-border w-full max-w-[95vw] sm:max-w-md max-h-[95vh] overflow-auto shadow-xl"
             onClick={e => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-border">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-border">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-gradient-to-r from-primary to-primary/80 rounded-lg flex items-center justify-center">
                   <Building2 className="w-5 h-5 text-white" />
@@ -255,7 +255,7 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
             </div>
 
             {/* Form */}
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-6">
               {/* Team Name */}
               <FormField
                 label="Team Name"
@@ -380,7 +380,7 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
               </div>
 
               {/* Actions */}
-              <div className="flex gap-3 pt-4">
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
                 <ModernButton
                   type="button"
                   variant="secondary"

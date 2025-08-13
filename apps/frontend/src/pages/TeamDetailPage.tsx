@@ -289,83 +289,164 @@ export const TeamDetailPage = React.memo(() => {
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
             Back to Teams
           </button>
-          <div className="flex items-start justify-between">
-            <div className="flex items-start gap-4">
+          <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-start gap-4">
               <motion.div
                 whileHover={{ scale: 1.05 }}
-                className="w-16 h-16 bg-gradient-to-br from-primary to-primary/80 rounded-xl flex items-center justify-center shadow-lg shadow-primary/20"
+                className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-primary to-primary/80 rounded-xl flex items-center justify-center shadow-lg shadow-primary/20"
               >
-                <Building2 className="w-8 h-8 text-white" />
+                <Building2 className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
               </motion.div>
-              <div>
-                <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+              <div className="flex-1">
+                <h1 className="text-2xl sm:text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
                   {team.name}
                 </h1>
                 {team.description && (
-                  <p className="text-muted-foreground text-lg mb-3">{team.description}</p>
+                  <p className="text-muted-foreground text-base sm:text-lg mb-3">
+                    {team.description}
+                  </p>
                 )}
-                <div className="flex items-center gap-4">
+                <div className="flex flex-wrap items-center gap-3 sm:gap-4">
                   {team.channel ? (
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 bg-green-500 rounded flex items-center justify-center">
-                        <Slack className="w-3.5 h-3.5 text-white" />
+                      <div className="w-5 h-5 sm:w-6 sm:h-6 bg-green-500 rounded flex items-center justify-center">
+                        <Slack className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white" />
                       </div>
-                      <span className="text-sm font-medium text-green-600">
+                      <span className="text-xs sm:text-sm font-medium text-green-600">
                         #{team.channel.name}
                       </span>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 bg-muted border border-dashed border-muted-foreground/30 rounded flex items-center justify-center">
-                        <Link2 className="w-3.5 h-3.5 text-muted-foreground" />
+                      <div className="w-5 h-5 sm:w-6 sm:h-6 bg-muted border border-dashed border-muted-foreground/30 rounded flex items-center justify-center">
+                        <Link2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-muted-foreground" />
                       </div>
-                      <span className="text-sm text-muted-foreground">No integration</span>
+                      <span className="text-xs sm:text-sm text-muted-foreground">
+                        No integration
+                      </span>
                     </div>
                   )}
                   <div className="flex items-center gap-2">
-                    <Users className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">
+                    <Users className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground" />
+                    <span className="text-xs sm:text-sm text-muted-foreground">
                       {team.members.length} members
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">
+                    <Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground" />
+                    <span className="text-xs sm:text-sm text-muted-foreground">
                       {activeStandups.length} active standups
                     </span>
                   </div>
                 </div>
               </div>
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-2 sm:gap-3">
               <ModernButton
                 variant="ghost"
                 onClick={() => setShowStats(!showStats)}
-                className="group"
+                className="group flex-1 sm:flex-none"
+                size="sm"
               >
                 <BarChart3 className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
-                Stats
+                <span className="sm:inline">Stats</span>
               </ModernButton>
               <ModernButton
                 variant="secondary"
                 onClick={() => setIsTeamSettingsOpen(true)}
-                className="group"
+                className="group flex-1 sm:flex-none"
+                size="sm"
               >
                 <Settings className="w-4 h-4 mr-2 group-hover:rotate-90 transition-transform" />
-                Settings
+                <span className="sm:inline">Settings</span>
               </ModernButton>
-              <Link to={`/teams/${teamId}/standups/create`}>
-                <ModernButton variant="primary" className="group shadow-lg shadow-primary/20">
+              <Link to={`/teams/${teamId}/standups/create`} className="flex-1 sm:flex-none">
+                <ModernButton
+                  variant="primary"
+                  className="group shadow-lg shadow-primary/20 w-full"
+                  size="sm"
+                >
                   <Plus className="w-4 h-4 mr-2 group-hover:rotate-90 transition-transform" />
-                  Create Standup
+                  <span className="sm:inline">Create</span>
                 </ModernButton>
               </Link>
             </div>
           </div>
         </motion.div>
 
+        {/* Mobile Statistics - Show above main content */}
+        <AnimatePresence>
+          {showStats && teamStats && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="lg:hidden mb-6 overflow-hidden"
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-muted/30 rounded-xl p-4">
+                <h3 className="text-lg font-semibold text-foreground mb-4 col-span-full">
+                  Team Statistics
+                </h3>
+
+                {/* Team Health */}
+                <div className="bg-card rounded-lg border border-border p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-muted-foreground">Team Health</span>
+                    <span
+                      className={`text-sm font-bold ${
+                        teamStats.healthScore > 70
+                          ? 'text-green-500'
+                          : teamStats.healthScore > 40
+                            ? 'text-yellow-500'
+                            : 'text-red-500'
+                      }`}
+                    >
+                      {teamStats.healthScore}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${teamStats.healthScore}%` }}
+                      transition={{ duration: 1 }}
+                      className={`h-full rounded-full ${
+                        teamStats.healthScore > 70
+                          ? 'bg-green-500'
+                          : teamStats.healthScore > 40
+                            ? 'bg-yellow-500'
+                            : 'bg-red-500'
+                      }`}
+                    />
+                  </div>
+                </div>
+
+                {/* Quick Stats */}
+                <div className="bg-card rounded-lg border border-border p-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Members</span>
+                      <span className="text-lg font-bold">{teamStats.memberCount}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Total Standups</span>
+                      <span className="text-lg font-bold">{teamStats.totalStandups}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Active</span>
+                      <span className="text-lg font-bold text-green-500">
+                        {teamStats.activeCount}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div className="flex gap-6">
-          {/* Statistics Sidebar */}
+          {/* Desktop Statistics Sidebar */}
           <AnimatePresence>
             {showStats && teamStats && (
               <motion.aside

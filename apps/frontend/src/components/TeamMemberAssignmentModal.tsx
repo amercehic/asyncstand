@@ -242,7 +242,7 @@ export const TeamMemberAssignmentModal: React.FC<TeamMemberAssignmentModalProps>
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 overflow-y-auto flex items-start justify-center pt-8 pb-8">
+      <div className="fixed inset-0 z-50 overflow-y-auto flex items-start justify-center pt-2 pb-2 sm:pt-8 sm:pb-8">
         {/* Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -257,10 +257,10 @@ export const TeamMemberAssignmentModal: React.FC<TeamMemberAssignmentModalProps>
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative w-full max-w-2xl my-4 mx-4 bg-background rounded-2xl shadow-2xl border border-border max-h-[90vh] flex flex-col"
+          className="relative w-full max-w-[95vw] sm:max-w-2xl my-2 sm:my-4 mx-2 sm:mx-4 bg-background rounded-xl sm:rounded-2xl shadow-2xl border border-border max-h-[95vh] flex flex-col"
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-border">
+          <div className="flex items-center justify-between p-4 sm:p-6 border-b border-border">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-to-r from-primary to-primary/80 rounded-lg flex items-center justify-center">
                 <Users className="w-5 h-5 text-white" />
@@ -278,7 +278,7 @@ export const TeamMemberAssignmentModal: React.FC<TeamMemberAssignmentModalProps>
           </div>
 
           {/* Search and Filters */}
-          <div className="p-6 border-b border-border space-y-4">
+          <div className="p-4 sm:p-6 border-b border-border space-y-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
@@ -320,7 +320,7 @@ export const TeamMemberAssignmentModal: React.FC<TeamMemberAssignmentModalProps>
           </div>
 
           {/* Members List */}
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6">
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
@@ -400,7 +400,7 @@ export const TeamMemberAssignmentModal: React.FC<TeamMemberAssignmentModalProps>
           </div>
 
           {/* Footer */}
-          <div className="p-6 border-t border-border">
+          <div className="p-4 sm:p-6 border-t border-border">
             {/* Selection Summary */}
             {selectedMembers.length > 0 && (
               <div className="mb-4 p-3 bg-muted/50 rounded-lg">
@@ -426,7 +426,7 @@ export const TeamMemberAssignmentModal: React.FC<TeamMemberAssignmentModalProps>
               </div>
             )}
 
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <ModernButton variant="secondary" onClick={onClose} className="flex-1">
                 Cancel
               </ModernButton>
@@ -499,7 +499,7 @@ export const TeamMemberAssignmentModal: React.FC<TeamMemberAssignmentModalProps>
                 )}
               </div>
 
-              <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row gap-3">
                 <ModernButton
                   variant="secondary"
                   onClick={handleCancelBulkOperation}
