@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { ModernButton } from '@/components/ui';
 import { LogOut, Users, Calendar, Settings, Zap } from 'lucide-react';
 import { useAuth } from '@/contexts';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui';
 
 export const Navbar = React.memo(() => {
   const { user, logout, isAuthenticated } = useAuth();

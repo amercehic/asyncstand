@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { ModernButton } from '@/components/ui';
 import { ArrowLeft, Send, Clock, CheckCircle, Users, Calendar } from 'lucide-react';
 import { useAuth } from '@/contexts';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui';
 import { standupsApi } from '@/lib/api';
 import type { StandupConfig, StandupInstance, Team } from '@/types';
 

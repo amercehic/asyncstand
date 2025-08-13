@@ -17,7 +17,7 @@ import {
   Trash2,
   Calendar,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui';
 import { teamsApi, standupsApi } from '@/lib/api';
 import { useIntegrations } from '@/contexts';
 import type { SlackIntegration, ActiveStandup } from '@/lib/api';

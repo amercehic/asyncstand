@@ -1,6 +1,6 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@/test/utils';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui';
 import React from 'react';
 
 import { CreateTeamModal } from '@/components/CreateTeamModal';

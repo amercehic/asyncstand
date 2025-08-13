@@ -12,7 +12,7 @@ import {
   Filter,
   Slack,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui';
 import { teamsApi } from '@/lib/api';
 import type { Team } from '@/types';
 import type { AvailableMemberDetails } from '@/types/backend';
@@ -180,13 +180,7 @@ export const TeamMemberAssignmentModal: React.FC<TeamMemberAssignmentModalProps>
       // Wait for all operations to complete
       await Promise.all(operations);
 
-      toast.success(
-        `Successfully ${selectedToAdd.length > 0 ? `added ${selectedToAdd.length}` : ''}${
-          selectedToAdd.length > 0 && selectedToRemove.length > 0 ? ' and ' : ''
-        }${selectedToRemove.length > 0 ? `removed ${selectedToRemove.length}` : ''} member${
-          selectedToAdd.length + selectedToRemove.length > 1 ? 's' : ''
-        }`
-      );
+      // Toast notification will be handled by parent component with richer content
 
       onSuccess();
       setShowConfirmDialog(false);

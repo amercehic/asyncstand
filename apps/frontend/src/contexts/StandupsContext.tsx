@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useCallback, useMemo } from 'react';
 import { standupsApi, type Standup, type StandupInstance, type StandupResponse } from '@/lib/api';
 import { normalizeApiError } from '@/utils';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import type { AxiosError } from 'axios';
 

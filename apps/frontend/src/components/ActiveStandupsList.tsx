@@ -20,7 +20,7 @@ import {
   BarChart3,
   Zap,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui';
 import { standupsApi } from '@/lib/api';
 import { StandupEditModal } from '@/components/StandupEditModal';
 import type { StandupConfig } from '@/types';
@@ -30,6 +30,7 @@ interface ActiveStandupsListProps {
   showHeader?: boolean;
   showCreateButton?: boolean;
   className?: string;
+  onStandupsChange?: () => void;
 }
 
 interface DeleteModalProps {
@@ -141,6 +142,7 @@ export const ActiveStandupsList: React.FC<ActiveStandupsListProps> = ({
   showHeader = true,
   showCreateButton = true,
   className = '',
+  onStandupsChange,
 }) => {
   const navigate = useNavigate();
   const [standups, setStandups] = useState<StandupConfig[]>([]);
@@ -203,6 +205,7 @@ export const ActiveStandupsList: React.FC<ActiveStandupsListProps> = ({
       await standupsApi.deleteStandup(deleteModal.standupId);
       toast.success(`Standup "${deleteModal.standupName}" deleted successfully`);
       await fetchStandups(); // Refresh the list
+      onStandupsChange?.(); // Notify parent component
       setDeleteModal({ isOpen: false, standupId: '', standupName: '', isDeleting: false });
     } catch (error) {
       console.error('Error deleting standup:', error);
@@ -220,6 +223,7 @@ export const ActiveStandupsList: React.FC<ActiveStandupsListProps> = ({
 
   const handleEditSuccess = async () => {
     await fetchStandups(); // Refresh the standups list
+    onStandupsChange?.(); // Notify parent component
     setEditModal({ isOpen: false, standup: null });
   };
 

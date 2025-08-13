@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui';
 import { ModernButton, FormField } from '@/components/ui';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';

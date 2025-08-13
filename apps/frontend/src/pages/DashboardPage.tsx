@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { ModernButton } from '@/components/ui';
 import { Users, Calendar, Settings, Plus, Bell } from 'lucide-react';
 import { useAuth } from '@/contexts';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui';
 import { useTeams } from '@/contexts/TeamsContext';
 import { standupsApi } from '@/lib/api';
 import type { Standup } from '@/types';

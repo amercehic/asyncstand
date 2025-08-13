@@ -13,7 +13,7 @@ import {
   Users,
   MessageSquare,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui';
 import { type SlackIntegration } from '@/lib/api';
 import { startSlackOAuth } from '@/utils/slack-oauth';
 import { useAuth, useIntegrations } from '@/contexts';

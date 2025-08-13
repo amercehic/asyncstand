@@ -8,7 +8,7 @@ import React, {
 } from 'react';
 import { integrationsApi, type SlackIntegration } from '@/lib/api';
 import { normalizeApiError } from '@/utils';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface IntegrationsState {

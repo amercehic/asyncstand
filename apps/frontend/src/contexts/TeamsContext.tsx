@@ -8,7 +8,7 @@ import React, {
 } from 'react';
 import { teamsApi, type Team, type CreateTeamRequest } from '@/lib/api';
 import { normalizeApiError } from '@/utils';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface TeamsState {

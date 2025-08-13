@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ModernButton, ConfirmationModal, Dropdown } from '@/components/ui';
@@ -25,7 +25,7 @@ import {
   ChevronRight,
   Zap,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui';
 import { teamsApi, standupsApi } from '@/lib/api';
 import type { Team, StandupConfig, StandupInstance } from '@/types';
 import type { AxiosError } from 'axios';
@@ -48,75 +48,75 @@ export const TeamDetailPage = React.memo(() => {
   const [filterBy, setFilterBy] = useState<'all' | 'active' | 'paused'>('all');
   const [sortBy, setSortBy] = useState<'name' | 'created' | 'activity'>('activity');
 
-  useEffect(() => {
-    const fetchTeamData = async () => {
-      if (!teamId) return;
+  const fetchTeamData = useCallback(async () => {
+    if (!teamId) return;
 
+    try {
+      setIsLoading(true);
+
+      // Fetch team details first
+      const teamData = await teamsApi.getTeam(teamId);
+
+      // Then try to fetch standups, but handle case where config doesn't exist yet
+      let standupsData: StandupConfig[] = [];
       try {
-        setIsLoading(true);
+        standupsData = await standupsApi.getTeamStandups(teamId);
+      } catch (standupsError: unknown) {
+        // If standup config doesn't exist, that's okay - show empty state
+        const axiosError = standupsError as AxiosError;
+        const errorData = axiosError?.response?.data as
+          | { code?: string; detail?: string }
+          | undefined;
 
-        // Fetch team details first
-        const teamData = await teamsApi.getTeam(teamId);
-
-        // Then try to fetch standups, but handle case where config doesn't exist yet
-        let standupsData: StandupConfig[] = [];
-        try {
-          standupsData = await standupsApi.getTeamStandups(teamId);
-        } catch (standupsError: unknown) {
-          // If standup config doesn't exist, that's okay - show empty state
-          const axiosError = standupsError as AxiosError;
-          const errorData = axiosError?.response?.data as
-            | { code?: string; detail?: string }
-            | undefined;
-
-          if (
-            axiosError?.response?.status === 404 ||
-            errorData?.code === 'STANDUP_CONFIG_NOT_FOUND' ||
-            (errorData?.detail && errorData.detail.includes('STANDUP_CONFIG_NOT_FOUND'))
-          ) {
-            console.log('No standup config found for team, showing empty state');
-          } else {
-            console.error('Error fetching standups:', standupsError);
-            toast.error('Failed to load standup configurations');
-          }
-        }
-
-        setTeam(teamData);
-        setStandups(standupsData);
-
-        // Fetch recent instances for all standups
-        if (standupsData.length > 0) {
-          const instancePromises = standupsData.map(standup =>
-            standupsApi.getStandupInstances(standup.id).catch(() => [])
-          );
-
-          const allInstances = await Promise.all(instancePromises);
-          const flatInstances = allInstances.flat();
-
-          // Sort by date and take most recent
-          const sortedInstances = flatInstances
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-            .slice(0, 5);
-
-          setRecentInstances(sortedInstances);
-        }
-      } catch (error: unknown) {
-        console.error('Error fetching team data:', error);
-        if ((error as AxiosError)?.response?.status === 404) {
-          toast.error('Team not found');
+        if (
+          axiosError?.response?.status === 404 ||
+          errorData?.code === 'STANDUP_CONFIG_NOT_FOUND' ||
+          (errorData?.detail && errorData.detail.includes('STANDUP_CONFIG_NOT_FOUND'))
+        ) {
+          console.log('No standup config found for team, showing empty state');
         } else {
-          toast.error('Failed to load team data');
+          console.error('Error fetching standups:', standupsError);
+          toast.error('Failed to load standup configurations');
         }
-        setTeam(null);
-        setStandups([]);
-        setRecentInstances([]);
-      } finally {
-        setIsLoading(false);
       }
-    };
 
-    fetchTeamData();
+      setTeam(teamData);
+      setStandups(standupsData);
+
+      // Fetch recent instances for all standups
+      if (standupsData.length > 0) {
+        const instancePromises = standupsData.map(standup =>
+          standupsApi.getStandupInstances(standup.id).catch(() => [])
+        );
+
+        const allInstances = await Promise.all(instancePromises);
+        const flatInstances = allInstances.flat();
+
+        // Sort by date and take most recent
+        const sortedInstances = flatInstances
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+          .slice(0, 5);
+
+        setRecentInstances(sortedInstances);
+      }
+    } catch (error: unknown) {
+      console.error('Error fetching team data:', error);
+      if ((error as AxiosError)?.response?.status === 404) {
+        toast.error('Team not found');
+      } else {
+        toast.error('Failed to load team data');
+      }
+      setTeam(null);
+      setStandups([]);
+      setRecentInstances([]);
+    } finally {
+      setIsLoading(false);
+    }
   }, [teamId]);
+
+  useEffect(() => {
+    fetchTeamData();
+  }, [fetchTeamData]);
 
   // Filter and sort standups (not currently used but ready for implementation)
   const filteredAndSortedStandups = useMemo(() => {
@@ -214,9 +214,19 @@ export const TeamDetailPage = React.memo(() => {
     // Refetch team data after member assignment changes
     if (teamId) {
       try {
+        const previousMemberCount = team?.members?.length || 0;
         const teamData = await teamsApi.getTeam(teamId);
         setTeam(teamData);
-        toast.success('Team members updated successfully');
+
+        // Show rich toast notification for member additions
+        const newMemberCount = teamData.members?.length || 0;
+        if (newMemberCount > previousMemberCount) {
+          const newMembers = teamData.members?.slice(-1) || []; // Get the last added member
+          const newMember = newMembers[0];
+          if (newMember) {
+            toast.memberAdded(newMember.name, teamData.name);
+          }
+        }
       } catch (error) {
         console.error('Error refreshing team data:', error);
         toast.error('Failed to refresh team data');
@@ -243,7 +253,14 @@ export const TeamDetailPage = React.memo(() => {
       const teamData = await teamsApi.getTeam(teamId);
       setTeam(teamData);
 
-      toast.success(`${memberToRemove.name} has been removed from the team`);
+      toast.success('Member removed successfully', {
+        richContent: {
+          title: 'Team Member Removed',
+          description: `${memberToRemove.name} has been removed from ${team?.name}`,
+          avatar: memberToRemove.name.charAt(0).toUpperCase(),
+          metadata: 'Just now',
+        },
+      });
       setMemberToRemove(null);
     } catch (error) {
       console.error('Error removing team member:', error);
@@ -683,7 +700,12 @@ export const TeamDetailPage = React.memo(() => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.6, delay: 0.2 }}
                 >
-                  <ActiveStandupsList teamId={teamId} showHeader={true} showCreateButton={false} />
+                  <ActiveStandupsList
+                    teamId={teamId}
+                    showHeader={true}
+                    showCreateButton={false}
+                    onStandupsChange={fetchTeamData}
+                  />
                 </motion.div>
 
                 {/* Recent Activity */}
@@ -851,7 +873,14 @@ export const TeamDetailPage = React.memo(() => {
                     <ModernButton
                       variant="outline"
                       className="w-full justify-start"
-                      onClick={() => toast.info('Export feature coming soon!')}
+                      onClick={() =>
+                        toast.info('Export feature coming soon!', {
+                          action: {
+                            label: 'Request feature',
+                            onClick: () => toast.info('Feature request noted!'),
+                          },
+                        })
+                      }
                     >
                       <Target className="w-4 h-4 mr-2" />
                       Export Team Report
@@ -859,7 +888,14 @@ export const TeamDetailPage = React.memo(() => {
                     <ModernButton
                       variant="outline"
                       className="w-full justify-start"
-                      onClick={() => toast.info('Analytics feature coming soon!')}
+                      onClick={() =>
+                        toast.info('Analytics feature coming soon!', {
+                          action: {
+                            label: 'Preview demo',
+                            onClick: () => toast.info('Demo coming soon!'),
+                          },
+                        })
+                      }
                     >
                       <TrendingUp className="w-4 h-4 mr-2" />
                       View Analytics

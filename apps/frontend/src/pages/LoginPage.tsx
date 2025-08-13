@@ -1,8 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { toast } from 'sonner';
-import { ModernButton, FormField } from '@/components/ui';
+import { ModernButton, FormField, toast } from '@/components/ui';
 import { ArrowLeft, Eye, EyeOff, Github, Mail } from 'lucide-react';
 import { useAuth } from '@/contexts';
 import type { LoginFormData, FormFieldError, FormSubmitHandler } from '@/types';

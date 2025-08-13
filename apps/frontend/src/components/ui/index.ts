@@ -10,3 +10,4 @@ export { SkipLinks } from '@/components/ui/SkipLinks';
 export { Dropdown } from '@/components/ui/Dropdown';
 export { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 export { cn } from '@/components/ui/utils';
+export { modernToast, toast } from '@/components/ui/modern-toast';

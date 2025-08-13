@@ -1,4 +1,4 @@
-import { toast } from 'sonner';
+import { toast } from '@/components/ui';
 
 export interface SlackOAuthOptions {
   orgId: string;

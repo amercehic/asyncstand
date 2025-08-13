@@ -30,7 +30,7 @@ import {
   Inbox,
 } from 'lucide-react';
 import { useTeams } from '@/contexts';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui';
 import type { Team, Standup } from '@/types';
 import { standupsApi } from '@/lib/api';
 
@@ -489,15 +489,20 @@ export const TeamsPage = React.memo(() => {
   }, [teams, teamStandups]);
 
   const handleToggleFavorite = (teamId: string) => {
-    setFavoriteTeams(prev =>
-      prev.includes(teamId) ? prev.filter(id => id !== teamId) : [...prev, teamId]
-    );
-    toast.success(favoriteTeams.includes(teamId) ? 'Removed from favorites' : 'Added to favorites');
+    const wasFavorited = favoriteTeams.includes(teamId);
+
+    setFavoriteTeams(prev => (wasFavorited ? prev.filter(id => id !== teamId) : [...prev, teamId]));
+
+    toast.favorite(wasFavorited ? 'Removed from favorites' : 'Added to favorites', !wasFavorited);
   };
 
-  const handleCreateSuccess = async () => {
+  const handleCreateSuccess = async (teamName?: string) => {
     await refreshTeams();
-    toast.success('Team created successfully');
+    if (teamName) {
+      toast.teamCreated(teamName);
+    } else {
+      toast.success('Team created successfully!');
+    }
   };
 
   const handleSettingsSuccess = async () => {
@@ -506,7 +511,17 @@ export const TeamsPage = React.memo(() => {
   };
 
   const handleJoinTeam = () => {
-    toast.info('Join team functionality - Coming soon!');
+    toast.info('Join team functionality coming soon!', {
+      richContent: {
+        title: 'Feature Coming Soon',
+        description: "We're working on team invitation features",
+        metadata: 'Q1 2024',
+      },
+      action: {
+        label: 'Get notified',
+        onClick: () => toast.info("We'll notify you when this feature is ready!"),
+      },
+    });
   };
 
   if (isLoading && teams.length === 0) {

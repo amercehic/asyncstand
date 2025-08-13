@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ModernButton } from '@/components/ui';
 import { X, Plus, Trash2, Calendar, Clock, Users, Save, MessageSquare, Send } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui';
 import { standupsApi } from '@/lib/api';
 import type { StandupConfig } from '@/types';
 import { StandupDeliveryType } from '@/types/backend';
