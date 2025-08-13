@@ -12,6 +12,7 @@ interface TeamSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  onTeamDeleted?: () => void;
   team: Team;
 }
 
@@ -63,7 +64,7 @@ const TIMEZONES = [
 ];
 
 export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
-  ({ isOpen, onClose, onSuccess, team }) => {
+  ({ isOpen, onClose, onSuccess, onTeamDeleted, team }) => {
     const [isUpdating, setIsUpdating] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
@@ -217,15 +218,20 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
       try {
         await teamsApi.deleteTeam(team.id);
         toast.success(`Team "${team.name}" has been deleted`);
-        onSuccess(); // Refresh the teams list
         handleClose();
+        // Call the dedicated deletion callback if provided, otherwise fall back to onSuccess
+        if (onTeamDeleted) {
+          onTeamDeleted();
+        } else {
+          onSuccess();
+        }
       } catch (error) {
         console.error('Error deleting team:', error);
         toast.error('Failed to delete team. Please try again.');
       } finally {
         setIsDeleting(false);
       }
-    }, [deleteConfirmationText, team, onSuccess, handleClose]);
+    }, [deleteConfirmationText, team, onTeamDeleted, onSuccess, handleClose]);
 
     // Add ESC key handler
     useEffect(() => {

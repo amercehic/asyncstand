@@ -1,0 +1,89 @@
+display_information:
+  name: AsyncStand Dev
+  description: Asynchronous standup bot for distributed teams with magic link support
+  background_color: '#4A154B'
+  long_description: AsyncStand helps distributed teams run asynchronous standups through Slack. Team members can submit their updates via DM, thread replies, or magic links without needing an AsyncStand account. The bot collects responses and posts summaries at configured times.
+
+features:
+  app_home:
+    home_tab_enabled: true
+    messages_tab_enabled: true
+    messages_tab_read_only_enabled: false
+
+  bot_user:
+    display_name: AsyncStand Dev Bot
+    always_online: true
+
+  slash_commands:
+    - command: /standup
+      description: Manage standup responses and settings
+      usage_hint: '[status|submit|skip|help]'
+      should_escape: false
+
+oauth_config:
+  redirect_urls:
+    - https://localhost:3001/integrations/slack/callback
+    - http://localhost:3001/integrations/slack/callback
+    - https://your-app-domain.com/integrations/slack/callback
+
+  scopes:
+    bot:
+      # Core messaging permissions
+      - channels:read
+      - channels:join
+      - chat:write
+      - chat:write.public
+      - chat:write.customize
+
+      # DM permissions for magic links
+      - im:read
+      - im:write
+      - im:history
+      - mpim:read
+      - mpim:write
+      - mpim:history
+
+      # User information
+      - users:read
+      - users:read.email
+
+      # Team information
+      - team:read
+
+      # Interactive components
+      - commands
+
+      # Event subscriptions
+      - app_mentions:read
+      - groups:read
+      - groups:write
+
+      # Reactions (optional, for acknowledging responses)
+      - reactions:read
+      - reactions:write
+
+settings:
+  event_subscriptions:
+    request_url: https://localhost:3001/integrations/slack/events
+    # For production: https://your-app-domain.com/integrations/slack/events
+
+    bot_events:
+      # Direct messages to bot
+      - message.im
+      # Messages in channels where bot is mentioned
+      - app_mention
+      # Thread replies
+      - message.channels
+      - message.groups
+      # Track when users join/leave
+      - member_joined_channel
+      - member_left_channel
+
+  interactivity:
+    is_enabled: true
+    request_url: https://localhost:3001/integrations/slack/interactions
+    # For production: https://your-app-domain.com/integrations/slack/interactions
+
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false

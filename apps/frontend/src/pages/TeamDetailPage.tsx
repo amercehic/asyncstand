@@ -169,6 +169,11 @@ export const TeamDetailPage = React.memo(() => {
     }
   };
 
+  const handleTeamDeleted = () => {
+    // Redirect to teams page after team deletion
+    navigate('/teams');
+  };
+
   const handleMemberAssignmentSuccess = async () => {
     // Refetch team data after member assignment changes
     if (teamId) {
@@ -913,6 +918,7 @@ export const TeamDetailPage = React.memo(() => {
           isOpen={isTeamSettingsOpen}
           onClose={() => setIsTeamSettingsOpen(false)}
           onSuccess={handleTeamSettingsSuccess}
+          onTeamDeleted={handleTeamDeleted}
           team={team}
         />
       )}

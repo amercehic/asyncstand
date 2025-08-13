@@ -17,6 +17,7 @@ import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 import { CurrentOrg } from '@/auth/decorators/current-org.decorator';
 import { StandupInstanceService } from '@/standups/standup-instance.service';
 import { AnswerCollectionService } from '@/standups/answer-collection.service';
+import { SlackMessagingService } from '@/integrations/slack/slack-messaging.service';
 import { StandupInstanceDto } from '@/standups/dto/standup-instance.dto';
 import { ParticipationStatusDto } from '@/standups/dto/participation-status.dto';
 import { UpdateInstanceStateDto } from '@/standups/dto/update-instance-state.dto';
@@ -33,6 +34,7 @@ export class StandupInstanceController {
   constructor(
     private readonly standupInstanceService: StandupInstanceService,
     private readonly answerCollectionService: AnswerCollectionService,
+    private readonly slackMessagingService: SlackMessagingService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -222,15 +224,17 @@ export class StandupInstanceController {
 
   @Post('create-for-date')
   @UseGuards(RolesGuard)
-  @Roles('admin')
-  @ApiOperation({ summary: 'Manually create standup instances for a specific date (admin only)' })
+  @Roles('owner', 'admin')
+  @ApiOperation({
+    summary: 'Manually create standup instances for a specific date (admin/owner only)',
+  })
   @ApiResponse({
     status: 201,
     description: 'Standup instances created',
   })
   @ApiResponse({
     status: 403,
-    description: 'Admin role required',
+    description: 'Admin or owner role required',
   })
   async createInstancesForDate(
     @Body() body: { targetDate: string },
@@ -246,6 +250,109 @@ export class StandupInstanceController {
     }
 
     return this.standupInstanceService.createInstancesForDate(targetDate);
+  }
+
+  @Post('create-and-trigger')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'admin')
+  @ApiOperation({
+    summary:
+      'Manually create standup instances and immediately send Slack messages (admin/owner only)',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Standup instances created and messages sent',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Admin or owner role required',
+  })
+  async createInstancesAndTrigger(@Body() body: { targetDate: string }): Promise<{
+    created: string[];
+    skipped: string[];
+    messages: { instanceId: string; success: boolean; error?: string }[];
+  }> {
+    const targetDate = new Date(body.targetDate);
+
+    if (isNaN(targetDate.getTime())) {
+      throw new ApiError(
+        ErrorCode.VALIDATION_FAILED,
+        'Invalid date format',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    // First create the instances
+    const createResult = await this.standupInstanceService.createInstancesForDate(targetDate);
+
+    // Then immediately send Slack messages for the created instances
+    const messageResults = [];
+
+    for (const instanceId of createResult.created) {
+      try {
+        const messageResult = await this.slackMessagingService.sendStandupReminder(instanceId);
+        messageResults.push({
+          instanceId,
+          success: messageResult.ok,
+          error: messageResult.error,
+        });
+      } catch (error) {
+        messageResults.push({
+          instanceId,
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    return {
+      created: createResult.created,
+      skipped: createResult.skipped,
+      messages: messageResults,
+    };
+  }
+
+  @Post(':id/trigger-reminder')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'admin')
+  @ApiOperation({
+    summary: 'Manually trigger Slack reminder for an existing standup instance (admin/owner only)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Slack reminder sent successfully',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Admin or owner role required',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Standup instance not found',
+  })
+  async triggerReminder(
+    @Param('id') instanceId: string,
+    @CurrentOrg() orgId: string,
+  ): Promise<{ success: boolean; messageTs?: string; error?: string }> {
+    // Verify the instance exists and belongs to the org
+    const instance = await this.standupInstanceService.getInstanceWithDetails(instanceId, orgId);
+    if (!instance) {
+      throw new ApiError(ErrorCode.NOT_FOUND, 'Standup instance not found', HttpStatus.NOT_FOUND);
+    }
+
+    try {
+      const messageResult = await this.slackMessagingService.sendStandupReminder(instanceId);
+      return {
+        success: messageResult.ok,
+        messageTs: messageResult.ts,
+        error: messageResult.error,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
   }
 
   @Get('team/:teamId/next-standup')

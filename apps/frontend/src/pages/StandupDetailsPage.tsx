@@ -12,6 +12,7 @@ import {
   MessageSquare,
   User,
   Eye,
+  Send,
 } from 'lucide-react';
 import { toast } from '@/components/ui';
 import { standupsApi } from '@/lib/api';
@@ -100,6 +101,26 @@ export const StandupDetailsPage = React.memo(() => {
     loadStandupDetails();
   }, [standupId, navigate]);
 
+  const handleTriggerReminder = async () => {
+    if (!standupId) return;
+
+    try {
+      toast.loading('Sending Slack reminder...', { id: 'trigger-reminder' });
+      const result = await standupsApi.triggerReminderForInstance(standupId);
+
+      if (result.success) {
+        toast.success('Slack reminder sent successfully!', { id: 'trigger-reminder' });
+      } else {
+        toast.error(`Failed to send reminder: ${result.error || 'Unknown error'}`, {
+          id: 'trigger-reminder',
+        });
+      }
+    } catch (error) {
+      console.error('Error triggering reminder:', error);
+      toast.error('Failed to send reminder. Please try again.', { id: 'trigger-reminder' });
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -181,6 +202,20 @@ export const StandupDetailsPage = React.memo(() => {
                 {formatDate(standup.targetDate)} at {standup.timeLocal} ({standup.timezone})
               </p>
             </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-3">
+            {standup.state === 'collecting' && (
+              <ModernButton
+                variant="outline"
+                onClick={handleTriggerReminder}
+                className="flex items-center gap-2"
+              >
+                <Send className="w-4 h-4" />
+                Send Reminder
+              </ModernButton>
+            )}
           </div>
         </motion.div>
 

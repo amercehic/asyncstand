@@ -278,6 +278,50 @@ export class SlackMessagingService {
 
   // Standup-specific messaging methods
 
+  /**
+   * Validates that a Slack channel exists and the bot has access to it
+   */
+  async validateChannelAccess(
+    integrationId: string,
+    channelId: string,
+  ): Promise<{
+    isValid: boolean;
+    error?: string;
+    channelName?: string;
+  }> {
+    try {
+      const token = await this.slackOauth.getDecryptedToken(integrationId, 'bot');
+      const client = new WebClient(token);
+
+      const result = await client.conversations.info({
+        channel: channelId,
+      });
+
+      if (result.ok && result.channel) {
+        return {
+          isValid: true,
+          channelName: result.channel.name || 'Unknown Channel',
+        };
+      } else {
+        return {
+          isValid: false,
+          error: 'Channel not found or bot lacks access',
+        };
+      }
+    } catch (error) {
+      this.logger.error('Failed to validate channel access', {
+        integrationId,
+        channelId,
+        error: this.getErrorMessage(error),
+      });
+
+      return {
+        isValid: false,
+        error: this.getErrorMessage(error),
+      };
+    }
+  }
+
   async sendStandupReminder(instanceId: string): Promise<MessageResponse> {
     try {
       // Get instance with team and config details
@@ -287,7 +331,8 @@ export class SlackMessagingService {
           team: {
             select: {
               name: true,
-              channelId: true,
+              orgId: true,
+              slackChannelId: true,
               integrationId: true,
               configs: {
                 where: { isActive: true },
@@ -302,6 +347,37 @@ export class SlackMessagingService {
 
       if (!instance || !instance.team) {
         throw new Error('Standup instance or team not found');
+      }
+
+      // Validate team integration and channel configuration
+      if (!instance.team.integrationId) {
+        throw new Error('Team does not have a Slack integration configured');
+      }
+
+      if (!instance.team.slackChannelId) {
+        throw new Error('Team does not have a Slack channel configured');
+      }
+
+      // Validate channel access before attempting to send
+      const channelValidation = await this.validateChannelAccess(
+        instance.team.integrationId,
+        instance.team.slackChannelId,
+      );
+
+      if (!channelValidation.isValid) {
+        const errorMsg = `Channel validation failed: ${channelValidation.error}. Channel ID: ${instance.team.slackChannelId}`;
+        this.logger.error('Channel validation failed for standup reminder', {
+          instanceId,
+          teamId: instance.teamId,
+          channelId: instance.team.slackChannelId,
+          integrationId: instance.team.integrationId,
+          validationError: channelValidation.error,
+        });
+
+        return {
+          ok: false,
+          error: errorMsg,
+        };
       }
 
       const configSnapshot = instance.configSnapshot as {
@@ -330,7 +406,11 @@ export class SlackMessagingService {
       const config = instance.team.configs[0];
       const deliveryType = config?.deliveryType || StandupDeliveryType.channel;
 
-      const { text, blocks } = this.formatter.formatStandupReminder(instanceData, teamName);
+      const { text, blocks } = await this.formatter.formatStandupReminderWithMagicLinks(
+        instanceData,
+        teamName,
+        instance.team.orgId,
+      );
 
       let result: MessageResponse;
 
@@ -344,9 +424,17 @@ export class SlackMessagingService {
         );
       } else {
         // Send to channel (default behavior)
+        this.logger.info('Attempting to send standup reminder to channel', {
+          instanceId,
+          teamId: instance.teamId,
+          teamName: instance.team.name,
+          channelId: instance.team.slackChannelId,
+          integrationId: instance.team.integrationId,
+        });
+
         result = await this.sendChannelMessage(
           instance.team.integrationId,
-          instance.team.channelId,
+          instance.team.slackChannelId,
           text,
           blocks,
         );
@@ -509,7 +597,7 @@ export class SlackMessagingService {
           team: {
             select: {
               name: true,
-              channelId: true,
+              slackChannelId: true,
               integrationId: true,
             },
           },
@@ -597,7 +685,7 @@ export class SlackMessagingService {
 
       const result = await this.sendChannelMessage(
         instance.team.integrationId,
-        instance.team.channelId,
+        instance.team.slackChannelId,
         text,
         blocks,
       );
@@ -635,8 +723,9 @@ export class SlackMessagingService {
           team: {
             select: {
               name: true,
+              orgId: true,
               integrationId: true,
-              channelId: true,
+              slackChannelId: true,
             },
           },
         },
@@ -666,10 +755,10 @@ export class SlackMessagingService {
       const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
       const timeRemaining = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
 
-      // Get missing member names
-      const missingMembers = configSnapshot.participatingMembers
-        .filter((member) => missingUserIds.includes(member.platformUserId))
-        .map((member) => member.name);
+      // Get missing members with full details for magic link generation
+      const missingMembers = configSnapshot.participatingMembers.filter((member) =>
+        missingUserIds.includes(member.platformUserId),
+      );
 
       const instanceData = {
         ...instance,
@@ -680,16 +769,17 @@ export class SlackMessagingService {
         },
       };
 
-      const { text, blocks } = this.formatter.formatFollowupReminder(
+      const { text, blocks } = await this.formatter.formatFollowupReminderWithMagicLinks(
         instanceData,
         timeRemaining,
         missingMembers,
+        instance.team.orgId,
       );
 
       // Send to channel
       const channelResult = await this.sendChannelMessage(
         instance.team.integrationId,
-        instance.team.channelId,
+        instance.team.slackChannelId,
         text,
         blocks,
       );

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ModernButton, Tooltip } from '@/components/ui';
@@ -18,6 +18,7 @@ import { type SlackIntegration } from '@/lib/api';
 import { startSlackOAuth } from '@/utils/slack-oauth';
 import { useAuth, useIntegrations } from '@/contexts';
 import { SlackIcon, TeamsIcon, DiscordIcon } from '@/components/icons/IntegrationIcons';
+import { DeleteIntegrationModal } from '@/components/DeleteIntegrationModal';
 
 export const IntegrationsPage = React.memo(() => {
   const { user } = useAuth();
@@ -30,6 +31,9 @@ export const IntegrationsPage = React.memo(() => {
     isIntegrationSyncing,
     refreshIntegrations,
   } = useIntegrations();
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [integrationToDelete, setIntegrationToDelete] = useState<SlackIntegration | null>(null);
 
   const handleConnectIntegration = async (platform: 'slack' | 'teams' | 'discord' = 'slack') => {
     if (!user?.orgId) {
@@ -72,8 +76,15 @@ export const IntegrationsPage = React.memo(() => {
     await syncIntegration(integrationId);
   };
 
-  const handleDisconnect = async (integrationId: string, teamName: string) => {
-    await removeIntegration(integrationId, teamName);
+  const handleDisconnectClick = (integration: SlackIntegration) => {
+    setIntegrationToDelete(integration);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async (integrationId: string) => {
+    await removeIntegration(integrationId);
+    setShowDeleteModal(false);
+    setIntegrationToDelete(null);
   };
 
   const handleViewIntegration = (integration: SlackIntegration) => {
@@ -267,7 +278,7 @@ export const IntegrationsPage = React.memo(() => {
                       size="sm"
                       onClick={e => {
                         e.stopPropagation();
-                        handleDisconnect(integration.id, integration.externalTeamId);
+                        handleDisconnectClick(integration);
                       }}
                       data-testid={`disconnect-${integration.id}`}
                     >
@@ -335,6 +346,17 @@ export const IntegrationsPage = React.memo(() => {
             </p>
           </motion.div>
         )}
+
+        {/* Delete Integration Modal */}
+        <DeleteIntegrationModal
+          integration={integrationToDelete}
+          isOpen={showDeleteModal}
+          onClose={() => {
+            setShowDeleteModal(false);
+            setIntegrationToDelete(null);
+          }}
+          onConfirm={handleDeleteConfirm}
+        />
       </main>
     </div>
   );

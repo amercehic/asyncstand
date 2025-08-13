@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { SlackEventService } from '@/integrations/slack/slack-event.service';
 import { SlackMessagingService } from '@/integrations/slack/slack-messaging.service';
 import { SlackMessageFormatterService } from '@/integrations/slack/slack-message-formatter.service';
+import { AnswerCollectionService } from '@/standups/answer-collection.service';
 import { LoggerService } from '@/common/logger.service';
 import { PrismaService } from '@/prisma/prisma.service';
 import { createHmac } from 'crypto';
@@ -10,6 +11,7 @@ describe('SlackEventService', () => {
   let service: SlackEventService;
   let mockSlackMessaging: jest.Mocked<SlackMessagingService>;
   let mockFormatter: jest.Mocked<SlackMessageFormatterService>;
+  // let mockAnswerCollection: jest.Mocked<AnswerCollectionService>;
   let mockLogger: jest.Mocked<LoggerService>;
   let mockPrisma: {
     integration: { findFirst: jest.Mock };
@@ -48,6 +50,12 @@ describe('SlackEventService', () => {
           },
         },
         {
+          provide: AnswerCollectionService,
+          useValue: {
+            submitFullResponse: jest.fn().mockResolvedValue({ success: true, answersSubmitted: 1 }),
+          },
+        },
+        {
           provide: LoggerService,
           useValue: {
             info: jest.fn(),
@@ -80,6 +88,7 @@ describe('SlackEventService', () => {
     service = module.get<SlackEventService>(SlackEventService);
     mockSlackMessaging = module.get(SlackMessagingService);
     mockFormatter = module.get(SlackMessageFormatterService);
+    // mockAnswerCollection = module.get(AnswerCollectionService);
     mockLogger = module.get(LoggerService);
     mockPrisma = module.get(PrismaService) as typeof mockPrisma;
 
@@ -155,6 +164,14 @@ describe('SlackEventService', () => {
           SlackEventService,
           { provide: SlackMessagingService, useValue: mockSlackMessaging },
           { provide: SlackMessageFormatterService, useValue: mockFormatter },
+          {
+            provide: AnswerCollectionService,
+            useValue: {
+              submitFullResponse: jest
+                .fn()
+                .mockResolvedValue({ success: true, answersSubmitted: 1 }),
+            },
+          },
           { provide: LoggerService, useValue: mockLogger },
           { provide: PrismaService, useValue: mockPrisma },
         ],

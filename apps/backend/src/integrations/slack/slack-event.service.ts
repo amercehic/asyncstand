@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { SlackMessagingService } from '@/integrations/slack/slack-messaging.service';
 import { SlackMessageFormatterService } from '@/integrations/slack/slack-message-formatter.service';
+import { AnswerCollectionService } from '@/standups/answer-collection.service';
 import { LoggerService } from '@/common/logger.service';
 import { PrismaService } from '@/prisma/prisma.service';
 
@@ -11,6 +12,8 @@ interface SlackEvent {
   channel?: string;
   text?: string;
   ts?: string;
+  thread_ts?: string;
+  bot_id?: string;
   [key: string]: unknown;
 }
 
@@ -87,6 +90,7 @@ export class SlackEventService {
   constructor(
     private readonly slackMessaging: SlackMessagingService,
     private readonly formatter: SlackMessageFormatterService,
+    private readonly answerCollection: AnswerCollectionService,
     private readonly logger: LoggerService,
     private readonly prisma: PrismaService,
   ) {
@@ -266,16 +270,58 @@ export class SlackEventService {
       }
     }
 
-    // Handle thread replies to standup reminders (existing behavior)
-    if (event.thread_ts) {
+    // Handle thread replies to standup reminders
+    if (event.thread_ts && event.text && event.user && !event.bot_id) {
       this.logger.debug('Thread reply received', {
         user: event.user,
         text: event.text,
         thread_ts: event.thread_ts,
+        channel: event.channel,
       });
 
-      // Could implement thread-based response collection here
-      // For now, responses are collected via interactive components
+      // Handle standup responses via thread replies
+      await this.handleThreadReply(event.user, event.text, event.thread_ts, event.channel, _teamId);
+    }
+  }
+
+  /**
+   * Handle thread reply responses to standup reminders
+   */
+  private async handleThreadReply(
+    userId: string,
+    text: string,
+    threadTs: string,
+    channelId: string,
+    teamId: string,
+  ): Promise<void> {
+    try {
+      // Find active standup instance by looking for the thread message
+      // We need to check if this thread is associated with a standup reminder
+      const activeInstance = await this.findActiveStandupInstanceForUser(userId, teamId);
+
+      if (!activeInstance) {
+        this.logger.debug('No active standup found for thread reply', { userId, teamId, threadTs });
+        return;
+      }
+
+      this.logger.info('Processing thread reply standup response', {
+        userId,
+        instanceId: activeInstance.id,
+        threadTs,
+        channelId,
+        responseLength: text.length,
+      });
+
+      // Parse and submit the response similar to DM handling
+      await this.submitParsedResponse(activeInstance.id, userId, text);
+    } catch (error) {
+      this.logger.error('Error handling thread reply', {
+        userId,
+        teamId,
+        threadTs,
+        channelId,
+        error: this.getErrorMessage(error),
+      });
     }
   }
 
@@ -392,16 +438,35 @@ export class SlackEventService {
       text: responseText,
     }));
 
-    // Use the existing answer collection service
-    // This requires importing the AnswerCollectionService, which I'll do below
     this.logger.info('Submitting DM response', {
       instanceId,
       teamMemberId: teamMember.id,
       questionCount: answers.length,
     });
 
-    // For now, log the response - in a full implementation, we'd call the answer service
-    // await this.answerCollectionService.submitAnswers(instanceId, teamMember.id, { answers });
+    try {
+      // Use the AnswerCollectionService to submit the parsed response
+      await this.answerCollection.submitFullResponse(
+        {
+          standupInstanceId: instanceId,
+          answers: answers,
+        },
+        teamMember.id,
+        instance.team.orgId,
+      );
+
+      this.logger.info('DM response submitted successfully', {
+        instanceId,
+        teamMemberId: teamMember.id,
+        answersCount: answers.length,
+      });
+    } catch (error) {
+      this.logger.error('Failed to submit DM response', {
+        instanceId,
+        teamMemberId: teamMember.id,
+        error: this.getErrorMessage(error),
+      });
+    }
   }
 
   private async handleBlockActions(payload: InteractiveComponent): Promise<void> {

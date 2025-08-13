@@ -20,6 +20,7 @@ import {
 import { toast } from '@/components/ui';
 import { teamsApi, standupsApi } from '@/lib/api';
 import { useIntegrations } from '@/contexts';
+import { DeleteIntegrationModal } from '@/components/DeleteIntegrationModal';
 import type { SlackIntegration, ActiveStandup } from '@/lib/api';
 import type { AvailableChannelsResponse, AvailableMembersResponse } from '@/types/backend';
 import { SlackIcon } from '@/components/icons/IntegrationIcons';
@@ -38,6 +39,7 @@ export const IntegrationDetailsPage = React.memo(() => {
   const [activeTab, setActiveTab] = useState<'overview' | 'channels' | 'members' | 'standups'>(
     'overview'
   );
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   // Find the integration from context
   useEffect(() => {
@@ -84,9 +86,13 @@ export const IntegrationDetailsPage = React.memo(() => {
     await syncIntegration(integration.id);
   };
 
-  const handleDisconnect = async () => {
+  const handleDeleteClick = () => {
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async (integrationId: string) => {
     if (!integration) return;
-    await removeIntegration(integration.id, integration.externalTeamId);
+    await removeIntegration(integrationId);
     navigate('/integrations');
   };
 
@@ -185,7 +191,7 @@ export const IntegrationDetailsPage = React.memo(() => {
             </ModernButton>
             <ModernButton
               variant="ghost"
-              onClick={handleDisconnect}
+              onClick={handleDeleteClick}
               className="text-red-600 hover:text-red-700"
             >
               <Trash2 className="w-4 h-4 mr-2" />
@@ -501,6 +507,14 @@ export const IntegrationDetailsPage = React.memo(() => {
             </div>
           )}
         </motion.div>
+
+        {/* Delete Modal */}
+        <DeleteIntegrationModal
+          integration={integration}
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          onConfirm={handleDeleteConfirm}
+        />
       </main>
     </div>
   );

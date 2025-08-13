@@ -35,7 +35,7 @@ interface IntegrationsContextType extends IntegrationsState {
   fetchIntegrations: () => Promise<void>;
   refreshIntegrations: () => Promise<void>;
   syncIntegration: (integrationId: string) => Promise<void>;
-  removeIntegration: (integrationId: string, teamName: string) => Promise<void>;
+  removeIntegration: (integrationId: string) => Promise<void>;
   updateIntegrationStatus: (id: string, updates: Partial<SlackIntegration>) => void;
   isIntegrationSyncing: (id: string) => boolean;
 }
@@ -217,13 +217,7 @@ export function IntegrationsProvider({ children }: IntegrationsProviderProps) {
     }
   }, []);
 
-  const removeIntegration = useCallback(async (integrationId: string, teamName: string) => {
-    const confirmed = window.confirm(
-      `Are you sure you want to disconnect "${teamName}"? This will remove all associated teams and standups.`
-    );
-
-    if (!confirmed) return;
-
+  const removeIntegration = useCallback(async (integrationId: string) => {
     try {
       toast.loading('Disconnecting workspace...', { id: `disconnect-${integrationId}` });
       await integrationsApi.removeSlackIntegration(integrationId);

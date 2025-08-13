@@ -26,6 +26,10 @@ export class EnvironmentVariables {
   @IsString()
   FRONTEND_URL: string = 'http://localhost:3000';
 
+  @IsOptional()
+  @IsString()
+  NGROK_URL: string = '';
+
   @IsString()
   FROM_EMAIL: string = 'noreply@asyncstand.com';
 
@@ -87,22 +91,31 @@ export function validate(config: Record<string, unknown>) {
   return validatedConfig;
 }
 
-export const envConfig = () => ({
-  port: parseInt(process.env.PORT || '3000', 10),
-  nodeEnv: process.env.NODE_ENV || 'development',
-  databaseUrl: process.env.DATABASE_URL,
-  jwtSecret: process.env.JWT_SECRET,
-  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
-  fromEmail: process.env.FROM_EMAIL || 'noreply@asyncstand.com',
-  smtpHost: process.env.SMTP_HOST || '',
-  smtpPort: parseInt(process.env.SMTP_PORT || '587', 10),
-  smtpUser: process.env.SMTP_USER || '',
-  smtpPass: process.env.SMTP_PASS || '',
-  logLevel: process.env.LOG_LEVEL || 'debug',
-  logPretty: process.env.LOG_PRETTY || 'true',
-  slackClientId: process.env.SLACK_CLIENT_ID || '',
-  slackClientSecret: process.env.SLACK_CLIENT_SECRET || '',
-  slackOauthEnabled: process.env.SLACK_OAUTH_ENABLED === 'true',
-  redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
-  databaseEncryptKey: process.env.DATABASE_ENCRYPT_KEY || '',
-});
+export const envConfig = () => {
+  const ngrokUrl = process.env.NGROK_URL;
+  const baseUrl =
+    ngrokUrl || (process.env.NODE_ENV === 'development' ? 'http://localhost:3001' : '');
+
+  return {
+    port: parseInt(process.env.PORT || '3000', 10),
+    nodeEnv: process.env.NODE_ENV || 'development',
+    databaseUrl: process.env.DATABASE_URL,
+    jwtSecret: process.env.JWT_SECRET,
+    frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+    // Use NGROK_URL if available, otherwise fallback to default
+    appUrl: baseUrl,
+    ngrokUrl: ngrokUrl || '',
+    fromEmail: process.env.FROM_EMAIL || 'noreply@asyncstand.com',
+    smtpHost: process.env.SMTP_HOST || '',
+    smtpPort: parseInt(process.env.SMTP_PORT || '587', 10),
+    smtpUser: process.env.SMTP_USER || '',
+    smtpPass: process.env.SMTP_PASS || '',
+    logLevel: process.env.LOG_LEVEL || 'debug',
+    logPretty: process.env.LOG_PRETTY || 'true',
+    slackClientId: process.env.SLACK_CLIENT_ID || '',
+    slackClientSecret: process.env.SLACK_CLIENT_SECRET || '',
+    slackOauthEnabled: process.env.SLACK_OAUTH_ENABLED === 'true',
+    redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
+    databaseEncryptKey: process.env.DATABASE_ENCRYPT_KEY || '',
+  };
+};

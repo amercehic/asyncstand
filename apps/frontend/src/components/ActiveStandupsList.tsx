@@ -19,6 +19,7 @@ import {
   Copy,
   BarChart3,
   Zap,
+  Send,
 } from 'lucide-react';
 import { toast } from '@/components/ui';
 import { standupsApi } from '@/lib/api';
@@ -235,6 +236,85 @@ export const ActiveStandupsList: React.FC<ActiveStandupsListProps> = ({
   const handleViewAnalytics = () => {
     // TODO: Navigate to analytics page
     toast.info('Analytics view - Coming soon!');
+  };
+
+  const handleRunNow = async () => {
+    try {
+      toast.loading('Creating standup instances for today...', { id: 'run-now' });
+      const result = await standupsApi.triggerStandupForToday();
+
+      if (result.created.length > 0) {
+        toast.success(
+          `Successfully created ${result.created.length} standup instance${result.created.length > 1 ? 's' : ''}!`,
+          { id: 'run-now' }
+        );
+
+        toast.info('Slack messages will be sent at the scheduled time', {
+          duration: 4000,
+        });
+      } else if (result.skipped.length > 0) {
+        toast.warning(
+          `${result.skipped.length} standup instance${result.skipped.length > 1 ? 's' : ''} already exist for today`,
+          { id: 'run-now' }
+        );
+      } else {
+        toast.info('No standups were triggered (may not be scheduled for today)', {
+          id: 'run-now',
+        });
+      }
+    } catch (error) {
+      console.error('Error triggering standup:', error);
+      toast.error('Failed to trigger standup. Please try again.', { id: 'run-now' });
+    }
+  };
+
+  const handleRunNowAndSend = async () => {
+    try {
+      toast.loading('Creating standup instances and sending messages...', { id: 'run-now-send' });
+      const result = await standupsApi.triggerStandupAndSend();
+
+      if (result.created.length > 0) {
+        const successfulMessages = result.messages.filter(m => m.success).length;
+        const failedMessages = result.messages.filter(m => !m.success).length;
+
+        toast.success(
+          `Successfully created ${result.created.length} standup instance${result.created.length > 1 ? 's' : ''}!`,
+          { id: 'run-now-send' }
+        );
+
+        if (successfulMessages > 0) {
+          toast.success(
+            `Sent Slack messages for ${successfulMessages} standup${successfulMessages > 1 ? 's' : ''}!`,
+            {
+              duration: 4000,
+            }
+          );
+        }
+
+        if (failedMessages > 0) {
+          toast.warning(
+            `Failed to send messages for ${failedMessages} standup${failedMessages > 1 ? 's' : ''}`,
+            {
+              duration: 6000,
+            }
+          );
+        }
+      } else if (result.skipped.length > 0) {
+        toast.warning(
+          `${result.skipped.length} standup instance${result.skipped.length > 1 ? 's' : ''} already exist for today`,
+          { id: 'run-now-send' }
+        );
+      } else {
+        toast.info('No standups were triggered (may not be scheduled for today)', {
+          id: 'run-now-send',
+        });
+      }
+    } catch (error) {
+      console.error('Error triggering standup and sending messages:', error);
+      toast.error('Failed to trigger standup and send messages. Please try again.', {
+        id: 'run-now-send',
+      });
+    }
   };
 
   if (isLoading) {
@@ -455,11 +535,20 @@ export const ActiveStandupsList: React.FC<ActiveStandupsListProps> = ({
                       <ModernButton
                         variant="ghost"
                         size="sm"
-                        onClick={() => toast.info('Run now - Coming soon!')}
+                        onClick={handleRunNow}
                         className="text-xs"
                       >
                         <Play className="w-3 h-3 mr-1" />
                         Run Now
+                      </ModernButton>
+                      <ModernButton
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleRunNowAndSend}
+                        className="text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                      >
+                        <Send className="w-3 h-3 mr-1" />
+                        Run + Send
                       </ModernButton>
                     </div>
                   </div>

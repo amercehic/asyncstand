@@ -60,8 +60,10 @@ describe('SlackMessagingService', () => {
           provide: SlackMessageFormatterService,
           useValue: {
             formatStandupReminder: jest.fn(),
+            formatStandupReminderWithMagicLinks: jest.fn(),
             formatStandupSummary: jest.fn(),
             formatFollowupReminder: jest.fn(),
+            formatFollowupReminderWithMagicLinks: jest.fn(),
           },
         },
         {
@@ -356,6 +358,7 @@ describe('SlackMessagingService', () => {
       id: 'instance-123',
       team: {
         name: 'Test Team',
+        orgId: 'org-123',
         channelId: mockChannelId,
         integrationId: mockIntegrationId,
         configs: [{ deliveryType: 'channel' }],
@@ -384,7 +387,7 @@ describe('SlackMessagingService', () => {
           };
         },
       );
-      mockFormatter.formatStandupReminder.mockReturnValue({
+      mockFormatter.formatStandupReminderWithMagicLinks.mockResolvedValue({
         text: 'Standup reminder',
         blocks: [],
       });
@@ -404,6 +407,7 @@ describe('SlackMessagingService', () => {
           team: {
             select: {
               name: true,
+              orgId: true,
               channelId: true,
               integrationId: true,
               configs: {
@@ -416,7 +420,7 @@ describe('SlackMessagingService', () => {
           },
         },
       });
-      expect(mockFormatter.formatStandupReminder).toHaveBeenCalled();
+      expect(mockFormatter.formatStandupReminderWithMagicLinks).toHaveBeenCalled();
       expect(mockPrisma.standupInstance.update).toHaveBeenCalledWith({
         where: { id: 'instance-123' },
         data: { reminderMessageTs: '1234567890.123456' },
@@ -547,6 +551,7 @@ describe('SlackMessagingService', () => {
       createdAt: new Date(),
       team: {
         name: 'Test Team',
+        orgId: 'org-123',
         integrationId: mockIntegrationId,
         channelId: mockChannelId,
       },
@@ -558,18 +563,20 @@ describe('SlackMessagingService', () => {
     };
 
     it('should send followup reminders successfully', async () => {
-      mockPrisma.standupInstance.findFirst.mockResolvedValue(
-        mockInstance as {
-          id: string;
-          team: { name: string; channelId: string; integrationId: string };
-          configSnapshot: {
-            questions: string[];
-            responseTimeoutHours: number;
-            participatingMembers: Array<{ id: string; name: string; platformUserId: string }>;
-          };
-        },
-      );
-      mockFormatter.formatFollowupReminder.mockReturnValue({
+      mockPrisma.standupInstance.findFirst.mockResolvedValue({
+        ...mockInstance,
+        createdAt: new Date('2024-01-01T10:00:00Z'),
+      } as {
+        id: string;
+        createdAt: Date;
+        team: { name: string; orgId: string; channelId: string; integrationId: string };
+        configSnapshot: {
+          questions: string[];
+          responseTimeoutHours: number;
+          participatingMembers: Array<{ id: string; name: string; platformUserId: string }>;
+        };
+      });
+      mockFormatter.formatFollowupReminderWithMagicLinks.mockResolvedValue({
         text: 'Followup reminder',
         blocks: [],
       });

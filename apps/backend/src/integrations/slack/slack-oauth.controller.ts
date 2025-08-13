@@ -124,58 +124,198 @@ export class SlackOauthController {
           <title>AsyncStand - Installation Complete</title>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1">
+          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
           <style>
-            body {
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-              display: flex;
-              justify-content: center;
-              align-items: center;
-              min-height: 100vh;
+            :root {
+              --bg-main: #0f1117;
+              --bg-surface: #1c1f26;
+              --text-main: #f9fafb;
+              --text-dim: #9ca3af;
+              --primary-start: #6366f1;
+              --primary-end: #8b5cf6;
+              --secondary: #10b981;
+              --border: rgba(255, 255, 255, 0.12);
+            }
+            
+            * {
               margin: 0;
-              background-color: #f8f9fa;
+              padding: 0;
+              box-sizing: border-box;
             }
+            
+            body {
+              font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+              background: var(--bg-main);
+              color: var(--text-main);
+              min-height: 100vh;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              padding: 1rem;
+              overflow: hidden;
+            }
+            
             .container {
+              background: var(--bg-surface);
+              border: 1px solid var(--border);
+              border-radius: 24px;
+              padding: 3rem 2rem;
               text-align: center;
-              padding: 2rem;
-              background: white;
-              border-radius: 8px;
-              box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-              max-width: 400px;
+              max-width: 480px;
+              width: 100%;
+              backdrop-filter: blur(12px);
+              box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+              animation: slideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
             }
+            
+            @keyframes slideIn {
+              from {
+                opacity: 0;
+                transform: translateY(30px) scale(0.95);
+              }
+              to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+              }
+            }
+            
             .success-icon {
-              color: #28a745;
-              font-size: 3rem;
-              margin-bottom: 1rem;
+              width: 80px;
+              height: 80px;
+              background: linear-gradient(135deg, var(--secondary), #059669);
+              border-radius: 50%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              margin: 0 auto 2rem;
+              animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) 0.2s both;
             }
+            
+            @keyframes bounceIn {
+              from {
+                opacity: 0;
+                transform: scale(0);
+              }
+              to {
+                opacity: 1;
+                transform: scale(1);
+              }
+            }
+            
+            .checkmark {
+              width: 28px;
+              height: 28px;
+              stroke: white;
+              stroke-width: 3;
+              stroke-linecap: round;
+              stroke-linejoin: round;
+              fill: none;
+              animation: drawCheck 0.8s ease-in-out 0.4s both;
+              stroke-dasharray: 30;
+              stroke-dashoffset: 30;
+            }
+            
+            @keyframes drawCheck {
+              to {
+                stroke-dashoffset: 0;
+              }
+            }
+            
             h1 {
-              color: #2c3e50;
+              font-size: 2rem;
+              font-weight: 700;
               margin-bottom: 1rem;
-              font-size: 1.5rem;
+              background: linear-gradient(135deg, var(--text-main), var(--text-dim));
+              -webkit-background-clip: text;
+              -webkit-text-fill-color: transparent;
+              background-clip: text;
+              animation: fadeInUp 0.5s ease-out 0.3s both;
             }
-            p {
-              color: #6c757d;
-              margin-bottom: 1.5rem;
+            
+            .subtitle {
+              font-size: 1.125rem;
+              color: var(--text-dim);
+              margin-bottom: 2rem;
+              line-height: 1.6;
+              animation: fadeInUp 0.5s ease-out 0.4s both;
             }
+            
             .close-note {
-              font-size: 0.9rem;
-              color: #adb5bd;
+              font-size: 0.875rem;
+              color: var(--text-dim);
+              opacity: 0.7;
+              animation: fadeInUp 0.5s ease-out 0.5s both;
+            }
+            
+            @keyframes fadeInUp {
+              from {
+                opacity: 0;
+                transform: translateY(20px);
+              }
+              to {
+                opacity: 1;
+                transform: translateY(0);
+              }
+            }
+            
+            .pulse-dot {
+              display: inline-block;
+              width: 4px;
+              height: 4px;
+              background: var(--secondary);
+              border-radius: 50%;
+              margin: 0 2px;
+              animation: pulse 1.4s infinite ease-in-out both;
+            }
+            
+            .pulse-dot:nth-child(1) { animation-delay: -0.32s; }
+            .pulse-dot:nth-child(2) { animation-delay: -0.16s; }
+            .pulse-dot:nth-child(3) { animation-delay: 0s; }
+            
+            @keyframes pulse {
+              0%, 80%, 100% { 
+                transform: scale(0);
+                opacity: 0.5;
+              }
+              40% { 
+                transform: scale(1);
+                opacity: 1;
+              }
             }
           </style>
         </head>
         <body>
           <div class="container">
-            <div class="success-icon">✓</div>
+            <div class="success-icon">
+              <svg class="checkmark" viewBox="0 0 24 24">
+                <path d="M20 6L9 17l-5-5"/>
+              </svg>
+            </div>
             <h1>Installation Complete!</h1>
-            <p>AsyncStand has been successfully installed to your Slack workspace.</p>
-            <p class="close-note">This window will close automatically...</p>
+            <p class="subtitle">AsyncStand has been successfully connected to your Slack workspace.</p>
+            <p class="close-note">
+              This window will close automatically
+              <span class="pulse-dot"></span>
+              <span class="pulse-dot"></span>
+              <span class="pulse-dot"></span>
+            </p>
           </div>
           <script>
-            // Auto-close the window after 2 seconds
+            // Notify parent window of success
+            if (window.opener) {
+              window.opener.postMessage({
+                type: 'slack-oauth-callback',
+                success: true,
+                message: 'Integration completed successfully'
+              }, window.location.origin);
+            }
+            
+            // Auto-close the window after 2.5 seconds
             setTimeout(() => {
               if (window.opener) {
                 window.close();
               }
-            }, 2000);
+            }, 2500);
           </script>
         </body>
       </html>
@@ -192,52 +332,194 @@ export class SlackOauthController {
           <title>AsyncStand - Installation Failed</title>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1">
+          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
           <style>
-            body {
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-              display: flex;
-              justify-content: center;
-              align-items: center;
-              min-height: 100vh;
+            :root {
+              --bg-main: #0f1117;
+              --bg-surface: #1c1f26;
+              --text-main: #f9fafb;
+              --text-dim: #9ca3af;
+              --error: #ef4444;
+              --border: rgba(255, 255, 255, 0.12);
+            }
+            
+            * {
               margin: 0;
-              background-color: #f8f9fa;
+              padding: 0;
+              box-sizing: border-box;
             }
+            
+            body {
+              font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+              background: var(--bg-main);
+              color: var(--text-main);
+              min-height: 100vh;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              padding: 1rem;
+              overflow: hidden;
+            }
+            
             .container {
+              background: var(--bg-surface);
+              border: 1px solid var(--border);
+              border-radius: 24px;
+              padding: 3rem 2rem;
               text-align: center;
-              padding: 2rem;
-              background: white;
-              border-radius: 8px;
-              box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-              max-width: 400px;
+              max-width: 480px;
+              width: 100%;
+              backdrop-filter: blur(12px);
+              box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+              animation: slideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
             }
+            
+            @keyframes slideIn {
+              from {
+                opacity: 0;
+                transform: translateY(30px) scale(0.95);
+              }
+              to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+              }
+            }
+            
             .error-icon {
-              color: #dc3545;
-              font-size: 3rem;
-              margin-bottom: 1rem;
+              width: 80px;
+              height: 80px;
+              background: linear-gradient(135deg, var(--error), #dc2626);
+              border-radius: 50%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              margin: 0 auto 2rem;
+              animation: shakeIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) 0.2s both;
             }
+            
+            @keyframes shakeIn {
+              0% {
+                opacity: 0;
+                transform: scale(0) rotate(-10deg);
+              }
+              50% {
+                transform: scale(1.1) rotate(5deg);
+              }
+              100% {
+                opacity: 1;
+                transform: scale(1) rotate(0deg);
+              }
+            }
+            
+            .error-x {
+              width: 28px;
+              height: 28px;
+              stroke: white;
+              stroke-width: 3;
+              stroke-linecap: round;
+              stroke-linejoin: round;
+              fill: none;
+              animation: drawX 0.8s ease-in-out 0.4s both;
+              stroke-dasharray: 20;
+              stroke-dashoffset: 20;
+            }
+            
+            @keyframes drawX {
+              to {
+                stroke-dashoffset: 0;
+              }
+            }
+            
             h1 {
-              color: #2c3e50;
+              font-size: 2rem;
+              font-weight: 700;
               margin-bottom: 1rem;
-              font-size: 1.5rem;
+              background: linear-gradient(135deg, var(--text-main), var(--text-dim));
+              -webkit-background-clip: text;
+              -webkit-text-fill-color: transparent;
+              background-clip: text;
+              animation: fadeInUp 0.5s ease-out 0.3s both;
             }
-            p {
-              color: #6c757d;
+            
+            .subtitle {
+              font-size: 1.125rem;
+              color: var(--text-dim);
               margin-bottom: 1.5rem;
+              line-height: 1.6;
+              animation: fadeInUp 0.5s ease-out 0.4s both;
             }
+            
             .close-note {
-              font-size: 0.9rem;
-              color: #adb5bd;
+              font-size: 0.875rem;
+              color: var(--text-dim);
+              opacity: 0.7;
+              animation: fadeInUp 0.5s ease-out 0.5s both;
+            }
+            
+            @keyframes fadeInUp {
+              from {
+                opacity: 0;
+                transform: translateY(20px);
+              }
+              to {
+                opacity: 1;
+                transform: translateY(0);
+              }
+            }
+            
+            .pulse-dot {
+              display: inline-block;
+              width: 4px;
+              height: 4px;
+              background: var(--error);
+              border-radius: 50%;
+              margin: 0 2px;
+              animation: pulse 1.4s infinite ease-in-out both;
+            }
+            
+            .pulse-dot:nth-child(1) { animation-delay: -0.32s; }
+            .pulse-dot:nth-child(2) { animation-delay: -0.16s; }
+            .pulse-dot:nth-child(3) { animation-delay: 0s; }
+            
+            @keyframes pulse {
+              0%, 80%, 100% { 
+                transform: scale(0);
+                opacity: 0.5;
+              }
+              40% { 
+                transform: scale(1);
+                opacity: 1;
+              }
             }
           </style>
         </head>
         <body>
           <div class="container">
-            <div class="error-icon">✗</div>
+            <div class="error-icon">
+              <svg class="error-x" viewBox="0 0 24 24">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </div>
             <h1>Installation Failed</h1>
-            <p>${message}</p>
-            <p class="close-note">Please try again or contact support if the problem persists.</p>
+            <p class="subtitle">${message}</p>
+            <p class="close-note">
+              Please try again or contact support if the problem persists
+              <span class="pulse-dot"></span>
+              <span class="pulse-dot"></span>
+              <span class="pulse-dot"></span>
+            </p>
           </div>
           <script>
+            // Notify parent window of error
+            if (window.opener) {
+              window.opener.postMessage({
+                type: 'slack-oauth-callback',
+                success: false,
+                message: '${message.replace(/'/g, "\\'")}'
+              }, window.location.origin);
+            }
+            
             // Auto-close the window after 5 seconds
             setTimeout(() => {
               if (window.opener) {

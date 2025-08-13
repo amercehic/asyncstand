@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { Block, KnownBlock } from '@slack/web-api';
 import { SlackModalView } from '@/integrations/slack/slack-messaging.service';
+import { AnswerCollectionService } from '@/standups/answer-collection.service';
+import { ConfigService } from '@nestjs/config';
 
 interface StandupInstance {
   id: string;
@@ -39,6 +41,10 @@ interface ParticipationStats {
 
 @Injectable()
 export class SlackMessageFormatterService {
+  constructor(
+    private readonly answerCollectionService: AnswerCollectionService,
+    private readonly configService: ConfigService,
+  ) {}
   formatStandupReminder(
     instance: StandupInstance,
     teamName: string,
@@ -116,6 +122,139 @@ export class SlackMessageFormatterService {
         ],
       },
     ];
+
+    return { text, blocks };
+  }
+
+  async formatStandupReminderWithMagicLinks(
+    instance: StandupInstance,
+    teamName: string,
+    orgId: string,
+  ): Promise<{ text: string; blocks: (Block | KnownBlock)[] }> {
+    const { questions, responseTimeoutHours } = instance.configSnapshot;
+    const deadline = new Date(Date.now() + responseTimeoutHours * 60 * 60 * 1000);
+    const deadlineTime = deadline.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+
+    const baseUrl = this.configService.get<string>('appUrl') || 'http://localhost:3000';
+
+    // Generate magic tokens for all participating members
+    let magicTokens: Array<{
+      memberId: string;
+      memberName: string;
+      token: string;
+      magicLink: string;
+    }> = [];
+
+    try {
+      const tokens = await this.answerCollectionService.generateMagicTokensForInstance(
+        instance.id,
+        orgId,
+      );
+      magicTokens = tokens.map((tokenInfo) => ({
+        memberId: tokenInfo.teamMemberId,
+        memberName: tokenInfo.memberName,
+        token: tokenInfo.magicToken,
+        magicLink: `${baseUrl}/standup/submit?token=${tokenInfo.magicToken}`,
+      }));
+    } catch {
+      // If magic token generation fails, fall back to regular reminder
+      return this.formatStandupReminder(instance, teamName);
+    }
+
+    const text = `🌅 Daily Standup Time - ${teamName}`;
+
+    const blocks: (Block | KnownBlock)[] = [
+      {
+        type: 'header',
+        text: {
+          type: 'plain_text',
+          text: `🌅 Daily Standup Time - ${teamName}`,
+        },
+      },
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `*Today's Questions:*`,
+        },
+      },
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: questions.map((q, i) => `${i + 1}. ${q}`).join('\n'),
+        },
+      },
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `⏰ *Deadline:* ${deadlineTime} (${responseTimeoutHours} hours remaining)\n👥 *Waiting for:* ${instance.configSnapshot.participatingMembers.length} team members`,
+        },
+      },
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `🌐 *Quick Submit:* Click your personalized link below to submit responses directly in your browser`,
+        },
+      },
+    ];
+
+    // Add personalized magic links for each participating member
+    if (magicTokens.length > 0) {
+      const linkText = magicTokens
+        .map((token) => `• <${token.magicLink}|Submit for ${token.memberName}>`)
+        .join('\n');
+
+      blocks.push({
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: linkText,
+        },
+      });
+    }
+
+    blocks.push(
+      {
+        type: 'actions',
+        elements: [
+          {
+            type: 'button',
+            text: {
+              type: 'plain_text',
+              text: '📝 Submit Response',
+            },
+            style: 'primary',
+            action_id: 'submit_standup_response',
+            value: instance.id,
+          },
+          {
+            type: 'button',
+            text: {
+              type: 'plain_text',
+              text: '⏭️ Skip Today',
+            },
+            action_id: 'skip_standup',
+            value: instance.id,
+          },
+        ],
+      },
+      {
+        type: 'context',
+        elements: [
+          {
+            type: 'mrkdwn',
+            text: `Use the buttons above, type \`/standup submit\`, or click your magic link`,
+          },
+        ],
+      },
+    );
 
     return { text, blocks };
   }
@@ -314,6 +453,107 @@ export class SlackMessageFormatterService {
         ],
       },
     ];
+
+    return { text, blocks };
+  }
+
+  async formatFollowupReminderWithMagicLinks(
+    instance: StandupInstance,
+    timeRemaining: string,
+    missingMembers: Array<{ id: string; name: string; platformUserId: string }>,
+    orgId: string,
+  ): Promise<{ text: string; blocks: (Block | KnownBlock)[] }> {
+    const baseUrl = this.configService.get<string>('appUrl') || 'http://localhost:3000';
+
+    // Generate magic tokens for missing members only
+    let magicTokens: Array<{
+      memberId: string;
+      memberName: string;
+      token: string;
+      magicLink: string;
+    }> = [];
+
+    try {
+      const tokens = await this.answerCollectionService.generateMagicTokensForInstance(
+        instance.id,
+        orgId,
+      );
+      // Filter to only include tokens for missing members
+      const missingMemberIds = new Set(missingMembers.map((m) => m.id));
+      magicTokens = tokens
+        .filter((tokenInfo) => missingMemberIds.has(tokenInfo.teamMemberId))
+        .map((tokenInfo) => ({
+          memberId: tokenInfo.teamMemberId,
+          memberName: tokenInfo.memberName,
+          token: tokenInfo.magicToken,
+          magicLink: `${baseUrl}/standup/submit?token=${tokenInfo.magicToken}`,
+        }));
+    } catch {
+      // If magic token generation fails, fall back to regular reminder
+      return this.formatFollowupReminder(
+        instance,
+        timeRemaining,
+        missingMembers.map((m) => m.name),
+      );
+    }
+
+    const text = '⏰ Standup Reminder';
+
+    const blocks: (Block | KnownBlock)[] = [
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `⏰ *Standup Reminder!*\n\nStill waiting for responses from:\n${missingMembers.map((member) => `• ${member.name}`).join('\n')}`,
+        },
+      },
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `Please reply to the standup thread above! *${timeRemaining}* remaining.`,
+        },
+      },
+    ];
+
+    // Add personalized magic links for missing members
+    if (magicTokens.length > 0) {
+      blocks.push({
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `🌐 *Quick Submit Links:*`,
+        },
+      });
+
+      const linkText = magicTokens
+        .map((token) => `• <${token.magicLink}|Submit for ${token.memberName}>`)
+        .join('\n');
+
+      blocks.push({
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: linkText,
+        },
+      });
+    }
+
+    blocks.push({
+      type: 'actions',
+      elements: [
+        {
+          type: 'button',
+          text: {
+            type: 'plain_text',
+            text: '📝 Submit Now',
+          },
+          style: 'primary',
+          action_id: 'submit_standup_response',
+          value: instance.id,
+        },
+      ],
+    });
 
     return { text, blocks };
   }

@@ -681,4 +681,110 @@ describe('SlackApiService', () => {
       expect(mockPrisma.channel.update).not.toHaveBeenCalled();
     });
   });
+
+  describe('joinChannel', () => {
+    beforeEach(() => {
+      mockSlackOauthService.getDecryptedToken.mockResolvedValue(mockBotToken);
+    });
+
+    it('should successfully join a channel', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ ok: true }),
+      });
+
+      const result = await service.joinChannel(mockIntegrationId, 'C1234567890');
+
+      expect(result).toEqual({ success: true });
+      expect(global.fetch).toHaveBeenCalledWith('https://slack.com/api/conversations.join', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${mockBotToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ channel: 'C1234567890' }),
+      });
+    });
+
+    it('should handle bot already in channel', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ ok: false, error: 'already_in_channel' }),
+      });
+
+      const result = await service.joinChannel(mockIntegrationId, 'C1234567890');
+
+      expect(result).toEqual({ success: true });
+    });
+
+    it('should handle private channel error', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ ok: false, error: 'channel_not_found' }),
+      });
+
+      const result = await service.joinChannel(mockIntegrationId, 'C1234567890');
+
+      expect(result).toEqual({
+        success: false,
+        error:
+          'Private channels require manual bot invitation. Please use /invite @AsyncStand in the channel.',
+      });
+    });
+
+    it('should handle is_private error', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ ok: false, error: 'is_private' }),
+      });
+
+      const result = await service.joinChannel(mockIntegrationId, 'C1234567890');
+
+      expect(result).toEqual({
+        success: false,
+        error:
+          'Private channels require manual bot invitation. Please use /invite @AsyncStand in the channel.',
+      });
+    });
+
+    it('should handle generic API errors', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ ok: false, error: 'invalid_channel' }),
+      });
+
+      const result = await service.joinChannel(mockIntegrationId, 'C1234567890');
+
+      expect(result).toEqual({
+        success: false,
+        error: 'Slack API error: invalid_channel',
+      });
+    });
+
+    it('should handle HTTP errors', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+      });
+
+      const result = await service.joinChannel(mockIntegrationId, 'C1234567890');
+
+      expect(result).toEqual({
+        success: false,
+        error: 'Slack API error: 500 Internal Server Error',
+      });
+    });
+
+    it('should handle missing bot token', async () => {
+      mockSlackOauthService.getDecryptedToken.mockResolvedValue(null);
+
+      const result = await service.joinChannel(mockIntegrationId, 'C1234567890');
+
+      expect(result).toEqual({
+        success: false,
+        error: 'Bot token not found or could not be decrypted',
+      });
+    });
+  });
 });

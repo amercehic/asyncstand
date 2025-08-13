@@ -41,6 +41,11 @@ const IntegrationDetailsPage = React.lazy(() =>
 const StandupDetailsPage = React.lazy(() =>
   import('@/pages/StandupDetailsPage').then(module => ({ default: module.StandupDetailsPage }))
 );
+const MagicTokenStandupPage = React.lazy(() =>
+  import('@/pages/MagicTokenStandupPage').then(module => ({
+    default: module.MagicTokenStandupPage,
+  }))
+);
 
 // Loading component
 const PageLoader = () => (
@@ -170,6 +175,15 @@ const router = createBrowserRouter([
               <StandupDetailsPage />
             </Suspense>
           </ProtectedRoute>
+        ),
+        errorElement: <ErrorPage />,
+      },
+      {
+        path: 'standup/submit',
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <MagicTokenStandupPage />
+          </Suspense>
         ),
         errorElement: <ErrorPage />,
       },
