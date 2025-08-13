@@ -943,7 +943,7 @@ export const TeamDetailPage = React.memo(() => {
         isLoading={isRemovingMember}
         loadingText="Removing..."
         variant="danger"
-        icon={({ className }) => (
+        icon={React.memo(({ className }: { className?: string }) => (
           <motion.div
             animate={{
               rotate: [0, -10, 10, -10, 10, 0],
@@ -958,7 +958,7 @@ export const TeamDetailPage = React.memo(() => {
           >
             <Trash2 className={className} />
           </motion.div>
-        )}
+        ))}
       />
     </div>
   );

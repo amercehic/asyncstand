@@ -14,7 +14,7 @@ export interface ConfirmationModalProps {
   isLoading?: boolean;
   loadingText?: string;
   variant?: 'danger' | 'warning' | 'info';
-  icon?: LucideIcon;
+  icon?: LucideIcon | React.ComponentType<{ className?: string }>;
 }
 
 export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
