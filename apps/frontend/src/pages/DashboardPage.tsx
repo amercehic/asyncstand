@@ -85,8 +85,8 @@ export const DashboardPage = React.memo(() => {
 
                 totalCompletionRate += Math.min(100, teamCompletionScore);
               }
-            } catch (error) {
-              console.log(`Failed to fetch standups for team ${team.id}:`, error);
+            } catch {
+              // Failed to fetch standups for team - continuing without blocking dashboard
             }
           }
         }

@@ -185,7 +185,7 @@ export const StandupConfigPage = React.memo(() => {
             errorData?.code === 'STANDUP_CONFIG_NOT_FOUND' ||
             (errorData?.detail && errorData.detail.includes('STANDUP_CONFIG_NOT_FOUND'))
           ) {
-            console.log('No existing standup config found, user can create one');
+            // No existing standup config found, user can create one
           } else {
             console.error('Error fetching standup config:', configError);
             toast.error('Failed to load existing standup configuration');

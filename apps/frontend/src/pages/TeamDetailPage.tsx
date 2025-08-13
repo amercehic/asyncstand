@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ModernButton, ConfirmationModal, Dropdown } from '@/components/ui';
+import { ModernButton, ConfirmationModal } from '@/components/ui';
 import {
   ArrowLeft,
   Settings,
@@ -19,8 +19,6 @@ import {
   Activity,
   TrendingUp,
   BarChart3,
-  Filter,
-  SortAsc,
   Target,
   ChevronRight,
   Zap,
@@ -45,8 +43,6 @@ export const TeamDetailPage = React.memo(() => {
   const [memberToRemove, setMemberToRemove] = useState<Team['members'][0] | null>(null);
   const [isRemovingMember, setIsRemovingMember] = useState(false);
   const [showStats, setShowStats] = useState(true);
-  const [filterBy, setFilterBy] = useState<'all' | 'active' | 'paused'>('all');
-  const [sortBy, setSortBy] = useState<'name' | 'created' | 'activity'>('activity');
 
   const fetchTeamData = useCallback(async () => {
     if (!teamId) return;
@@ -73,7 +69,7 @@ export const TeamDetailPage = React.memo(() => {
           errorData?.code === 'STANDUP_CONFIG_NOT_FOUND' ||
           (errorData?.detail && errorData.detail.includes('STANDUP_CONFIG_NOT_FOUND'))
         ) {
-          console.log('No standup config found for team, showing empty state');
+          // No standup config found for team, showing empty state
         } else {
           console.error('Error fetching standups:', standupsError);
           toast.error('Failed to load standup configurations');
@@ -117,43 +113,6 @@ export const TeamDetailPage = React.memo(() => {
   useEffect(() => {
     fetchTeamData();
   }, [fetchTeamData]);
-
-  // Filter and sort standups (not currently used but ready for implementation)
-  const filteredAndSortedStandups = useMemo(() => {
-    let filtered = standups;
-
-    // Apply filter
-    switch (filterBy) {
-      case 'active':
-        filtered = filtered.filter(s => s.isActive);
-        break;
-      case 'paused':
-        filtered = filtered.filter(s => !s.isActive);
-        break;
-    }
-
-    // Apply sort
-    const sorted = [...filtered].sort((a, b) => {
-      switch (sortBy) {
-        case 'name':
-          return a.name.localeCompare(b.name);
-        case 'created':
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        case 'activity':
-          // Active standups come first
-          if (a.isActive && !b.isActive) return -1;
-          if (!a.isActive && b.isActive) return 1;
-          return 0;
-        default:
-          return 0;
-      }
-    });
-
-    return sorted;
-  }, [standups, filterBy, sortBy]);
-
-  // Use filteredAndSortedStandups for future filtering implementation
-  console.log('Filtered standups:', filteredAndSortedStandups.length);
 
   const activeStandups = standups.filter(s => s.isActive);
   const pausedStandups = standups.filter(s => !s.isActive);
@@ -404,47 +363,6 @@ export const TeamDetailPage = React.memo(() => {
             </div>
           </div>
         </motion.div>
-
-        {/* Filter and Sort Bar */}
-        {standups.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="flex flex-wrap gap-3 mb-6"
-          >
-            <Dropdown
-              trigger={
-                <ModernButton variant="secondary" size="sm">
-                  <Filter className="w-4 h-4 mr-2" />
-                  Filter:{' '}
-                  {filterBy === 'all'
-                    ? 'All'
-                    : filterBy.charAt(0).toUpperCase() + filterBy.slice(1)}
-                </ModernButton>
-              }
-              items={[
-                { label: 'All Standups', onClick: () => setFilterBy('all') },
-                { label: 'Active', onClick: () => setFilterBy('active') },
-                { label: 'Paused', onClick: () => setFilterBy('paused') },
-              ]}
-            />
-
-            <Dropdown
-              trigger={
-                <ModernButton variant="secondary" size="sm">
-                  <SortAsc className="w-4 h-4 mr-2" />
-                  Sort: {sortBy.charAt(0).toUpperCase() + sortBy.slice(1)}
-                </ModernButton>
-              }
-              items={[
-                { label: 'Activity', onClick: () => setSortBy('activity') },
-                { label: 'Name', onClick: () => setSortBy('name') },
-                { label: 'Created', onClick: () => setSortBy('created') },
-              ]}
-            />
-          </motion.div>
-        )}
 
         <div className="flex gap-6">
           {/* Statistics Sidebar */}
