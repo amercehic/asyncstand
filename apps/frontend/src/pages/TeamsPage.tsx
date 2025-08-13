@@ -550,14 +550,14 @@ export const TeamsPage = React.memo(() => {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="flex items-center justify-between mb-6"
+          className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6"
         >
           <div>
             <motion.h1
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
-              className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent"
+              className="text-2xl sm:text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent"
             >
               Your Teams
             </motion.h1>
@@ -565,7 +565,7 @@ export const TeamsPage = React.memo(() => {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
-              className="text-muted-foreground text-lg"
+              className="text-muted-foreground text-base sm:text-lg"
             >
               Manage your teams and collaborate on async standups.
             </motion.p>
@@ -574,33 +574,40 @@ export const TeamsPage = React.memo(() => {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, delay: 0.3 }}
-            className="flex gap-3"
+            className="flex flex-wrap gap-2 sm:gap-3"
           >
             <ModernButton
               variant="ghost"
               onClick={() => setShowStats(!showStats)}
-              className="group"
+              className="group flex-1 sm:flex-none"
+              size="sm"
               title={showStats ? 'Hide statistics sidebar' : 'Show statistics sidebar'}
             >
               <BarChart3 className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
-              <span className="hidden sm:inline">{showStats ? 'Hide' : 'Show'} Stats</span>
+              <span className="sm:inline">{showStats ? 'Hide' : 'Show'} Stats</span>
               {showStats ? (
                 <ChevronLeft className="w-3 h-3 ml-1 group-hover:-translate-x-0.5 transition-transform" />
               ) : (
                 <ChevronRight className="w-3 h-3 ml-1 group-hover:translate-x-0.5 transition-transform" />
               )}
             </ModernButton>
-            <ModernButton variant="secondary" onClick={handleJoinTeam} className="group">
+            <ModernButton
+              variant="secondary"
+              onClick={handleJoinTeam}
+              className="group flex-1 sm:flex-none"
+              size="sm"
+            >
               <Users className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
-              Join Team
+              <span className="sm:inline">Join Team</span>
             </ModernButton>
             <ModernButton
               variant="primary"
               onClick={() => setIsCreateModalOpen(true)}
-              className="group shadow-lg shadow-primary/20"
+              className="group shadow-lg shadow-primary/20 flex-1 sm:flex-none"
+              size="sm"
             >
               <Plus className="w-4 h-4 mr-2 group-hover:rotate-90 transition-transform" />
-              Create Team
+              <span className="sm:inline">Create Team</span>
             </ModernButton>
           </motion.div>
         </motion.div>

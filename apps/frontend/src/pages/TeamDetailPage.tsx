@@ -13,7 +13,7 @@ import {
   Users,
   Link2,
   Slack,
-  Minus,
+  Trash2,
   Building2,
   Calendar,
   Activity,
@@ -822,11 +822,11 @@ export const TeamDetailPage = React.memo(() => {
                             <ModernButton
                               variant="ghost"
                               size="sm"
-                              className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-700 hover:bg-red-50"
+                              className="h-8 w-8 p-0 text-red-500/70 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors border border-red-200/50 hover:border-red-300 dark:border-red-800/30 dark:hover:border-red-700/50 rounded-md"
                               onClick={() => setMemberToRemove(member)}
-                              title="Remove from team"
+                              title="Remove member from team"
                             >
-                              <Minus className="w-4 h-4" />
+                              <Trash2 className="w-3.5 h-3.5" />
                             </ModernButton>
                           </div>
                         </motion.div>
@@ -943,7 +943,22 @@ export const TeamDetailPage = React.memo(() => {
         isLoading={isRemovingMember}
         loadingText="Removing..."
         variant="danger"
-        icon={Minus}
+        icon={({ className }) => (
+          <motion.div
+            animate={{
+              rotate: [0, -10, 10, -10, 10, 0],
+              scale: [1, 1.1, 1, 1.1, 1],
+            }}
+            transition={{
+              duration: 2,
+              repeat: Infinity,
+              repeatDelay: 1,
+              ease: 'easeInOut',
+            }}
+          >
+            <Trash2 className={className} />
+          </motion.div>
+        )}
       />
     </div>
   );
