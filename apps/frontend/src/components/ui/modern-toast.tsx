@@ -130,6 +130,15 @@ export const modernToast = {
     // Filter out our custom properties that shouldn't go to Sonner
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { action, richContent, icon, progress, sound, ...sonnerOptions } = otherOptions;
+
+    // Fallback for test environments or when custom is not available
+    if (!sonnerToast.custom) {
+      return (
+        sonnerToast.success?.(message) ||
+        (typeof sonnerToast === 'function' ? sonnerToast(message) : '')
+      );
+    }
+
     return sonnerToast.custom(
       () => <ToastContent type="success" message={message} options={options} />,
       {
@@ -144,6 +153,15 @@ export const modernToast = {
     const { persistent, ...otherOptions } = options || {};
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { action, richContent, icon, progress, sound, ...sonnerOptions } = otherOptions;
+
+    // Fallback for test environments or when custom is not available
+    if (!sonnerToast.custom) {
+      return (
+        sonnerToast.error?.(message) ||
+        (typeof sonnerToast === 'function' ? sonnerToast(message) : '')
+      );
+    }
+
     return sonnerToast.custom(
       () => <ToastContent type="error" message={message} options={options} />,
       {
@@ -158,6 +176,15 @@ export const modernToast = {
     const { persistent, ...otherOptions } = options || {};
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { action, richContent, icon, progress, sound, ...sonnerOptions } = otherOptions;
+
+    // Fallback for test environments or when custom is not available
+    if (!sonnerToast.custom) {
+      return (
+        sonnerToast.warning?.(message) ||
+        (typeof sonnerToast === 'function' ? sonnerToast(message) : '')
+      );
+    }
+
     return sonnerToast.custom(
       () => <ToastContent type="warning" message={message} options={options} />,
       {
@@ -172,6 +199,15 @@ export const modernToast = {
     const { persistent, ...otherOptions } = options || {};
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { action, richContent, icon, progress, sound, ...sonnerOptions } = otherOptions;
+
+    // Fallback for test environments or when custom is not available
+    if (!sonnerToast.custom) {
+      return (
+        sonnerToast.info?.(message) ||
+        (typeof sonnerToast === 'function' ? sonnerToast(message) : '')
+      );
+    }
+
     return sonnerToast.custom(
       () => <ToastContent type="info" message={message} options={options} />,
       {
@@ -186,6 +222,15 @@ export const modernToast = {
     const { persistent, ...otherOptions } = options || {};
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { action, richContent, icon, progress, sound, ...sonnerOptions } = otherOptions;
+
+    // Fallback for test environments or when custom is not available
+    if (!sonnerToast.custom) {
+      return (
+        sonnerToast.loading?.(message) ||
+        (typeof sonnerToast === 'function' ? sonnerToast(message) : '')
+      );
+    }
+
     return sonnerToast.custom(
       () => <ToastContent type="loading" message={message} options={options} />,
       {
@@ -198,6 +243,14 @@ export const modernToast = {
 
   // Specialized toast types
   favorite: (message: string, isFavorited: boolean) => {
+    // Fallback for test environments
+    if (!sonnerToast.custom) {
+      return (
+        sonnerToast.success?.(message) ||
+        (typeof sonnerToast === 'function' ? sonnerToast(message) : '')
+      );
+    }
+
     return modernToast.success(message, {
       icon: isFavorited ? (
         <Star className="w-5 h-5 text-green-500 fill-current" />
@@ -214,6 +267,14 @@ export const modernToast = {
   },
 
   teamCreated: (teamName: string) => {
+    // Fallback for test environments
+    if (!sonnerToast.custom) {
+      return (
+        sonnerToast.success?.('Team created successfully!') ||
+        (typeof sonnerToast === 'function' ? sonnerToast('Team created successfully!') : '')
+      );
+    }
+
     return modernToast.success('Team created successfully!', {
       richContent: {
         title: 'Team Created',
@@ -231,6 +292,14 @@ export const modernToast = {
   },
 
   memberAdded: (memberName: string, teamName: string) => {
+    // Fallback for test environments
+    if (!sonnerToast.custom) {
+      return (
+        sonnerToast.success?.('Member added successfully!') ||
+        (typeof sonnerToast === 'function' ? sonnerToast('Member added successfully!') : '')
+      );
+    }
+
     return modernToast.success('Member added successfully!', {
       richContent: {
         title: 'New Team Member',
@@ -242,6 +311,14 @@ export const modernToast = {
   },
 
   integrationConnected: (platform: string) => {
+    // Fallback for test environments
+    if (!sonnerToast.custom) {
+      return (
+        sonnerToast.success?.('Integration connected!') ||
+        (typeof sonnerToast === 'function' ? sonnerToast('Integration connected!') : '')
+      );
+    }
+
     return modernToast.success('Integration connected!', {
       richContent: {
         title: `${platform} Connected`,
@@ -259,6 +336,14 @@ export const modernToast = {
   },
 
   standupCompleted: (completionRate: number) => {
+    // Fallback for test environments
+    if (!sonnerToast.custom) {
+      return (
+        sonnerToast.success?.('Standup completed!') ||
+        (typeof sonnerToast === 'function' ? sonnerToast('Standup completed!') : '')
+      );
+    }
+
     return modernToast.success('Standup completed!', {
       richContent: {
         title: 'Daily Standup Complete',
