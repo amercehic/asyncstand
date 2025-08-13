@@ -1,6 +1,6 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@/test/utils';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui';
 import React from 'react';
 
 import { TeamSettingsModal } from '@/components/TeamSettingsModal';
@@ -19,8 +19,26 @@ vi.mock('sonner', () => ({
   toast: {
     success: vi.fn(),
     error: vi.fn(),
+    custom: vi.fn(),
   },
   Toaster: () => null,
+}));
+
+vi.mock('@/components/ui/modern-toast', () => ({
+  modernToast: {
+    loading: vi.fn(),
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+  },
+  toast: {
+    loading: vi.fn(),
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+  },
 }));
 
 describe('TeamSettingsModal', () => {

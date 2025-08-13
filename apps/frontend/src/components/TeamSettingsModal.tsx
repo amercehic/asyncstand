@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui';
 import { ModernButton, FormField } from '@/components/ui';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -255,7 +255,7 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+          className="fixed inset-0 bg-black/50 flex items-center justify-center p-2 sm:p-4 z-50"
           onClick={handleClose}
         >
           <motion.div
@@ -263,11 +263,11 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ duration: 0.2 }}
-            className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col"
+            className="bg-card rounded-xl sm:rounded-2xl border border-border shadow-2xl w-full max-w-[95vw] sm:max-w-lg max-h-[95vh] flex flex-col"
             onClick={e => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="p-6 border-b border-border">
+            <div className="p-4 sm:p-6 border-b border-border">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
@@ -292,7 +292,7 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-              <div className="p-6 overflow-y-auto flex-1">
+              <div className="p-4 sm:p-6 overflow-y-auto flex-1">
                 <div className="space-y-6">
                   {/* Team Name */}
                   <div>
@@ -476,7 +476,7 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
               </div>
 
               {/* Actions - Fixed at bottom */}
-              <div className="flex gap-3 p-6 pt-4 border-t border-border bg-background rounded-b-2xl">
+              <div className="flex flex-col sm:flex-row gap-3 p-4 sm:p-6 pt-4 border-t border-border bg-background rounded-b-xl sm:rounded-b-2xl">
                 <ModernButton
                   type="button"
                   variant="ghost"

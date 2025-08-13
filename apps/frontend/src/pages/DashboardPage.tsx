@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { ModernButton } from '@/components/ui';
 import { Users, Calendar, Settings, Plus, Bell } from 'lucide-react';
 import { useAuth } from '@/contexts';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui';
 import { useTeams } from '@/contexts/TeamsContext';
 import { standupsApi } from '@/lib/api';
 import type { Standup } from '@/types';
@@ -85,8 +85,8 @@ export const DashboardPage = React.memo(() => {
 
                 totalCompletionRate += Math.min(100, teamCompletionScore);
               }
-            } catch (error) {
-              console.log(`Failed to fetch standups for team ${team.id}:`, error);
+            } catch {
+              // Failed to fetch standups for team - continuing without blocking dashboard
             }
           }
         }

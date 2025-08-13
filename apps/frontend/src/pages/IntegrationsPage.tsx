@@ -13,7 +13,7 @@ import {
   Users,
   MessageSquare,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui';
 import { type SlackIntegration } from '@/lib/api';
 import { startSlackOAuth } from '@/utils/slack-oauth';
 import { useAuth, useIntegrations } from '@/contexts';
@@ -139,8 +139,8 @@ export const IntegrationsPage = React.memo(() => {
           className="flex items-center justify-between mb-8"
         >
           <div>
-            <h1 className="text-3xl font-bold mb-2">Integrations</h1>
-            <p className="text-muted-foreground text-lg">
+            <h1 className="text-2xl sm:text-3xl font-bold mb-2">Integrations</h1>
+            <p className="text-muted-foreground text-base sm:text-lg">
               Connect your workspace tools to AsyncStand for seamless standup management.
             </p>
           </div>
@@ -151,13 +151,13 @@ export const IntegrationsPage = React.memo(() => {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.1 }}
-          className="bg-card rounded-2xl p-8 border border-border mb-8"
+          className="bg-card rounded-2xl p-6 sm:p-8 border border-border mb-8"
         >
-          <h2 className="text-xl font-semibold mb-4">Available Platforms</h2>
+          <h2 className="text-lg sm:text-xl font-semibold mb-4">Available Platforms</h2>
           <p className="text-muted-foreground mb-6">
             Connect your workspace tools to get started with async standups.
           </p>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
             {integrations.length > 0 ? (
               <ModernButton
                 variant="secondary"

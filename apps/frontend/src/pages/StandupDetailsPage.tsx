@@ -13,7 +13,7 @@ import {
   User,
   Eye,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui';
 import { standupsApi } from '@/lib/api';
 import type { ActiveStandup } from '@/lib/api';
 

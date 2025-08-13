@@ -14,7 +14,7 @@ import {
   MessageSquare,
   Send,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui';
 import { teamsApi, standupsApi } from '@/lib/api';
 import type { Team } from '@/types';
 import { StandupDeliveryType } from '@/types/backend';
@@ -185,7 +185,7 @@ export const StandupConfigPage = React.memo(() => {
             errorData?.code === 'STANDUP_CONFIG_NOT_FOUND' ||
             (errorData?.detail && errorData.detail.includes('STANDUP_CONFIG_NOT_FOUND'))
           ) {
-            console.log('No existing standup config found, user can create one');
+            // No existing standup config found, user can create one
           } else {
             console.error('Error fetching standup config:', configError);
             toast.error('Failed to load existing standup configuration');
@@ -309,9 +309,35 @@ export const StandupConfigPage = React.memo(() => {
       await standupsApi.createStandup(teamId!, standupData);
       toast.success('Standup configuration saved successfully');
       navigate(`/teams/${teamId}`);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating standup:', error);
-      toast.error('Failed to save standup configuration');
+
+      // Handle specific error cases with better messaging
+      const axiosError = error as {
+        response?: {
+          data?: {
+            code?: string;
+            title?: string;
+            message?: string;
+            response?: { code?: string; message?: string };
+          };
+        };
+      };
+
+      const errorCode =
+        axiosError?.response?.data?.code || axiosError?.response?.data?.response?.code;
+      const errorMessage =
+        axiosError?.response?.data?.title ||
+        axiosError?.response?.data?.message ||
+        axiosError?.response?.data?.response?.message;
+
+      if (errorCode === 'STANDUP_CONFIG_ALREADY_EXISTS') {
+        toast.error(
+          errorMessage || 'A standup configuration with this name already exists for this team'
+        );
+      } else {
+        toast.error('Failed to save standup configuration');
+      }
     } finally {
       setIsSaving(false);
     }

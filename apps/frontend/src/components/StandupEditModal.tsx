@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ModernButton } from '@/components/ui';
 import { X, Plus, Trash2, Calendar, Clock, Users, Save, MessageSquare, Send } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui';
 import { standupsApi } from '@/lib/api';
 import type { StandupConfig } from '@/types';
 import { StandupDeliveryType } from '@/types/backend';
@@ -262,10 +262,10 @@ export const StandupEditModal: React.FC<StandupEditModalProps> = ({
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative w-full max-w-2xl my-4 mx-4 bg-background rounded-2xl shadow-2xl border border-border"
+          className="relative w-full max-w-[95vw] sm:max-w-2xl my-2 sm:my-4 mx-2 sm:mx-4 bg-background rounded-xl sm:rounded-2xl shadow-2xl border border-border max-h-[95vh] flex flex-col"
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-border">
+          <div className="flex items-center justify-between p-4 sm:p-6 border-b border-border">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-to-r from-primary to-primary/80 rounded-lg flex items-center justify-center">
                 <Calendar className="w-5 h-5 text-white" />
@@ -281,7 +281,10 @@ export const StandupEditModal: React.FC<StandupEditModalProps> = ({
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          <form
+            onSubmit={handleSubmit}
+            className="p-4 sm:p-6 space-y-4 sm:space-y-6 flex-1 overflow-y-auto"
+          >
             {/* Name */}
             <div>
               <label className="block text-sm font-medium mb-2">Standup Name</label>
@@ -496,7 +499,7 @@ export const StandupEditModal: React.FC<StandupEditModalProps> = ({
             </div>
 
             {/* Actions */}
-            <div className="flex gap-3 pt-4">
+            <div className="flex flex-col sm:flex-row gap-3 pt-4">
               <ModernButton type="button" variant="secondary" onClick={onClose} className="flex-1">
                 Cancel
               </ModernButton>

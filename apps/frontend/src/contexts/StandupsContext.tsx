@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useCallback, useMemo } from 'react';
 import { standupsApi, type Standup, type StandupInstance, type StandupResponse } from '@/lib/api';
 import { normalizeApiError } from '@/utils';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import type { AxiosError } from 'axios';
 
@@ -228,7 +228,7 @@ export function StandupsProvider({ children }: StandupsProviderProps) {
       ) {
         // For standup config not found, just set empty standups without showing error
         dispatch({ type: 'SET_STANDUPS', payload: [] });
-        console.log('No standup config found for team, showing empty state');
+        // No standup config found for team, showing empty state
       } else {
         // For other errors, show the error message
         const { message } = normalizeApiError(error, 'Failed to load standups');

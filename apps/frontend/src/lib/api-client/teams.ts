@@ -27,7 +27,7 @@ function mapDetailsToTeam(details: TeamDetailsResponse): Team {
     members: Array.isArray(details.members)
       ? details.members.map(m => ({
           id: String(m.id),
-          email: '',
+          email: m.platformUserId ? `@${m.platformUserId}` : '',
           name: String(m.name),
           role: 'member' as const,
           createdAt: new Date(details.createdAt).toISOString(),
@@ -98,5 +98,21 @@ export const teamsApi = {
   async getAvailableMembers(): Promise<AvailableMembersResponse> {
     const response = await api.get('/teams/slack/members');
     return response.data as AvailableMembersResponse;
+  },
+
+  async assignPlatformMembers(teamId: string, platformUserIds: string[]): Promise<void> {
+    // Use existing single member endpoint in parallel
+    const assignPromises = platformUserIds.map(slackUserId =>
+      api.post(`/teams/${teamId}/members`, { slackUserId })
+    );
+    await Promise.all(assignPromises);
+  },
+
+  async removePlatformMembers(teamId: string, teamMemberIds: string[]): Promise<void> {
+    // Use existing single member endpoint in parallel
+    const removePromises = teamMemberIds.map(teamMemberId =>
+      api.delete(`/teams/${teamId}/members/${teamMemberId}`)
+    );
+    await Promise.all(removePromises);
   },
 };
