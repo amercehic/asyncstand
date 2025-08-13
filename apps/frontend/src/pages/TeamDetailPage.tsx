@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { ModernButton, ConfirmationModal } from '@/components/ui';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ModernButton, ConfirmationModal, Dropdown } from '@/components/ui';
 import {
   ArrowLeft,
   Settings,
@@ -14,6 +14,16 @@ import {
   Link2,
   Slack,
   Minus,
+  Building2,
+  Calendar,
+  Activity,
+  TrendingUp,
+  BarChart3,
+  Filter,
+  SortAsc,
+  Target,
+  ChevronRight,
+  Zap,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { teamsApi, standupsApi } from '@/lib/api';
@@ -34,6 +44,9 @@ export const TeamDetailPage = React.memo(() => {
   const [isMemberAssignmentOpen, setIsMemberAssignmentOpen] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState<Team['members'][0] | null>(null);
   const [isRemovingMember, setIsRemovingMember] = useState(false);
+  const [showStats, setShowStats] = useState(true);
+  const [filterBy, setFilterBy] = useState<'all' | 'active' | 'paused'>('all');
+  const [sortBy, setSortBy] = useState<'name' | 'created' | 'activity'>('activity');
 
   useEffect(() => {
     const fetchTeamData = async () => {
@@ -105,6 +118,86 @@ export const TeamDetailPage = React.memo(() => {
     fetchTeamData();
   }, [teamId]);
 
+  // Filter and sort standups (not currently used but ready for implementation)
+  const filteredAndSortedStandups = useMemo(() => {
+    let filtered = standups;
+
+    // Apply filter
+    switch (filterBy) {
+      case 'active':
+        filtered = filtered.filter(s => s.isActive);
+        break;
+      case 'paused':
+        filtered = filtered.filter(s => !s.isActive);
+        break;
+    }
+
+    // Apply sort
+    const sorted = [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case 'name':
+          return a.name.localeCompare(b.name);
+        case 'created':
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        case 'activity':
+          // Active standups come first
+          if (a.isActive && !b.isActive) return -1;
+          if (!a.isActive && b.isActive) return 1;
+          return 0;
+        default:
+          return 0;
+      }
+    });
+
+    return sorted;
+  }, [standups, filterBy, sortBy]);
+
+  // Use filteredAndSortedStandups for future filtering implementation
+  console.log('Filtered standups:', filteredAndSortedStandups.length);
+
+  const activeStandups = standups.filter(s => s.isActive);
+  const pausedStandups = standups.filter(s => !s.isActive);
+
+  // Calculate team stats
+  const teamStats = useMemo(() => {
+    if (!team) return null;
+
+    const totalStandups = standups.length;
+    const activeCount = activeStandups.length;
+    const pausedCount = pausedStandups.length;
+    const hasIntegration = !!team.channel;
+    const memberCount = team.members.length;
+
+    // Calculate health score
+    let healthScore = 50;
+    if (hasIntegration) healthScore += 20;
+    if (activeCount > 0) healthScore += 20;
+    healthScore += Math.min(10, memberCount * 2);
+    healthScore = Math.min(100, healthScore);
+
+    // Calculate completion rate from recent instances
+    const completionRate =
+      recentInstances.length > 0
+        ? Math.round(
+            (recentInstances.filter(i => i.status === 'completed').length /
+              recentInstances.length) *
+              100
+          )
+        : 0;
+
+    return {
+      totalStandups,
+      activeCount,
+      pausedCount,
+      hasIntegration,
+      memberCount,
+      healthScore,
+      integrationName: team.channel?.name,
+      completionRate,
+      recentActivity: recentInstances.length,
+    };
+  }, [team, standups, activeStandups, pausedStandups, recentInstances]);
+
   const handleTeamSettingsSuccess = async () => {
     // Refetch team data after successful update
     if (teamId) {
@@ -164,6 +257,17 @@ export const TeamDetailPage = React.memo(() => {
     setMemberToRemove(null);
   };
 
+  const getStatusIcon = (status: StandupInstance['status']) => {
+    switch (status) {
+      case 'completed':
+        return <CheckCircle className="w-4 h-4 text-green-500" />;
+      case 'active':
+        return <Clock className="w-4 h-4 text-blue-500" />;
+      default:
+        return <AlertCircle className="w-4 h-4 text-yellow-500" />;
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -192,17 +296,6 @@ export const TeamDetailPage = React.memo(() => {
     );
   }
 
-  const getStatusIcon = (status: StandupInstance['status']) => {
-    switch (status) {
-      case 'completed':
-        return <CheckCircle className="w-4 h-4 text-green-500" />;
-      case 'active':
-        return <Clock className="w-4 h-4 text-blue-500" />;
-      default:
-        return <AlertCircle className="w-4 h-4 text-yellow-500" />;
-    }
-  };
-
   return (
     <div className="min-h-screen bg-background">
       <main className="max-w-7xl mx-auto px-6 py-8">
@@ -211,258 +304,570 @@ export const TeamDetailPage = React.memo(() => {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="flex items-center justify-between mb-8"
+          className="mb-6"
         >
-          <div className="flex items-center gap-4">
-            <Link to="/teams">
-              <ModernButton variant="ghost" size="sm">
-                <ArrowLeft className="w-4 h-4" />
-              </ModernButton>
-            </Link>
-            <div>
-              <h1 className="text-3xl font-bold">{team.name}</h1>
-              <p className="text-muted-foreground text-lg">
-                {team.members.length} member{team.members.length !== 1 ? 's' : ''}
-              </p>
+          <button
+            onClick={() => navigate('/teams')}
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-4 group"
+          >
+            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+            Back to Teams
+          </button>
+          <div className="flex items-start justify-between">
+            <div className="flex items-start gap-4">
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                className="w-16 h-16 bg-gradient-to-br from-primary to-primary/80 rounded-xl flex items-center justify-center shadow-lg shadow-primary/20"
+              >
+                <Building2 className="w-8 h-8 text-white" />
+              </motion.div>
+              <div>
+                <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+                  {team.name}
+                </h1>
+                {team.description && (
+                  <p className="text-muted-foreground text-lg mb-3">{team.description}</p>
+                )}
+                <div className="flex items-center gap-4">
+                  {team.channel ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 bg-green-500 rounded flex items-center justify-center">
+                        <Slack className="w-3.5 h-3.5 text-white" />
+                      </div>
+                      <span className="text-sm font-medium text-green-600">
+                        #{team.channel.name}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 bg-muted border border-dashed border-muted-foreground/30 rounded flex items-center justify-center">
+                        <Link2 className="w-3.5 h-3.5 text-muted-foreground" />
+                      </div>
+                      <span className="text-sm text-muted-foreground">No integration</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">
+                      {team.members.length} members
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">
+                      {activeStandups.length} active standups
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-          <div className="flex gap-3">
-            <ModernButton
-              variant="secondary"
-              onClick={() => setIsTeamSettingsOpen(true)}
-              data-testid="team-settings-button"
-            >
-              <Settings className="w-4 h-4 mr-2" />
-              Settings
-            </ModernButton>
-            <Link to={`/teams/${teamId}/standups/create`}>
-              <ModernButton variant="primary" data-testid="create-standup-button">
-                <Plus className="w-4 h-4 mr-2" />
-                New Standup
+            <div className="flex gap-3">
+              <ModernButton
+                variant="ghost"
+                onClick={() => setShowStats(!showStats)}
+                className="group"
+              >
+                <BarChart3 className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
+                Stats
               </ModernButton>
-            </Link>
+              <ModernButton
+                variant="secondary"
+                onClick={() => setIsTeamSettingsOpen(true)}
+                className="group"
+              >
+                <Settings className="w-4 h-4 mr-2 group-hover:rotate-90 transition-transform" />
+                Settings
+              </ModernButton>
+              <Link to={`/teams/${teamId}/standups/create`}>
+                <ModernButton variant="primary" className="group shadow-lg shadow-primary/20">
+                  <Plus className="w-4 h-4 mr-2 group-hover:rotate-90 transition-transform" />
+                  Create Standup
+                </ModernButton>
+              </Link>
+            </div>
           </div>
         </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Team Description */}
-            {team.description && (
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.1 }}
-                className="bg-card rounded-2xl p-6 border border-border"
+        {/* Filter and Sort Bar */}
+        {standups.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="flex flex-wrap gap-3 mb-6"
+          >
+            <Dropdown
+              trigger={
+                <ModernButton variant="secondary" size="sm">
+                  <Filter className="w-4 h-4 mr-2" />
+                  Filter:{' '}
+                  {filterBy === 'all'
+                    ? 'All'
+                    : filterBy.charAt(0).toUpperCase() + filterBy.slice(1)}
+                </ModernButton>
+              }
+              items={[
+                { label: 'All Standups', onClick: () => setFilterBy('all') },
+                { label: 'Active', onClick: () => setFilterBy('active') },
+                { label: 'Paused', onClick: () => setFilterBy('paused') },
+              ]}
+            />
+
+            <Dropdown
+              trigger={
+                <ModernButton variant="secondary" size="sm">
+                  <SortAsc className="w-4 h-4 mr-2" />
+                  Sort: {sortBy.charAt(0).toUpperCase() + sortBy.slice(1)}
+                </ModernButton>
+              }
+              items={[
+                { label: 'Activity', onClick: () => setSortBy('activity') },
+                { label: 'Name', onClick: () => setSortBy('name') },
+                { label: 'Created', onClick: () => setSortBy('created') },
+              ]}
+            />
+          </motion.div>
+        )}
+
+        <div className="flex gap-6">
+          {/* Statistics Sidebar */}
+          <AnimatePresence>
+            {showStats && teamStats && (
+              <motion.aside
+                initial={{ opacity: 0, x: -20, width: 0 }}
+                animate={{ opacity: 1, x: 0, width: 280 }}
+                exit={{ opacity: 0, x: -20, width: 0 }}
+                transition={{ duration: 0.3 }}
+                className="hidden lg:block"
               >
-                <h2 className="text-xl font-semibold mb-4">About</h2>
-                <p className="text-muted-foreground">{team.description}</p>
-              </motion.div>
-            )}
+                <div className="sticky top-4 space-y-3">
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-3">
+                    Team Overview
+                  </h3>
 
-            {/* Team Integration Info */}
-            {team.channel && (
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.15 }}
-                className="bg-card rounded-2xl p-6 border border-border"
-              >
-                <h2 className="text-xl font-semibold mb-4">Integration</h2>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-green-600 rounded-lg flex items-center justify-center">
-                    <span className="text-white font-bold text-sm">#</span>
-                  </div>
-                  <div>
-                    <p className="font-medium">#{team.channel.name}</p>
-                    <p className="text-sm text-muted-foreground">Slack channel</p>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {/* Active Standups */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-            >
-              <ActiveStandupsList teamId={teamId} showHeader={true} showCreateButton={false} />
-            </motion.div>
-
-            {/* Recent Activity */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-              className="bg-card rounded-2xl p-6 border border-border"
-            >
-              <h2 className="text-xl font-semibold mb-6">Recent Activity</h2>
-
-              {recentInstances.length > 0 ? (
-                <div className="space-y-3">
-                  {recentInstances.map(instance => {
-                    const standup = standups.find(s => s.id === instance.configId);
-                    return (
-                      <div
-                        key={instance.id}
-                        className="flex items-center gap-4 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors cursor-pointer"
-                        onClick={() => navigate(`/standups/${instance.id}`)}
+                  {/* Team Health */}
+                  <div className="bg-card rounded-lg border border-border p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm text-muted-foreground">Team Health</span>
+                      <span
+                        className={`text-sm font-bold ${
+                          teamStats.healthScore > 70
+                            ? 'text-green-500'
+                            : teamStats.healthScore > 40
+                              ? 'text-yellow-500'
+                              : 'text-red-500'
+                        }`}
                       >
-                        {getStatusIcon(instance.status)}
-                        <div className="flex-1">
-                          <p className="font-medium">{standup?.name || 'Unknown Standup'}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {instance.responses.length}/{instance.participants.length} responses •{' '}
-                            {instance.date}
-                          </p>
-                        </div>
-                        <span
-                          className={`text-xs px-2 py-1 rounded-full capitalize ${
-                            instance.status === 'completed'
-                              ? 'bg-green-100 text-green-800'
-                              : instance.status === 'active'
-                                ? 'bg-blue-100 text-blue-800'
-                                : 'bg-yellow-100 text-yellow-800'
-                          }`}
-                        >
-                          {instance.status}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <Clock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">No recent activity</p>
-                </div>
-              )}
-            </motion.div>
-          </div>
+                        {teamStats.healthScore}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${teamStats.healthScore}%` }}
+                        transition={{ duration: 1 }}
+                        className={`h-full rounded-full ${
+                          teamStats.healthScore > 70
+                            ? 'bg-green-500'
+                            : teamStats.healthScore > 40
+                              ? 'bg-yellow-500'
+                              : 'bg-red-500'
+                        }`}
+                      />
+                    </div>
+                  </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Team Members */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-              className="bg-card rounded-2xl p-6 border border-border"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-lg font-semibold">Team Members</h3>
-                  <span className="text-sm text-muted-foreground">({team.members.length})</span>
-                </div>
-                <div className="flex gap-2">
-                  <ModernButton
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsMemberAssignmentOpen(true)}
-                    title="Assign platform members to this team"
-                  >
-                    <UserPlus className="w-4 h-4 mr-1" />
-                    Assign
-                  </ModernButton>
-                  <ModernButton
-                    variant="outline"
-                    size="sm"
-                    onClick={() => toast.info('Invite external members - Coming soon!')}
-                    title="Invite external members via email"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </ModernButton>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                {team.members.length > 0 ? (
-                  team.members.map(member => (
-                    <div
-                      key={member.id}
-                      className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/30 transition-colors"
-                    >
-                      <div className="w-10 h-10 bg-gradient-to-r from-primary to-primary/80 rounded-full flex items-center justify-center flex-shrink-0">
-                        <span className="text-white font-medium text-sm">
-                          {member.name.charAt(0).toUpperCase()}
-                        </span>
+                  {/* Quick Stats */}
+                  <div className="space-y-2">
+                    <div className="bg-card rounded-lg border border-border p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-muted-foreground">Members</span>
+                        <span className="text-lg font-bold">{teamStats.memberCount}</span>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="font-medium truncate">{member.name}</p>
-                          {getPlatformIcon()}
-                        </div>
-                        <p className="text-sm text-muted-foreground truncate">
-                          {member.email || 'Team member'}
-                        </p>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-muted-foreground">Total Standups</span>
+                        <span className="text-lg font-bold">{teamStats.totalStandups}</span>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        {member.role === 'admin' && (
-                          <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
-                            Admin
-                          </span>
-                        )}
-                        <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                          Active
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Active</span>
+                        <span className="text-lg font-bold text-green-500">
+                          {teamStats.activeCount}
                         </span>
-
-                        <ModernButton
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 border border-red-200 hover:border-red-300"
-                          onClick={() => setMemberToRemove(member)}
-                          title="Remove from team"
-                        >
-                          <Minus className="w-4 h-4" />
-                        </ModernButton>
                       </div>
                     </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8">
-                    <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <h4 className="text-lg font-medium mb-2">No team members</h4>
-                    <p className="text-muted-foreground mb-4">
-                      Get started by assigning platform members from your workspace
-                    </p>
-                    <ModernButton
-                      variant="primary"
-                      size="sm"
-                      onClick={() => setIsMemberAssignmentOpen(true)}
+
+                    {/* Completion Rate */}
+                    <div className="bg-card rounded-lg border border-border p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-muted-foreground">Completion Rate</span>
+                        <span
+                          className={`text-sm font-bold ${
+                            teamStats.completionRate > 70
+                              ? 'text-green-500'
+                              : teamStats.completionRate > 40
+                                ? 'text-yellow-500'
+                                : 'text-red-500'
+                          }`}
+                        >
+                          {teamStats.completionRate}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${teamStats.completionRate}%` }}
+                          transition={{ duration: 1, delay: 0.2 }}
+                          className={`h-full rounded-full ${
+                            teamStats.completionRate > 70
+                              ? 'bg-green-500'
+                              : teamStats.completionRate > 40
+                                ? 'bg-yellow-500'
+                                : 'bg-red-500'
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Integration Status */}
+                    <div className="bg-card rounded-lg border border-border p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        {teamStats.hasIntegration ? (
+                          <>
+                            <Slack className="w-4 h-4 text-green-500" />
+                            <span className="text-sm font-medium">Slack Connected</span>
+                          </>
+                        ) : (
+                          <>
+                            <Link2 className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-sm font-medium">No Integration</span>
+                          </>
+                        )}
+                      </div>
+                      {teamStats.hasIntegration && (
+                        <span className="text-xs text-muted-foreground">
+                          #{teamStats.integrationName}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Activity Indicator */}
+                    <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-lg border border-primary/20 p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Activity className="w-4 h-4 text-primary" />
+                        <span className="text-sm font-medium text-primary">Activity Level</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3, 4, 5].map(level => (
+                          <div
+                            key={level}
+                            className={`h-4 w-1 rounded-full ${
+                              level <= Math.ceil(teamStats.healthScore / 20)
+                                ? 'bg-primary'
+                                : 'bg-primary/20'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.aside>
+            )}
+          </AnimatePresence>
+
+          {/* Main Content */}
+          <div className="flex-1">
+            {/* Stats Cards */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8"
+            >
+              <motion.div
+                whileHover={{ y: -2, scale: 1.02 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                className="bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-950/30 dark:to-blue-900/20 rounded-lg p-4 border border-blue-200/60 dark:border-blue-800/40 shadow-md shadow-blue-500/10 hover:shadow-lg hover:shadow-blue-500/20 transition-shadow group relative overflow-hidden"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-400/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
+                      <Users className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
+                  </div>
+                  <p className="text-2xl font-bold text-foreground mb-0.5">{team.members.length}</p>
+                  <p className="text-xs text-muted-foreground font-medium">Team Members</p>
+                </div>
+              </motion.div>
+
+              <motion.div
+                whileHover={{ y: -2, scale: 1.02 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                className="bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-950/30 dark:to-emerald-900/20 rounded-lg p-4 border border-emerald-200/60 dark:border-emerald-800/40 shadow-md shadow-emerald-500/10 hover:shadow-lg hover:shadow-emerald-500/20 transition-shadow group relative overflow-hidden"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-400/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
+                      <Calendar className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                  </div>
+                  <p className="text-2xl font-bold text-foreground mb-0.5">
+                    {activeStandups.length}
+                  </p>
+                  <p className="text-xs text-muted-foreground font-medium">
+                    Active Standups{' '}
+                    {pausedStandups.length > 0 && `(${pausedStandups.length} paused)`}
+                  </p>
+                </div>
+              </motion.div>
+
+              <motion.div
+                whileHover={{ y: -2, scale: 1.02 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                className={`bg-gradient-to-br ${
+                  team.channel
+                    ? 'from-green-50 to-green-100/50 dark:from-green-950/30 dark:to-green-900/20 border-green-200/60 dark:border-green-800/40 shadow-green-500/10 hover:shadow-green-500/20'
+                    : 'from-yellow-50 to-yellow-100/50 dark:from-yellow-950/30 dark:to-yellow-900/20 border-yellow-200/60 dark:border-yellow-800/40 shadow-yellow-500/10 hover:shadow-yellow-500/20'
+                } rounded-lg p-4 border shadow-md hover:shadow-lg transition-shadow group relative overflow-hidden`}
+              >
+                <div
+                  className={`absolute inset-0 bg-gradient-to-br ${
+                    team.channel ? 'from-green-400/5' : 'from-yellow-400/5'
+                  } to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300`}
+                />
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-2">
+                    <div
+                      className={`w-10 h-10 bg-gradient-to-br ${
+                        team.channel
+                          ? 'from-green-500 to-green-600'
+                          : 'from-yellow-500 to-yellow-600'
+                      } rounded-lg flex items-center justify-center shadow-md group-hover:scale-105 transition-transform`}
                     >
-                      <UserPlus className="w-4 h-4 mr-2" />
-                      Assign Members
+                      {team.channel ? (
+                        <Slack className="w-5 h-5 text-white" />
+                      ) : (
+                        <Link2 className="w-5 h-5 text-white" />
+                      )}
+                    </div>
+                    <div
+                      className={`w-1.5 h-1.5 ${
+                        team.channel ? 'bg-green-500' : 'bg-yellow-500'
+                      } rounded-full animate-pulse`}
+                    />
+                  </div>
+                  <p className="text-2xl font-bold text-foreground mb-0.5">
+                    {team.channel ? 'Connected' : 'Not Connected'}
+                  </p>
+                  {team.channel ? (
+                    <p className="text-xs text-muted-foreground font-medium">
+                      #{team.channel.name}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground font-medium">Set up integration</p>
+                  )}
+                </div>
+              </motion.div>
+            </motion.div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Main Content Area */}
+              <div className="lg:col-span-2 space-y-8">
+                {/* Active Standups */}
+                <motion.div
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.2 }}
+                >
+                  <ActiveStandupsList teamId={teamId} showHeader={true} showCreateButton={false} />
+                </motion.div>
+
+                {/* Recent Activity */}
+                <motion.div
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.3 }}
+                  className="bg-card rounded-xl border border-border p-6"
+                >
+                  <h2 className="text-xl font-semibold mb-6">Recent Activity</h2>
+
+                  {recentInstances.length > 0 ? (
+                    <div className="space-y-3">
+                      {recentInstances.map(instance => {
+                        const standup = standups.find(s => s.id === instance.configId);
+                        return (
+                          <motion.div
+                            key={instance.id}
+                            whileHover={{ x: 4 }}
+                            className="flex items-center gap-4 p-3 rounded-lg border border-border hover:bg-muted/50 transition-all cursor-pointer group"
+                            onClick={() => navigate(`/standups/${instance.id}`)}
+                          >
+                            {getStatusIcon(instance.status)}
+                            <div className="flex-1">
+                              <p className="font-medium group-hover:text-primary transition-colors">
+                                {standup?.name || 'Unknown Standup'}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                {instance.responses.length}/{instance.participants.length} responses
+                                • {instance.date}
+                              </p>
+                            </div>
+                            <span
+                              className={`text-xs px-2 py-1 rounded-full capitalize ${
+                                instance.status === 'completed'
+                                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                                  : instance.status === 'active'
+                                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+                                    : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                              }`}
+                            >
+                              {instance.status}
+                            </span>
+                            <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Clock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground">No recent activity</p>
+                    </div>
+                  )}
+                </motion.div>
+              </div>
+
+              {/* Sidebar */}
+              <div className="space-y-6">
+                {/* Team Members */}
+                <motion.div
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.1 }}
+                  className="bg-card rounded-xl border border-border p-6"
+                >
+                  <div className="flex items-start justify-between mb-6">
+                    <div>
+                      <h3 className="text-lg font-semibold mb-1">Team Members</h3>
+                      <span className="text-sm text-muted-foreground">
+                        {team.members.length} member{team.members.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    <div className="flex gap-2 ml-4">
+                      <ModernButton
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsMemberAssignmentOpen(true)}
+                        title="Assign platform members to this team"
+                      >
+                        <UserPlus className="w-4 h-4 mr-1" />
+                        Assign
+                      </ModernButton>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    {team.members.length > 0 ? (
+                      team.members.map(member => (
+                        <motion.div
+                          key={member.id}
+                          whileHover={{ x: 2 }}
+                          className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/30 transition-all group"
+                        >
+                          <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center flex-shrink-0">
+                            <span className="text-white font-medium text-sm">
+                              {member.name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <p className="font-medium truncate">{member.name}</p>
+                              {getPlatformIcon()}
+                            </div>
+                            <p className="text-sm text-muted-foreground truncate">
+                              {member.email || 'Team member'}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            {member.role === 'admin' && (
+                              <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
+                                Admin
+                              </span>
+                            )}
+                            <ModernButton
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => setMemberToRemove(member)}
+                              title="Remove from team"
+                            >
+                              <Minus className="w-4 h-4" />
+                            </ModernButton>
+                          </div>
+                        </motion.div>
+                      ))
+                    ) : (
+                      <div className="text-center py-8">
+                        <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                        <h4 className="text-lg font-medium mb-2">No team members</h4>
+                        <p className="text-muted-foreground mb-4">
+                          Get started by assigning platform members
+                        </p>
+                        <ModernButton
+                          variant="primary"
+                          size="sm"
+                          onClick={() => setIsMemberAssignmentOpen(true)}
+                        >
+                          <UserPlus className="w-4 h-4 mr-2" />
+                          Assign Members
+                        </ModernButton>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+
+                {/* Quick Actions */}
+                <motion.div
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.2 }}
+                  className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl border border-primary/20 p-6"
+                >
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Zap className="w-5 h-5 text-primary" />
+                    Quick Actions
+                  </h3>
+                  <div className="space-y-2">
+                    <Link to={`/teams/${teamId}/standups/create`} className="block">
+                      <ModernButton variant="outline" className="w-full justify-start">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create New Standup
+                      </ModernButton>
+                    </Link>
+                    <ModernButton
+                      variant="outline"
+                      className="w-full justify-start"
+                      onClick={() => toast.info('Export feature coming soon!')}
+                    >
+                      <Target className="w-4 h-4 mr-2" />
+                      Export Team Report
+                    </ModernButton>
+                    <ModernButton
+                      variant="outline"
+                      className="w-full justify-start"
+                      onClick={() => toast.info('Analytics feature coming soon!')}
+                    >
+                      <TrendingUp className="w-4 h-4 mr-2" />
+                      View Analytics
                     </ModernButton>
                   </div>
-                )}
+                </motion.div>
               </div>
-            </motion.div>
-
-            {/* Quick Stats */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="bg-card rounded-2xl p-6 border border-border"
-            >
-              <h3 className="text-lg font-semibold mb-6">Team Stats</h3>
-
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Active Standups</span>
-                  <span className="font-semibold">{standups.filter(s => s.isActive).length}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">This Week</span>
-                  <span className="font-semibold">{recentInstances.length}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Completion Rate</span>
-                  <span className="font-semibold text-green-600">85%</span>
-                </div>
-              </div>
-            </motion.div>
+            </div>
           </div>
         </div>
       </main>
