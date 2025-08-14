@@ -143,19 +143,76 @@ export const DashboardPage = React.memo(() => {
   return (
     <div className="min-h-screen bg-background">
       <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* Welcome Section */}
+        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.1 }}
-          className="mb-8"
+          transition={{ duration: 0.6 }}
+          className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6"
         >
-          <h1 className="text-3xl font-bold mb-2">
-            Welcome back, {user?.name?.split(' ')[0] || 'there'}! 👋
-          </h1>
-          <p className="text-muted-foreground text-lg">
-            Here's what's happening with your async standups today.
-          </p>
+          <div>
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="relative mb-2"
+            >
+              <motion.h1
+                className="text-2xl sm:text-4xl font-bold text-foreground relative z-10"
+                initial={{ y: 10 }}
+                animate={{ y: 0 }}
+                transition={{ duration: 0.4, delay: 0.2 }}
+              >
+                <span className="relative inline-block">
+                  <span className="bg-gradient-to-r from-foreground via-primary/80 to-foreground bg-clip-text text-transparent font-extrabold">
+                    Welcome back, {user?.name?.split(' ')[0] || 'there'}!
+                  </span>
+                  <span
+                    className="ml-2 text-3xl sm:text-4xl animate-bounce inline-block"
+                    style={{ animationDelay: '1s' }}
+                  >
+                    👋
+                  </span>
+
+                  {/* Sparkle effects */}
+                  <motion.div
+                    className="absolute -top-2 right-8 w-2 h-2 bg-primary rounded-full"
+                    animate={{
+                      scale: [0, 1, 0],
+                      rotate: [0, 180, 360],
+                    }}
+                    transition={{
+                      duration: 2,
+                      delay: 1.2,
+                      repeat: Infinity,
+                      repeatDelay: 3,
+                    }}
+                  ></motion.div>
+                  <motion.div
+                    className="absolute top-0 right-16 w-1 h-1 bg-purple-400 rounded-full"
+                    animate={{
+                      scale: [0, 1, 0],
+                      opacity: [0, 1, 0],
+                    }}
+                    transition={{
+                      duration: 1.5,
+                      delay: 1.8,
+                      repeat: Infinity,
+                      repeatDelay: 4,
+                    }}
+                  ></motion.div>
+                </span>
+              </motion.h1>
+            </motion.div>
+            <motion.p
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="text-muted-foreground text-base sm:text-lg"
+            >
+              Here's what's happening with your async standups today.
+            </motion.p>
+          </div>
         </motion.div>
 
         {/* Stats Grid */}

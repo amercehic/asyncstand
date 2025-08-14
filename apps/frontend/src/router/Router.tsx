@@ -5,44 +5,64 @@ import { ErrorPage } from '@/pages/ErrorPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 
-// Lazy load pages for better performance
+// Lazy load pages with preloading hints for better performance
 const LandingPage = React.lazy(() =>
-  import('@/pages/LandingPage').then(module => ({ default: module.LandingPage }))
+  import(/* webpackChunkName: "auth" */ '@/pages/LandingPage').then(module => ({
+    default: module.LandingPage,
+  }))
 );
 const LoginPage = React.lazy(() =>
-  import('@/pages/LoginPage').then(module => ({ default: module.LoginPage }))
+  import(/* webpackChunkName: "auth" */ '@/pages/LoginPage').then(module => ({
+    default: module.LoginPage,
+  }))
 );
 const SignUpPage = React.lazy(() =>
-  import('@/pages/SignUpPage').then(module => ({ default: module.SignUpPage }))
+  import(/* webpackChunkName: "auth" */ '@/pages/SignUpPage').then(module => ({
+    default: module.SignUpPage,
+  }))
 );
 const DashboardPage = React.lazy(() =>
-  import('@/pages/DashboardPage').then(module => ({ default: module.DashboardPage }))
+  import(/* webpackChunkName: "dashboard" */ '@/pages/DashboardPage').then(module => ({
+    default: module.DashboardPage,
+  }))
 );
 const TeamsPage = React.lazy(() =>
-  import('@/pages/TeamsPage').then(module => ({ default: module.TeamsPage }))
+  import(/* webpackChunkName: "teams" */ '@/pages/TeamsPage').then(module => ({
+    default: module.TeamsPage,
+  }))
 );
 const TeamDetailPage = React.lazy(() =>
-  import('@/pages/TeamDetailPage').then(module => ({ default: module.TeamDetailPage }))
+  import(/* webpackChunkName: "teams" */ '@/pages/TeamDetailPage').then(module => ({
+    default: module.TeamDetailPage,
+  }))
 );
 const StandupConfigPage = React.lazy(() =>
-  import('@/pages/StandupConfigPage').then(module => ({ default: module.StandupConfigPage }))
+  import(/* webpackChunkName: "standups" */ '@/pages/StandupConfigPage').then(module => ({
+    default: module.StandupConfigPage,
+  }))
 );
 const StandupResponsePage = React.lazy(() =>
-  import('@/pages/StandupResponsePage').then(module => ({ default: module.StandupResponsePage }))
+  import(/* webpackChunkName: "standups" */ '@/pages/StandupResponsePage').then(module => ({
+    default: module.StandupResponsePage,
+  }))
 );
 const IntegrationsPage = React.lazy(() =>
-  import('@/pages/IntegrationsPage').then(module => ({ default: module.IntegrationsPage }))
+  import(/* webpackChunkName: "integrations" */ '@/pages/IntegrationsPage').then(module => ({
+    default: module.IntegrationsPage,
+  }))
 );
 const IntegrationDetailsPage = React.lazy(() =>
-  import('@/pages/IntegrationDetailsPage').then(module => ({
+  import(/* webpackChunkName: "integrations" */ '@/pages/IntegrationDetailsPage').then(module => ({
     default: module.IntegrationDetailsPage,
   }))
 );
 const StandupDetailsPage = React.lazy(() =>
-  import('@/pages/StandupDetailsPage').then(module => ({ default: module.StandupDetailsPage }))
+  import(/* webpackChunkName: "standups" */ '@/pages/StandupDetailsPage').then(module => ({
+    default: module.StandupDetailsPage,
+  }))
 );
 const MagicTokenStandupPage = React.lazy(() =>
-  import('@/pages/MagicTokenStandupPage').then(module => ({
+  import(/* webpackChunkName: "magic-token" */ '@/pages/MagicTokenStandupPage').then(module => ({
     default: module.MagicTokenStandupPage,
   }))
 );

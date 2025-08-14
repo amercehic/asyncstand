@@ -208,13 +208,64 @@ export const IntegrationsPage = React.memo(() => {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="flex items-center justify-between mb-8"
+          className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6"
         >
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold mb-2">Integrations</h1>
-            <p className="text-muted-foreground text-base sm:text-lg">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="relative mb-2"
+            >
+              <motion.h1
+                className="text-2xl sm:text-4xl font-bold text-foreground relative z-10"
+                initial={{ y: 10 }}
+                animate={{ y: 0 }}
+                transition={{ duration: 0.4, delay: 0.2 }}
+              >
+                <span className="relative inline-block">
+                  <span className="bg-gradient-to-r from-foreground via-blue-600/80 to-foreground bg-clip-text text-transparent font-extrabold">
+                    Integrations
+                  </span>
+
+                  {/* Connection icon effects */}
+                  <motion.div
+                    className="absolute -top-1 -right-6 w-3 h-3 border-2 border-blue-400 rounded-full"
+                    animate={{
+                      scale: [1, 1.2, 1],
+                      rotate: [0, 90, 180, 270, 360],
+                    }}
+                    transition={{
+                      duration: 3,
+                      delay: 1,
+                      repeat: Infinity,
+                      repeatDelay: 2,
+                    }}
+                  ></motion.div>
+                  <motion.div
+                    className="absolute top-1 -right-2 w-1 h-1 bg-cyan-400 rounded-full"
+                    animate={{
+                      opacity: [0, 1, 0],
+                      scale: [0, 1, 0],
+                    }}
+                    transition={{
+                      duration: 2,
+                      delay: 1.5,
+                      repeat: Infinity,
+                      repeatDelay: 3,
+                    }}
+                  ></motion.div>
+                </span>
+              </motion.h1>
+            </motion.div>
+            <motion.p
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="text-muted-foreground text-base sm:text-lg"
+            >
               Connect your workspace tools to AsyncStand for seamless standup management.
-            </p>
+            </motion.p>
           </div>
         </motion.div>
 

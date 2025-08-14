@@ -49,13 +49,56 @@ export default defineConfig(({ mode }) => {
       sourcemap: !isProduction,
       rollupOptions: {
         output: {
-          // Manual chunk splitting for better caching
-          manualChunks: {
+          // Optimized chunk splitting for better caching and performance
+          manualChunks: id => {
             // Vendor chunks
-            'react-vendor': ['react', 'react-dom'],
-            'router-vendor': ['react-router-dom'],
-            'animation-vendor': ['framer-motion'],
-            'ui-vendor': ['lucide-react', 'sonner', 'clsx', 'tailwind-merge'],
+            if (id.includes('node_modules')) {
+              if (id.includes('react') || id.includes('react-dom')) {
+                return 'react-vendor';
+              }
+              if (id.includes('react-router-dom')) {
+                return 'router-vendor';
+              }
+              if (id.includes('framer-motion')) {
+                return 'animation-vendor';
+              }
+              if (
+                id.includes('lucide-react') ||
+                id.includes('sonner') ||
+                id.includes('clsx') ||
+                id.includes('tailwind-merge')
+              ) {
+                return 'ui-vendor';
+              }
+              if (id.includes('axios')) {
+                return 'http-vendor';
+              }
+              return 'vendor';
+            }
+
+            // Feature-based chunks
+            if (id.includes('/pages/')) {
+              if (id.includes('Login') || id.includes('SignUp') || id.includes('Landing')) {
+                return 'auth';
+              }
+              if (id.includes('Team')) {
+                return 'teams';
+              }
+              if (id.includes('Standup') || id.includes('MagicToken')) {
+                return 'standups';
+              }
+              if (id.includes('Integration')) {
+                return 'integrations';
+              }
+              if (id.includes('Dashboard')) {
+                return 'dashboard';
+              }
+            }
+
+            // Context chunks
+            if (id.includes('/contexts/')) {
+              return 'contexts';
+            }
           },
           // Optimize chunk file names
           chunkFileNames: chunkInfo => {
