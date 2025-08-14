@@ -511,15 +511,8 @@ export class SlackEventService {
         questions: string[];
       };
 
-      // Parse the response - for now, treat the entire message as answers to all questions
-      // In a more sophisticated implementation, we could:
-      // 1. Parse numbered responses (1. answer, 2. answer, etc.)
-      // 2. Use AI to intelligently map text to questions
-      // 3. Have a conversational flow asking questions one by one
-      const answers = configSnapshot.questions.map((_, index) => ({
-        questionIndex: index,
-        text: responseText, // Changed from 'answer' to 'text' to match AnswerItem interface
-      }));
+      // Parse the response intelligently
+      const answers = this.parseStandupResponse(responseText, configSnapshot.questions.length);
 
       this.logger.info('Submitting parsed response', {
         instanceId,
@@ -553,6 +546,146 @@ export class SlackEventService {
         teamMemberId: teamMember.id,
       });
     }
+  }
+
+  /**
+   * Parse standup response text into individual answers
+   * Supports multiple formats:
+   * 1. Numbered lists (1. answer, 2. answer, etc.)
+   * 2. Bullet points (•, -, * answer)
+   * 3. Line-by-line (separate lines = separate answers)
+   * 4. Single response (goes to first question only)
+   */
+  private parseStandupResponse(
+    responseText: string,
+    questionCount: number,
+  ): Array<{ questionIndex: number; text: string }> {
+    const trimmedText = responseText.trim();
+    this.logger.debug('Parsing standup response', {
+      textLength: trimmedText.length,
+      questionCount,
+      preview: trimmedText.substring(0, 100),
+    });
+
+    // Pattern 1: Numbered responses (1. answer, 2. answer, etc.)
+    const numberedMatches = this.extractNumberedAnswers(trimmedText);
+    if (numberedMatches.length > 1 || (numberedMatches.length === 1 && questionCount === 1)) {
+      this.logger.debug('Using numbered response format', {
+        matchCount: numberedMatches.length,
+        questionCount,
+      });
+      return this.formatAnswers(numberedMatches, questionCount, 'numbered');
+    }
+
+    // Pattern 2: Bullet point responses (• answer, - answer, * answer)
+    const bulletMatches = this.extractBulletAnswers(trimmedText);
+    if (bulletMatches.length > 1) {
+      this.logger.debug('Using bullet point response format', {
+        matchCount: bulletMatches.length,
+        questionCount,
+      });
+      return this.formatAnswers(bulletMatches, questionCount, 'bullets');
+    }
+
+    // Pattern 3: Line-by-line responses (split by newlines)
+    const lines = trimmedText
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+
+    // Use line-by-line if we have multiple lines that roughly match question count
+    // and the lines don't look like a single narrative (too many lines suggests single response)
+    if (lines.length > 1 && lines.length <= questionCount && lines.length <= 5) {
+      this.logger.debug('Using line-by-line response format', {
+        lineCount: lines.length,
+        questionCount,
+      });
+      return this.formatAnswers(lines, questionCount, 'lines');
+    }
+
+    // Pattern 4: Single response for first question only
+    this.logger.debug('Using single response format', {
+      responseLength: trimmedText.length,
+      questionCount,
+    });
+    return this.formatAnswers([trimmedText], questionCount, 'single');
+  }
+
+  /**
+   * Extract numbered answers from text (1. answer, 2. answer, etc.)
+   */
+  private extractNumberedAnswers(text: string): string[] {
+    // Match patterns like "1. answer", "2) answer", etc.
+    // This regex captures everything from number to next number or end
+    const numberedRegex = /^\s*(\d+)[.)]\s*(.+?)(?=\n\s*\d+[.)]|$)/gms;
+    const matches: string[] = [];
+    let match;
+
+    while ((match = numberedRegex.exec(text)) !== null) {
+      const answerText = match[2].trim().replace(/\n\s*[•\-*]\s*/g, '\n'); // Clean up bullet points within numbered items
+      if (answerText) {
+        matches.push(answerText);
+      }
+    }
+
+    return matches;
+  }
+
+  /**
+   * Extract bullet point answers from text (• answer, - answer, * answer)
+   */
+  private extractBulletAnswers(text: string): string[] {
+    // Match patterns like "• answer", "- answer", "* answer"
+    // This regex captures everything from bullet to next bullet or end
+    const bulletRegex = /^\s*[•\-*]\s*(.+?)(?=\n\s*[•\-*]|\n\s*\d+[.)]|$)/gms;
+    const matches: string[] = [];
+    let match;
+
+    while ((match = bulletRegex.exec(text)) !== null) {
+      const answerText = match[1].trim();
+      if (answerText) {
+        matches.push(answerText);
+      }
+    }
+
+    return matches;
+  }
+
+  /**
+   * Format extracted answers into the required structure
+   */
+  private formatAnswers(
+    extractedAnswers: string[],
+    questionCount: number,
+    format: string,
+  ): Array<{ questionIndex: number; text: string }> {
+    const answers: Array<{ questionIndex: number; text: string }> = [];
+
+    for (let i = 0; i < questionCount; i++) {
+      let text = '';
+
+      if (format === 'single') {
+        // Single response goes to first question only
+        text = i === 0 ? extractedAnswers[0] || '' : '';
+      } else {
+        // For numbered, bullets, and lines - map directly
+        text = extractedAnswers[i] || '';
+      }
+
+      answers.push({
+        questionIndex: i,
+        text: text.trim(),
+      });
+    }
+
+    this.logger.debug('Formatted answers', {
+      format,
+      inputCount: extractedAnswers.length,
+      outputCount: answers.length,
+      filledAnswers: answers.filter((a) => a.text.length > 0).length,
+    });
+
+    return answers;
   }
 
   private async handleBlockActions(payload: InteractiveComponent): Promise<void> {
