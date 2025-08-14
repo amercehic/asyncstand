@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ModernButton, Tooltip } from '@/components/ui';
 import {
@@ -15,14 +15,15 @@ import {
 } from 'lucide-react';
 import { toast } from '@/components/ui';
 import { integrationsApi, type SlackIntegration } from '@/lib/api';
-import { startSlackOAuth } from '@/utils/slack-oauth';
 import { useAuth, useIntegrations } from '@/contexts';
 import { SlackIcon, TeamsIcon, DiscordIcon } from '@/components/icons/IntegrationIcons';
 import { DeleteIntegrationModal } from '@/components/DeleteIntegrationModal';
+import { IntegrationSuccessDialog } from '@/components/IntegrationSuccessDialog';
 
 export const IntegrationsPage = React.memo(() => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const {
     integrations,
     isLoading,
@@ -34,6 +35,57 @@ export const IntegrationsPage = React.memo(() => {
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [integrationToDelete, setIntegrationToDelete] = useState<SlackIntegration | null>(null);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [successIntegration, setSuccessIntegration] = useState<{
+    name: string;
+    type: 'slack' | 'teams' | 'discord';
+    workspaceName?: string;
+    id?: string;
+  } | null>(null);
+
+  // Handle OAuth callback from URL parameters
+  useEffect(() => {
+    const status = searchParams.get('status');
+    const message = searchParams.get('message');
+
+    if (status === 'success') {
+      // Clear URL params first
+      setSearchParams({});
+
+      // Refresh integrations and show success dialog
+      refreshIntegrations().then(async () => {
+        const latest = await integrationsApi.getSlackIntegrations();
+        const newest = latest[0];
+
+        if (newest) {
+          setSuccessIntegration({
+            name: 'Slack',
+            type: 'slack',
+            workspaceName: newest.externalTeamId,
+            id: newest.id,
+          });
+          setShowSuccessDialog(true);
+
+          // Automatically trigger sync after successful integration
+          try {
+            await syncIntegration(newest.id);
+          } catch (error) {
+            console.error('Auto-sync failed:', error);
+            // Don't show toast error as the integration was successful
+          }
+        } else {
+          toast.success('Integration connected successfully!');
+        }
+      });
+    } else if (status === 'error') {
+      // Clear URL params
+      setSearchParams({});
+
+      // Show error message
+      const errorMessage = message ? decodeURIComponent(message) : 'Integration failed';
+      toast.error(errorMessage);
+    }
+  }, [searchParams, setSearchParams, refreshIntegrations]);
 
   const handleConnectIntegration = async (platform: 'slack' | 'teams' | 'discord' = 'slack') => {
     if (!user?.orgId) {
@@ -46,51 +98,13 @@ export const IntegrationsPage = React.memo(() => {
     switch (platform) {
       case 'slack':
         try {
-          // const previousCount = integrations.length;
+          // Use NGROK_URL if available for OAuth flow, otherwise use relative URL
+          const ngrokUrl = import.meta.env.VITE_NGROK_URL;
+          const baseUrl = ngrokUrl || '';
+          const oauthUrl = `${baseUrl}/slack/oauth/start?orgId=${user.orgId}`;
 
-          // As a robust fallback, just refresh when window regains focus
-          const handleWindowFocus = async () => {
-            try {
-              await refreshIntegrations();
-            } catch {
-              // Ignore refresh errors
-            }
-          };
-          window.addEventListener('focus', handleWindowFocus, { once: true });
-
-          await startSlackOAuth({
-            orgId: user.orgId,
-            onSuccess: async () => {
-              // Proactively refresh and then show a single actionable toast
-              const latest = await integrationsApi.getSlackIntegrations();
-              const newest = latest[0];
-
-              toast.success('Integration connected!', {
-                id: 'slack-connected',
-                richContent: {
-                  title: 'Slack Connected',
-                  description: 'Your team can now receive standup notifications',
-                  metadata: 'Just now',
-                },
-                action: newest
-                  ? {
-                      label: 'Configure',
-                      onClick: () => navigate(`/integrations/${newest.id}`),
-                    }
-                  : undefined,
-              });
-
-              await refreshIntegrations();
-              setTimeout(() => {
-                refreshIntegrations();
-              }, 1200);
-            },
-            onError: error => {
-              toast.error(error);
-              // Ensure we clean up the focus handler on error
-              window.removeEventListener('focus', handleWindowFocus);
-            },
-          });
+          // Navigate directly to OAuth URL instead of using popup
+          window.location.href = oauthUrl;
         } catch (error) {
           console.error('Error during Slack OAuth:', error);
           toast.error('Failed to initiate Slack connection');
@@ -120,6 +134,18 @@ export const IntegrationsPage = React.memo(() => {
     await removeIntegration(integrationId);
     setShowDeleteModal(false);
     setIntegrationToDelete(null);
+  };
+
+  const handleSuccessDialogClose = () => {
+    setShowSuccessDialog(false);
+    setSuccessIntegration(null);
+  };
+
+  const handleConfigure = () => {
+    if (successIntegration?.id) {
+      navigate(`/integrations/${successIntegration.id}`);
+    }
+    handleSuccessDialogClose();
   };
 
   const handleViewIntegration = (integration: SlackIntegration) => {
@@ -392,6 +418,16 @@ export const IntegrationsPage = React.memo(() => {
           }}
           onConfirm={handleDeleteConfirm}
         />
+
+        {/* Success Dialog */}
+        {successIntegration && (
+          <IntegrationSuccessDialog
+            isOpen={showSuccessDialog}
+            onClose={handleSuccessDialogClose}
+            onConfigure={successIntegration.id ? handleConfigure : undefined}
+            integration={successIntegration}
+          />
+        )}
       </main>
     </div>
   );

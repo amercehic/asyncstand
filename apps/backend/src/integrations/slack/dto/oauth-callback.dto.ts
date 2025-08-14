@@ -1,9 +1,10 @@
 import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
 
 export class SlackOauthCallbackDto {
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
-  code!: string;
+  code?: string;
 
   @IsString()
   @IsNotEmpty()
@@ -12,4 +13,8 @@ export class SlackOauthCallbackDto {
   @IsOptional()
   @IsString()
   error?: string;
+
+  @IsOptional()
+  @IsString()
+  error_description?: string;
 }

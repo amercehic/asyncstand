@@ -93,8 +93,34 @@ async function bootstrap() {
 
   // Enable CORS for development
   if (nodeEnv === 'development') {
+    const frontendUrl = configService.get<string>('frontendUrl');
+    const allowedOrigins = [
+      'http://localhost:5173', // Local development
+      'http://localhost:3000', // Alternative local port
+    ];
+
+    // Add configured frontend URL if available
+    if (frontendUrl && !allowedOrigins.includes(frontendUrl)) {
+      allowedOrigins.push(frontendUrl);
+    }
+
     app.enableCors({
-      origin: 'http://localhost:5173', // Frontend URL
+      origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or Postman)
+        if (!origin) return callback(null, true);
+
+        // Check if origin is in allowed list or matches ngrok pattern
+        if (
+          allowedOrigins.includes(origin) ||
+          origin.includes('.ngrok-free.app') ||
+          origin.includes('.ngrok.io') ||
+          origin.includes('.ngrok.app')
+        ) {
+          return callback(null, true);
+        }
+
+        return callback(new Error('Not allowed by CORS'), false);
+      },
       credentials: true,
     });
   }

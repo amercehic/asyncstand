@@ -40,6 +40,7 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5173,
       host: true,
+      allowedHosts: ['localhost', '.ngrok-free.app', '.ngrok.io', '.ngrok.app'],
     },
     build: {
       // Performance optimizations

@@ -77,494 +77,63 @@ export class SlackOauthController {
     try {
       // Handle OAuth error from Slack
       if (query.error) {
-        this.logger.error(`Slack OAuth error: ${query.error}`);
-        return this.renderErrorPage(res, 'OAuth was denied or failed');
+        this.logger.error(`Slack OAuth error: ${query.error} - ${query.error_description}`);
+        const frontendUrl =
+          this.configService.get<string>('frontendUrl') || 'http://localhost:3000';
+        const errorMessage =
+          query.error === 'access_denied'
+            ? 'OAuth was cancelled by user'
+            : 'OAuth was denied or failed';
+        return res.redirect(
+          `${frontendUrl}/integrations?status=error&message=${encodeURIComponent(errorMessage)}`,
+        );
+      }
+
+      // Ensure we have a code to exchange
+      if (!query.code) {
+        this.logger.error('OAuth callback missing authorization code');
+        const frontendUrl =
+          this.configService.get<string>('frontendUrl') || 'http://localhost:3000';
+        const errorMessage = 'Invalid OAuth callback - missing authorization code';
+        return res.redirect(
+          `${frontendUrl}/integrations?status=error&message=${encodeURIComponent(errorMessage)}`,
+        );
       }
 
       // Exchange code for tokens
       await this.slackOauthService.exchangeCode(query.code, query.state, ipAddress);
 
-      // TODO: Replace HTML rendering with frontend redirect approach
-      // Step 1: Instead of rendering HTML here, redirect to frontend with success status:
-      // res.redirect(`${this.configService.get<string>('frontendUrl')}/integrations/slack?status=success`);
-      // This maintains separation of concerns and allows frontend to handle UI consistently
-      // Return success page that auto-closes the modal
-      return this.renderSuccessPage(res);
+      // Redirect to frontend with success status
+      const frontendUrl = this.configService.get<string>('frontendUrl') || 'http://localhost:3000';
+      return res.redirect(`${frontendUrl}/integrations?status=success`);
     } catch (error) {
       this.logger.error('OAuth callback error', {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
 
+      const frontendUrl = this.configService.get<string>('frontendUrl') || 'http://localhost:3000';
+
       if (error instanceof ApiError) {
+        let errorMessage: string;
+
         if (error.getStatus() === HttpStatus.CONFLICT) {
-          return this.renderErrorPage(
-            res,
-            'This Slack workspace is already connected to your organization',
-          );
+          errorMessage = 'This Slack workspace is already connected to your organization';
+        } else if (error.getStatus() === HttpStatus.BAD_REQUEST) {
+          errorMessage = 'Invalid or expired authorization request';
+        } else {
+          errorMessage = error.message || 'Invalid or expired authorization request';
         }
-        if (error.getStatus() === HttpStatus.BAD_REQUEST) {
-          return this.renderErrorPage(res, 'Invalid or expired authorization request');
-        }
-        // Handle other ApiError cases with their specific messages
-        return this.renderErrorPage(
-          res,
-          error.message || 'Invalid or expired authorization request',
+
+        return res.redirect(
+          `${frontendUrl}/integrations?status=error&message=${encodeURIComponent(errorMessage)}`,
         );
       }
 
-      // TODO: Replace with frontend redirect for error handling
-      // res.redirect(`${this.configService.get<string>('frontendUrl')}/integrations/slack?status=error&message=${encodeURIComponent('An unexpected error occurred during installation')}`);
-      return this.renderErrorPage(res, 'An unexpected error occurred during installation');
+      // Redirect to frontend with error status
+      const errorMessage = 'An unexpected error occurred during installation';
+      return res.redirect(
+        `${frontendUrl}/integrations?status=error&message=${encodeURIComponent(errorMessage)}`,
+      );
     }
-  }
-
-  private renderSuccessPage(res: Response): void {
-    const frontendUrl = this.configService.get<string>('frontendUrl') || 'http://localhost:3000';
-    const html = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>AsyncStand - Installation Complete</title>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-          <style>
-            :root {
-              --bg-main: #0f1117;
-              --bg-surface: #1c1f26;
-              --text-main: #f9fafb;
-              --text-dim: #9ca3af;
-              --primary-start: #6366f1;
-              --primary-end: #8b5cf6;
-              --secondary: #10b981;
-              --border: rgba(255, 255, 255, 0.12);
-            }
-            
-            * {
-              margin: 0;
-              padding: 0;
-              box-sizing: border-box;
-            }
-            
-            body {
-              font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-              background: var(--bg-main);
-              color: var(--text-main);
-              min-height: 100vh;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              padding: 1rem;
-              overflow: hidden;
-            }
-            
-            .container {
-              background: var(--bg-surface);
-              border: 1px solid var(--border);
-              border-radius: 24px;
-              padding: 3rem 2rem;
-              text-align: center;
-              max-width: 480px;
-              width: 100%;
-              backdrop-filter: blur(12px);
-              box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-              animation: slideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-            }
-            
-            @keyframes slideIn {
-              from {
-                opacity: 0;
-                transform: translateY(30px) scale(0.95);
-              }
-              to {
-                opacity: 1;
-                transform: translateY(0) scale(1);
-              }
-            }
-            
-            .success-icon {
-              width: 80px;
-              height: 80px;
-              background: linear-gradient(135deg, var(--secondary), #059669);
-              border-radius: 50%;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              margin: 0 auto 2rem;
-              animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) 0.2s both;
-            }
-            
-            @keyframes bounceIn {
-              from {
-                opacity: 0;
-                transform: scale(0);
-              }
-              to {
-                opacity: 1;
-                transform: scale(1);
-              }
-            }
-            
-            .checkmark {
-              width: 28px;
-              height: 28px;
-              stroke: white;
-              stroke-width: 3;
-              stroke-linecap: round;
-              stroke-linejoin: round;
-              fill: none;
-              animation: drawCheck 0.8s ease-in-out 0.4s both;
-              stroke-dasharray: 30;
-              stroke-dashoffset: 30;
-            }
-            
-            @keyframes drawCheck {
-              to {
-                stroke-dashoffset: 0;
-              }
-            }
-            
-            h1 {
-              font-size: 2rem;
-              font-weight: 700;
-              margin-bottom: 1rem;
-              background: linear-gradient(135deg, var(--text-main), var(--text-dim));
-              -webkit-background-clip: text;
-              -webkit-text-fill-color: transparent;
-              background-clip: text;
-              animation: fadeInUp 0.5s ease-out 0.3s both;
-            }
-            
-            .subtitle {
-              font-size: 1.125rem;
-              color: var(--text-dim);
-              margin-bottom: 2rem;
-              line-height: 1.6;
-              animation: fadeInUp 0.5s ease-out 0.4s both;
-            }
-            
-            .close-note {
-              font-size: 0.875rem;
-              color: var(--text-dim);
-              opacity: 0.7;
-              animation: fadeInUp 0.5s ease-out 0.5s both;
-            }
-            
-            @keyframes fadeInUp {
-              from {
-                opacity: 0;
-                transform: translateY(20px);
-              }
-              to {
-                opacity: 1;
-                transform: translateY(0);
-              }
-            }
-            
-            .pulse-dot {
-              display: inline-block;
-              width: 4px;
-              height: 4px;
-              background: var(--secondary);
-              border-radius: 50%;
-              margin: 0 2px;
-              animation: pulse 1.4s infinite ease-in-out both;
-            }
-            
-            .pulse-dot:nth-child(1) { animation-delay: -0.32s; }
-            .pulse-dot:nth-child(2) { animation-delay: -0.16s; }
-            .pulse-dot:nth-child(3) { animation-delay: 0s; }
-            
-            @keyframes pulse {
-              0%, 80%, 100% { 
-                transform: scale(0);
-                opacity: 0.5;
-              }
-              40% { 
-                transform: scale(1);
-                opacity: 1;
-              }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="success-icon">
-              <svg class="checkmark" viewBox="0 0 24 24">
-                <path d="M20 6L9 17l-5-5"/>
-              </svg>
-            </div>
-            <h1>Installation Complete!</h1>
-            <p class="subtitle">AsyncStand has been successfully connected to your Slack workspace.</p>
-            <p class="close-note">
-              This window will close automatically
-              <span class="pulse-dot"></span>
-              <span class="pulse-dot"></span>
-              <span class="pulse-dot"></span>
-            </p>
-          </div>
-          <script>
-            console.log('[OAuth Callback] Page loaded');
-            console.log('[OAuth Callback] Window opener exists:', !!window.opener);
-            console.log('[OAuth Callback] Target origin:', '${frontendUrl}');
-            
-            // Notify parent window of success
-            if (window.opener) {
-              try {
-                const message = {
-                  type: 'slack-oauth-callback',
-                  success: true,
-                  message: 'Integration completed successfully'
-                };
-                console.log('[OAuth Callback] Sending message:', message);
-                // Use wildcard to ensure delivery regardless of exact dev/prod origin; parent filters it
-                window.opener.postMessage(message, '*');
-                console.log('[OAuth Callback] Message sent successfully');
-              } catch (error) {
-                console.error('[OAuth Callback] Error sending message:', error);
-              }
-            } else {
-              console.error('[OAuth Callback] No window.opener found!');
-            }
-            
-            // Auto-close the window after 2.5 seconds
-            setTimeout(() => {
-              console.log('[OAuth Callback] Closing window');
-              if (window.opener) {
-                window.close();
-              }
-            }, 2500);
-          </script>
-        </body>
-      </html>
-    `;
-
-    res.status(HttpStatus.OK).type('text/html').send(html);
-  }
-
-  private renderErrorPage(res: Response, message: string): void {
-    const frontendUrl = this.configService.get<string>('frontendUrl') || 'http://localhost:3000';
-    const html = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>AsyncStand - Installation Failed</title>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet>
-          <style>
-            :root {
-              --bg-main: #0f1117;
-              --bg-surface: #1c1f26;
-              --text-main: #f9fafb;
-              --text-dim: #9ca3af;
-              --error: #ef4444;
-              --border: rgba(255, 255, 255, 0.12);
-            }
-            
-            * {
-              margin: 0;
-              padding: 0;
-              box-sizing: border-box;
-            }
-            
-            body {
-              font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-              background: var(--bg-main);
-              color: var(--text-main);
-              min-height: 100vh;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              padding: 1rem;
-              overflow: hidden;
-            }
-            
-            .container {
-              background: var(--bg-surface);
-              border: 1px solid var(--border);
-              border-radius: 24px;
-              padding: 3rem 2rem;
-              text-align: center;
-              max-width: 480px;
-              width: 100%;
-              backdrop-filter: blur(12px);
-              box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-              animation: slideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-            }
-            
-            @keyframes slideIn {
-              from {
-                opacity: 0;
-                transform: translateY(30px) scale(0.95);
-              }
-              to {
-                opacity: 1;
-                transform: translateY(0) scale(1);
-              }
-            }
-            
-            .error-icon {
-              width: 80px;
-              height: 80px;
-              background: linear-gradient(135deg, var(--error), #dc2626);
-              border-radius: 50%;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              margin: 0 auto 2rem;
-              animation: shakeIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) 0.2s both;
-            }
-            
-            @keyframes shakeIn {
-              0% {
-                opacity: 0;
-                transform: scale(0) rotate(-10deg);
-              }
-              50% {
-                transform: scale(1.1) rotate(5deg);
-              }
-              100% {
-                opacity: 1;
-                transform: scale(1) rotate(0deg);
-              }
-            }
-            
-            .error-x {
-              width: 28px;
-              height: 28px;
-              stroke: white;
-              stroke-width: 3;
-              stroke-linecap: round;
-              stroke-linejoin: round;
-              fill: none;
-              animation: drawX 0.8s ease-in-out 0.4s both;
-              stroke-dasharray: 20;
-              stroke-dashoffset: 20;
-            }
-            
-            @keyframes drawX {
-              to {
-                stroke-dashoffset: 0;
-              }
-            }
-            
-            h1 {
-              font-size: 2rem;
-              font-weight: 700;
-              margin-bottom: 1rem;
-              background: linear-gradient(135deg, var(--text-main), var(--text-dim));
-              -webkit-background-clip: text;
-              -webkit-text-fill-color: transparent;
-              background-clip: text;
-              animation: fadeInUp 0.5s ease-out 0.3s both;
-            }
-            
-            .subtitle {
-              font-size: 1.125rem;
-              color: var(--text-dim);
-              margin-bottom: 1.5rem;
-              line-height: 1.6;
-              animation: fadeInUp 0.5s ease-out 0.4s both;
-            }
-            
-            .close-note {
-              font-size: 0.875rem;
-              color: var(--text-dim);
-              opacity: 0.7;
-              animation: fadeInUp 0.5s ease-out 0.5s both;
-            }
-            
-            @keyframes fadeInUp {
-              from {
-                opacity: 0;
-                transform: translateY(20px);
-              }
-              to {
-                opacity: 1;
-                transform: translateY(0);
-              }
-            }
-            
-            .pulse-dot {
-              display: inline-block;
-              width: 4px;
-              height: 4px;
-              background: var(--error);
-              border-radius: 50%;
-              margin: 0 2px;
-              animation: pulse 1.4s infinite ease-in-out both;
-            }
-            
-            .pulse-dot:nth-child(1) { animation-delay: -0.32s; }
-            .pulse-dot:nth-child(2) { animation-delay: -0.16s; }
-            .pulse-dot:nth-child(3) { animation-delay: 0s; }
-            
-            @keyframes pulse {
-              0%, 80%, 100% { 
-                transform: scale(0);
-                opacity: 0.5;
-              }
-              40% { 
-                transform: scale(1);
-                opacity: 1;
-              }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="error-icon">
-              <svg class="error-x" viewBox="0 0 24 24">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </div>
-            <h1>Installation Failed</h1>
-            <p class="subtitle">${message}</p>
-            <p class="close-note">
-              Please try again or contact support if the problem persists
-              <span class="pulse-dot"></span>
-              <span class="pulse-dot"></span>
-              <span class="pulse-dot"></span>
-            </p>
-          </div>
-          <script>
-            console.log('[OAuth Error Callback] Page loaded');
-            console.log('[OAuth Error Callback] Window opener exists:', !!window.opener);
-            console.log('[OAuth Error Callback] Target origin:', '${frontendUrl}');
-            
-            // Notify parent window of error
-            if (window.opener) {
-              try {
-                const message = {
-                  type: 'slack-oauth-callback',
-                  success: false,
-                  message: '${message.replace(/'/g, "\\'")}'
-                };
-                console.log('[OAuth Error Callback] Sending message:', message);
-                // Use wildcard to ensure delivery regardless of exact dev/prod origin; parent filters it
-                window.opener.postMessage(message, '*');
-                console.log('[OAuth Error Callback] Message sent successfully');
-              } catch (error) {
-                console.error('[OAuth Error Callback] Error sending message:', error);
-              }
-            } else {
-              console.error('[OAuth Error Callback] No window.opener found!');
-            }
-            
-            // Auto-close the window after 5 seconds
-            setTimeout(() => {
-              console.log('[OAuth Error Callback] Closing window');
-              if (window.opener) {
-                window.close();
-              }
-            }, 5000);
-          </script>
-        </body>
-      </html>
-    `;
-
-    res.status(HttpStatus.BAD_REQUEST).type('text/html').send(html);
   }
 }
