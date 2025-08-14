@@ -97,23 +97,27 @@ api.interceptors.response.use(
       (error?.response?.data as { response?: { message?: string } })?.response?.message ||
       (error.code === 'ERR_NETWORK' ? 'Network error – check connection' : 'Unexpected error');
 
-    // Don't show toast for auth endpoints - let components handle these
-    // Also suppress toasts for expected errors that components should handle specifically
-    const isAuthEndpoint = Boolean(error.config?.url?.includes('/auth/'));
-    const isMissingStandupConfig =
-      error.response?.status === 404 && errorCode === 'STANDUP_CONFIG_NOT_FOUND';
-    const isStandupConfigConflict =
-      error.response?.status === 409 && errorCode === 'STANDUP_CONFIG_ALREADY_EXISTS';
-    const isStandupEndpoint = Boolean(error.config?.url?.includes('/standups'));
+    // Don't show automatic toast for endpoints that components/contexts handle specifically
+    const shouldSuppressToast = [
+      // Auth endpoints - handled by login/signup pages
+      error.config?.url?.includes('/auth/'),
+      // Standup endpoints - handled by StandupsContext
+      error.config?.url?.includes('/standups'),
+      // Team endpoints - handled by TeamsContext
+      error.config?.url?.includes('/teams'),
+      // Integration endpoints - handled by IntegrationsContext
+      error.config?.url?.includes('/integrations'),
+      // Missing standup config is expected for new teams
+      error.response?.status === 404 && errorCode === 'STANDUP_CONFIG_NOT_FOUND',
+      // Standup config conflicts are handled by components
+      error.response?.status === 409 && errorCode === 'STANDUP_CONFIG_ALREADY_EXISTS',
+    ].some(Boolean);
 
-    // Let standup pages handle their own error messages for better UX
-    if (
-      !isAuthEndpoint &&
-      !isMissingStandupConfig &&
-      !(isStandupEndpoint && isStandupConfigConflict)
-    ) {
-      toast.error('API Error', {
+    // Only show automatic error toasts for endpoints that don't have custom handling
+    if (!shouldSuppressToast) {
+      toast.error('Request Failed', {
         description: message,
+        duration: 5000,
       });
     }
 

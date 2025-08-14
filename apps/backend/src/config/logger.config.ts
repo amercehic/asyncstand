@@ -52,10 +52,17 @@ export const getLoggerConfig = (): LoggerConfig => {
       },
       err: (err: unknown) => {
         if (err instanceof Error) {
+          const isDevelopment = process.env.NODE_ENV === 'development';
           return {
             type: err.constructor?.name,
             message: err.message,
             stack: err.stack,
+            // In development, include additional debug information
+            ...(isDevelopment && {
+              cause: (err as Error & { cause?: unknown }).cause,
+              name: err.name,
+              constructor: err.constructor?.name,
+            }),
           };
         }
         return err;
@@ -67,6 +74,7 @@ export const getLoggerConfig = (): LoggerConfig => {
 export const createLoggerModule = () => {
   const config = getLoggerConfig();
   const isTest = process.env.NODE_ENV === 'test';
+  const isDevelopment = process.env.NODE_ENV === 'development';
   const isSilent = process.env.LOG_LEVEL === 'silent';
 
   // If LOG_LEVEL is silent, return a minimal logger configuration
@@ -91,6 +99,12 @@ export const createLoggerModule = () => {
               ignore: 'hostname,pid',
               singleLine: false,
               hideObject: false,
+              // Enhanced stack trace visibility for development
+              ...(isDevelopment && {
+                errorLikeObjectKeys: ['err', 'error', 'exception'],
+                errorProps: 'name,message,stack,cause',
+                messageFormat: '{levelname} - {msg} {if error}\n{error.stack}{end}',
+              }),
             },
           }
         : undefined,

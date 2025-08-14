@@ -75,7 +75,7 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
         setDataLoaded(true);
       } catch (error) {
         console.error('Error loading form data:', error);
-        toast.error('Failed to load team creation data');
+        toast.error('Failed to load team creation data', { id: 'load-team-data' });
       }
     }, [isOpen, dataLoaded]);
 
@@ -158,7 +158,7 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
         e.preventDefault();
 
         if (!validateForm()) {
-          toast.error('Please fix the errors below');
+          toast.error('Please fix the errors below', { id: 'form-validation' });
           return;
         }
 

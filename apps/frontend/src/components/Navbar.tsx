@@ -23,7 +23,7 @@ export const Navbar = React.memo(() => {
       toast.success('Logged out successfully');
     } catch (error) {
       console.error('Logout error:', error);
-      toast.error('Error logging out');
+      toast.error('Error logging out', { id: 'logout' });
     }
   };
 

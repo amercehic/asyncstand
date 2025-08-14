@@ -73,32 +73,42 @@ const ToastContent: React.FC<{
 
   return (
     <div
-      className={`flex items-start gap-4 p-4 rounded-xl min-w-[320px] max-w-[520px] ${getBackgroundClass()}`}
+      className={`flex items-start gap-3 p-4 rounded-xl min-w-[300px] max-w-[450px] w-full ${getBackgroundClass()}`}
     >
       {/* Icon */}
-      <div className="flex-shrink-0 mt-1">{getIcon()}</div>
+      <div className="flex-shrink-0 mt-0.5">{getIcon()}</div>
 
       {/* Content */}
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 overflow-hidden">
         {options?.richContent ? (
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 flex-wrap">
+          <div className="space-y-2">
+            <div className="flex items-start gap-2">
               {options.richContent.avatar && (
                 <div className="w-7 h-7 rounded-full bg-background border border-current/20 flex items-center justify-center flex-shrink-0">
                   <span className="text-sm font-bold">{options.richContent.avatar}</span>
                 </div>
               )}
-              <h4 className="font-semibold text-base break-words">{options.richContent.title}</h4>
-              {options.richContent.metadata && (
-                <span className="text-sm opacity-80">{options.richContent.metadata}</span>
-              )}
+              <div className="flex-1 min-w-0">
+                <h4 className="font-semibold text-base break-words hyphens-auto">
+                  {options.richContent.title}
+                </h4>
+                {options.richContent.metadata && (
+                  <span className="text-sm opacity-80 block mt-1">
+                    {options.richContent.metadata}
+                  </span>
+                )}
+              </div>
             </div>
             {options.richContent.description && (
-              <p className="text-sm opacity-90 break-words">{options.richContent.description}</p>
+              <p className="text-sm opacity-90 break-words hyphens-auto leading-relaxed">
+                {options.richContent.description}
+              </p>
             )}
           </div>
         ) : (
-          <p className="text-base font-medium break-words overflow-wrap-anywhere">{message}</p>
+          <p className="text-base font-medium break-words hyphens-auto leading-relaxed whitespace-pre-wrap">
+            {message}
+          </p>
         )}
 
         {/* Progress bar */}
