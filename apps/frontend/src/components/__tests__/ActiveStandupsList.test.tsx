@@ -269,8 +269,8 @@ describe('ActiveStandupsList', () => {
   it('handles run now button click', async () => {
     vi.mocked(standupsApi.getTeamStandups).mockResolvedValue(mockStandups);
     vi.mocked(standupsApi.triggerStandupForToday).mockResolvedValue({
-      message: 'Standup instances created successfully',
-      instancesCreated: 2,
+      created: ['instance-1', 'instance-2'],
+      skipped: [],
     });
 
     render(<ActiveStandupsList teamId="team-1" />);

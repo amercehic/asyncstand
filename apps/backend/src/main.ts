@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { AllExceptionsFilter } from '@/common/http-exception.filter';
 import { ValidationPipe, INestApplication, Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import * as express from 'express';
 
 function setupSwagger(app: INestApplication) {
   const config = new DocumentBuilder()
@@ -41,8 +42,36 @@ function setupSwagger(app: INestApplication) {
 }
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    rawBody: true,
+    bodyParser: false,
+  });
   const logger = new Logger('Bootstrap');
+
+  // Configure body parsing middleware for Slack webhooks
+  // For JSON payloads (events endpoint)
+  app.use('/slack/events', express.raw({ type: 'application/json' }));
+
+  // For form-encoded payloads (interactive-components, slash-commands) - raw parsing only
+  app.use(
+    ['/slack/interactive-components', '/slack/slash-commands'],
+    express.raw({ type: 'application/x-www-form-urlencoded' }),
+  );
+
+  // Standard body parsers for all other endpoints (exclude Slack endpoints)
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/slack/')) {
+      return next();
+    }
+    express.json()(req, res, next);
+  });
+
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/slack/')) {
+      return next();
+    }
+    express.urlencoded({ extended: true })(req, res, next);
+  });
 
   // Configure validation pipe for DTO validation
   app.useGlobalPipes(

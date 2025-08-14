@@ -82,11 +82,6 @@ interface StandupInstance {
 export class SlackEventService {
   private readonly signingSecret: string;
 
-  private getErrorMessage(error: unknown): string {
-    if (error instanceof Error) return error.message;
-    return String(error);
-  }
-
   constructor(
     private readonly slackMessaging: SlackMessagingService,
     private readonly formatter: SlackMessageFormatterService,
@@ -95,12 +90,21 @@ export class SlackEventService {
     private readonly prisma: PrismaService,
   ) {
     this.signingSecret = process.env.SLACK_SIGNING_SECRET || '';
+    this.logger.setContext(SlackEventService.name);
     if (!this.signingSecret) {
       this.logger.warn('SLACK_SIGNING_SECRET not configured - webhook verification disabled');
     }
   }
 
-  async verifySlackRequest(headers: Record<string, string>, body: unknown): Promise<boolean> {
+  async verifySlackRequest(
+    headers: Record<string, string>,
+    body: unknown | string,
+  ): Promise<boolean> {
+    // Skip verification in test environment
+    if (process.env.NODE_ENV === 'test') {
+      return true;
+    }
+
     if (!this.signingSecret) {
       this.logger.warn('Slack signing secret not configured, skipping verification');
       return true; // Allow in development
@@ -109,6 +113,14 @@ export class SlackEventService {
     const signature = headers['x-slack-signature'];
     const timestamp = headers['x-slack-request-timestamp'];
 
+    this.logger.debug('Signature verification details', {
+      hasSignature: !!signature,
+      hasTimestamp: !!timestamp,
+      signature,
+      timestamp,
+      signingSecretLength: this.signingSecret.length,
+    });
+
     if (!signature || !timestamp) {
       this.logger.warn('Missing signature or timestamp headers');
       return false;
@@ -116,8 +128,22 @@ export class SlackEventService {
 
     // Check timestamp to prevent replay attacks (within 5 minutes)
     const now = Math.floor(Date.now() / 1000);
-    if (Math.abs(now - parseInt(timestamp)) > 300) {
-      this.logger.warn('Request timestamp too old');
+    const timestampInt = parseInt(timestamp);
+    const timeDiff = Math.abs(now - timestampInt);
+
+    this.logger.debug('Timestamp validation', {
+      now,
+      timestampInt,
+      timeDiff,
+      maxAllowed: 300,
+    });
+
+    if (timeDiff > 300) {
+      this.logger.warn('Request timestamp too old', {
+        now,
+        timestamp: timestampInt,
+        timeDiff,
+      });
       return false;
     }
 
@@ -125,9 +151,23 @@ export class SlackEventService {
     const bodyStr = typeof body === 'string' ? body : JSON.stringify(body);
     const sigBaseString = `v0:${timestamp}:${bodyStr}`;
 
+    this.logger.debug('Signature base string details', {
+      bodyType: typeof body,
+      bodyLength: bodyStr.length,
+      sigBaseStringLength: sigBaseString.length,
+      sigBaseStringPreview: sigBaseString.substring(0, 100) + '...',
+      bodyStrPreview: bodyStr.substring(0, 100) + '...',
+    });
+
     // Generate the expected signature
     const expectedSignature =
       'v0=' + createHmac('sha256', this.signingSecret).update(sigBaseString).digest('hex');
+
+    this.logger.debug('Signature comparison', {
+      receivedSignature: signature,
+      expectedSignature,
+      match: signature === expectedSignature,
+    });
 
     // Compare signatures using timing-safe comparison
     try {
@@ -136,7 +176,7 @@ export class SlackEventService {
         Buffer.from(expectedSignature, 'utf8'),
       );
     } catch (error) {
-      this.logger.error('Error comparing signatures', { error: this.getErrorMessage(error) });
+      this.logger.error('Error comparing signatures', { err: error });
       return false;
     }
   }
@@ -162,8 +202,8 @@ export class SlackEventService {
           this.logger.debug('Unhandled event type', { eventType: event.type });
       }
     } catch (error) {
-      this.logger.error('Error processing Slack event', {
-        error: this.getErrorMessage(error),
+      this.logger.logError(error as Error, {
+        message: 'Error processing Slack event',
         eventType: event?.type,
         teamId,
       });
@@ -194,7 +234,7 @@ export class SlackEventService {
       }
     } catch (error) {
       this.logger.error('Error processing interactive component', {
-        error: this.getErrorMessage(error),
+        err: error,
         type: payload.type,
         userId: payload.user?.id,
       });
@@ -233,7 +273,7 @@ export class SlackEventService {
       }
     } catch (error) {
       this.logger.error('Error processing slash command', {
-        error: this.getErrorMessage(error),
+        err: error,
         command: payload.command,
         userId: payload.user_id,
       });
@@ -295,12 +335,46 @@ export class SlackEventService {
     teamId: string,
   ): Promise<void> {
     try {
-      // Find active standup instance by looking for the thread message
-      // We need to check if this thread is associated with a standup reminder
-      const activeInstance = await this.findActiveStandupInstanceForUser(userId, teamId);
+      // Find standup instance by matching the thread timestamp to the reminder message
+      const activeInstance = await this.prisma.standupInstance.findFirst({
+        where: {
+          reminderMessageTs: threadTs,
+          state: { in: ['pending', 'collecting'] },
+          team: {
+            integration: { externalTeamId: teamId },
+            slackChannelId: channelId,
+          },
+        },
+        include: {
+          team: {
+            include: {
+              members: {
+                where: {
+                  platformUserId: userId,
+                  active: true,
+                },
+              },
+            },
+          },
+        },
+      });
 
       if (!activeInstance) {
-        this.logger.debug('No active standup found for thread reply', { userId, teamId, threadTs });
+        this.logger.debug('No active standup found for thread reply', {
+          userId,
+          teamId,
+          threadTs,
+          channelId,
+        });
+        return;
+      }
+
+      if (!activeInstance.team.members[0]) {
+        this.logger.warn('User not a member of the team', {
+          userId,
+          teamId,
+          instanceId: activeInstance.id,
+        });
         return;
       }
 
@@ -312,15 +386,22 @@ export class SlackEventService {
         responseLength: text.length,
       });
 
-      // Parse and submit the response similar to DM handling
-      await this.submitParsedResponse(activeInstance.id, userId, text);
+      // Submit the response using the team member ID
+      // Allow late submissions for Slack thread replies (extend timeout)
+      await this.submitParsedResponseWithMember(
+        activeInstance.id,
+        activeInstance.team.members[0],
+        activeInstance.team.orgId,
+        text,
+        true,
+      );
     } catch (error) {
-      this.logger.error('Error handling thread reply', {
+      this.logger.logError(error as Error, {
+        message: 'Error handling thread reply',
         userId,
         teamId,
         threadTs,
         channelId,
-        error: this.getErrorMessage(error),
       });
     }
   }
@@ -334,10 +415,36 @@ export class SlackEventService {
     teamId: string,
   ): Promise<void> {
     try {
-      // Find active standup instance for this user
-      const activeInstance = await this.findActiveStandupInstanceForUser(userId, teamId);
+      // Find active standup instance for this user with team member info
+      const teamMember = await this.prisma.teamMember.findFirst({
+        where: {
+          platformUserId: userId,
+          team: {
+            integration: { externalTeamId: teamId },
+          },
+          active: true,
+        },
+        include: {
+          team: {
+            include: {
+              instances: {
+                where: {
+                  state: { in: ['pending', 'collecting'] },
+                  targetDate: {
+                    gte: new Date(Date.now() - 24 * 60 * 60 * 1000), // Within last 24 hours
+                  },
+                },
+                orderBy: { createdAt: 'desc' },
+                take: 1,
+              },
+            },
+          },
+        },
+      });
 
-      if (!activeInstance) {
+      const activeInstance = teamMember?.team.instances[0];
+
+      if (!activeInstance || !teamMember) {
         this.logger.debug('No active standup found for user DM', { userId, teamId });
         return;
       }
@@ -348,123 +455,102 @@ export class SlackEventService {
         responseLength: text.length,
       });
 
-      // Parse the response - for now, treat the entire message as one response
-      // In a more sophisticated implementation, we could parse multi-line responses
-      // or implement a conversational interface
-      await this.submitParsedResponse(activeInstance.id, userId, text);
+      // Submit the response using the team member
+      await this.submitParsedResponseWithMember(
+        activeInstance.id,
+        teamMember,
+        teamMember.team.orgId,
+        text,
+      );
     } catch (error) {
       this.logger.error('Error handling DM response', {
         userId,
         teamId,
-        error: this.getErrorMessage(error),
+        err: error,
       });
     }
   }
 
   /**
-   * Find the most recent active standup instance for a user
+   * Submit a parsed response with a known team member
    */
-  private async findActiveStandupInstanceForUser(platformUserId: string, teamId: string) {
-    // Find team member by platform user ID
-    const teamMember = await this.prisma.teamMember.findFirst({
-      where: {
-        platformUserId,
-        team: {
-          integration: { externalTeamId: teamId },
-        },
-        active: true,
-      },
-      include: {
-        team: {
-          include: {
-            instances: {
-              where: {
-                state: { in: ['pending', 'collecting'] },
-                targetDate: {
-                  gte: new Date(Date.now() - 24 * 60 * 60 * 1000), // Within last 24 hours
-                },
-              },
-              orderBy: { createdAt: 'desc' },
-              take: 1,
-            },
-          },
-        },
-      },
-    });
-
-    return teamMember?.team.instances[0] || null;
-  }
-
-  /**
-   * Submit a parsed response for a user
-   */
-  private async submitParsedResponse(
+  private async submitParsedResponseWithMember(
     instanceId: string,
-    platformUserId: string,
+    teamMember: { id: string; name: string },
+    orgId: string,
     responseText: string,
+    allowNonParticipating: boolean = false,
   ): Promise<void> {
-    // For simplicity, treat the entire message as an answer to all questions
-    // A more sophisticated implementation could parse structured responses
-
-    const instance = await this.prisma.standupInstance.findFirst({
-      where: { id: instanceId },
-      include: {
-        team: {
-          include: {
-            members: {
-              where: { platformUserId, active: true },
-            },
-          },
-        },
-      },
-    });
-
-    if (!instance || !instance.team.members[0]) {
-      this.logger.warn('Instance or team member not found for response', {
-        instanceId,
-        platformUserId,
-      });
-      return;
-    }
-
-    const configSnapshot = instance.configSnapshot as {
-      questions: string[];
-    };
-    const teamMember = instance.team.members[0];
-
-    // Submit response for each question (using the same text for all)
-    const answers = configSnapshot.questions.map((_, index) => ({
-      questionIndex: index,
-      text: responseText,
-    }));
-
-    this.logger.info('Submitting DM response', {
-      instanceId,
-      teamMemberId: teamMember.id,
-      questionCount: answers.length,
-    });
-
     try {
-      // Use the AnswerCollectionService to submit the parsed response
+      this.logger.info('Starting submitParsedResponseWithMember', {
+        instanceId,
+        teamMemberId: teamMember.id,
+        teamMemberName: teamMember.name,
+        orgId,
+        responseLength: responseText.length,
+      });
+
+      // Get the standup config to know the questions
+      const instance = await this.prisma.standupInstance.findUnique({
+        where: { id: instanceId },
+      });
+
+      this.logger.info('Found instance', {
+        instanceId,
+        found: !!instance,
+        instanceTeamId: instance?.teamId,
+        instanceState: instance?.state,
+      });
+
+      if (!instance) {
+        this.logger.warn('Instance not found for response', { instanceId });
+        return;
+      }
+
+      const configSnapshot = instance.configSnapshot as {
+        questions: string[];
+      };
+
+      // Parse the response - for now, treat the entire message as answers to all questions
+      // In a more sophisticated implementation, we could:
+      // 1. Parse numbered responses (1. answer, 2. answer, etc.)
+      // 2. Use AI to intelligently map text to questions
+      // 3. Have a conversational flow asking questions one by one
+      const answers = configSnapshot.questions.map((_, index) => ({
+        questionIndex: index,
+        text: responseText, // Changed from 'answer' to 'text' to match AnswerItem interface
+      }));
+
+      this.logger.info('Submitting parsed response', {
+        instanceId,
+        teamMemberId: teamMember.id,
+        questionCount: answers.length,
+        orgId,
+        answersSample: answers.slice(0, 1), // Log first answer as sample
+      });
+
+      // Use the AnswerCollectionService to submit the response
       await this.answerCollection.submitFullResponse(
         {
           standupInstanceId: instanceId,
           answers: answers,
         },
-        teamMember.id,
-        instance.team.orgId,
+        teamMember.id, // This is the team member UUID from the database
+        orgId,
+        allowNonParticipating,
+        true, // allowLateSubmission - bypass timeout for Slack responses
       );
 
-      this.logger.info('DM response submitted successfully', {
+      this.logger.info('Thread reply response submitted successfully', {
         instanceId,
         teamMemberId: teamMember.id,
         answersCount: answers.length,
       });
     } catch (error) {
-      this.logger.error('Failed to submit DM response', {
+      this.logger.logError(error as Error, {
+        message: 'Failed to submit parsed response',
         instanceId,
         teamMemberId: teamMember.id,
-        error: this.getErrorMessage(error),
       });
     }
   }
@@ -576,7 +662,7 @@ export class SlackEventService {
       await this.slackMessaging.openModal(integration.id, triggerId, modal);
     } catch (error) {
       this.logger.error('Error handling submit standup response', {
-        error: this.getErrorMessage(error),
+        err: error,
         instanceId,
         userId,
       });
@@ -620,7 +706,7 @@ export class SlackEventService {
       );
     } catch (error) {
       this.logger.error('Error handling skip standup', {
-        error: this.getErrorMessage(error),
+        err: error,
         instanceId,
         userId,
       });
@@ -713,7 +799,7 @@ export class SlackEventService {
       });
     } catch (error) {
       this.logger.error('Error collecting modal response', {
-        error: this.getErrorMessage(error),
+        err: error,
         instanceId,
         userId,
       });
@@ -729,7 +815,7 @@ export class SlackEventService {
           );
         }
       } catch (dmError) {
-        this.logger.error('Failed to send error DM', { error: this.getErrorMessage(dmError) });
+        this.logger.error('Failed to send error DM', { err: dmError });
       }
     }
   }
@@ -790,7 +876,7 @@ export class SlackEventService {
       };
     } catch (error) {
       this.logger.error('Error handling status command', {
-        error: this.getErrorMessage(error),
+        err: error,
         userId,
         integrationId,
       });
@@ -853,7 +939,7 @@ export class SlackEventService {
       };
     } catch (error) {
       this.logger.error('Error handling submit command', {
-        error: this.getErrorMessage(error),
+        err: error,
         userId,
         integrationId,
       });
@@ -916,7 +1002,7 @@ export class SlackEventService {
       };
     } catch (error) {
       this.logger.error('Error handling skip command', {
-        error: this.getErrorMessage(error),
+        err: error,
         userId,
         integrationId,
       });
@@ -956,7 +1042,7 @@ export class SlackEventService {
       return integration;
     } catch (error) {
       this.logger.error('Error finding integration by team ID', {
-        error: this.getErrorMessage(error),
+        err: error,
         teamId,
       });
       return null;

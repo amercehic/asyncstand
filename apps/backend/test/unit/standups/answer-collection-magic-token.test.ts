@@ -18,6 +18,7 @@ describe('AnswerCollectionService - Magic Token Methods', () => {
     };
     teamMember: {
       findFirst: jest.Mock;
+      findUnique: jest.Mock;
     };
     $transaction: jest.Mock;
   };
@@ -96,6 +97,7 @@ describe('AnswerCollectionService - Magic Token Methods', () => {
             },
             teamMember: {
               findFirst: jest.fn(),
+              findUnique: jest.fn(),
             },
             $transaction: jest.fn(),
           },
@@ -155,6 +157,7 @@ describe('AnswerCollectionService - Magic Token Methods', () => {
       mockMagicTokenService.validateMagicToken.mockResolvedValue(mockTokenPayload);
       mockPrismaService.standupInstance.findFirst.mockResolvedValue(mockInstance);
       mockPrismaService.teamMember.findFirst.mockResolvedValue(mockTeamMember);
+      mockPrismaService.teamMember.findUnique.mockResolvedValue({ userId: 'user-123' });
       mockPrismaService.$transaction.mockImplementation((callback) =>
         callback({
           answer: {
@@ -194,7 +197,7 @@ describe('AnswerCollectionService - Magic Token Methods', () => {
 
       expect(mockAuditLogService.log).toHaveBeenCalledWith({
         actorType: 'user',
-        actorUserId: mockTeamMemberId,
+        actorUserId: 'user-123',
         orgId: mockOrgId,
         category: 'standup',
         severity: 'info',

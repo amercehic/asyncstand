@@ -130,10 +130,16 @@ export class AnswerCollectionService {
       },
     });
 
+    // Get team member to check if they have an associated user ID
+    const teamMemberForAudit = await this.prisma.teamMember.findUnique({
+      where: { id: memberId },
+      select: { userId: true },
+    });
+
     // Audit log
     await this.auditLogService.log({
       actorType: AuditActorType.USER,
-      actorUserId: memberId,
+      actorUserId: teamMemberForAudit?.userId || null, // Use actual user ID or null for Slack-only users
       orgId,
       category: AuditCategory.STANDUP,
       severity: AuditSeverity.INFO,
@@ -173,6 +179,8 @@ export class AnswerCollectionService {
     data: SubmitAnswersDto,
     memberId: string,
     orgId: string,
+    allowNonParticipating: boolean = false,
+    allowLateSubmission: boolean = false,
   ): Promise<{ success: boolean; answersSubmitted: number }> {
     this.logger.info('Submitting full response', {
       instanceId: data.standupInstanceId,
@@ -210,8 +218,8 @@ export class AnswerCollectionService {
       throw new ApiError(ErrorCode.NOT_FOUND, 'Team member not found', HttpStatus.NOT_FOUND);
     }
 
-    // Validate submission window
-    if (!this.canStillSubmit(instance)) {
+    // Validate submission window (allow bypass for late submissions like Slack thread replies)
+    if (!allowLateSubmission && !this.canStillSubmit(instance)) {
       throw new ApiError(
         ErrorCode.VALIDATION_FAILED,
         'Response collection window has closed',
@@ -219,14 +227,24 @@ export class AnswerCollectionService {
       );
     }
 
-    // Validate member is participating
+    // Validate member is participating (or allow if explicitly permitted by caller)
     const isParticipating = configSnapshot.participatingMembers.some((m) => m.id === memberId);
     if (!isParticipating) {
-      throw new ApiError(
-        ErrorCode.FORBIDDEN,
-        'Member is not participating in this standup',
-        HttpStatus.FORBIDDEN,
-      );
+      if (allowNonParticipating) {
+        this.logger.warn(
+          'Member not in participating list; allowing submission due to integration context',
+          {
+            instanceId: data.standupInstanceId,
+            memberId,
+          },
+        );
+      } else {
+        throw new ApiError(
+          ErrorCode.FORBIDDEN,
+          'Member is not participating in this standup',
+          HttpStatus.FORBIDDEN,
+        );
+      }
     }
 
     // Validate question indices
@@ -269,10 +287,16 @@ export class AnswerCollectionService {
       return data.answers.length;
     });
 
+    // Get team member to check if they have an associated user ID
+    const teamMemberWithUserId = await this.prisma.teamMember.findUnique({
+      where: { id: memberId },
+      select: { userId: true },
+    });
+
     // Audit log
     await this.auditLogService.log({
       actorType: AuditActorType.USER,
-      actorUserId: memberId,
+      actorUserId: teamMemberWithUserId?.userId || null, // Use actual user ID or null for Slack-only users
       orgId,
       category: AuditCategory.STANDUP,
       severity: AuditSeverity.INFO,
@@ -434,6 +458,7 @@ export class AnswerCollectionService {
     memberId: string,
     questionIndex: number,
     orgId: string,
+    allowLateSubmission: boolean = false,
   ): Promise<void> {
     const instance = await this.prisma.standupInstance.findFirst({
       where: {
@@ -467,8 +492,8 @@ export class AnswerCollectionService {
       );
     }
 
-    // Validate submission window
-    if (!this.canStillSubmit(instance)) {
+    // Validate submission window (allow bypass for late submissions like Slack thread replies)
+    if (!allowLateSubmission && !this.canStillSubmit(instance)) {
       throw new ApiError(
         ErrorCode.VALIDATION_FAILED,
         'Response collection window has closed',
@@ -709,7 +734,7 @@ export class AnswerCollectionService {
       },
     });
 
-    // Audit log
+    // Audit log (actorUserId is already a proper user ID from the controller)
     await this.auditLogService.log({
       actorType: AuditActorType.USER,
       actorUserId: actorUserId,
@@ -844,10 +869,16 @@ export class AnswerCollectionService {
       return data.answers.length;
     });
 
+    // Get team member to check if they have an associated user ID
+    const teamMemberForMagicAudit = await this.prisma.teamMember.findUnique({
+      where: { id: tokenPayload.teamMemberId },
+      select: { userId: true },
+    });
+
     // Audit log
     await this.auditLogService.log({
       actorType: AuditActorType.USER,
-      actorUserId: tokenPayload.teamMemberId,
+      actorUserId: teamMemberForMagicAudit?.userId || null, // Use actual user ID or null for Slack-only users
       orgId: tokenPayload.orgId,
       category: AuditCategory.STANDUP,
       severity: AuditSeverity.INFO,

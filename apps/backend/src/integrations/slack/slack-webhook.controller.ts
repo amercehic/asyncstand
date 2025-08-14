@@ -1,5 +1,5 @@
-import { Controller, Post, Body, Headers, HttpStatus, Res } from '@nestjs/common';
-import { Response } from 'express';
+import { Controller, Post, Body, Headers, HttpStatus, Res, Req } from '@nestjs/common';
+import { Request, Response } from 'express';
 import { SlackEventService } from '@/integrations/slack/slack-event.service';
 import { LoggerService } from '@/common/logger.service';
 
@@ -10,20 +10,11 @@ export class SlackWebhookController {
     private readonly logger: LoggerService,
   ) {}
 
-  private getErrorMessage(error: unknown): string {
-    if (error instanceof Error) return error.message;
-    return String(error);
-  }
-
-  private getErrorStack(error: unknown): string | undefined {
-    if (error instanceof Error) return error.stack;
-    return undefined;
-  }
-
   @Post('events')
   async handleSlackEvents(
     @Headers() headers: Record<string, string>,
     @Body() body: unknown,
+    @Req() req: Request,
     @Res() res: Response,
   ) {
     try {
@@ -35,14 +26,24 @@ export class SlackWebhookController {
         bodyType: typeof body,
       });
 
-      // Verify the request is from Slack
-      const isValid = await this.slackEventService.verifySlackRequest(headers, body);
+      // Verify the request is from Slack using the exact raw body
+      const rawBuffer = (req as unknown as { body?: unknown; rawBody?: Buffer }).body;
+      const rawFromRawBody = (req as unknown as { rawBody?: Buffer }).rawBody;
+      const rawBodyStr = Buffer.isBuffer(rawBuffer)
+        ? rawBuffer.toString('utf8')
+        : rawFromRawBody instanceof Buffer
+          ? rawFromRawBody.toString('utf8')
+          : typeof body === 'string'
+            ? (body as string)
+            : JSON.stringify(body);
+
+      const isValid = await this.slackEventService.verifySlackRequest(headers, rawBodyStr);
       if (!isValid) {
         this.logger.warn('Invalid Slack request signature');
         return res.status(HttpStatus.UNAUTHORIZED).json({ error: 'Invalid signature' });
       }
 
-      const payload = body as {
+      let payload: {
         type: string;
         challenge?: string;
         team_id?: string;
@@ -53,6 +54,15 @@ export class SlackWebhookController {
         };
         [key: string]: unknown;
       };
+      try {
+        payload = JSON.parse(rawBodyStr);
+      } catch {
+        payload = (
+          typeof body === 'object' && body !== null
+            ? (body as Record<string, unknown>)
+            : { type: 'unknown' }
+        ) as typeof payload;
+      }
 
       // Handle URL verification challenge
       if (payload.type === 'url_verification') {
@@ -79,8 +89,7 @@ export class SlackWebhookController {
       return res.json({ ok: true });
     } catch (error) {
       this.logger.error('Error handling Slack event', {
-        error: this.getErrorMessage(error),
-        stack: this.getErrorStack(error),
+        err: error,
       });
 
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
@@ -92,26 +101,36 @@ export class SlackWebhookController {
   @Post('interactive-components')
   async handleInteractiveComponents(
     @Headers() headers: Record<string, string>,
-    @Body() body: { payload?: string },
+    @Body() _body: { payload?: string },
+    @Req() req: Request,
     @Res() res: Response,
   ) {
     try {
       this.logger.debug('Received interactive component event');
 
-      // Slack sends the payload as a URL-encoded form parameter
-      const payloadStr = body.payload;
-      if (!payloadStr) {
-        return res.status(HttpStatus.BAD_REQUEST).json({ error: 'Missing payload' });
-      }
+      // Verify the request is from Slack using the exact raw body
+      const rawBuffer = (req as unknown as { body?: unknown; rawBody?: Buffer }).body;
+      const rawFromRawBody = (req as unknown as { rawBody?: Buffer }).rawBody;
+      const rawBodyStr = Buffer.isBuffer(rawBuffer)
+        ? rawBuffer.toString('utf8')
+        : rawFromRawBody instanceof Buffer
+          ? rawFromRawBody.toString('utf8')
+          : '';
 
-      const payload = JSON.parse(payloadStr);
-
-      // Verify the request is from Slack
-      const isValid = await this.slackEventService.verifySlackRequest(headers, payloadStr);
+      const isValid = await this.slackEventService.verifySlackRequest(headers, rawBodyStr);
       if (!isValid) {
         this.logger.warn('Invalid Slack interactive component signature');
         return res.status(HttpStatus.UNAUTHORIZED).json({ error: 'Invalid signature' });
       }
+
+      // Slack sends the payload as a URL-encoded form parameter named "payload"
+      const form = new URLSearchParams(rawBodyStr);
+      const payloadParam = form.get('payload');
+      if (!payloadParam) {
+        return res.status(HttpStatus.BAD_REQUEST).json({ error: 'Missing payload' });
+      }
+
+      const payload = JSON.parse(payloadParam);
 
       this.logger.info('Processing interactive component', {
         type: payload.type,
@@ -128,8 +147,7 @@ export class SlackWebhookController {
       return res.json({ ok: true });
     } catch (error) {
       this.logger.error('Error handling interactive component', {
-        error: this.getErrorMessage(error),
-        stack: this.getErrorStack(error),
+        err: error,
       });
 
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
@@ -141,23 +159,36 @@ export class SlackWebhookController {
   @Post('slash-commands')
   async handleSlashCommands(
     @Headers() headers: Record<string, string>,
-    @Body() body: Record<string, string>,
+    @Body() _body: Record<string, string>,
+    @Req() req: Request,
     @Res() res: Response,
   ) {
     try {
+      // Verify the request is from Slack using the exact raw body
+      const rawBuffer = (req as unknown as { body?: unknown; rawBody?: Buffer }).body;
+      const rawFromRawBody = (req as unknown as { rawBody?: Buffer }).rawBody;
+      const rawBodyStr = Buffer.isBuffer(rawBuffer)
+        ? rawBuffer.toString('utf8')
+        : rawFromRawBody instanceof Buffer
+          ? rawFromRawBody.toString('utf8')
+          : '';
+
+      const isValid = await this.slackEventService.verifySlackRequest(headers, rawBodyStr);
+      if (!isValid) {
+        this.logger.warn('Invalid Slack slash command signature');
+        return res.status(HttpStatus.UNAUTHORIZED).json({ error: 'Invalid signature' });
+      }
+
+      // Form-encoded body → parse with URLSearchParams
+      const form = new URLSearchParams(rawBodyStr);
+      const body = Object.fromEntries(form.entries()) as Record<string, string>;
+
       this.logger.debug('Received slash command', {
         command: body.command,
         text: body.text,
         userId: body.user_id,
         teamId: body.team_id,
       });
-
-      // Verify the request is from Slack
-      const isValid = await this.slackEventService.verifySlackRequest(headers, body);
-      if (!isValid) {
-        this.logger.warn('Invalid Slack slash command signature');
-        return res.status(HttpStatus.UNAUTHORIZED).json({ error: 'Invalid signature' });
-      }
 
       // Process command and get response
       const response = await this.slackEventService.processSlashCommand(
@@ -178,10 +209,9 @@ export class SlackWebhookController {
       return res.json(response);
     } catch (error) {
       this.logger.error('Error handling slash command', {
-        error: this.getErrorMessage(error),
-        stack: this.getErrorStack(error),
-        command: body.command,
-        userId: body.user_id,
+        err: error,
+        command: _body.command,
+        userId: _body.user_id,
       });
 
       return res.json({

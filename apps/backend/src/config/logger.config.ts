@@ -51,12 +51,14 @@ export const getLoggerConfig = (): LoggerConfig => {
         };
       },
       err: (err: unknown) => {
-        const error = err as { constructor?: { name?: string }; message?: string; stack?: string };
-        return {
-          type: error.constructor?.name,
-          message: error.message,
-          stack: error.stack,
-        };
+        if (err instanceof Error) {
+          return {
+            type: err.constructor?.name,
+            message: err.message,
+            stack: err.stack,
+          };
+        }
+        return err;
       },
     },
   };
@@ -80,7 +82,18 @@ export const createLoggerModule = () => {
   return LoggerModule.forRoot({
     pinoHttp: {
       level: config.level,
-      transport: config.prettyPrint ? { target: 'pino-pretty' } : undefined,
+      transport: config.prettyPrint
+        ? {
+            target: 'pino-pretty',
+            options: {
+              colorize: true,
+              translateTime: 'SYS:standard',
+              ignore: 'hostname,pid',
+              singleLine: false,
+              hideObject: false,
+            },
+          }
+        : undefined,
       serializers: config.serializers,
       redact: config.redact,
       // Disable HTTP request/response logging in test environment
