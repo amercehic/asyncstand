@@ -69,7 +69,7 @@ export const TeamMemberAssignmentModal: React.FC<TeamMemberAssignmentModalProps>
         setPlatformMembers(membersWithStatus);
       } catch (error) {
         console.error('Error loading platform members:', error);
-        toast.error('Failed to load workspace members');
+        toast.error('Failed to load workspace members', { id: `load-members-${team.id}` });
       } finally {
         setIsLoading(false);
       }
@@ -187,7 +187,7 @@ export const TeamMemberAssignmentModal: React.FC<TeamMemberAssignmentModalProps>
       onClose();
     } catch (error) {
       console.error('Error updating team members:', error);
-      toast.error('Failed to update team members');
+      toast.error('Failed to update team members', { id: `update-members-${team.id}` });
     } finally {
       setIsSaving(false);
     }

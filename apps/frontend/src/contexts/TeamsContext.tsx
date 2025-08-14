@@ -10,6 +10,7 @@ import { teamsApi, type Team, type CreateTeamRequest } from '@/lib/api';
 import { normalizeApiError } from '@/utils';
 import { toast } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
+import { useIntegrations } from '@/contexts/IntegrationsContext';
 
 interface TeamsState {
   teams: Team[];
@@ -39,7 +40,7 @@ interface TeamsContextType extends TeamsState {
   createTeam: (data: CreateTeamRequest) => Promise<Team>;
   getTeamById: (id: string) => Promise<Team>;
   updateTeam: (id: string, updates: Partial<Team>) => Promise<void>;
-  deleteTeam: (id: string) => Promise<void>;
+  deleteTeam: (id: string, skipConfirmation?: boolean) => Promise<void>;
   selectTeam: (team: Team | null) => void;
   getTeamByIdFromCache: (id: string) => Team | undefined;
 }
@@ -133,15 +134,16 @@ interface TeamsProviderProps {
 export function TeamsProvider({ children }: TeamsProviderProps) {
   const [state, dispatch] = useReducer(teamsReducer, initialState);
   const { isAuthenticated } = useAuth();
+  const { integrations } = useIntegrations();
 
-  // Fetch teams when user is authenticated
+  // Fetch teams when user is authenticated or integrations change
   useEffect(() => {
     if (isAuthenticated) {
       fetchTeams();
     } else {
       dispatch({ type: 'CLEAR_STATE' });
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, integrations.length]); // Refresh when integrations count changes
 
   const fetchTeams = useCallback(async () => {
     if (state.isLoading || state.isRefreshing) return;
@@ -180,7 +182,8 @@ export function TeamsProvider({ children }: TeamsProviderProps) {
       toast.loading('Creating team...', { id: 'create-team' });
       const newTeam = await teamsApi.createTeam(data);
 
-      toast.success('Team created successfully!', { id: 'create-team' });
+      // Dismiss the loading toast - let the calling component handle success feedback
+      toast.dismiss('create-team');
       dispatch({ type: 'ADD_TEAM', payload: newTeam });
 
       return newTeam;
@@ -241,15 +244,17 @@ export function TeamsProvider({ children }: TeamsProviderProps) {
   );
 
   const deleteTeam = useCallback(
-    async (id: string) => {
+    async (id: string, skipConfirmation?: boolean) => {
       const team = state.teams.find(t => t.id === id);
       const teamName = team?.name || 'team';
 
-      const confirmed = window.confirm(
-        `Are you sure you want to delete "${teamName}"? This action cannot be undone and will remove all associated standups.`
-      );
+      if (!skipConfirmation) {
+        const confirmed = window.confirm(
+          `Are you sure you want to delete "${teamName}"? This action cannot be undone and will remove all associated standups.`
+        );
 
-      if (!confirmed) return;
+        if (!confirmed) return;
+      }
 
       try {
         toast.loading('Deleting team...', { id: `delete-team-${id}` });

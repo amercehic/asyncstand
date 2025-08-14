@@ -42,6 +42,11 @@ const Toaster = ({ ...props }: ToasterProps) => {
           borderRadius: '0.75rem',
           boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
           backdropFilter: 'blur(8px)',
+          wordBreak: 'break-word',
+          hyphens: 'auto',
+          maxWidth: '450px',
+          minWidth: '300px',
+          overflow: 'hidden',
         },
       }}
       {...props}

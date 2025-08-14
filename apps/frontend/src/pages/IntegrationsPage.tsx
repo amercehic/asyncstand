@@ -1,5 +1,5 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ModernButton, Tooltip } from '@/components/ui';
 import {
@@ -14,14 +14,16 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import { toast } from '@/components/ui';
-import { type SlackIntegration } from '@/lib/api';
-import { startSlackOAuth } from '@/utils/slack-oauth';
+import { integrationsApi, type SlackIntegration } from '@/lib/api';
 import { useAuth, useIntegrations } from '@/contexts';
 import { SlackIcon, TeamsIcon, DiscordIcon } from '@/components/icons/IntegrationIcons';
+import { DeleteIntegrationModal } from '@/components/DeleteIntegrationModal';
+import { IntegrationSuccessDialog } from '@/components/IntegrationSuccessDialog';
 
 export const IntegrationsPage = React.memo(() => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const {
     integrations,
     isLoading,
@@ -30,6 +32,60 @@ export const IntegrationsPage = React.memo(() => {
     isIntegrationSyncing,
     refreshIntegrations,
   } = useIntegrations();
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [integrationToDelete, setIntegrationToDelete] = useState<SlackIntegration | null>(null);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [successIntegration, setSuccessIntegration] = useState<{
+    name: string;
+    type: 'slack' | 'teams' | 'discord';
+    workspaceName?: string;
+    id?: string;
+  } | null>(null);
+
+  // Handle OAuth callback from URL parameters
+  useEffect(() => {
+    const status = searchParams.get('status');
+    const message = searchParams.get('message');
+
+    if (status === 'success') {
+      // Clear URL params first
+      setSearchParams({});
+
+      // Refresh integrations and show success dialog
+      refreshIntegrations().then(async () => {
+        const latest = await integrationsApi.getSlackIntegrations();
+        const newest = latest[0];
+
+        if (newest) {
+          setSuccessIntegration({
+            name: 'Slack',
+            type: 'slack',
+            workspaceName: newest.externalTeamId,
+            id: newest.id,
+          });
+          setShowSuccessDialog(true);
+
+          // Automatically trigger sync after successful integration
+          try {
+            await syncIntegration(newest.id);
+          } catch (error) {
+            console.error('Auto-sync failed:', error);
+            // Don't show toast error as the integration was successful
+          }
+        } else {
+          toast.success('Integration connected successfully!');
+        }
+      });
+    } else if (status === 'error') {
+      // Clear URL params
+      setSearchParams({});
+
+      // Show error message
+      const errorMessage = message ? decodeURIComponent(message) : 'Integration failed';
+      toast.error(errorMessage);
+    }
+  }, [searchParams, setSearchParams, refreshIntegrations]);
 
   const handleConnectIntegration = async (platform: 'slack' | 'teams' | 'discord' = 'slack') => {
     if (!user?.orgId) {
@@ -42,16 +98,13 @@ export const IntegrationsPage = React.memo(() => {
     switch (platform) {
       case 'slack':
         try {
-          await startSlackOAuth({
-            orgId: user.orgId,
-            onSuccess: () => {
-              toast.success('Slack workspace connected successfully!');
-              refreshIntegrations();
-            },
-            onError: error => {
-              toast.error(error);
-            },
-          });
+          // Use NGROK_URL if available for OAuth flow, otherwise use relative URL
+          const ngrokUrl = import.meta.env.VITE_NGROK_URL;
+          const baseUrl = ngrokUrl || '';
+          const oauthUrl = `${baseUrl}/slack/oauth/start?orgId=${user.orgId}`;
+
+          // Navigate directly to OAuth URL instead of using popup
+          window.location.href = oauthUrl;
         } catch (error) {
           console.error('Error during Slack OAuth:', error);
           toast.error('Failed to initiate Slack connection');
@@ -72,8 +125,27 @@ export const IntegrationsPage = React.memo(() => {
     await syncIntegration(integrationId);
   };
 
-  const handleDisconnect = async (integrationId: string, teamName: string) => {
-    await removeIntegration(integrationId, teamName);
+  const handleDisconnectClick = (integration: SlackIntegration) => {
+    setIntegrationToDelete(integration);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async (integrationId: string) => {
+    await removeIntegration(integrationId);
+    setShowDeleteModal(false);
+    setIntegrationToDelete(null);
+  };
+
+  const handleSuccessDialogClose = () => {
+    setShowSuccessDialog(false);
+    setSuccessIntegration(null);
+  };
+
+  const handleConfigure = () => {
+    if (successIntegration?.id) {
+      navigate(`/integrations/${successIntegration.id}`);
+    }
+    handleSuccessDialogClose();
   };
 
   const handleViewIntegration = (integration: SlackIntegration) => {
@@ -136,13 +208,64 @@ export const IntegrationsPage = React.memo(() => {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="flex items-center justify-between mb-8"
+          className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6"
         >
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold mb-2">Integrations</h1>
-            <p className="text-muted-foreground text-base sm:text-lg">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="relative mb-2"
+            >
+              <motion.h1
+                className="text-2xl sm:text-4xl font-bold text-foreground relative z-10"
+                initial={{ y: 10 }}
+                animate={{ y: 0 }}
+                transition={{ duration: 0.4, delay: 0.2 }}
+              >
+                <span className="relative inline-block">
+                  <span className="bg-gradient-to-r from-foreground via-blue-600/80 to-foreground bg-clip-text text-transparent font-extrabold">
+                    Integrations
+                  </span>
+
+                  {/* Connection icon effects */}
+                  <motion.div
+                    className="absolute -top-1 -right-6 w-3 h-3 border-2 border-blue-400 rounded-full"
+                    animate={{
+                      scale: [1, 1.2, 1],
+                      rotate: [0, 90, 180, 270, 360],
+                    }}
+                    transition={{
+                      duration: 3,
+                      delay: 1,
+                      repeat: Infinity,
+                      repeatDelay: 2,
+                    }}
+                  ></motion.div>
+                  <motion.div
+                    className="absolute top-1 -right-2 w-1 h-1 bg-cyan-400 rounded-full"
+                    animate={{
+                      opacity: [0, 1, 0],
+                      scale: [0, 1, 0],
+                    }}
+                    transition={{
+                      duration: 2,
+                      delay: 1.5,
+                      repeat: Infinity,
+                      repeatDelay: 3,
+                    }}
+                  ></motion.div>
+                </span>
+              </motion.h1>
+            </motion.div>
+            <motion.p
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="text-muted-foreground text-base sm:text-lg"
+            >
               Connect your workspace tools to AsyncStand for seamless standup management.
-            </p>
+            </motion.p>
           </div>
         </motion.div>
 
@@ -267,7 +390,7 @@ export const IntegrationsPage = React.memo(() => {
                       size="sm"
                       onClick={e => {
                         e.stopPropagation();
-                        handleDisconnect(integration.id, integration.externalTeamId);
+                        handleDisconnectClick(integration);
                       }}
                       data-testid={`disconnect-${integration.id}`}
                     >
@@ -334,6 +457,27 @@ export const IntegrationsPage = React.memo(() => {
               managing async standups.
             </p>
           </motion.div>
+        )}
+
+        {/* Delete Integration Modal */}
+        <DeleteIntegrationModal
+          integration={integrationToDelete}
+          isOpen={showDeleteModal}
+          onClose={() => {
+            setShowDeleteModal(false);
+            setIntegrationToDelete(null);
+          }}
+          onConfirm={handleDeleteConfirm}
+        />
+
+        {/* Success Dialog */}
+        {successIntegration && (
+          <IntegrationSuccessDialog
+            isOpen={showSuccessDialog}
+            onClose={handleSuccessDialogClose}
+            onConfigure={successIntegration.id ? handleConfigure : undefined}
+            integration={successIntegration}
+          />
         )}
       </main>
     </div>

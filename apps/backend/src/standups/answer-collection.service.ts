@@ -9,6 +9,8 @@ import { Prisma } from '@prisma/client';
 import { StandupInstanceState as PrismaStandupInstanceState } from '@prisma/client';
 import { SubmitAnswerDto } from '@/standups/dto/submit-answer.dto';
 import { SubmitAnswersDto } from '@/standups/dto/submit-answers.dto';
+import { MagicSubmitAnswersDto } from '@/standups/dto/magic-submit-answers.dto';
+import { MagicTokenService } from '@/standups/services/magic-token.service';
 
 interface ConfigSnapshot {
   questions: string[];
@@ -53,6 +55,7 @@ export class AnswerCollectionService {
     private readonly prisma: PrismaService,
     private readonly auditLogService: AuditLogService,
     private readonly logger: LoggerService,
+    private readonly magicTokenService: MagicTokenService,
   ) {
     this.logger.setContext(AnswerCollectionService.name);
   }
@@ -127,10 +130,16 @@ export class AnswerCollectionService {
       },
     });
 
+    // Get team member to check if they have an associated user ID
+    const teamMemberForAudit = await this.prisma.teamMember.findUnique({
+      where: { id: memberId },
+      select: { userId: true },
+    });
+
     // Audit log
     await this.auditLogService.log({
       actorType: AuditActorType.USER,
-      actorUserId: memberId,
+      actorUserId: teamMemberForAudit?.userId || null, // Use actual user ID or null for Slack-only users
       orgId,
       category: AuditCategory.STANDUP,
       severity: AuditSeverity.INFO,
@@ -170,6 +179,8 @@ export class AnswerCollectionService {
     data: SubmitAnswersDto,
     memberId: string,
     orgId: string,
+    allowNonParticipating: boolean = false,
+    allowLateSubmission: boolean = false,
   ): Promise<{ success: boolean; answersSubmitted: number }> {
     this.logger.info('Submitting full response', {
       instanceId: data.standupInstanceId,
@@ -207,8 +218,8 @@ export class AnswerCollectionService {
       throw new ApiError(ErrorCode.NOT_FOUND, 'Team member not found', HttpStatus.NOT_FOUND);
     }
 
-    // Validate submission window
-    if (!this.canStillSubmit(instance)) {
+    // Validate submission window (allow bypass for late submissions like Slack thread replies)
+    if (!allowLateSubmission && !this.canStillSubmit(instance)) {
       throw new ApiError(
         ErrorCode.VALIDATION_FAILED,
         'Response collection window has closed',
@@ -216,14 +227,24 @@ export class AnswerCollectionService {
       );
     }
 
-    // Validate member is participating
+    // Validate member is participating (or allow if explicitly permitted by caller)
     const isParticipating = configSnapshot.participatingMembers.some((m) => m.id === memberId);
     if (!isParticipating) {
-      throw new ApiError(
-        ErrorCode.FORBIDDEN,
-        'Member is not participating in this standup',
-        HttpStatus.FORBIDDEN,
-      );
+      if (allowNonParticipating) {
+        this.logger.warn(
+          'Member not in participating list; allowing submission due to integration context',
+          {
+            instanceId: data.standupInstanceId,
+            memberId,
+          },
+        );
+      } else {
+        throw new ApiError(
+          ErrorCode.FORBIDDEN,
+          'Member is not participating in this standup',
+          HttpStatus.FORBIDDEN,
+        );
+      }
     }
 
     // Validate question indices
@@ -266,10 +287,16 @@ export class AnswerCollectionService {
       return data.answers.length;
     });
 
+    // Get team member to check if they have an associated user ID
+    const teamMemberWithUserId = await this.prisma.teamMember.findUnique({
+      where: { id: memberId },
+      select: { userId: true },
+    });
+
     // Audit log
     await this.auditLogService.log({
       actorType: AuditActorType.USER,
-      actorUserId: memberId,
+      actorUserId: teamMemberWithUserId?.userId || null, // Use actual user ID or null for Slack-only users
       orgId,
       category: AuditCategory.STANDUP,
       severity: AuditSeverity.INFO,
@@ -431,6 +458,7 @@ export class AnswerCollectionService {
     memberId: string,
     questionIndex: number,
     orgId: string,
+    allowLateSubmission: boolean = false,
   ): Promise<void> {
     const instance = await this.prisma.standupInstance.findFirst({
       where: {
@@ -464,8 +492,8 @@ export class AnswerCollectionService {
       );
     }
 
-    // Validate submission window
-    if (!this.canStillSubmit(instance)) {
+    // Validate submission window (allow bypass for late submissions like Slack thread replies)
+    if (!allowLateSubmission && !this.canStillSubmit(instance)) {
       throw new ApiError(
         ErrorCode.VALIDATION_FAILED,
         'Response collection window has closed',
@@ -706,7 +734,7 @@ export class AnswerCollectionService {
       },
     });
 
-    // Audit log
+    // Audit log (actorUserId is already a proper user ID from the controller)
     await this.auditLogService.log({
       actorType: AuditActorType.USER,
       actorUserId: actorUserId,
@@ -739,5 +767,227 @@ export class AnswerCollectionService {
     });
 
     return { deleted: result.count };
+  }
+
+  /**
+   * Submit standup responses using a magic token
+   */
+  async submitResponseWithMagicToken(
+    data: MagicSubmitAnswersDto,
+  ): Promise<{ success: boolean; answersSubmitted: number }> {
+    this.logger.info('Submitting response with magic token', {
+      answersCount: data.answers.length,
+      tokenProvided: !!data.magicToken,
+    });
+
+    // Validate the magic token
+    const tokenPayload = await this.magicTokenService.validateMagicToken(data.magicToken);
+    if (!tokenPayload) {
+      throw new ApiError(
+        ErrorCode.UNAUTHENTICATED,
+        'Invalid or expired magic token',
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    // Get instance and validate
+    const instance = await this.prisma.standupInstance.findFirst({
+      where: {
+        id: tokenPayload.standupInstanceId,
+        team: { orgId: tokenPayload.orgId },
+      },
+      include: {
+        team: true,
+      },
+    });
+
+    if (!instance) {
+      throw new ApiError(ErrorCode.NOT_FOUND, 'Standup instance not found', HttpStatus.NOT_FOUND);
+    }
+
+    const configSnapshot = instance.configSnapshot as unknown as ConfigSnapshot;
+
+    // Validate team member exists and is active
+    const teamMember = await this.prisma.teamMember.findFirst({
+      where: {
+        id: tokenPayload.teamMemberId,
+        teamId: instance.teamId,
+        active: true,
+      },
+    });
+
+    if (!teamMember) {
+      throw new ApiError(ErrorCode.NOT_FOUND, 'Team member not found', HttpStatus.NOT_FOUND);
+    }
+
+    // Validate submission window (double-check)
+    if (!this.canStillSubmit(instance)) {
+      throw new ApiError(
+        ErrorCode.VALIDATION_FAILED,
+        'Response collection window has closed',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    // Validate question indices
+    const maxQuestionIndex = configSnapshot.questions.length - 1;
+    for (const answer of data.answers) {
+      if (answer.questionIndex < 0 || answer.questionIndex > maxQuestionIndex) {
+        throw new ApiError(
+          ErrorCode.VALIDATION_FAILED,
+          `Invalid question index: ${answer.questionIndex}`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+    }
+
+    // Use transaction to ensure atomicity
+    const result = await this.prisma.$transaction(async (tx) => {
+      const upsertPromises = data.answers.map((answer) =>
+        tx.answer.upsert({
+          where: {
+            standupInstanceId_teamMemberId_questionIndex: {
+              standupInstanceId: tokenPayload.standupInstanceId,
+              teamMemberId: tokenPayload.teamMemberId,
+              questionIndex: answer.questionIndex,
+            },
+          },
+          update: {
+            text: answer.text,
+            submittedAt: new Date(),
+          },
+          create: {
+            standupInstanceId: tokenPayload.standupInstanceId,
+            teamMemberId: tokenPayload.teamMemberId,
+            questionIndex: answer.questionIndex,
+            text: answer.text,
+          },
+        }),
+      );
+
+      await Promise.all(upsertPromises);
+      return data.answers.length;
+    });
+
+    // Get team member to check if they have an associated user ID
+    const teamMemberForMagicAudit = await this.prisma.teamMember.findUnique({
+      where: { id: tokenPayload.teamMemberId },
+      select: { userId: true },
+    });
+
+    // Audit log
+    await this.auditLogService.log({
+      actorType: AuditActorType.USER,
+      actorUserId: teamMemberForMagicAudit?.userId || null, // Use actual user ID or null for Slack-only users
+      orgId: tokenPayload.orgId,
+      category: AuditCategory.STANDUP,
+      severity: AuditSeverity.INFO,
+      action: 'standup_magic_token_response_submitted',
+      requestData: {
+        method: 'POST',
+        path: '/standups/submit-magic',
+        ipAddress: '127.0.0.1',
+        body: {
+          instanceId: tokenPayload.standupInstanceId,
+          answersSubmitted: result,
+          totalAnswerLength: data.answers.reduce((sum, a) => sum + a.text.length, 0),
+          authMethod: 'magic_token',
+        },
+      },
+      resources: [
+        {
+          type: 'standup_instance',
+          id: tokenPayload.standupInstanceId,
+          action: ResourceAction.UPDATED,
+        },
+      ],
+    });
+
+    this.logger.info('Magic token response submitted successfully', {
+      instanceId: tokenPayload.standupInstanceId,
+      teamMemberId: tokenPayload.teamMemberId,
+      answersSubmitted: result,
+    });
+
+    return { success: true, answersSubmitted: result };
+  }
+
+  /**
+   * Generate magic tokens for all participating members of a standup instance
+   */
+  async generateMagicTokensForInstance(
+    instanceId: string,
+    orgId: string,
+  ): Promise<
+    Array<{ teamMemberId: string; memberName: string; magicToken: string; submissionUrl: string }>
+  > {
+    this.logger.info('Generating magic tokens for standup instance', { instanceId, orgId });
+
+    // Get instance with participating members
+    const instance = await this.prisma.standupInstance.findFirst({
+      where: {
+        id: instanceId,
+        team: { orgId },
+      },
+      include: {
+        team: {
+          include: {
+            members: {
+              where: { active: true },
+              include: {
+                integrationUser: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!instance) {
+      throw new ApiError(ErrorCode.NOT_FOUND, 'Standup instance not found', HttpStatus.NOT_FOUND);
+    }
+
+    const configSnapshot = instance.configSnapshot as unknown as ConfigSnapshot;
+    const participatingMemberIds = new Set(configSnapshot.participatingMembers.map((m) => m.id));
+
+    // Filter active team members who are participating
+    const participatingMembers = instance.team.members.filter((member) =>
+      participatingMemberIds.has(member.id),
+    );
+
+    // Generate magic tokens for each participating member
+    const tokens = [];
+    for (const member of participatingMembers) {
+      try {
+        const tokenInfo = await this.magicTokenService.generateMagicToken(
+          instanceId,
+          member.id,
+          member.platformUserId,
+          orgId,
+          configSnapshot.responseTimeoutHours,
+        );
+
+        tokens.push({
+          teamMemberId: member.id,
+          memberName: member.name || member.integrationUser?.name || 'Unknown',
+          magicToken: tokenInfo.token,
+          submissionUrl: tokenInfo.submissionUrl,
+        });
+      } catch (error) {
+        this.logger.error('Failed to generate magic token for member', {
+          memberId: member.id,
+          memberName: member.name,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    this.logger.info('Magic tokens generated successfully', {
+      instanceId,
+      totalMembers: participatingMembers.length,
+      tokensGenerated: tokens.length,
+    });
+
+    return tokens;
   }
 }

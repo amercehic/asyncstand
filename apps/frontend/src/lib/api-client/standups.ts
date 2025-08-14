@@ -174,6 +174,35 @@ export const standupsApi = {
     return response.data;
   },
 
+  async triggerStandupForToday(): Promise<{ created: string[]; skipped: string[] }> {
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+    const response = await api.post('/standups/instances/create-for-date', {
+      targetDate: today,
+    });
+    return response.data;
+  },
+
+  async triggerStandupAndSend(): Promise<{
+    created: string[];
+    skipped: string[];
+    messages: { instanceId: string; success: boolean; error?: string }[];
+  }> {
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+    const response = await api.post('/standups/instances/create-and-trigger', {
+      targetDate: today,
+    });
+    return response.data;
+  },
+
+  async triggerReminderForInstance(instanceId: string): Promise<{
+    success: boolean;
+    messageTs?: string;
+    error?: string;
+  }> {
+    const response = await api.post(`/standups/instances/${instanceId}/trigger-reminder`);
+    return response.data;
+  },
+
   async getInstanceResponses(instanceId: string): Promise<StandupResponse[]> {
     const response = await api.get<StandupResponse[]>(`/instances/${instanceId}/responses`);
     return response.data;

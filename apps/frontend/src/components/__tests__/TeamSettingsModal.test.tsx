@@ -352,7 +352,9 @@ describe('TeamSettingsModal', () => {
       expect(teamsApi.deleteTeam).toHaveBeenCalledWith('team-1');
     });
 
-    expect(toast.success).toHaveBeenCalledWith('Team "Test Team" has been deleted');
+    expect(toast.success).toHaveBeenCalledWith('Team deleted successfully!', {
+      id: 'delete-team-team-1',
+    });
     expect(mockProps.onSuccess).toHaveBeenCalled();
   });
 
@@ -373,7 +375,7 @@ describe('TeamSettingsModal', () => {
     fireEvent.click(confirmDeleteButton);
 
     await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith('Failed to delete team. Please try again.');
+      expect(toast.error).toHaveBeenCalledWith('Delete API Error', { id: 'delete-team-team-1' });
     });
   });
 

@@ -245,7 +245,7 @@ export function StandupsProvider({ children }: StandupsProviderProps) {
     } catch (error) {
       const { message } = normalizeApiError(error, 'Failed to load standup instances');
       console.error('Error fetching standup instances:', error);
-      toast.error(message);
+      toast.error(message, { id: `fetch-instances-${standupId}` });
     }
   }, []);
 
@@ -256,7 +256,7 @@ export function StandupsProvider({ children }: StandupsProviderProps) {
     } catch (error) {
       const { message } = normalizeApiError(error, 'Failed to load responses');
       console.error('Error fetching instance responses:', error);
-      toast.error(message);
+      toast.error(message, { id: `fetch-responses-${instanceId}` });
     }
   }, []);
 

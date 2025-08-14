@@ -11,7 +11,10 @@ import {
   SlackConversationsListResponse,
   SlackSyncResult,
 } from '@/integrations/slack/types/slack-api.types';
-import { ISlackApiService } from '@/integrations/slack/interfaces/slack-api.interface';
+import {
+  ISlackApiService,
+  SlackConversationInfo,
+} from '@/integrations/slack/interfaces/slack-api.interface';
 
 @Injectable()
 export class SlackApiService implements ISlackApiService {
@@ -334,6 +337,97 @@ export class SlackApiService implements ISlackApiService {
     return result;
   }
 
+  async joinChannel(
+    integrationId: string,
+    channelId: string,
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      this.logger.info('Attempting to join channel', { integrationId, channelId });
+
+      // Validate channel ID format
+      if (!channelId || typeof channelId !== 'string') {
+        this.logger.warn('Invalid channel ID format', { channelId });
+        return { success: false, error: 'Invalid channel ID format' };
+      }
+
+      // Slack channel IDs should start with C (for channels) or G (for groups)
+      if (!channelId.match(/^[CG][A-Z0-9]+$/)) {
+        this.logger.warn('Unusual channel ID format', { channelId });
+      }
+
+      // First check if the bot is already in the channel
+      try {
+        this.logger.debug('Checking if bot is already in channel', { channelId });
+        const channelInfo = await this.callSlackApi<SlackConversationInfo>(
+          integrationId,
+          'conversations.info',
+          { channel: channelId },
+        );
+
+        if (channelInfo.channel?.is_member) {
+          this.logger.info('Bot is already a member of channel', { integrationId, channelId });
+          return { success: true };
+        }
+
+        this.logger.debug('Bot is not a member, proceeding to join', { channelId });
+      } catch (infoError) {
+        this.logger.warn('Could not check channel membership', {
+          channelId,
+          error: infoError instanceof Error ? infoError.message : 'Unknown error',
+        });
+        // Continue with join attempt even if we can't check membership
+      }
+
+      await this.callSlackApi(integrationId, 'conversations.join', { channel: channelId });
+
+      this.logger.info('Successfully joined channel', { integrationId, channelId });
+      return { success: true };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.warn('Failed to join channel', {
+        integrationId,
+        channelId,
+        error: errorMessage,
+      });
+
+      // Check if the error is because the bot is already in the channel
+      if (errorMessage.includes('already_in_channel')) {
+        this.logger.info('Bot is already in channel', { integrationId, channelId });
+        return { success: true };
+      }
+
+      // Check if it's a private channel that requires manual invitation
+      if (errorMessage.includes('channel_not_found') || errorMessage.includes('is_private')) {
+        this.logger.warn('Private channel requires manual invitation', { channelId });
+        return {
+          success: false,
+          error:
+            'Private channels require manual bot invitation. Please use /invite @AsyncStand in the channel.',
+        };
+      }
+
+      // Check for invalid arguments - provide more specific guidance
+      if (errorMessage.includes('invalid_arguments')) {
+        this.logger.warn('Invalid arguments error for channel join', {
+          channelId,
+          possibleCauses: [
+            'Channel does not exist in Slack workspace',
+            'Channel is archived',
+            'Bot lacks permission to join this specific channel',
+            'Channel ID format is incorrect',
+          ],
+        });
+        return {
+          success: false,
+          error:
+            'Channel may not exist, be archived, or bot lacks permission to join. Try manually inviting the bot with /invite @AsyncStand',
+        };
+      }
+
+      return { success: false, error: errorMessage };
+    }
+  }
+
   async callSlackApi<T>(
     integrationId: string,
     endpoint: string,
@@ -349,20 +443,46 @@ export class SlackApiService implements ISlackApiService {
       );
     }
 
+    // Determine if this endpoint requires POST method
+    const postEndpoints = [
+      'conversations.join',
+      'conversations.create',
+      'conversations.invite',
+      'conversations.archive',
+      'conversations.unarchive',
+      'conversations.rename',
+      'conversations.setPurpose',
+      'conversations.setTopic',
+      'chat.postMessage',
+      'chat.update',
+      'chat.delete',
+    ];
+
+    const usePost = postEndpoints.includes(endpoint);
     const url = new URL(`${this.baseUrl}/${endpoint}`);
 
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        url.searchParams.set(key, String(value));
-      }
-    });
+    let body: string | undefined;
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${botToken}`,
+    };
+
+    if (usePost) {
+      // For POST requests, send params in body as JSON
+      headers['Content-Type'] = 'application/json';
+      body = JSON.stringify(params);
+    } else {
+      // For GET requests, send params as query parameters
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          url.searchParams.set(key, String(value));
+        }
+      });
+    }
 
     const response = await fetch(url.toString(), {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${botToken}`,
-        'Content-Type': 'application/json',
-      },
+      method: usePost ? 'POST' : 'GET',
+      headers,
+      ...(body && { body }),
     });
 
     if (!response.ok) {

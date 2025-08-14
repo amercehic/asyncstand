@@ -47,6 +47,7 @@ vi.mock('@/components/ui/modern-toast', () => ({
     error: vi.fn(),
     warning: vi.fn(),
     info: vi.fn(),
+    dismiss: vi.fn(),
   },
 }));
 
@@ -248,8 +249,8 @@ describe('CreateTeamModal', () => {
     });
 
     expect(toast.loading).toHaveBeenCalledWith('Creating team...', { id: 'create-team' });
-    expect(toast.success).toHaveBeenCalledWith('Team created successfully!', { id: 'create-team' });
-    expect(mockProps.onSuccess).toHaveBeenCalled();
+    expect(toast.dismiss).toHaveBeenCalledWith('create-team');
+    expect(mockProps.onSuccess).toHaveBeenCalledWith('Test Team');
   });
 
   it('closes modal when close button is clicked', async () => {

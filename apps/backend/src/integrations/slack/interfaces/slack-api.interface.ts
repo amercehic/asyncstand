@@ -29,6 +29,7 @@ export interface SlackConversationInfo {
     is_channel: boolean;
     is_private: boolean;
     is_archived: boolean;
+    is_member?: boolean;
     topic?: {
       value: string;
     };

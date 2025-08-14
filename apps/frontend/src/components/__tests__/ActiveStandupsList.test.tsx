@@ -13,6 +13,7 @@ vi.mock('@/lib/api', () => ({
   standupsApi: {
     getTeamStandups: vi.fn(),
     deleteStandup: vi.fn(),
+    triggerStandupForToday: vi.fn(),
   },
 }));
 
@@ -21,6 +22,7 @@ vi.mock('sonner', () => ({
     success: vi.fn(),
     error: vi.fn(),
     info: vi.fn(),
+    loading: vi.fn(),
     custom: vi.fn(),
   },
   Toaster: () => null,
@@ -262,12 +264,29 @@ describe('ActiveStandupsList', () => {
       fireEvent.click(analyticsButton);
       expect(toast.info).toHaveBeenCalledWith('Analytics view - Coming soon!');
     }
+  });
+
+  it('handles run now button click', async () => {
+    vi.mocked(standupsApi.getTeamStandups).mockResolvedValue(mockStandups);
+    vi.mocked(standupsApi.triggerStandupForToday).mockResolvedValue({
+      created: ['instance-1', 'instance-2'],
+      skipped: [],
+    });
+
+    render(<ActiveStandupsList teamId="team-1" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Daily Standup')).toBeInTheDocument();
+    });
 
     // Test Run Now button (there are multiple, so get all and click the first one)
     const runNowButtons = screen.getAllByText('Run Now');
     expect(runNowButtons.length).toBeGreaterThan(0);
     fireEvent.click(runNowButtons[0]);
-    expect(toast.info).toHaveBeenCalledWith('Run now - Coming soon!');
+
+    await waitFor(() => {
+      expect(standupsApi.triggerStandupForToday).toHaveBeenCalled();
+    });
   });
 
   it('calls onStandupsChange callback when provided', async () => {

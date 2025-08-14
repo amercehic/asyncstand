@@ -51,12 +51,21 @@ export const getLoggerConfig = (): LoggerConfig => {
         };
       },
       err: (err: unknown) => {
-        const error = err as { constructor?: { name?: string }; message?: string; stack?: string };
-        return {
-          type: error.constructor?.name,
-          message: error.message,
-          stack: error.stack,
-        };
+        if (err instanceof Error) {
+          const isDevelopment = process.env.NODE_ENV === 'development';
+          return {
+            type: err.constructor?.name,
+            message: err.message,
+            stack: err.stack,
+            // In development, include additional debug information
+            ...(isDevelopment && {
+              cause: (err as Error & { cause?: unknown }).cause,
+              name: err.name,
+              constructor: err.constructor?.name,
+            }),
+          };
+        }
+        return err;
       },
     },
   };
@@ -65,6 +74,7 @@ export const getLoggerConfig = (): LoggerConfig => {
 export const createLoggerModule = () => {
   const config = getLoggerConfig();
   const isTest = process.env.NODE_ENV === 'test';
+  const isDevelopment = process.env.NODE_ENV === 'development';
   const isSilent = process.env.LOG_LEVEL === 'silent';
 
   // If LOG_LEVEL is silent, return a minimal logger configuration
@@ -80,7 +90,24 @@ export const createLoggerModule = () => {
   return LoggerModule.forRoot({
     pinoHttp: {
       level: config.level,
-      transport: config.prettyPrint ? { target: 'pino-pretty' } : undefined,
+      transport: config.prettyPrint
+        ? {
+            target: 'pino-pretty',
+            options: {
+              colorize: true,
+              translateTime: 'SYS:standard',
+              ignore: 'hostname,pid',
+              singleLine: false,
+              hideObject: false,
+              // Enhanced stack trace visibility for development
+              ...(isDevelopment && {
+                errorLikeObjectKeys: ['err', 'error', 'exception'],
+                errorProps: 'name,message,stack,cause',
+                messageFormat: '{levelname} - {msg} {if error}\n{error.stack}{end}',
+              }),
+            },
+          }
+        : undefined,
       serializers: config.serializers,
       redact: config.redact,
       // Disable HTTP request/response logging in test environment

@@ -1,8 +1,32 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
+import { Block } from '@slack/web-api';
 import { SlackMessageFormatterService } from '@/integrations/slack/slack-message-formatter.service';
+import { AnswerCollectionService } from '@/standups/answer-collection.service';
+
+interface SlackSectionBlock extends Block {
+  type: 'section';
+  text: {
+    type: string;
+    text: string;
+  };
+}
+
+interface SlackActionsBlock extends Block {
+  type: 'actions';
+  elements: Array<{
+    type: string;
+    text?: { type: string; text: string };
+    style?: string;
+    action_id?: string;
+    value?: string;
+  }>;
+}
 
 describe('SlackMessageFormatterService', () => {
   let service: SlackMessageFormatterService;
+  let mockAnswerCollectionService: jest.Mocked<AnswerCollectionService>;
+  let mockConfigService: jest.Mocked<ConfigService>;
 
   const mockInstance = {
     id: 'instance-123',
@@ -56,10 +80,26 @@ describe('SlackMessageFormatterService', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [SlackMessageFormatterService],
+      providers: [
+        SlackMessageFormatterService,
+        {
+          provide: AnswerCollectionService,
+          useValue: {
+            generateMagicTokensForInstance: jest.fn(),
+          },
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn().mockReturnValue('http://localhost:3000'),
+          },
+        },
+      ],
     }).compile();
 
     service = module.get<SlackMessageFormatterService>(SlackMessageFormatterService);
+    mockAnswerCollectionService = module.get(AnswerCollectionService);
+    mockConfigService = module.get(ConfigService);
   });
 
   describe('formatStandupReminder', () => {
@@ -502,6 +542,428 @@ describe('SlackMessageFormatterService', () => {
       ).getTimeRemaining(deadline);
 
       expect(timeRemaining).toBe('Time expired');
+    });
+  });
+
+  describe('formatStandupReminderWithMagicLinks', () => {
+    const mockMagicTokens = [
+      {
+        teamMemberId: 'member1',
+        memberName: 'John Doe',
+        magicToken: 'token-abc123',
+        submissionUrl: 'https://app.asyncstand.com/standup/submit?token=token-abc123',
+      },
+      {
+        teamMemberId: 'member2',
+        memberName: 'Jane Smith',
+        magicToken: 'token-xyz789',
+        submissionUrl: 'https://app.asyncstand.com/standup/submit?token=token-xyz789',
+      },
+    ];
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should format standup reminder with magic links correctly', async () => {
+      mockAnswerCollectionService.generateMagicTokensForInstance.mockResolvedValue(mockMagicTokens);
+      mockConfigService.get.mockReturnValue('https://app.asyncstand.com');
+
+      const result = await service.formatStandupReminderWithMagicLinks(
+        mockInstance,
+        'Test Team',
+        'org-123',
+      );
+
+      expect(result.text).toBe('🌅 Daily Standup Time - Test Team');
+      expect(result.blocks).toBeDefined();
+      expect(result.blocks.length).toBeGreaterThan(6); // Should have more blocks than regular reminder
+
+      // Check header block
+      expect(result.blocks[0]).toEqual({
+        type: 'header',
+        text: {
+          type: 'plain_text',
+          text: '🌅 Daily Standup Time - Test Team',
+        },
+      });
+
+      // Check magic links explanation section
+      const magicLinksSection = result.blocks.find(
+        (block): block is SlackSectionBlock =>
+          (block as SlackSectionBlock).text?.text?.includes('🌐 *Quick Submit:*') || false,
+      );
+      expect(magicLinksSection).toBeDefined();
+
+      // Check personalized magic links section
+      const linksSection = result.blocks.find(
+        (block): block is SlackSectionBlock =>
+          (block as SlackSectionBlock).text?.text?.includes(
+            '<https://app.asyncstand.com/standup/submit?token=token-abc123|Submit for John Doe>',
+          ) || false,
+      );
+      expect(linksSection).toBeDefined();
+      expect(linksSection?.text.text).toContain('Submit for John Doe');
+      expect(linksSection?.text.text).toContain('Submit for Jane Smith');
+
+      // Verify service calls
+      expect(mockAnswerCollectionService.generateMagicTokensForInstance).toHaveBeenCalledWith(
+        'instance-123',
+        'org-123',
+      );
+      expect(mockConfigService.get).toHaveBeenCalledWith('appUrl');
+    });
+
+    it('should use localhost fallback when appUrl is not configured', async () => {
+      mockAnswerCollectionService.generateMagicTokensForInstance.mockResolvedValue(mockMagicTokens);
+      mockConfigService.get.mockReturnValue(null);
+
+      const result = await service.formatStandupReminderWithMagicLinks(
+        mockInstance,
+        'Test Team',
+        'org-123',
+      );
+
+      const linksSection = result.blocks.find(
+        (block): block is SlackSectionBlock =>
+          (block as SlackSectionBlock).text?.text?.includes(
+            'http://localhost:3000/standup/submit?token=',
+          ) || false,
+      );
+      expect(linksSection).toBeDefined();
+    });
+
+    it('should include action buttons like regular reminder', async () => {
+      mockAnswerCollectionService.generateMagicTokensForInstance.mockResolvedValue(mockMagicTokens);
+
+      const result = await service.formatStandupReminderWithMagicLinks(
+        mockInstance,
+        'Test Team',
+        'org-123',
+      );
+
+      // Check action buttons are present
+      const actionsBlock = result.blocks.find(
+        (block): block is SlackActionsBlock => block.type === 'actions',
+      );
+      expect(actionsBlock).toBeDefined();
+      expect(actionsBlock?.elements).toHaveLength(2);
+      expect(actionsBlock?.elements[0]).toMatchObject({
+        type: 'button',
+        text: { type: 'plain_text', text: '📝 Submit Response' },
+        style: 'primary',
+        action_id: 'submit_standup_response',
+        value: 'instance-123',
+      });
+    });
+
+    it('should fallback to regular reminder when magic token generation fails', async () => {
+      mockAnswerCollectionService.generateMagicTokensForInstance.mockRejectedValue(
+        new Error('Token generation failed'),
+      );
+
+      const result = await service.formatStandupReminderWithMagicLinks(
+        mockInstance,
+        'Test Team',
+        'org-123',
+      );
+
+      // Should match regular reminder format
+      expect(result.text).toBe('🌅 Daily Standup Time - Test Team');
+      expect(result.blocks).toHaveLength(6); // Same as regular reminder
+
+      // Should not contain magic links sections
+      const magicLinksSection = result.blocks.find(
+        (block): block is SlackSectionBlock =>
+          (block as SlackSectionBlock).text?.text?.includes('🌐 *Quick Submit:*') || false,
+      );
+      expect(magicLinksSection).toBeUndefined();
+
+      expect(mockAnswerCollectionService.generateMagicTokensForInstance).toHaveBeenCalledWith(
+        'instance-123',
+        'org-123',
+      );
+    });
+
+    it('should handle empty magic tokens array', async () => {
+      mockAnswerCollectionService.generateMagicTokensForInstance.mockResolvedValue([]);
+
+      const result = await service.formatStandupReminderWithMagicLinks(
+        mockInstance,
+        'Test Team',
+        'org-123',
+      );
+
+      // Should still include magic links explanation but no links
+      const magicLinksSection = result.blocks.find(
+        (block): block is SlackSectionBlock =>
+          (block as SlackSectionBlock).text?.text?.includes('🌐 *Quick Submit:*') || false,
+      );
+      expect(magicLinksSection).toBeDefined();
+
+      // Should not have any actual links
+      const linksSection = result.blocks.find(
+        (block): block is SlackSectionBlock =>
+          (block as SlackSectionBlock).text?.text?.includes('Submit for') || false,
+      );
+      expect(linksSection).toBeUndefined();
+    });
+
+    it('should update context message to mention magic links', async () => {
+      mockAnswerCollectionService.generateMagicTokensForInstance.mockResolvedValue(mockMagicTokens);
+
+      const result = await service.formatStandupReminderWithMagicLinks(
+        mockInstance,
+        'Test Team',
+        'org-123',
+      );
+
+      const contextBlock = result.blocks[result.blocks.length - 1] as {
+        type: string;
+        elements: { text: string }[];
+      };
+      expect(contextBlock.type).toBe('context');
+      expect(contextBlock.elements[0].text).toContain('click your magic link');
+    });
+  });
+
+  describe('formatFollowupReminderWithMagicLinks', () => {
+    const mockMissingMembers = [
+      { id: 'member1', name: 'John Doe', platformUserId: 'U123456' },
+      { id: 'member3', name: 'Bob Wilson', platformUserId: 'U345678' },
+    ];
+
+    const mockMagicTokens = [
+      {
+        teamMemberId: 'member1',
+        memberName: 'John Doe',
+        magicToken: 'token-abc123',
+        submissionUrl: 'https://app.asyncstand.com/standup/submit?token=token-abc123',
+      },
+      {
+        teamMemberId: 'member2',
+        memberName: 'Jane Smith',
+        magicToken: 'token-xyz789',
+        submissionUrl: 'https://app.asyncstand.com/standup/submit?token=token-xyz789',
+      },
+      {
+        teamMemberId: 'member3',
+        memberName: 'Bob Wilson',
+        magicToken: 'token-def456',
+        submissionUrl: 'https://app.asyncstand.com/standup/submit?token=token-def456',
+      },
+    ];
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should format followup reminder with magic links for missing members only', async () => {
+      mockAnswerCollectionService.generateMagicTokensForInstance.mockResolvedValue(mockMagicTokens);
+      mockConfigService.get.mockReturnValue('https://app.asyncstand.com');
+
+      const result = await service.formatFollowupReminderWithMagicLinks(
+        mockInstance,
+        '1h 30m',
+        mockMissingMembers,
+        'org-123',
+      );
+
+      expect(result.text).toBe('⏰ Standup Reminder');
+      expect(result.blocks.length).toBeGreaterThan(3); // Should have more blocks than regular followup
+
+      // Check missing members section
+      expect((result.blocks[0] as SlackSectionBlock).text.text).toContain('⏰ *Standup Reminder!*');
+      expect((result.blocks[0] as SlackSectionBlock).text.text).toContain('• John Doe');
+      expect((result.blocks[0] as SlackSectionBlock).text.text).toContain('• Bob Wilson');
+
+      // Check magic links section header
+      const magicLinksHeader = result.blocks.find(
+        (block): block is SlackSectionBlock =>
+          (block as SlackSectionBlock).text?.text?.includes('🌐 *Quick Submit Links:*') || false,
+      );
+      expect(magicLinksHeader).toBeDefined();
+
+      // Check magic links - should only include links for missing members
+      const linksSection = result.blocks.find(
+        (block): block is SlackSectionBlock =>
+          (block as SlackSectionBlock).text?.text?.includes(
+            '<https://app.asyncstand.com/standup/submit?token=',
+          ) || false,
+      );
+      expect(linksSection).toBeDefined();
+      expect(linksSection?.text.text).toContain('Submit for John Doe');
+      expect(linksSection?.text.text).toContain('Submit for Bob Wilson');
+      // Should NOT contain Jane Smith (not in missing members)
+      expect(linksSection?.text.text).not.toContain('Submit for Jane Smith');
+
+      // Verify service calls
+      expect(mockAnswerCollectionService.generateMagicTokensForInstance).toHaveBeenCalledWith(
+        'instance-123',
+        'org-123',
+      );
+    });
+
+    it('should filter magic tokens to only include missing members', async () => {
+      // Return tokens for all members but only some are missing
+      mockAnswerCollectionService.generateMagicTokensForInstance.mockResolvedValue(mockMagicTokens);
+
+      const singleMissingMember = [{ id: 'member1', name: 'John Doe', platformUserId: 'U123456' }];
+
+      const result = await service.formatFollowupReminderWithMagicLinks(
+        mockInstance,
+        '2h',
+        singleMissingMember,
+        'org-123',
+      );
+
+      const linksSection = result.blocks.find(
+        (block): block is SlackSectionBlock =>
+          (block as SlackSectionBlock).text?.text?.includes('Submit for') || false,
+      );
+      expect(linksSection).toBeDefined();
+      expect(linksSection?.text.text).toContain('Submit for John Doe');
+      expect(linksSection?.text.text).not.toContain('Submit for Jane Smith');
+      expect(linksSection?.text.text).not.toContain('Submit for Bob Wilson');
+    });
+
+    it('should include submit button like regular followup reminder', async () => {
+      mockAnswerCollectionService.generateMagicTokensForInstance.mockResolvedValue(mockMagicTokens);
+
+      const result = await service.formatFollowupReminderWithMagicLinks(
+        mockInstance,
+        '45m',
+        mockMissingMembers,
+        'org-123',
+      );
+
+      // Check action button
+      const actionsBlock = result.blocks[result.blocks.length - 1];
+      expect(actionsBlock).toEqual({
+        type: 'actions',
+        elements: [
+          {
+            type: 'button',
+            text: {
+              type: 'plain_text',
+              text: '📝 Submit Now',
+            },
+            style: 'primary',
+            action_id: 'submit_standup_response',
+            value: 'instance-123',
+          },
+        ],
+      });
+    });
+
+    it('should fallback to regular followup reminder when magic token generation fails', async () => {
+      mockAnswerCollectionService.generateMagicTokensForInstance.mockRejectedValue(
+        new Error('Database connection failed'),
+      );
+
+      const result = await service.formatFollowupReminderWithMagicLinks(
+        mockInstance,
+        '1h',
+        mockMissingMembers,
+        'org-123',
+      );
+
+      // Should match regular followup reminder format
+      expect(result.text).toBe('⏰ Standup Reminder');
+      expect(result.blocks).toHaveLength(3); // Same as regular followup reminder
+
+      // Should not contain magic links sections
+      const magicLinksSection = result.blocks.find(
+        (block): block is SlackSectionBlock =>
+          (block as SlackSectionBlock).text?.text?.includes('🌐 *Quick Submit Links:*') || false,
+      );
+      expect(magicLinksSection).toBeUndefined();
+
+      expect(mockAnswerCollectionService.generateMagicTokensForInstance).toHaveBeenCalledWith(
+        'instance-123',
+        'org-123',
+      );
+    });
+
+    it('should handle no missing members gracefully', async () => {
+      mockAnswerCollectionService.generateMagicTokensForInstance.mockResolvedValue(mockMagicTokens);
+
+      const result = await service.formatFollowupReminderWithMagicLinks(
+        mockInstance,
+        '30m',
+        [], // No missing members
+        'org-123',
+      );
+
+      // Should still format reminder but with no magic links
+      expect(result.text).toBe('⏰ Standup Reminder');
+      expect((result.blocks[0] as SlackSectionBlock).text.text).toContain(
+        'Still waiting for responses from:\n',
+      );
+
+      // Should not have magic links section since no members are missing
+      const linksSection = result.blocks.find(
+        (block): block is SlackSectionBlock =>
+          (block as SlackSectionBlock).text?.text?.includes('Submit for') || false,
+      );
+      expect(linksSection).toBeUndefined();
+    });
+
+    it('should use localhost fallback when appUrl is not configured', async () => {
+      mockAnswerCollectionService.generateMagicTokensForInstance.mockResolvedValue(mockMagicTokens);
+      mockConfigService.get.mockReturnValue(undefined);
+
+      const result = await service.formatFollowupReminderWithMagicLinks(
+        mockInstance,
+        '2h',
+        mockMissingMembers,
+        'org-123',
+      );
+
+      const linksSection = result.blocks.find(
+        (block): block is SlackSectionBlock =>
+          (block as SlackSectionBlock).text?.text?.includes(
+            'http://localhost:3000/standup/submit?token=',
+          ) || false,
+      );
+      expect(linksSection).toBeDefined();
+    });
+
+    it('should maintain time remaining information', async () => {
+      mockAnswerCollectionService.generateMagicTokensForInstance.mockResolvedValue([]);
+
+      const timeRemaining = '15m';
+      const result = await service.formatFollowupReminderWithMagicLinks(
+        mockInstance,
+        timeRemaining,
+        mockMissingMembers,
+        'org-123',
+      );
+
+      expect((result.blocks[1] as SlackSectionBlock).text.text).toContain(
+        `*${timeRemaining}* remaining`,
+      );
+    });
+
+    it('should handle partial token generation failures gracefully', async () => {
+      // Return partial tokens (some members might not have valid tokens)
+      const partialTokens = [mockMagicTokens[0]]; // Only one token for John Doe
+      mockAnswerCollectionService.generateMagicTokensForInstance.mockResolvedValue(partialTokens);
+
+      const result = await service.formatFollowupReminderWithMagicLinks(
+        mockInstance,
+        '1h',
+        mockMissingMembers,
+        'org-123',
+      );
+
+      const linksSection = result.blocks.find(
+        (block): block is SlackSectionBlock =>
+          (block as SlackSectionBlock).text?.text?.includes('Submit for') || false,
+      );
+      expect(linksSection).toBeDefined();
+      expect(linksSection?.text.text).toContain('Submit for John Doe');
+      expect(linksSection?.text.text).not.toContain('Submit for Bob Wilson'); // No token generated
     });
   });
 

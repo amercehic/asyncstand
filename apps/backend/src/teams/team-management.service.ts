@@ -155,6 +155,40 @@ export class TeamManagementService {
 
       this.logger.info('Team created successfully', { teamId: team.id, orgId });
 
+      // Attempt to automatically join the channel with the bot
+      this.logger.info('Attempting automatic channel join for team', {
+        teamId: team.id,
+        teamName: team.name,
+        channelId: data.channelId,
+        integrationId: data.integrationId,
+      });
+
+      try {
+        const joinResult = await this.slackApiService.joinChannel(
+          data.integrationId,
+          data.channelId,
+        );
+        if (joinResult.success) {
+          this.logger.info('Bot successfully joined channel', {
+            teamId: team.id,
+            channelId: data.channelId,
+          });
+        } else {
+          this.logger.warn('Bot could not join channel automatically', {
+            teamId: team.id,
+            channelId: data.channelId,
+            error: joinResult.error,
+          });
+        }
+      } catch (error) {
+        // Don't fail team creation if bot joining fails
+        this.logger.warn('Failed to join channel during team creation', {
+          teamId: team.id,
+          channelId: data.channelId,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+
       return { id: team.id };
     } catch (error) {
       this.logger.error('Failed to create team', {
@@ -263,6 +297,33 @@ export class TeamManagementService {
           slackChannelId: data.channelId,
         },
       });
+
+      // Attempt to automatically join the new channel with the bot
+      try {
+        const joinResult = await this.slackApiService.joinChannel(
+          data.integrationId || team.integrationId,
+          data.channelId,
+        );
+        if (joinResult.success) {
+          this.logger.info('Bot successfully joined new channel', {
+            teamId,
+            channelId: data.channelId,
+          });
+        } else {
+          this.logger.warn('Bot could not join new channel automatically', {
+            teamId,
+            channelId: data.channelId,
+            error: joinResult.error,
+          });
+        }
+      } catch (error) {
+        // Don't fail team update if bot joining fails
+        this.logger.warn('Failed to join new channel during team update', {
+          teamId,
+          channelId: data.channelId,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
     } else {
       await this.prisma.team.update({
         where: { id: teamId },

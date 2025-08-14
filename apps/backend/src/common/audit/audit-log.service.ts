@@ -59,7 +59,7 @@ export class AuditLogService {
       await this.prisma.auditLog.create({
         data: {
           orgId,
-          actorUserId: data.actorUserId,
+          actorUserId: data.actorUserId || null, // Explicitly set to null if undefined
           actorType: data.actorType,
           action: data.action,
           category: data.category,

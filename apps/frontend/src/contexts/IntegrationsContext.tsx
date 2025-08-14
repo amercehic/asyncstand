@@ -35,7 +35,7 @@ interface IntegrationsContextType extends IntegrationsState {
   fetchIntegrations: () => Promise<void>;
   refreshIntegrations: () => Promise<void>;
   syncIntegration: (integrationId: string) => Promise<void>;
-  removeIntegration: (integrationId: string, teamName: string) => Promise<void>;
+  removeIntegration: (integrationId: string) => Promise<void>;
   updateIntegrationStatus: (id: string, updates: Partial<SlackIntegration>) => void;
   isIntegrationSyncing: (id: string) => boolean;
 }
@@ -152,9 +152,10 @@ export function IntegrationsProvider({ children }: IntegrationsProviderProps) {
   }, [state.isLoading, state.isRefreshing]);
 
   const refreshIntegrations = useCallback(async () => {
-    if (state.isLoading || state.isRefreshing) return;
-
-    dispatch({ type: 'SET_REFRESHING', payload: true });
+    // Don't set refreshing if already loading to avoid UI flicker
+    if (!state.isLoading) {
+      dispatch({ type: 'SET_REFRESHING', payload: true });
+    }
 
     try {
       const integrations = await integrationsApi.getSlackIntegrations();
@@ -164,7 +165,7 @@ export function IntegrationsProvider({ children }: IntegrationsProviderProps) {
       dispatch({ type: 'SET_ERROR', payload: message });
       console.error('Error refreshing integrations:', error);
     }
-  }, [state.isLoading, state.isRefreshing]);
+  }, [state.isLoading]);
 
   const syncIntegration = useCallback(async (integrationId: string) => {
     dispatch({ type: 'ADD_SYNCING_ID', payload: integrationId });
@@ -217,13 +218,7 @@ export function IntegrationsProvider({ children }: IntegrationsProviderProps) {
     }
   }, []);
 
-  const removeIntegration = useCallback(async (integrationId: string, teamName: string) => {
-    const confirmed = window.confirm(
-      `Are you sure you want to disconnect "${teamName}"? This will remove all associated teams and standups.`
-    );
-
-    if (!confirmed) return;
-
+  const removeIntegration = useCallback(async (integrationId: string) => {
     try {
       toast.loading('Disconnecting workspace...', { id: `disconnect-${integrationId}` });
       await integrationsApi.removeSlackIntegration(integrationId);

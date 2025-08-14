@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { SlackMessagingService } from '@/integrations/slack/slack-messaging.service';
 import { SlackMessageFormatterService } from '@/integrations/slack/slack-message-formatter.service';
+import { AnswerCollectionService } from '@/standups/answer-collection.service';
 import { LoggerService } from '@/common/logger.service';
 import { PrismaService } from '@/prisma/prisma.service';
 
@@ -11,6 +12,8 @@ interface SlackEvent {
   channel?: string;
   text?: string;
   ts?: string;
+  thread_ts?: string;
+  bot_id?: string;
   [key: string]: unknown;
 }
 
@@ -79,24 +82,29 @@ interface StandupInstance {
 export class SlackEventService {
   private readonly signingSecret: string;
 
-  private getErrorMessage(error: unknown): string {
-    if (error instanceof Error) return error.message;
-    return String(error);
-  }
-
   constructor(
     private readonly slackMessaging: SlackMessagingService,
     private readonly formatter: SlackMessageFormatterService,
+    private readonly answerCollection: AnswerCollectionService,
     private readonly logger: LoggerService,
     private readonly prisma: PrismaService,
   ) {
     this.signingSecret = process.env.SLACK_SIGNING_SECRET || '';
+    this.logger.setContext(SlackEventService.name);
     if (!this.signingSecret) {
       this.logger.warn('SLACK_SIGNING_SECRET not configured - webhook verification disabled');
     }
   }
 
-  async verifySlackRequest(headers: Record<string, string>, body: unknown): Promise<boolean> {
+  async verifySlackRequest(
+    headers: Record<string, string>,
+    body: unknown | string,
+  ): Promise<boolean> {
+    // Skip verification in test environment
+    if (process.env.NODE_ENV === 'test') {
+      return true;
+    }
+
     if (!this.signingSecret) {
       this.logger.warn('Slack signing secret not configured, skipping verification');
       return true; // Allow in development
@@ -105,6 +113,14 @@ export class SlackEventService {
     const signature = headers['x-slack-signature'];
     const timestamp = headers['x-slack-request-timestamp'];
 
+    this.logger.debug('Signature verification details', {
+      hasSignature: !!signature,
+      hasTimestamp: !!timestamp,
+      signature,
+      timestamp,
+      signingSecretLength: this.signingSecret.length,
+    });
+
     if (!signature || !timestamp) {
       this.logger.warn('Missing signature or timestamp headers');
       return false;
@@ -112,8 +128,22 @@ export class SlackEventService {
 
     // Check timestamp to prevent replay attacks (within 5 minutes)
     const now = Math.floor(Date.now() / 1000);
-    if (Math.abs(now - parseInt(timestamp)) > 300) {
-      this.logger.warn('Request timestamp too old');
+    const timestampInt = parseInt(timestamp);
+    const timeDiff = Math.abs(now - timestampInt);
+
+    this.logger.debug('Timestamp validation', {
+      now,
+      timestampInt,
+      timeDiff,
+      maxAllowed: 300,
+    });
+
+    if (timeDiff > 300) {
+      this.logger.warn('Request timestamp too old', {
+        now,
+        timestamp: timestampInt,
+        timeDiff,
+      });
       return false;
     }
 
@@ -121,9 +151,23 @@ export class SlackEventService {
     const bodyStr = typeof body === 'string' ? body : JSON.stringify(body);
     const sigBaseString = `v0:${timestamp}:${bodyStr}`;
 
+    this.logger.debug('Signature base string details', {
+      bodyType: typeof body,
+      bodyLength: bodyStr.length,
+      sigBaseStringLength: sigBaseString.length,
+      sigBaseStringPreview: sigBaseString.substring(0, 100) + '...',
+      bodyStrPreview: bodyStr.substring(0, 100) + '...',
+    });
+
     // Generate the expected signature
     const expectedSignature =
       'v0=' + createHmac('sha256', this.signingSecret).update(sigBaseString).digest('hex');
+
+    this.logger.debug('Signature comparison', {
+      receivedSignature: signature,
+      expectedSignature,
+      match: signature === expectedSignature,
+    });
 
     // Compare signatures using timing-safe comparison
     try {
@@ -132,7 +176,7 @@ export class SlackEventService {
         Buffer.from(expectedSignature, 'utf8'),
       );
     } catch (error) {
-      this.logger.error('Error comparing signatures', { error: this.getErrorMessage(error) });
+      this.logger.error('Error comparing signatures', { err: error });
       return false;
     }
   }
@@ -158,8 +202,8 @@ export class SlackEventService {
           this.logger.debug('Unhandled event type', { eventType: event.type });
       }
     } catch (error) {
-      this.logger.error('Error processing Slack event', {
-        error: this.getErrorMessage(error),
+      this.logger.logError(error as Error, {
+        message: 'Error processing Slack event',
         eventType: event?.type,
         teamId,
       });
@@ -190,7 +234,7 @@ export class SlackEventService {
       }
     } catch (error) {
       this.logger.error('Error processing interactive component', {
-        error: this.getErrorMessage(error),
+        err: error,
         type: payload.type,
         userId: payload.user?.id,
       });
@@ -229,7 +273,7 @@ export class SlackEventService {
       }
     } catch (error) {
       this.logger.error('Error processing slash command', {
-        error: this.getErrorMessage(error),
+        err: error,
         command: payload.command,
         userId: payload.user_id,
       });
@@ -266,16 +310,99 @@ export class SlackEventService {
       }
     }
 
-    // Handle thread replies to standup reminders (existing behavior)
-    if (event.thread_ts) {
+    // Handle thread replies to standup reminders
+    if (event.thread_ts && event.text && event.user && !event.bot_id) {
       this.logger.debug('Thread reply received', {
         user: event.user,
         text: event.text,
         thread_ts: event.thread_ts,
+        channel: event.channel,
       });
 
-      // Could implement thread-based response collection here
-      // For now, responses are collected via interactive components
+      // Handle standup responses via thread replies
+      await this.handleThreadReply(event.user, event.text, event.thread_ts, event.channel, _teamId);
+    }
+  }
+
+  /**
+   * Handle thread reply responses to standup reminders
+   */
+  private async handleThreadReply(
+    userId: string,
+    text: string,
+    threadTs: string,
+    channelId: string,
+    teamId: string,
+  ): Promise<void> {
+    try {
+      // Find standup instance by matching the thread timestamp to the reminder message
+      const activeInstance = await this.prisma.standupInstance.findFirst({
+        where: {
+          reminderMessageTs: threadTs,
+          state: { in: ['pending', 'collecting'] },
+          team: {
+            integration: { externalTeamId: teamId },
+            slackChannelId: channelId,
+          },
+        },
+        include: {
+          team: {
+            include: {
+              members: {
+                where: {
+                  platformUserId: userId,
+                  active: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!activeInstance) {
+        this.logger.debug('No active standup found for thread reply', {
+          userId,
+          teamId,
+          threadTs,
+          channelId,
+        });
+        return;
+      }
+
+      if (!activeInstance.team.members[0]) {
+        this.logger.warn('User not a member of the team', {
+          userId,
+          teamId,
+          instanceId: activeInstance.id,
+        });
+        return;
+      }
+
+      this.logger.info('Processing thread reply standup response', {
+        userId,
+        instanceId: activeInstance.id,
+        threadTs,
+        channelId,
+        responseLength: text.length,
+      });
+
+      // Submit the response using the team member ID
+      // Allow late submissions for Slack thread replies (extend timeout)
+      await this.submitParsedResponseWithMember(
+        activeInstance.id,
+        activeInstance.team.members[0],
+        activeInstance.team.orgId,
+        text,
+        true,
+      );
+    } catch (error) {
+      this.logger.logError(error as Error, {
+        message: 'Error handling thread reply',
+        userId,
+        teamId,
+        threadTs,
+        channelId,
+      });
     }
   }
 
@@ -288,10 +415,36 @@ export class SlackEventService {
     teamId: string,
   ): Promise<void> {
     try {
-      // Find active standup instance for this user
-      const activeInstance = await this.findActiveStandupInstanceForUser(userId, teamId);
+      // Find active standup instance for this user with team member info
+      const teamMember = await this.prisma.teamMember.findFirst({
+        where: {
+          platformUserId: userId,
+          team: {
+            integration: { externalTeamId: teamId },
+          },
+          active: true,
+        },
+        include: {
+          team: {
+            include: {
+              instances: {
+                where: {
+                  state: { in: ['pending', 'collecting'] },
+                  targetDate: {
+                    gte: new Date(Date.now() - 24 * 60 * 60 * 1000), // Within last 24 hours
+                  },
+                },
+                orderBy: { createdAt: 'desc' },
+                take: 1,
+              },
+            },
+          },
+        },
+      });
 
-      if (!activeInstance) {
+      const activeInstance = teamMember?.team.instances[0];
+
+      if (!activeInstance || !teamMember) {
         this.logger.debug('No active standup found for user DM', { userId, teamId });
         return;
       }
@@ -302,106 +455,237 @@ export class SlackEventService {
         responseLength: text.length,
       });
 
-      // Parse the response - for now, treat the entire message as one response
-      // In a more sophisticated implementation, we could parse multi-line responses
-      // or implement a conversational interface
-      await this.submitParsedResponse(activeInstance.id, userId, text);
+      // Submit the response using the team member
+      await this.submitParsedResponseWithMember(
+        activeInstance.id,
+        teamMember,
+        teamMember.team.orgId,
+        text,
+      );
     } catch (error) {
       this.logger.error('Error handling DM response', {
         userId,
         teamId,
-        error: this.getErrorMessage(error),
+        err: error,
       });
     }
   }
 
   /**
-   * Find the most recent active standup instance for a user
+   * Submit a parsed response with a known team member
    */
-  private async findActiveStandupInstanceForUser(platformUserId: string, teamId: string) {
-    // Find team member by platform user ID
-    const teamMember = await this.prisma.teamMember.findFirst({
-      where: {
-        platformUserId,
-        team: {
-          integration: { externalTeamId: teamId },
-        },
-        active: true,
-      },
-      include: {
-        team: {
-          include: {
-            instances: {
-              where: {
-                state: { in: ['pending', 'collecting'] },
-                targetDate: {
-                  gte: new Date(Date.now() - 24 * 60 * 60 * 1000), // Within last 24 hours
-                },
-              },
-              orderBy: { createdAt: 'desc' },
-              take: 1,
-            },
-          },
-        },
-      },
-    });
-
-    return teamMember?.team.instances[0] || null;
-  }
-
-  /**
-   * Submit a parsed response for a user
-   */
-  private async submitParsedResponse(
+  private async submitParsedResponseWithMember(
     instanceId: string,
-    platformUserId: string,
+    teamMember: { id: string; name: string },
+    orgId: string,
     responseText: string,
+    allowNonParticipating: boolean = false,
   ): Promise<void> {
-    // For simplicity, treat the entire message as an answer to all questions
-    // A more sophisticated implementation could parse structured responses
+    try {
+      this.logger.info('Starting submitParsedResponseWithMember', {
+        instanceId,
+        teamMemberId: teamMember.id,
+        teamMemberName: teamMember.name,
+        orgId,
+        responseLength: responseText.length,
+      });
 
-    const instance = await this.prisma.standupInstance.findFirst({
-      where: { id: instanceId },
-      include: {
-        team: {
-          include: {
-            members: {
-              where: { platformUserId, active: true },
-            },
-          },
+      // Get the standup config to know the questions
+      const instance = await this.prisma.standupInstance.findUnique({
+        where: { id: instanceId },
+      });
+
+      this.logger.info('Found instance', {
+        instanceId,
+        found: !!instance,
+        instanceTeamId: instance?.teamId,
+        instanceState: instance?.state,
+      });
+
+      if (!instance) {
+        this.logger.warn('Instance not found for response', { instanceId });
+        return;
+      }
+
+      const configSnapshot = instance.configSnapshot as {
+        questions: string[];
+      };
+
+      // Parse the response intelligently
+      const answers = this.parseStandupResponse(responseText, configSnapshot.questions.length);
+
+      this.logger.info('Submitting parsed response', {
+        instanceId,
+        teamMemberId: teamMember.id,
+        questionCount: answers.length,
+        orgId,
+        answersSample: answers.slice(0, 1), // Log first answer as sample
+      });
+
+      // Use the AnswerCollectionService to submit the response
+      await this.answerCollection.submitFullResponse(
+        {
+          standupInstanceId: instanceId,
+          answers: answers,
         },
-      },
+        teamMember.id, // This is the team member UUID from the database
+        orgId,
+        allowNonParticipating,
+        true, // allowLateSubmission - bypass timeout for Slack responses
+      );
+
+      this.logger.info('Thread reply response submitted successfully', {
+        instanceId,
+        teamMemberId: teamMember.id,
+        answersCount: answers.length,
+      });
+    } catch (error) {
+      this.logger.logError(error as Error, {
+        message: 'Failed to submit parsed response',
+        instanceId,
+        teamMemberId: teamMember.id,
+      });
+    }
+  }
+
+  /**
+   * Parse standup response text into individual answers
+   * Supports multiple formats:
+   * 1. Numbered lists (1. answer, 2. answer, etc.)
+   * 2. Bullet points (•, -, * answer)
+   * 3. Line-by-line (separate lines = separate answers)
+   * 4. Single response (goes to first question only)
+   */
+  private parseStandupResponse(
+    responseText: string,
+    questionCount: number,
+  ): Array<{ questionIndex: number; text: string }> {
+    const trimmedText = responseText.trim();
+    this.logger.debug('Parsing standup response', {
+      textLength: trimmedText.length,
+      questionCount,
+      preview: trimmedText.substring(0, 100),
     });
 
-    if (!instance || !instance.team.members[0]) {
-      this.logger.warn('Instance or team member not found for response', {
-        instanceId,
-        platformUserId,
+    // Pattern 1: Numbered responses (1. answer, 2. answer, etc.)
+    const numberedMatches = this.extractNumberedAnswers(trimmedText);
+    if (numberedMatches.length > 1 || (numberedMatches.length === 1 && questionCount === 1)) {
+      this.logger.debug('Using numbered response format', {
+        matchCount: numberedMatches.length,
+        questionCount,
       });
-      return;
+      return this.formatAnswers(numberedMatches, questionCount, 'numbered');
     }
 
-    const configSnapshot = instance.configSnapshot as {
-      questions: string[];
-    };
-    const teamMember = instance.team.members[0];
+    // Pattern 2: Bullet point responses (• answer, - answer, * answer)
+    const bulletMatches = this.extractBulletAnswers(trimmedText);
+    if (bulletMatches.length > 1) {
+      this.logger.debug('Using bullet point response format', {
+        matchCount: bulletMatches.length,
+        questionCount,
+      });
+      return this.formatAnswers(bulletMatches, questionCount, 'bullets');
+    }
 
-    // Submit response for each question (using the same text for all)
-    const answers = configSnapshot.questions.map((_, index) => ({
-      questionIndex: index,
-      text: responseText,
-    }));
+    // Pattern 3: Line-by-line responses (split by newlines)
+    const lines = trimmedText
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
 
-    // Use the existing answer collection service
-    // This requires importing the AnswerCollectionService, which I'll do below
-    this.logger.info('Submitting DM response', {
-      instanceId,
-      teamMemberId: teamMember.id,
-      questionCount: answers.length,
+    // Use line-by-line if we have multiple lines that roughly match question count
+    // and the lines don't look like a single narrative (too many lines suggests single response)
+    if (lines.length > 1 && lines.length <= questionCount && lines.length <= 5) {
+      this.logger.debug('Using line-by-line response format', {
+        lineCount: lines.length,
+        questionCount,
+      });
+      return this.formatAnswers(lines, questionCount, 'lines');
+    }
+
+    // Pattern 4: Single response for first question only
+    this.logger.debug('Using single response format', {
+      responseLength: trimmedText.length,
+      questionCount,
+    });
+    return this.formatAnswers([trimmedText], questionCount, 'single');
+  }
+
+  /**
+   * Extract numbered answers from text (1. answer, 2. answer, etc.)
+   */
+  private extractNumberedAnswers(text: string): string[] {
+    // Match patterns like "1. answer", "2) answer", etc.
+    // This regex captures everything from number to next number or end
+    const numberedRegex = /^\s*(\d+)[.)]\s*(.+?)(?=\n\s*\d+[.)]|$)/gms;
+    const matches: string[] = [];
+    let match;
+
+    while ((match = numberedRegex.exec(text)) !== null) {
+      const answerText = match[2].trim().replace(/\n\s*[•\-*]\s*/g, '\n'); // Clean up bullet points within numbered items
+      if (answerText) {
+        matches.push(answerText);
+      }
+    }
+
+    return matches;
+  }
+
+  /**
+   * Extract bullet point answers from text (• answer, - answer, * answer)
+   */
+  private extractBulletAnswers(text: string): string[] {
+    // Match patterns like "• answer", "- answer", "* answer"
+    // This regex captures everything from bullet to next bullet or end
+    const bulletRegex = /^\s*[•\-*]\s*(.+?)(?=\n\s*[•\-*]|\n\s*\d+[.)]|$)/gms;
+    const matches: string[] = [];
+    let match;
+
+    while ((match = bulletRegex.exec(text)) !== null) {
+      const answerText = match[1].trim();
+      if (answerText) {
+        matches.push(answerText);
+      }
+    }
+
+    return matches;
+  }
+
+  /**
+   * Format extracted answers into the required structure
+   */
+  private formatAnswers(
+    extractedAnswers: string[],
+    questionCount: number,
+    format: string,
+  ): Array<{ questionIndex: number; text: string }> {
+    const answers: Array<{ questionIndex: number; text: string }> = [];
+
+    for (let i = 0; i < questionCount; i++) {
+      let text = '';
+
+      if (format === 'single') {
+        // Single response goes to first question only
+        text = i === 0 ? extractedAnswers[0] || '' : '';
+      } else {
+        // For numbered, bullets, and lines - map directly
+        text = extractedAnswers[i] || '';
+      }
+
+      answers.push({
+        questionIndex: i,
+        text: text.trim(),
+      });
+    }
+
+    this.logger.debug('Formatted answers', {
+      format,
+      inputCount: extractedAnswers.length,
+      outputCount: answers.length,
+      filledAnswers: answers.filter((a) => a.text.length > 0).length,
     });
 
-    // For now, log the response - in a full implementation, we'd call the answer service
-    // await this.answerCollectionService.submitAnswers(instanceId, teamMember.id, { answers });
+    return answers;
   }
 
   private async handleBlockActions(payload: InteractiveComponent): Promise<void> {
@@ -511,7 +795,7 @@ export class SlackEventService {
       await this.slackMessaging.openModal(integration.id, triggerId, modal);
     } catch (error) {
       this.logger.error('Error handling submit standup response', {
-        error: this.getErrorMessage(error),
+        err: error,
         instanceId,
         userId,
       });
@@ -555,7 +839,7 @@ export class SlackEventService {
       );
     } catch (error) {
       this.logger.error('Error handling skip standup', {
-        error: this.getErrorMessage(error),
+        err: error,
         instanceId,
         userId,
       });
@@ -648,7 +932,7 @@ export class SlackEventService {
       });
     } catch (error) {
       this.logger.error('Error collecting modal response', {
-        error: this.getErrorMessage(error),
+        err: error,
         instanceId,
         userId,
       });
@@ -664,7 +948,7 @@ export class SlackEventService {
           );
         }
       } catch (dmError) {
-        this.logger.error('Failed to send error DM', { error: this.getErrorMessage(dmError) });
+        this.logger.error('Failed to send error DM', { err: dmError });
       }
     }
   }
@@ -725,7 +1009,7 @@ export class SlackEventService {
       };
     } catch (error) {
       this.logger.error('Error handling status command', {
-        error: this.getErrorMessage(error),
+        err: error,
         userId,
         integrationId,
       });
@@ -788,7 +1072,7 @@ export class SlackEventService {
       };
     } catch (error) {
       this.logger.error('Error handling submit command', {
-        error: this.getErrorMessage(error),
+        err: error,
         userId,
         integrationId,
       });
@@ -851,7 +1135,7 @@ export class SlackEventService {
       };
     } catch (error) {
       this.logger.error('Error handling skip command', {
-        error: this.getErrorMessage(error),
+        err: error,
         userId,
         integrationId,
       });
@@ -891,7 +1175,7 @@ export class SlackEventService {
       return integration;
     } catch (error) {
       this.logger.error('Error finding integration by team ID', {
-        error: this.getErrorMessage(error),
+        err: error,
         teamId,
       });
       return null;

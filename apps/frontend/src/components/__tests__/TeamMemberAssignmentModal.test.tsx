@@ -409,7 +409,9 @@ describe('TeamMemberAssignmentModal', () => {
     render(<TeamMemberAssignmentModal {...mockProps} />);
 
     await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith('Failed to load workspace members');
+      expect(toast.error).toHaveBeenCalledWith('Failed to load workspace members', {
+        id: 'load-members-team-1',
+      });
     });
   });
 

@@ -54,10 +54,12 @@ export class SlackOauthController {
     // Bot scopes for the bot token
     oauthUrl.searchParams.set('scope', 'channels:read,groups:read,users:read,chat:write');
     oauthUrl.searchParams.set('state', state);
-    oauthUrl.searchParams.set(
-      'redirect_uri',
-      `${this.configService.get<string>('frontendUrl')}/slack/oauth/callback`,
-    );
+    // Use backend URL for OAuth callback since the callback endpoint is on the backend
+    const backendUrl =
+      this.configService.get<string>('ngrokUrl') ||
+      this.configService.get<string>('appUrl') ||
+      'http://localhost:3001';
+    oauthUrl.searchParams.set('redirect_uri', `${backendUrl}/slack/oauth/callback`);
 
     // Redirect to Slack
     res.redirect(oauthUrl.toString());
@@ -75,180 +77,63 @@ export class SlackOauthController {
     try {
       // Handle OAuth error from Slack
       if (query.error) {
-        this.logger.error(`Slack OAuth error: ${query.error}`);
-        return this.renderErrorPage(res, 'OAuth was denied or failed');
+        this.logger.error(`Slack OAuth error: ${query.error} - ${query.error_description}`);
+        const frontendUrl =
+          this.configService.get<string>('frontendUrl') || 'http://localhost:3000';
+        const errorMessage =
+          query.error === 'access_denied'
+            ? 'OAuth was cancelled by user'
+            : 'OAuth was denied or failed';
+        return res.redirect(
+          `${frontendUrl}/integrations?status=error&message=${encodeURIComponent(errorMessage)}`,
+        );
+      }
+
+      // Ensure we have a code to exchange
+      if (!query.code) {
+        this.logger.error('OAuth callback missing authorization code');
+        const frontendUrl =
+          this.configService.get<string>('frontendUrl') || 'http://localhost:3000';
+        const errorMessage = 'Invalid OAuth callback - missing authorization code';
+        return res.redirect(
+          `${frontendUrl}/integrations?status=error&message=${encodeURIComponent(errorMessage)}`,
+        );
       }
 
       // Exchange code for tokens
       await this.slackOauthService.exchangeCode(query.code, query.state, ipAddress);
 
-      // TODO: Replace HTML rendering with frontend redirect approach
-      // Step 1: Instead of rendering HTML here, redirect to frontend with success status:
-      // res.redirect(`${this.configService.get<string>('frontendUrl')}/integrations/slack?status=success`);
-      // This maintains separation of concerns and allows frontend to handle UI consistently
-      // Return success page that auto-closes the modal
-      return this.renderSuccessPage(res);
+      // Redirect to frontend with success status
+      const frontendUrl = this.configService.get<string>('frontendUrl') || 'http://localhost:3000';
+      return res.redirect(`${frontendUrl}/integrations?status=success`);
     } catch (error) {
       this.logger.error('OAuth callback error', {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
 
+      const frontendUrl = this.configService.get<string>('frontendUrl') || 'http://localhost:3000';
+
       if (error instanceof ApiError) {
+        let errorMessage: string;
+
         if (error.getStatus() === HttpStatus.CONFLICT) {
-          return this.renderErrorPage(
-            res,
-            'This Slack workspace is already connected to your organization',
-          );
+          errorMessage = 'This Slack workspace is already connected to your organization';
+        } else if (error.getStatus() === HttpStatus.BAD_REQUEST) {
+          errorMessage = 'Invalid or expired authorization request';
+        } else {
+          errorMessage = error.message || 'Invalid or expired authorization request';
         }
-        if (error.getStatus() === HttpStatus.BAD_REQUEST) {
-          return this.renderErrorPage(res, 'Invalid or expired authorization request');
-        }
-        // Handle other ApiError cases with their specific messages
-        return this.renderErrorPage(
-          res,
-          error.message || 'Invalid or expired authorization request',
+
+        return res.redirect(
+          `${frontendUrl}/integrations?status=error&message=${encodeURIComponent(errorMessage)}`,
         );
       }
 
-      // TODO: Replace with frontend redirect for error handling
-      // res.redirect(`${this.configService.get<string>('frontendUrl')}/integrations/slack?status=error&message=${encodeURIComponent('An unexpected error occurred during installation')}`);
-      return this.renderErrorPage(res, 'An unexpected error occurred during installation');
+      // Redirect to frontend with error status
+      const errorMessage = 'An unexpected error occurred during installation';
+      return res.redirect(
+        `${frontendUrl}/integrations?status=error&message=${encodeURIComponent(errorMessage)}`,
+      );
     }
-  }
-
-  private renderSuccessPage(res: Response): void {
-    const html = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>AsyncStand - Installation Complete</title>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-          <style>
-            body {
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-              display: flex;
-              justify-content: center;
-              align-items: center;
-              min-height: 100vh;
-              margin: 0;
-              background-color: #f8f9fa;
-            }
-            .container {
-              text-align: center;
-              padding: 2rem;
-              background: white;
-              border-radius: 8px;
-              box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-              max-width: 400px;
-            }
-            .success-icon {
-              color: #28a745;
-              font-size: 3rem;
-              margin-bottom: 1rem;
-            }
-            h1 {
-              color: #2c3e50;
-              margin-bottom: 1rem;
-              font-size: 1.5rem;
-            }
-            p {
-              color: #6c757d;
-              margin-bottom: 1.5rem;
-            }
-            .close-note {
-              font-size: 0.9rem;
-              color: #adb5bd;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="success-icon">✓</div>
-            <h1>Installation Complete!</h1>
-            <p>AsyncStand has been successfully installed to your Slack workspace.</p>
-            <p class="close-note">This window will close automatically...</p>
-          </div>
-          <script>
-            // Auto-close the window after 2 seconds
-            setTimeout(() => {
-              if (window.opener) {
-                window.close();
-              }
-            }, 2000);
-          </script>
-        </body>
-      </html>
-    `;
-
-    res.status(HttpStatus.OK).type('text/html').send(html);
-  }
-
-  private renderErrorPage(res: Response, message: string): void {
-    const html = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>AsyncStand - Installation Failed</title>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-          <style>
-            body {
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-              display: flex;
-              justify-content: center;
-              align-items: center;
-              min-height: 100vh;
-              margin: 0;
-              background-color: #f8f9fa;
-            }
-            .container {
-              text-align: center;
-              padding: 2rem;
-              background: white;
-              border-radius: 8px;
-              box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-              max-width: 400px;
-            }
-            .error-icon {
-              color: #dc3545;
-              font-size: 3rem;
-              margin-bottom: 1rem;
-            }
-            h1 {
-              color: #2c3e50;
-              margin-bottom: 1rem;
-              font-size: 1.5rem;
-            }
-            p {
-              color: #6c757d;
-              margin-bottom: 1.5rem;
-            }
-            .close-note {
-              font-size: 0.9rem;
-              color: #adb5bd;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="error-icon">✗</div>
-            <h1>Installation Failed</h1>
-            <p>${message}</p>
-            <p class="close-note">Please try again or contact support if the problem persists.</p>
-          </div>
-          <script>
-            // Auto-close the window after 5 seconds
-            setTimeout(() => {
-              if (window.opener) {
-                window.close();
-              }
-            }, 5000);
-          </script>
-        </body>
-      </html>
-    `;
-
-    res.status(HttpStatus.BAD_REQUEST).type('text/html').send(html);
   }
 }

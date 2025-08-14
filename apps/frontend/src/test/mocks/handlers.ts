@@ -166,4 +166,25 @@ export const handlers = [
   http.put('*/instances/:instanceId/responses', async () => {
     return HttpResponse.json({ success: true, message: 'Response updated successfully' });
   }),
+
+  // Integrations
+  http.get('*/integrations/slack', () => {
+    return HttpResponse.json([]);
+  }),
+
+  http.post('*/integrations/slack/connect', async () => {
+    return HttpResponse.json(
+      {
+        id: '1',
+        platform: 'slack',
+        workspaceName: 'Test Workspace',
+        createdAt: new Date().toISOString(),
+      },
+      { status: 201 }
+    );
+  }),
+
+  http.delete('*/integrations/:integrationId', async () => {
+    return HttpResponse.json({ success: true });
+  }),
 ];

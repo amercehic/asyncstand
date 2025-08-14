@@ -227,7 +227,10 @@ describe('Slack Integration (e2e)', () => {
           if (key === 'slackClientId') return 'test-client-id';
           if (key === 'slackOauthEnabled') return true;
           if (key === 'frontendUrl') return 'http://localhost:3000';
-          return configService.get(key);
+          if (key === 'ngrokUrl') return 'http://localhost:3001';
+          if (key === 'appUrl') return 'http://localhost:3001';
+          // Return undefined for any other keys to avoid infinite recursion
+          return undefined;
         });
 
         const response = await request(app.getHttpServer())
@@ -261,12 +264,16 @@ describe('Slack Integration (e2e)', () => {
       }, 30000);
 
       it('should return error when Slack OAuth is not configured', async () => {
+        // Mock Redis operations
+        mockRedisOperations();
+
         // Create a spy that avoids infinite recursion
-        const originalGet = configService.get.bind(configService);
         const configSpy = jest.spyOn(configService, 'get').mockImplementation((key: string) => {
           if (key === 'slackClientId') return null;
-          // For other keys, call the original method with original context
-          return originalGet(key);
+          if (key === 'slackOauthEnabled') return true;
+          if (key === 'frontendUrl') return 'http://localhost:3000';
+          // Return undefined for any other keys to avoid infinite recursion
+          return undefined;
         });
 
         await request(app.getHttpServer())
@@ -366,8 +373,11 @@ describe('Slack Integration (e2e)', () => {
           expect(integration!.tokenStatus).toBe(TokenStatus.ok);
         } else {
           // Expected if Slack OAuth is not properly configured in test
-          expect(response.status).toBe(400);
-          expect(response.text).toContain('An unexpected error occurred during installation');
+          expect(response.status).toBe(302);
+          expect(response.headers.location).toContain('/integrations?status=error&message=');
+          expect(decodeURIComponent(response.headers.location)).toContain(
+            'An unexpected error occurred during installation',
+          );
         }
       }, 30000);
 
@@ -381,10 +391,13 @@ describe('Slack Integration (e2e)', () => {
             code: 'test-oauth-code',
             state: 'invalid-state',
           })
-          .expect(400);
+          .expect(302);
 
-        // The error should render the error page with the specific message for state validation
-        expect(response.text).toContain('Invalid or expired authorization request');
+        // The error should redirect with the specific message for state validation
+        expect(response.headers.location).toContain('/integrations?status=error&message=');
+        expect(decodeURIComponent(response.headers.location)).toContain(
+          'Invalid or expired authorization request',
+        );
       }, 30000);
 
       it('should handle OAuth error from Slack', async () => {
@@ -394,9 +407,12 @@ describe('Slack Integration (e2e)', () => {
             error: 'access_denied',
             state: validState,
           })
-          .expect(400);
+          .expect(302);
 
-        expect(response.text).toContain('OAuth was denied or failed');
+        expect(response.headers.location).toContain('/integrations?status=error&message=');
+        expect(decodeURIComponent(response.headers.location)).toContain(
+          'OAuth was cancelled by user',
+        );
       }, 30000);
 
       it('should handle duplicate integration error', async () => {
@@ -434,9 +450,10 @@ describe('Slack Integration (e2e)', () => {
             code: 'test-oauth-code',
             state: validState,
           })
-          .expect(400);
+          .expect(302);
 
-        expect(response.text).toContain(
+        expect(response.headers.location).toContain('/integrations?status=error&message=');
+        expect(decodeURIComponent(response.headers.location)).toContain(
           'This Slack workspace is already connected to your organization',
         );
       }, 30000);
@@ -451,9 +468,12 @@ describe('Slack Integration (e2e)', () => {
             code: 'invalid-code',
             state: validState,
           })
-          .expect(400);
+          .expect(302);
 
-        expect(response.text).toContain('An unexpected error occurred during installation');
+        expect(response.headers.location).toContain('/integrations?status=error&message=');
+        expect(decodeURIComponent(response.headers.location)).toContain(
+          'An unexpected error occurred during installation',
+        );
       }, 30000);
     });
   });
