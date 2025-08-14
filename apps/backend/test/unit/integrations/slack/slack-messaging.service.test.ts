@@ -359,7 +359,7 @@ describe('SlackMessagingService', () => {
       team: {
         name: 'Test Team',
         orgId: 'org-123',
-        channelId: mockChannelId,
+        slackChannelId: mockChannelId,
         integrationId: mockIntegrationId,
         configs: [{ deliveryType: 'channel' }],
       },
@@ -371,12 +371,20 @@ describe('SlackMessagingService', () => {
     };
 
     it('should send standup reminder successfully', async () => {
+      // Mock validateChannelAccess to return valid channel
+      const validateChannelAccessSpy = jest
+        .spyOn(service, 'validateChannelAccess')
+        .mockResolvedValue({
+          isValid: true,
+          channelName: 'test-channel',
+        });
+
       mockPrisma.standupInstance.findFirst.mockResolvedValue(
         mockInstance as {
           id: string;
           team: {
             name: string;
-            channelId: string;
+            slackChannelId: string;
             integrationId: string;
             configs: Array<{ deliveryType: string }>;
           };
@@ -408,7 +416,7 @@ describe('SlackMessagingService', () => {
             select: {
               name: true,
               orgId: true,
-              channelId: true,
+              slackChannelId: true,
               integrationId: true,
               configs: {
                 where: { isActive: true },
@@ -420,12 +428,15 @@ describe('SlackMessagingService', () => {
           },
         },
       });
+      expect(validateChannelAccessSpy).toHaveBeenCalledWith(mockIntegrationId, mockChannelId);
       expect(mockFormatter.formatStandupReminderWithMagicLinks).toHaveBeenCalled();
       expect(mockPrisma.standupInstance.update).toHaveBeenCalledWith({
         where: { id: 'instance-123' },
         data: { reminderMessageTs: '1234567890.123456' },
       });
       expect(result).toEqual(mockMessageResult);
+
+      validateChannelAccessSpy.mockRestore();
     });
 
     it('should handle instance not found', async () => {

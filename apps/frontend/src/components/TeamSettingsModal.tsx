@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { X, Settings, Hash, Globe, Building2, Trash2, AlertTriangle } from 'lucide-react';
 import { teamsApi } from '@/lib/api';
+import { useTeams } from '@/contexts';
 import type { Team, UpdateTeamRequest } from '@/types';
 
 interface TeamSettingsModalProps {
@@ -65,6 +66,7 @@ const TIMEZONES = [
 
 export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
   ({ isOpen, onClose, onSuccess, onTeamDeleted, team }) => {
+    const { deleteTeam } = useTeams();
     const [isUpdating, setIsUpdating] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
@@ -216,8 +218,9 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
 
       setIsDeleting(true);
       try {
-        await teamsApi.deleteTeam(team.id);
-        toast.success(`Team "${team.name}" has been deleted`);
+        // Use the TeamsContext deleteTeam method which handles both API call and state update
+        // Skip confirmation since we already have our own confirmation UI
+        await deleteTeam(team.id, true);
         handleClose();
         // Call the dedicated deletion callback if provided, otherwise fall back to onSuccess
         if (onTeamDeleted) {
@@ -227,11 +230,11 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
         }
       } catch (error) {
         console.error('Error deleting team:', error);
-        toast.error('Failed to delete team. Please try again.');
+        // Error toast is handled by TeamsContext deleteTeam method
       } finally {
         setIsDeleting(false);
       }
-    }, [deleteConfirmationText, team, onTeamDeleted, onSuccess, handleClose]);
+    }, [deleteConfirmationText, team, deleteTeam, onTeamDeleted, onSuccess, handleClose]);
 
     // Add ESC key handler
     useEffect(() => {

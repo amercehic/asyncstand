@@ -151,12 +151,19 @@ describe('MagicTokenStandupPage', () => {
     fireEvent.change(textareas[1], { target: { value: '   ' } }); // Just spaces
     fireEvent.change(textareas[2], { target: { value: '\n\t' } }); // Just whitespace
 
+    // Wait for state updates
+    await waitFor(() => {
+      expect(textareas[1]).toHaveValue('   ');
+    });
+
     // Try to submit
     const submitButton = screen.getByTestId('submit-response-button');
-    fireEvent.click(submitButton);
+    fireEvent.submit(submitButton.closest('form')!);
 
-    // The validation should trigger
-    expect(toast.error).toHaveBeenCalledWith('Please answer all questions before submitting');
+    // Wait for validation to trigger
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith('Please answer all questions before submitting');
+    });
     expect(magicTokenApiClient.submitWithMagicToken).not.toHaveBeenCalled();
   });
 

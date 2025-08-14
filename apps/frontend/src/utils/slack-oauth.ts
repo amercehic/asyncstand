@@ -1,4 +1,4 @@
-import { toast } from '@/components/ui';
+import { integrationsApi } from '@/lib/api-client/integrations/slack';
 
 export interface SlackOAuthOptions {
   orgId: string;
@@ -30,37 +30,74 @@ export const startSlackOAuth = async ({ orgId, onSuccess, onError }: SlackOAuthO
     popup.location = oauthUrl;
 
     // Monitor the popup for completion
-    let wasSuccessful = false;
+    let wasHandled = false;
 
-    const checkClosed = setInterval(() => {
+    const checkClosed = setInterval(async () => {
       try {
         if (popup.closed) {
           clearInterval(checkClosed);
 
-          // Only call success if we haven't already handled success/error
-          if (!wasSuccessful) {
-            // Since we can't reliably detect success from popup closure alone,
-            // treat silent closure as a failure/cancel and notify caller
-            onError?.('Authentication was cancelled or failed');
+          // Don't call onError if we've already handled the result
+          // The popup might close naturally after success
+          if (!wasHandled) {
+            // Last-chance detection: check if integration exists now
+            try {
+              const integrations = await integrationsApi.getSlackIntegrations();
+              if (integrations.length > 0) {
+                wasHandled = true;
+                onSuccess?.();
+              } else {
+                // No integration detected – treat as cancellation and inform the user
+                wasHandled = true;
+                onError?.('Slack connection was canceled before completion');
+              }
+            } catch {
+              // Ignore API errors during polling
+            }
           }
         }
       } catch {
         // Cross-origin error means popup is still open on Slack domain
-        console.debug('Popup still open on external domain');
       }
     }, 1000);
 
+    // Normalize URL to origin string (scheme + host + optional port)
+    // const toOrigin = (url?: string): string => {
+    //   if (!url) return '';
+    //   try {
+    //     return new URL(url).origin;
+    //   } catch {
+    //     // If a plain origin was already provided (e.g. http://localhost:3000), return as-is
+    //     return url;
+    //   }
+    // };
+
     // Set up message listener for proper success/error handling
     const handleMessage = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return;
+      // Only accept messages from the popup we opened. This avoids fragile origin checks
+      const isFromPopup = event.source === popup;
+      if (!isFromPopup) {
+        return;
+      }
 
       if (event.data?.type === 'slack-oauth-callback') {
-        wasSuccessful = true;
+        wasHandled = true;
         clearInterval(checkClosed);
+        window.removeEventListener('message', handleMessage);
 
         if (event.data.success) {
+          try {
+            popup.close();
+          } catch {
+            // Ignore errors when closing popup
+          }
           onSuccess?.();
         } else {
+          try {
+            popup.close();
+          } catch {
+            // Ignore errors when closing popup
+          }
           onError?.(event.data.message || 'OAuth authentication failed');
         }
       }
@@ -68,14 +105,62 @@ export const startSlackOAuth = async ({ orgId, onSuccess, onError }: SlackOAuthO
 
     window.addEventListener('message', handleMessage);
 
+    // Fallback: poll backend for integration presence in case postMessage is blocked
+    const fallbackStart = Date.now();
+    const fallbackPoll = setInterval(async () => {
+      if (wasHandled) {
+        clearInterval(fallbackPoll);
+        return;
+      }
+
+      const elapsed = Date.now() - fallbackStart;
+      // Stop polling after 45 seconds
+      if (elapsed > 45_000) {
+        clearInterval(fallbackPoll);
+        if (!wasHandled) {
+          wasHandled = true;
+          try {
+            popup.close();
+          } catch {
+            // Ignore errors when closing popup
+          }
+          onError?.('Slack connection timed out');
+        }
+        return;
+      }
+
+      try {
+        const integrations = await integrationsApi.getSlackIntegrations();
+        if (integrations.length > 0) {
+          wasHandled = true;
+          clearInterval(checkClosed);
+          clearInterval(fallbackPoll);
+          window.removeEventListener('message', handleMessage);
+          try {
+            popup.close();
+          } catch {
+            // Ignore errors when closing popup
+          }
+          onSuccess?.();
+        }
+      } catch {
+        // Ignore transient errors during polling
+      }
+    }, 1200);
+
     // Cleanup if window is still open after 10 minutes
     setTimeout(
       () => {
         clearInterval(checkClosed);
+        try {
+          clearInterval(fallbackPoll);
+        } catch {
+          // Ignore errors when clearing interval
+        }
         window.removeEventListener('message', handleMessage);
         if (!popup.closed) {
           popup.close();
-          if (!wasSuccessful) {
+          if (!wasHandled) {
             onError?.('OAuth flow timed out');
           }
         }
@@ -85,7 +170,7 @@ export const startSlackOAuth = async ({ orgId, onSuccess, onError }: SlackOAuthO
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to start OAuth flow';
     onError?.(message);
-    toast.error(message);
+    // Don't show toast here - let the onError callback handle it
   }
 };
 

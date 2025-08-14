@@ -227,7 +227,10 @@ describe('Slack Integration (e2e)', () => {
           if (key === 'slackClientId') return 'test-client-id';
           if (key === 'slackOauthEnabled') return true;
           if (key === 'frontendUrl') return 'http://localhost:3000';
-          return configService.get(key);
+          if (key === 'ngrokUrl') return 'http://localhost:3001';
+          if (key === 'appUrl') return 'http://localhost:3001';
+          // Return undefined for any other keys to avoid infinite recursion
+          return undefined;
         });
 
         const response = await request(app.getHttpServer())
@@ -261,12 +264,16 @@ describe('Slack Integration (e2e)', () => {
       }, 30000);
 
       it('should return error when Slack OAuth is not configured', async () => {
+        // Mock Redis operations
+        mockRedisOperations();
+
         // Create a spy that avoids infinite recursion
-        const originalGet = configService.get.bind(configService);
         const configSpy = jest.spyOn(configService, 'get').mockImplementation((key: string) => {
           if (key === 'slackClientId') return null;
-          // For other keys, call the original method with original context
-          return originalGet(key);
+          if (key === 'slackOauthEnabled') return true;
+          if (key === 'frontendUrl') return 'http://localhost:3000';
+          // Return undefined for any other keys to avoid infinite recursion
+          return undefined;
         });
 
         await request(app.getHttpServer())

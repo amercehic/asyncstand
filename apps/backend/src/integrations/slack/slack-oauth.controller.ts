@@ -54,10 +54,12 @@ export class SlackOauthController {
     // Bot scopes for the bot token
     oauthUrl.searchParams.set('scope', 'channels:read,groups:read,users:read,chat:write');
     oauthUrl.searchParams.set('state', state);
-    oauthUrl.searchParams.set(
-      'redirect_uri',
-      `${this.configService.get<string>('frontendUrl')}/slack/oauth/callback`,
-    );
+    // Use backend URL for OAuth callback since the callback endpoint is on the backend
+    const backendUrl =
+      this.configService.get<string>('ngrokUrl') ||
+      this.configService.get<string>('appUrl') ||
+      'http://localhost:3001';
+    oauthUrl.searchParams.set('redirect_uri', `${backendUrl}/slack/oauth/callback`);
 
     // Redirect to Slack
     res.redirect(oauthUrl.toString());
@@ -117,6 +119,7 @@ export class SlackOauthController {
   }
 
   private renderSuccessPage(res: Response): void {
+    const frontendUrl = this.configService.get<string>('frontendUrl') || 'http://localhost:3000';
     const html = `
       <!DOCTYPE html>
       <html>
@@ -301,17 +304,32 @@ export class SlackOauthController {
             </p>
           </div>
           <script>
+            console.log('[OAuth Callback] Page loaded');
+            console.log('[OAuth Callback] Window opener exists:', !!window.opener);
+            console.log('[OAuth Callback] Target origin:', '${frontendUrl}');
+            
             // Notify parent window of success
             if (window.opener) {
-              window.opener.postMessage({
-                type: 'slack-oauth-callback',
-                success: true,
-                message: 'Integration completed successfully'
-              }, window.location.origin);
+              try {
+                const message = {
+                  type: 'slack-oauth-callback',
+                  success: true,
+                  message: 'Integration completed successfully'
+                };
+                console.log('[OAuth Callback] Sending message:', message);
+                // Use wildcard to ensure delivery regardless of exact dev/prod origin; parent filters it
+                window.opener.postMessage(message, '*');
+                console.log('[OAuth Callback] Message sent successfully');
+              } catch (error) {
+                console.error('[OAuth Callback] Error sending message:', error);
+              }
+            } else {
+              console.error('[OAuth Callback] No window.opener found!');
             }
             
             // Auto-close the window after 2.5 seconds
             setTimeout(() => {
+              console.log('[OAuth Callback] Closing window');
               if (window.opener) {
                 window.close();
               }
@@ -325,6 +343,7 @@ export class SlackOauthController {
   }
 
   private renderErrorPage(res: Response, message: string): void {
+    const frontendUrl = this.configService.get<string>('frontendUrl') || 'http://localhost:3000';
     const html = `
       <!DOCTYPE html>
       <html>
@@ -332,7 +351,7 @@ export class SlackOauthController {
           <title>AsyncStand - Installation Failed</title>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1">
-          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet>
           <style>
             :root {
               --bg-main: #0f1117;
@@ -511,17 +530,32 @@ export class SlackOauthController {
             </p>
           </div>
           <script>
+            console.log('[OAuth Error Callback] Page loaded');
+            console.log('[OAuth Error Callback] Window opener exists:', !!window.opener);
+            console.log('[OAuth Error Callback] Target origin:', '${frontendUrl}');
+            
             // Notify parent window of error
             if (window.opener) {
-              window.opener.postMessage({
-                type: 'slack-oauth-callback',
-                success: false,
-                message: '${message.replace(/'/g, "\\'")}'
-              }, window.location.origin);
+              try {
+                const message = {
+                  type: 'slack-oauth-callback',
+                  success: false,
+                  message: '${message.replace(/'/g, "\\'")}'
+                };
+                console.log('[OAuth Error Callback] Sending message:', message);
+                // Use wildcard to ensure delivery regardless of exact dev/prod origin; parent filters it
+                window.opener.postMessage(message, '*');
+                console.log('[OAuth Error Callback] Message sent successfully');
+              } catch (error) {
+                console.error('[OAuth Error Callback] Error sending message:', error);
+              }
+            } else {
+              console.error('[OAuth Error Callback] No window.opener found!');
             }
             
             // Auto-close the window after 5 seconds
             setTimeout(() => {
+              console.log('[OAuth Error Callback] Closing window');
               if (window.opener) {
                 window.close();
               }

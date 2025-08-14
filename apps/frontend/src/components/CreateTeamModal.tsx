@@ -12,7 +12,7 @@ import type { CreateTeamRequest } from '@/types';
 interface CreateTeamModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (teamName?: string) => void;
 }
 
 interface CreateTeamFormData {
@@ -171,8 +171,8 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
             description: formData.description.trim() || undefined,
           };
 
-          await createTeam(createTeamData);
-          onSuccess();
+          const newTeam = await createTeam(createTeamData);
+          onSuccess(newTeam.name);
           handleClose();
         } catch (error) {
           // Error handling is done in the context

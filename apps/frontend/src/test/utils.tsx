@@ -3,6 +3,7 @@ import { render, RenderOptions } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { IntegrationsProvider } from '@/contexts/IntegrationsContext';
 import { TeamsProvider } from '@/contexts/TeamsContext';
 import { Toaster } from '@/components/ui';
 
@@ -12,10 +13,12 @@ const AllTheProviders = ({ children }: { children: React.ReactNode }) => {
     <BrowserRouter>
       <ThemeProvider>
         <AuthProvider>
-          <TeamsProvider>
-            {children}
-            <Toaster position="top-center" richColors closeButton />
-          </TeamsProvider>
+          <IntegrationsProvider>
+            <TeamsProvider>
+              {children}
+              <Toaster position="top-center" richColors closeButton />
+            </TeamsProvider>
+          </IntegrationsProvider>
         </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>

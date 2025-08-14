@@ -152,9 +152,10 @@ export function IntegrationsProvider({ children }: IntegrationsProviderProps) {
   }, [state.isLoading, state.isRefreshing]);
 
   const refreshIntegrations = useCallback(async () => {
-    if (state.isLoading || state.isRefreshing) return;
-
-    dispatch({ type: 'SET_REFRESHING', payload: true });
+    // Don't set refreshing if already loading to avoid UI flicker
+    if (!state.isLoading) {
+      dispatch({ type: 'SET_REFRESHING', payload: true });
+    }
 
     try {
       const integrations = await integrationsApi.getSlackIntegrations();
@@ -164,7 +165,7 @@ export function IntegrationsProvider({ children }: IntegrationsProviderProps) {
       dispatch({ type: 'SET_ERROR', payload: message });
       console.error('Error refreshing integrations:', error);
     }
-  }, [state.isLoading, state.isRefreshing]);
+  }, [state.isLoading]);
 
   const syncIntegration = useCallback(async (integrationId: string) => {
     dispatch({ type: 'ADD_SYNCING_ID', payload: integrationId });

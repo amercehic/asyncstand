@@ -400,6 +400,17 @@ export const TeamsPage = React.memo(() => {
     fetchAllStandups();
   }, [teams]);
 
+  // Manage stats visibility based on team count
+  useEffect(() => {
+    if (teams.length === 0 && showStats) {
+      // Hide stats when there are no teams
+      setShowStats(false);
+    } else if (teams.length === 1 && !showStats) {
+      // Show stats by default when first team is created
+      setShowStats(true);
+    }
+  }, [teams.length, showStats]);
+
   // Filter and sort teams
   const filteredAndSortedTeams = useMemo(() => {
     let filtered = teams;
@@ -576,21 +587,23 @@ export const TeamsPage = React.memo(() => {
             transition={{ duration: 0.6, delay: 0.3 }}
             className="flex flex-wrap gap-2 sm:gap-3"
           >
-            <ModernButton
-              variant="ghost"
-              onClick={() => setShowStats(!showStats)}
-              className="group flex-1 sm:flex-none"
-              size="sm"
-              title={showStats ? 'Hide statistics sidebar' : 'Show statistics sidebar'}
-            >
-              <BarChart3 className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
-              <span className="sm:inline">{showStats ? 'Hide' : 'Show'} Stats</span>
-              {showStats ? (
-                <ChevronLeft className="w-3 h-3 ml-1 group-hover:-translate-x-0.5 transition-transform" />
-              ) : (
-                <ChevronRight className="w-3 h-3 ml-1 group-hover:translate-x-0.5 transition-transform" />
-              )}
-            </ModernButton>
+            {teams.length > 0 && (
+              <ModernButton
+                variant="ghost"
+                onClick={() => setShowStats(!showStats)}
+                className="group flex-1 sm:flex-none"
+                size="sm"
+                title={showStats ? 'Hide statistics sidebar' : 'Show statistics sidebar'}
+              >
+                <BarChart3 className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
+                <span className="sm:inline">{showStats ? 'Hide' : 'Show'} Stats</span>
+                {showStats ? (
+                  <ChevronLeft className="w-3 h-3 ml-1 group-hover:-translate-x-0.5 transition-transform" />
+                ) : (
+                  <ChevronRight className="w-3 h-3 ml-1 group-hover:translate-x-0.5 transition-transform" />
+                )}
+              </ModernButton>
+            )}
             <ModernButton
               variant="secondary"
               onClick={handleJoinTeam}

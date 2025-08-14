@@ -14,7 +14,7 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import { toast } from '@/components/ui';
-import { type SlackIntegration } from '@/lib/api';
+import { integrationsApi, type SlackIntegration } from '@/lib/api';
 import { startSlackOAuth } from '@/utils/slack-oauth';
 import { useAuth, useIntegrations } from '@/contexts';
 import { SlackIcon, TeamsIcon, DiscordIcon } from '@/components/icons/IntegrationIcons';
@@ -46,14 +46,49 @@ export const IntegrationsPage = React.memo(() => {
     switch (platform) {
       case 'slack':
         try {
+          // const previousCount = integrations.length;
+
+          // As a robust fallback, just refresh when window regains focus
+          const handleWindowFocus = async () => {
+            try {
+              await refreshIntegrations();
+            } catch {
+              // Ignore refresh errors
+            }
+          };
+          window.addEventListener('focus', handleWindowFocus, { once: true });
+
           await startSlackOAuth({
             orgId: user.orgId,
-            onSuccess: () => {
-              toast.success('Slack workspace connected successfully!');
-              refreshIntegrations();
+            onSuccess: async () => {
+              // Proactively refresh and then show a single actionable toast
+              const latest = await integrationsApi.getSlackIntegrations();
+              const newest = latest[0];
+
+              toast.success('Integration connected!', {
+                id: 'slack-connected',
+                richContent: {
+                  title: 'Slack Connected',
+                  description: 'Your team can now receive standup notifications',
+                  metadata: 'Just now',
+                },
+                action: newest
+                  ? {
+                      label: 'Configure',
+                      onClick: () => navigate(`/integrations/${newest.id}`),
+                    }
+                  : undefined,
+              });
+
+              await refreshIntegrations();
+              setTimeout(() => {
+                refreshIntegrations();
+              }, 1200);
             },
             onError: error => {
               toast.error(error);
+              // Ensure we clean up the focus handler on error
+              window.removeEventListener('focus', handleWindowFocus);
             },
           });
         } catch (error) {
