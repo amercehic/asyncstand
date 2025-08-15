@@ -21,12 +21,12 @@ export const authApi = {
     return response.data;
   },
 
-  async resetPassword(data: {
-    token: string;
-    password: string;
-    email: string;
-  }): Promise<{ message: string; success: boolean }> {
-    const response = await api.post('/auth/reset-password', data);
+  async resetPassword(
+    token: string,
+    password: string,
+    email: string
+  ): Promise<{ message: string; success: boolean }> {
+    const response = await api.post('/auth/reset-password', { token, password, email });
     return response.data;
   },
 };

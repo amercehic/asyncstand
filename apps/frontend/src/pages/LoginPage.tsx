@@ -207,6 +207,7 @@ export const LoginPage = React.memo(() => {
               </div>
               <button
                 type="button"
+                onClick={() => navigate('/forgot-password')}
                 className="text-sm text-primary hover:text-primary/80 transition-smooth"
                 data-testid="forgot-password-button"
               >

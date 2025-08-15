@@ -6,6 +6,7 @@ import { CurrentOrg } from '@/auth/decorators/current-org.decorator';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 import { PrismaService } from '@/prisma/prisma.service';
 import { SlackApiService } from '@/integrations/slack/slack-api.service';
+import { SlackMessagingService } from '@/integrations/slack/slack-messaging.service';
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
 import { LoggerService } from '@/common/logger.service';
@@ -54,6 +55,7 @@ export class SlackIntegrationController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly slackApiService: SlackApiService,
+    private readonly slackMessaging: SlackMessagingService,
     private readonly logger: LoggerService,
     private readonly auditLogService: AuditLogService,
   ) {
@@ -345,6 +347,77 @@ export class SlackIntegrationController {
       });
 
       throw error;
+    }
+  }
+
+  @Post(':id/test-dm')
+  async testDirectMessage(
+    @Param('id') integrationId: string,
+    @CurrentOrg() orgId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<{ success: boolean; error?: string; details?: unknown }> {
+    this.logger.info('Testing Slack DM capability', { integrationId, orgId, userId: user.userId });
+
+    try {
+      // Get integration
+      const integration = await this.prisma.integration.findFirst({
+        where: { id: integrationId, orgId },
+        include: {
+          teams: {
+            include: {
+              members: {
+                where: { active: true },
+                take: 1,
+              },
+            },
+            take: 1,
+          },
+        },
+      });
+
+      if (!integration) {
+        throw new ApiError(ErrorCode.NOT_FOUND, 'Integration not found', HttpStatus.NOT_FOUND);
+      }
+
+      const team = integration.teams[0];
+      const member = team?.members[0];
+
+      if (!member) {
+        return {
+          success: false,
+          error: 'No active team members found',
+        };
+      }
+
+      // Test sending a DM
+      const result = await this.slackMessaging.sendDirectMessage(
+        integrationId,
+        member.platformUserId,
+        `Test message from AsyncStand! If you see this, DMs are working correctly. 🎉\n\nMember: ${member.name}\nTeam: ${team.name}`,
+      );
+
+      return {
+        success: result.ok,
+        error: result.error,
+        details: {
+          memberId: member.id,
+          memberName: member.name,
+          platformUserId: member.platformUserId,
+          teamName: team.name,
+          messageTs: result.ts,
+        },
+      };
+    } catch (error) {
+      this.logger.error('Failed to test Slack DM', {
+        integrationId,
+        orgId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
     }
   }
 }

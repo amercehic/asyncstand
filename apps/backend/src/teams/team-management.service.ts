@@ -428,25 +428,41 @@ export class TeamManagementService {
       orderBy: { createdAt: 'desc' },
     });
 
-    // Get channel names from Slack
+    // Get channel information from database
     const teamsWithChannelNames = await Promise.all(
       teams.map(async (team) => {
         let channelName = team.channelId;
-        try {
-          // TODO: Implement channel name lookup via Slack API
-          // For now, use the channelId as fallback
-          channelName = team.channelId;
-        } catch {
-          this.logger.warn('Failed to get channel name', {
-            teamId: team.id,
-            channelId: team.channelId,
-          });
+        let channelObject = null;
+
+        if (team.channelId) {
+          try {
+            // Get channel information from the database
+            const channel = await this.prisma.channel.findUnique({
+              where: { id: team.channelId },
+              select: { id: true, name: true },
+            });
+
+            if (channel) {
+              channelName = channel.name;
+              channelObject = {
+                id: channel.id,
+                name: channel.name,
+              };
+            }
+          } catch (error) {
+            this.logger.warn('Failed to get channel information', {
+              teamId: team.id,
+              channelId: team.channelId,
+              error: error instanceof Error ? error.message : 'Unknown error',
+            });
+          }
         }
 
         return {
           id: team.id,
           name: team.name,
           channelName,
+          channel: channelObject,
           memberCount: team._count.members,
           hasStandupConfig: team.configs.length > 0,
           createdAt: team.createdAt,

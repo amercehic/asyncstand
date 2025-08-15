@@ -15,7 +15,6 @@ import {
   CheckCircle2,
   AlertTriangle,
   Play,
-  Settings,
   Copy,
   BarChart3,
   Zap,
@@ -504,11 +503,6 @@ export const ActiveStandupsList: React.FC<ActiveStandupsListProps> = ({
                             label: 'Duplicate',
                             icon: Copy,
                             onClick: () => handleDuplicateStandup(),
-                          },
-                          {
-                            label: 'Settings',
-                            icon: Settings,
-                            onClick: () => toast.info('Settings - Coming soon!'),
                           },
                           { type: 'separator' },
                           {

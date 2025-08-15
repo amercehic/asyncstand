@@ -74,7 +74,6 @@ export const getLoggerConfig = (): LoggerConfig => {
 export const createLoggerModule = () => {
   const config = getLoggerConfig();
   const isTest = process.env.NODE_ENV === 'test';
-  const isDevelopment = process.env.NODE_ENV === 'development';
   const isSilent = process.env.LOG_LEVEL === 'silent';
 
   // If LOG_LEVEL is silent, return a minimal logger configuration
@@ -99,18 +98,17 @@ export const createLoggerModule = () => {
               ignore: 'hostname,pid',
               singleLine: false,
               hideObject: false,
-              // Enhanced stack trace visibility for development
-              ...(isDevelopment && {
-                errorLikeObjectKeys: ['err', 'error', 'exception'],
-                errorProps: 'name,message,stack,cause',
-                messageFormat: '{levelname} - {msg} {if error}\n{error.stack}{end}',
-              }),
+              // Always render stacks when error-like objects are present
+              errorLikeObjectKeys: ['err', 'error', 'exception'],
+              errorProps: 'name,message,stack,cause',
+              messageFormat:
+                '{msg}{if err}\n{err.stack}{end}{if error}\n{error.stack}{end}{if exception}\n{exception.stack}{end}',
             },
           }
         : undefined,
       serializers: config.serializers,
       redact: config.redact,
-      // Disable HTTP request/response logging in test environment
+      // Disable HTTP request/response logging completely for cleaner logs
       autoLogging: !isTest,
       // Additional Pino options
       timestamp: () => `,"time":"${new Date().toISOString()}"`,

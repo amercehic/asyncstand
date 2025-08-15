@@ -99,17 +99,26 @@ export class StandupInstanceService {
     }
 
     // Create config snapshot
+    const participatingMembers = config.configMembers.map((cm) => ({
+      id: cm.teamMember.id,
+      name: cm.teamMember.name || cm.teamMember.integrationUser?.name || 'Unknown',
+      platformUserId:
+        cm.teamMember.integrationUser?.externalUserId || cm.teamMember.platformUserId || '',
+    }));
+
+    this.logger.debug('Creating config snapshot', {
+      teamId,
+      configId: config.id,
+      participatingMembersCount: participatingMembers.length,
+    });
+
     const configSnapshot: ConfigSnapshot = {
       questions: config.questions,
       responseTimeoutHours: config.responseTimeoutHours,
       reminderMinutesBefore: config.reminderMinutesBefore,
       timezone: team.timezone,
       timeLocal: config.timeLocal,
-      participatingMembers: config.configMembers.map((cm) => ({
-        id: cm.teamMember.id,
-        name: cm.teamMember.name || cm.teamMember.integrationUser?.name || 'Unknown',
-        platformUserId: cm.teamMember.integrationUser?.externalUserId || '',
-      })),
+      participatingMembers,
     };
 
     // Create instance

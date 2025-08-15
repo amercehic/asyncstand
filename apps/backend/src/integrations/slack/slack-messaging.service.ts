@@ -336,7 +336,19 @@ export class SlackMessagingService {
               integrationId: true,
               configs: {
                 where: { isActive: true },
-                select: { deliveryType: true },
+                select: {
+                  deliveryType: true,
+                  configMembers: {
+                    where: { include: true },
+                    include: {
+                      teamMember: {
+                        include: {
+                          integrationUser: true,
+                        },
+                      },
+                    },
+                  },
+                },
                 orderBy: { createdAt: 'desc' },
                 take: 1,
               },
@@ -406,6 +418,29 @@ export class SlackMessagingService {
       const config = instance.team.configs[0];
       const deliveryType = config?.deliveryType || StandupDeliveryType.channel;
 
+      // Get current members from the config (for direct message type)
+      const currentMembers =
+        config?.configMembers?.map((cm) => ({
+          id: cm.teamMember.id,
+          name: cm.teamMember.name || cm.teamMember.integrationUser?.name || 'Unknown',
+          platformUserId:
+            cm.teamMember.integrationUser?.externalUserId || cm.teamMember.platformUserId || '',
+        })) || [];
+
+      // Determine which members to notify
+      const membersToNotify =
+        currentMembers.length > 0 ? currentMembers : configSnapshot.participatingMembers;
+
+      // Log member information for debugging
+      this.logger.info('Standup reminder member information', {
+        instanceId,
+        deliveryType,
+        snapshotMemberCount: configSnapshot.participatingMembers.length,
+        currentMemberCount: currentMembers.length,
+        membersToNotifyCount: membersToNotify.length,
+        usingCurrentMembers: currentMembers.length > 0,
+      });
+
       const { text, blocks } = await this.formatter.formatStandupReminderWithMagicLinks(
         instanceData,
         teamName,
@@ -418,7 +453,7 @@ export class SlackMessagingService {
         // Send direct messages to each participating member
         result = await this.sendStandupReminderDMs(
           instance.team.integrationId,
-          configSnapshot.participatingMembers,
+          membersToNotify,
           text,
           blocks,
         );
@@ -440,11 +475,25 @@ export class SlackMessagingService {
         );
       }
 
-      // Store the message timestamp for future updates
+      // Store the message timestamp and update configSnapshot with current members
       if (result.ok && result.ts) {
+        // Update the configSnapshot to include current members if using direct messages
+        const updateData: { reminderMessageTs: string; configSnapshot?: object } = {
+          reminderMessageTs: result.ts,
+        };
+
+        if (deliveryType === StandupDeliveryType.direct_message && currentMembers.length > 0) {
+          // Update the snapshot with current members
+          const updatedSnapshot = {
+            ...configSnapshot,
+            participatingMembers: membersToNotify,
+          };
+          updateData.configSnapshot = updatedSnapshot;
+        }
+
         await this.prisma.standupInstance.update({
           where: { id: instanceId },
-          data: { reminderMessageTs: result.ts },
+          data: updateData,
         });
       }
 

@@ -2,6 +2,10 @@ export interface TeamListItem {
   id: string;
   name: string;
   channelName: string;
+  channel: {
+    id: string;
+    name: string;
+  } | null;
   memberCount: number;
   hasStandupConfig: boolean;
   createdAt: Date;
