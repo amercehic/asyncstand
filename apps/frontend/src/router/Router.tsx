@@ -66,6 +66,16 @@ const MagicTokenStandupPage = React.lazy(() =>
     default: module.MagicTokenStandupPage,
   }))
 );
+const ForgotPasswordPage = React.lazy(() =>
+  import(/* webpackChunkName: "auth" */ '@/pages/ForgotPasswordPage').then(module => ({
+    default: module.ForgotPasswordPage,
+  }))
+);
+const ResetPasswordPage = React.lazy(() =>
+  import(/* webpackChunkName: "auth" */ '@/pages/ResetPasswordPage').then(module => ({
+    default: module.ResetPasswordPage,
+  }))
+);
 
 // Loading component
 const PageLoader = () => (
@@ -106,6 +116,24 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<PageLoader />}>
             <SignUpPage />
+          </Suspense>
+        ),
+        errorElement: <ErrorPage />,
+      },
+      {
+        path: 'forgot-password',
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <ForgotPasswordPage />
+          </Suspense>
+        ),
+        errorElement: <ErrorPage />,
+      },
+      {
+        path: 'reset-password',
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <ResetPasswordPage />
           </Suspense>
         ),
         errorElement: <ErrorPage />,

@@ -14,6 +14,12 @@ function mapListItemToTeam(item: TeamListResponse['teams'][0]): Team {
     name: String(item.name),
     description: undefined,
     members: [],
+    channel: item.channel
+      ? {
+          id: String(item.channel.id),
+          name: String(item.channel.name),
+        }
+      : undefined,
     createdAt: new Date(item.createdAt).toISOString(),
     updatedAt: new Date(item.createdAt).toISOString(),
   };
