@@ -44,6 +44,61 @@ export const TeamDetailPage = React.memo(() => {
   const [isRemovingMember, setIsRemovingMember] = useState(false);
   const [showStats, setShowStats] = useState(true);
 
+  // Function to fetch only standups data (for refreshing after deletion)
+  const fetchStandupsOnly = useCallback(async () => {
+    if (!teamId) return;
+
+    try {
+      // Fetch only standups data
+      let standupsData: StandupConfig[] = [];
+      try {
+        standupsData = await standupsApi.getTeamStandups(teamId);
+      } catch (standupsError: unknown) {
+        // If standup config doesn't exist, that's okay - show empty state
+        const axiosError = standupsError as AxiosError;
+        const errorData = axiosError?.response?.data as
+          | { code?: string; detail?: string }
+          | undefined;
+
+        if (
+          axiosError?.response?.status === 404 ||
+          errorData?.code === 'STANDUP_CONFIG_NOT_FOUND' ||
+          (errorData?.detail && errorData.detail.includes('STANDUP_CONFIG_NOT_FOUND'))
+        ) {
+          // No standup config found for team, showing empty state
+        } else {
+          console.error('Error fetching standups:', standupsError);
+          toast.error('Failed to load standup configurations');
+        }
+      }
+
+      setStandups(standupsData);
+
+      // Fetch recent instances for all standups
+      if (standupsData.length > 0) {
+        const instancePromises = standupsData.map(standup =>
+          standupsApi.getStandupInstances(standup.id).catch(() => [])
+        );
+
+        const allInstances = await Promise.all(instancePromises);
+        const flatInstances = allInstances.flat();
+
+        // Sort by date and take most recent
+        const sortedInstances = flatInstances
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+          .slice(0, 5);
+
+        setRecentInstances(sortedInstances);
+      } else {
+        // Clear recent instances if no standups exist
+        setRecentInstances([]);
+      }
+    } catch (error: unknown) {
+      console.error('Error fetching standups:', error);
+      toast.error('Failed to refresh standups');
+    }
+  }, [teamId]);
+
   const fetchTeamData = useCallback(async () => {
     if (!teamId) return;
 
@@ -372,7 +427,7 @@ export const TeamDetailPage = React.memo(() => {
                   size="sm"
                 >
                   <Plus className="w-4 h-4 mr-2 group-hover:rotate-90 transition-transform" />
-                  <span className="sm:inline">Create</span>
+                  <span className="sm:inline">Create Standup</span>
                 </ModernButton>
               </Link>
             </div>
@@ -708,7 +763,7 @@ export const TeamDetailPage = React.memo(() => {
                     teamId={teamId}
                     showHeader={true}
                     showCreateButton={false}
-                    onStandupsChange={fetchTeamData}
+                    onStandupsChange={fetchStandupsOnly}
                   />
                 </motion.div>
 

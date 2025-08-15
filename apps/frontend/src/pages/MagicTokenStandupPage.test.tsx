@@ -287,4 +287,32 @@ describe('MagicTokenStandupPage', () => {
     expect(screen.getByText('• Answer all questions honestly and completely')).toBeInTheDocument();
     expect(screen.getByText('• Be specific about your work and any blockers')).toBeInTheDocument();
   });
+
+  it('should show already submitted state when user has existing responses', async () => {
+    const mockStandupInfoWithExistingResponses = {
+      ...mockStandupInfo,
+      hasExistingResponses: true,
+    };
+    vi.mocked(magicTokenApiClient.validateTokenAndGetInfo).mockResolvedValue(
+      mockStandupInfoWithExistingResponses
+    );
+
+    render(
+      <MemoryRouter>
+        <MagicTokenStandupPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Already Submitted')).toBeInTheDocument();
+    });
+
+    expect(
+      screen.getByText('You have already submitted your standup response for Engineering Team.')
+    ).toBeInTheDocument();
+    expect(screen.getByText('Close Window')).toBeInTheDocument();
+
+    // Form should not be rendered
+    expect(screen.queryByTestId('submit-response-button')).not.toBeInTheDocument();
+  });
 });

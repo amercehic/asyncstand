@@ -811,13 +811,23 @@ export class SlackEventService {
       const integration = await this.findIntegrationByTeamId(teamId);
       if (!integration) return;
 
-      // Find the team member
-      const teamMember = await this.prisma.teamMember.findFirst({
+      // Find the team member - first try by integrationUser, then by platformUserId
+      let teamMember = await this.prisma.teamMember.findFirst({
         where: {
           team: { integrationId: integration.id },
           integrationUser: { externalUserId: userId },
         },
       });
+
+      // If not found by integrationUser, try to find by platformUserId
+      if (!teamMember) {
+        teamMember = await this.prisma.teamMember.findFirst({
+          where: {
+            team: { integrationId: integration.id },
+            platformUserId: userId,
+          },
+        });
+      }
 
       if (!teamMember) {
         this.logger.warn('Team member not found', { userId, integrationId: integration.id });
@@ -856,19 +866,57 @@ export class SlackEventService {
       const integration = await this.findIntegrationByTeamId(teamId);
       if (!integration) return;
 
-      // Find the team member
-      const teamMember = await this.prisma.teamMember.findFirst({
+      // Find the team member - first try by integrationUser, then by platformUserId
+      let teamMember = await this.prisma.teamMember.findFirst({
         where: {
           team: { integrationId: integration.id },
           integrationUser: { externalUserId: userId },
         },
       });
 
+      // If not found by integrationUser, try to find by platformUserId
+      if (!teamMember) {
+        teamMember = await this.prisma.teamMember.findFirst({
+          where: {
+            team: { integrationId: integration.id },
+            platformUserId: userId,
+          },
+        });
+      }
+
       if (!teamMember) {
         this.logger.warn('Team member not found for modal response', {
           userId,
           integrationId: integration.id,
         });
+        return;
+      }
+
+      // Check if user has already submitted responses for this standup
+      const existingAnswers = await this.prisma.answer.findFirst({
+        where: {
+          standupInstanceId: instanceId,
+          teamMemberId: teamMember.id,
+        },
+      });
+
+      if (existingAnswers) {
+        this.logger.warn('User has already submitted responses for this standup', {
+          instanceId,
+          userId,
+          teamMemberId: teamMember.id,
+        });
+
+        // Send message to user that they've already submitted
+        try {
+          await this.slackMessaging.sendDirectMessage(
+            integration.id,
+            userId,
+            '⚠️ You have already submitted your responses for this standup. Your previous submission remains saved.',
+          );
+        } catch (dmError) {
+          this.logger.error('Failed to send duplicate submission message', { dmError });
+        }
         return;
       }
 
@@ -958,8 +1006,8 @@ export class SlackEventService {
     integrationId: string,
   ): Promise<SlashCommandResponse> {
     try {
-      // Find current active standup for user's team
-      const teamMember = await this.prisma.teamMember.findFirst({
+      // Find current active standup for user's team - first try by integrationUser, then by platformUserId
+      let teamMember = await this.prisma.teamMember.findFirst({
         where: {
           team: { integrationId },
           integrationUser: { externalUserId: userId },
@@ -968,6 +1016,19 @@ export class SlackEventService {
           team: true,
         },
       });
+
+      // If not found by integrationUser, try to find by platformUserId
+      if (!teamMember) {
+        teamMember = await this.prisma.teamMember.findFirst({
+          where: {
+            team: { integrationId },
+            platformUserId: userId,
+          },
+          include: {
+            team: true,
+          },
+        });
+      }
 
       if (!teamMember) {
         return {
@@ -1027,13 +1088,23 @@ export class SlackEventService {
     triggerId: string,
   ): Promise<SlashCommandResponse> {
     try {
-      // Find current active standup
-      const teamMember = await this.prisma.teamMember.findFirst({
+      // Find current active standup - first try by integrationUser, then by platformUserId
+      let teamMember = await this.prisma.teamMember.findFirst({
         where: {
           team: { integrationId },
           integrationUser: { externalUserId: userId },
         },
       });
+
+      // If not found by integrationUser, try to find by platformUserId
+      if (!teamMember) {
+        teamMember = await this.prisma.teamMember.findFirst({
+          where: {
+            team: { integrationId },
+            platformUserId: userId,
+          },
+        });
+      }
 
       if (!teamMember) {
         return {
@@ -1090,13 +1161,23 @@ export class SlackEventService {
     reason: string,
   ): Promise<SlashCommandResponse> {
     try {
-      // Find current active standup
-      const teamMember = await this.prisma.teamMember.findFirst({
+      // Find current active standup - first try by integrationUser, then by platformUserId
+      let teamMember = await this.prisma.teamMember.findFirst({
         where: {
           team: { integrationId },
           integrationUser: { externalUserId: userId },
         },
       });
+
+      // If not found by integrationUser, try to find by platformUserId
+      if (!teamMember) {
+        teamMember = await this.prisma.teamMember.findFirst({
+          where: {
+            team: { integrationId },
+            platformUserId: userId,
+          },
+        });
+      }
 
       if (!teamMember) {
         return {

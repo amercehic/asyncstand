@@ -109,16 +109,19 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const body = omitUndefined(baseBody);
 
     // 3) Log with full details (always)
+    const serialized = this.serializeError(exception);
+    // Pass stack as second arg so Nest prints it in pretty mode, and include structured context as third arg
     this.logger.error(
       'Unhandled exception',
-      this.safeStringify({
+      typeof (exception as Error)?.stack === 'string' ? (exception as Error).stack : undefined,
+      {
         requestId,
         method: req.method,
         url: path,
         headers: sanitizeHeaders(req.headers),
         ip: (req as Request & { ip?: string }).ip ?? req.socket?.remoteAddress,
-        exception: this.serializeError(exception),
-      }),
+        exception: serialized,
+      },
     );
 
     // 4) Send RFC7807 response

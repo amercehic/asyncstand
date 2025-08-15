@@ -139,7 +139,25 @@ export class SlackWebhookController {
         actionId: payload.actions?.[0]?.action_id,
       });
 
-      // Process interaction asynchronously
+      // For modal submissions, we need to respond synchronously
+      if (payload.type === 'view_submission') {
+        try {
+          await this.slackEventService.processInteractiveComponent(payload);
+          // Return proper modal response - this closes the modal
+          return res.json({});
+        } catch (error) {
+          this.logger.error('Error processing modal submission', { err: error });
+          // Return error response that keeps modal open
+          return res.json({
+            response_action: 'errors',
+            errors: {
+              general: 'There was an error submitting your response. Please try again.',
+            },
+          });
+        }
+      }
+
+      // For other interactions, process asynchronously
       setImmediate(() => {
         this.slackEventService.processInteractiveComponent(payload);
       });

@@ -420,7 +420,19 @@ describe('SlackMessagingService', () => {
               integrationId: true,
               configs: {
                 where: { isActive: true },
-                select: { deliveryType: true },
+                select: {
+                  deliveryType: true,
+                  configMembers: {
+                    where: { include: true },
+                    include: {
+                      teamMember: {
+                        include: {
+                          integrationUser: true,
+                        },
+                      },
+                    },
+                  },
+                },
                 orderBy: { createdAt: 'desc' },
                 take: 1,
               },

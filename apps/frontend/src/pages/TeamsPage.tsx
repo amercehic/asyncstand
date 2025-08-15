@@ -407,16 +407,13 @@ export const TeamsPage = React.memo(() => {
     fetchAllStandups();
   }, [teams]);
 
-  // Manage stats visibility based on team count
+  // Auto-hide stats when there are no teams
   useEffect(() => {
-    if (teams.length === 0 && showStats) {
+    if (teams.length === 0) {
       // Hide stats when there are no teams
       setShowStats(false);
-    } else if (teams.length === 1 && !showStats) {
-      // Show stats by default when first team is created
-      setShowStats(true);
     }
-  }, [teams.length, showStats]);
+  }, [teams.length]);
 
   // Filter and sort teams
   const filteredAndSortedTeams = useMemo(() => {

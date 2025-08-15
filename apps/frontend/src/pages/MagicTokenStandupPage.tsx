@@ -154,14 +154,19 @@ export const MagicTokenStandupPage = React.memo(() => {
     );
   }
 
-  if (isSubmitted) {
+  // Show submitted state if user just submitted or already has existing responses
+  if (isSubmitted || standupInfo?.hasExistingResponses) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center max-w-md mx-auto px-6">
           <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold mb-4">Response Submitted!</h1>
+          <h1 className="text-2xl font-bold mb-4">
+            {isSubmitted ? 'Response Submitted!' : 'Already Submitted'}
+          </h1>
           <p className="text-muted-foreground mb-6">
-            Thank you for submitting your standup response for {standupInfo?.teamName}.
+            {isSubmitted
+              ? `Thank you for submitting your standup response for ${standupInfo?.teamName}.`
+              : `You have already submitted your standup response for ${standupInfo?.teamName}.`}
           </p>
           <ModernButton variant="primary" onClick={() => window.close()}>
             Close Window
