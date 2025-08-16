@@ -14,7 +14,6 @@ export const standupsApi = {
       }
     } catch {
       // Fall back to single standup endpoint for backward compatibility
-      console.log('Using fallback single standup endpoint');
     }
 
     try {

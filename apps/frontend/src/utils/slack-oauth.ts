@@ -61,17 +61,6 @@ export const startSlackOAuth = async ({ orgId, onSuccess, onError }: SlackOAuthO
       }
     }, 1000);
 
-    // Normalize URL to origin string (scheme + host + optional port)
-    // const toOrigin = (url?: string): string => {
-    //   if (!url) return '';
-    //   try {
-    //     return new URL(url).origin;
-    //   } catch {
-    //     // If a plain origin was already provided (e.g. http://localhost:3000), return as-is
-    //     return url;
-    //   }
-    // };
-
     // Set up message listener for proper success/error handling
     const handleMessage = (event: MessageEvent) => {
       // Only accept messages from the popup we opened. This avoids fragile origin checks

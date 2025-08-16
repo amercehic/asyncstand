@@ -698,112 +698,79 @@ export const TeamDetailPage = React.memo(() => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
-              className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8"
+              className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
             >
+              {/* Team Members Card */}
               <motion.div
-                whileHover={{ y: -2, scale: 1.02 }}
+                whileHover={{ y: -2 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                className="bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-950/30 dark:to-blue-900/20 rounded-lg p-4 border border-blue-200/60 dark:border-blue-800/40 shadow-md shadow-blue-500/10 hover:shadow-lg hover:shadow-blue-500/20 transition-shadow group relative overflow-hidden"
+                className="bg-blue-100/60 dark:bg-blue-950/20 rounded-2xl p-6 border-0 relative"
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-400/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
-                      <Users className="w-5 h-5 text-white" />
-                    </div>
-                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
+                <div className="flex items-start justify-between mb-4">
+                  <div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center">
+                    <Users className="w-6 h-6 text-white" />
                   </div>
-                  <p className="text-2xl font-bold text-foreground mb-0.5">{team.members.length}</p>
-                  <p className="text-xs text-muted-foreground font-medium">Team Members</p>
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                </div>
+                <div className="text-4xl font-bold text-gray-900 dark:text-white mb-1">
+                  {team.members.length}
+                </div>
+                <div className="text-gray-600 dark:text-gray-400 font-medium">
+                  Team Members
                 </div>
               </motion.div>
 
+              {/* Active Standups Card */}
               <motion.div
-                whileHover={{ y: -2, scale: 1.02 }}
+                whileHover={{ y: -2 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                className="bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-950/30 dark:to-emerald-900/20 rounded-lg p-4 border border-emerald-200/60 dark:border-emerald-800/40 shadow-md shadow-emerald-500/10 hover:shadow-lg hover:shadow-emerald-500/20 transition-shadow group relative overflow-hidden"
+                className="bg-green-100/60 dark:bg-green-950/20 rounded-2xl p-6 border-0 relative"
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-emerald-400/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
-                      <Calendar className="w-5 h-5 text-white" />
-                    </div>
-                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                <div className="flex items-start justify-between mb-4">
+                  <div className="w-12 h-12 bg-green-500 rounded-2xl flex items-center justify-center">
+                    <Calendar className="w-6 h-6 text-white" />
                   </div>
-                  <p className="text-2xl font-bold text-foreground mb-0.5">
-                    {activeStandups.length}
-                  </p>
-                  <p className="text-xs text-muted-foreground font-medium">
-                    Active Standups{' '}
-                    {pausedStandups.length > 0 && `(${pausedStandups.length} paused)`}
-                  </p>
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                </div>
+                <div className="text-4xl font-bold text-gray-900 dark:text-white mb-1">
+                  {activeStandups.length}
+                </div>
+                <div className="text-gray-600 dark:text-gray-400 font-medium">
+                  Active Standups
                 </div>
               </motion.div>
 
+              {/* Delivery Method Card */}
               <motion.div
-                whileHover={{ y: -2, scale: 1.02 }}
+                whileHover={{ y: -2 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                className={`bg-gradient-to-br ${
-                  activeStandups.some(s => s.deliveryType === 'channel')
-                    ? 'from-green-50 to-green-100/50 dark:from-green-950/30 dark:to-green-900/20 border-green-200/60 dark:border-green-800/40 shadow-green-500/10 hover:shadow-green-500/20'
+                className="bg-blue-100/60 dark:bg-blue-950/20 rounded-2xl p-6 border-0 relative"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center">
+                    {activeStandups.some(s => s.deliveryType === 'channel') ? (
+                      <Slack className="w-6 h-6 text-white" />
+                    ) : activeStandups.length > 0 ? (
+                      <Users className="w-6 h-6 text-white" />
+                    ) : (
+                      <Link2 className="w-6 h-6 text-white" />
+                    )}
+                  </div>
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                </div>
+                <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+                  {activeStandups.some(s => s.deliveryType === 'channel')
+                    ? 'Channel'
                     : activeStandups.length > 0
-                      ? 'from-blue-50 to-blue-100/50 dark:from-blue-950/30 dark:to-blue-900/20 border-blue-200/60 dark:border-blue-800/40 shadow-blue-500/10 hover:shadow-blue-500/20'
-                      : 'from-yellow-50 to-yellow-100/50 dark:from-yellow-950/30 dark:to-yellow-900/20 border-yellow-200/60 dark:border-yellow-800/40 shadow-yellow-500/10 hover:shadow-yellow-500/20'
-                } rounded-lg p-4 border shadow-md hover:shadow-lg transition-shadow group relative overflow-hidden`}
-              >
-                <div
-                  className={`absolute inset-0 bg-gradient-to-br ${
-                    activeStandups.some(s => s.deliveryType === 'channel')
-                      ? 'from-green-400/5'
-                      : activeStandups.length > 0
-                        ? 'from-blue-400/5'
-                        : 'from-yellow-400/5'
-                  } to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300`}
-                />
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-2">
-                    <div
-                      className={`w-10 h-10 bg-gradient-to-br ${
-                        activeStandups.some(s => s.deliveryType === 'channel')
-                          ? 'from-green-500 to-green-600'
-                          : activeStandups.length > 0
-                            ? 'from-blue-500 to-blue-600'
-                            : 'from-yellow-500 to-yellow-600'
-                      } rounded-lg flex items-center justify-center shadow-md group-hover:scale-105 transition-transform`}
-                    >
-                      {activeStandups.some(s => s.deliveryType === 'channel') ? (
-                        <Slack className="w-5 h-5 text-white" />
-                      ) : activeStandups.length > 0 ? (
-                        <Users className="w-5 h-5 text-white" />
-                      ) : (
-                        <Link2 className="w-5 h-5 text-white" />
-                      )}
-                    </div>
-                    <div
-                      className={`w-1.5 h-1.5 ${
-                        activeStandups.some(s => s.deliveryType === 'channel')
-                          ? 'bg-green-500'
-                          : activeStandups.length > 0
-                            ? 'bg-blue-500'
-                            : 'bg-yellow-500'
-                      } rounded-full animate-pulse`}
-                    />
-                  </div>
-                  <p className="text-2xl font-bold text-foreground mb-0.5">
-                    {activeStandups.some(s => s.deliveryType === 'channel')
-                      ? 'Channel'
-                      : activeStandups.length > 0
-                        ? 'Direct Message'
-                        : 'No Standups'}
-                  </p>
-                  <p className="text-xs text-muted-foreground font-medium">
-                    {activeStandups.some(s => s.deliveryType === 'channel')
-                      ? 'Slack channel delivery'
-                      : activeStandups.length > 0
-                        ? 'Direct message delivery'
-                        : 'Create your first standup'}
-                  </p>
+                      ? 'Direct Message'
+                      : 'No Standups'}
+                </div>
+                <div className="text-gray-600 dark:text-gray-400 font-medium">
+                  {activeStandups.some(s => s.deliveryType === 'channel')
+                    ? 'Slack channel delivery'
+                    : activeStandups.length > 0
+                      ? 'Direct message delivery'
+                      : 'Create your first standup'}
                 </div>
               </motion.div>
             </motion.div>

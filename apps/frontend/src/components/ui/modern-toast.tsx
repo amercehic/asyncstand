@@ -89,18 +89,18 @@ const ToastContent: React.FC<{
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <h4 className="font-semibold text-base break-words hyphens-auto">
+                <h4 className="font-bold text-base break-words hyphens-auto">
                   {options.richContent.title}
                 </h4>
                 {options.richContent.metadata && (
-                  <span className="text-sm opacity-80 block mt-1">
+                  <span className="text-sm opacity-70 block mt-1">
                     {options.richContent.metadata}
                   </span>
                 )}
               </div>
             </div>
             {options.richContent.description && (
-              <p className="text-sm opacity-90 break-words hyphens-auto leading-relaxed">
+              <p className="text-sm font-medium break-words hyphens-auto leading-relaxed">
                 {options.richContent.description}
               </p>
             )}
