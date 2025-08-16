@@ -19,6 +19,7 @@ vi.mock('@/lib/api', () => ({
     deleteTeam: vi.fn(),
   },
   integrationsApi: {
+    getSlackIntegrations: vi.fn(),
     getSlackIntegrationsForTeamCreation: vi.fn(),
   },
 }));
@@ -112,6 +113,7 @@ describe('CreateTeamModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(teamsApi.getAvailableChannels).mockResolvedValue({ channels: mockChannels });
+    vi.mocked(integrationsApi.getSlackIntegrations).mockResolvedValue([]);
     vi.mocked(integrationsApi.getSlackIntegrationsForTeamCreation).mockResolvedValue(
       mockIntegrations
     );
@@ -130,7 +132,6 @@ describe('CreateTeamModal', () => {
     expect(screen.getByTestId('team-description-input')).toBeInTheDocument();
     expect(screen.getByTestId('integration-select')).toBeInTheDocument();
     expect(screen.getByTestId('channel-select')).toBeInTheDocument();
-    expect(screen.getByTestId('timezone-select')).toBeInTheDocument();
   });
 
   it('does not render when closed', async () => {
@@ -179,8 +180,8 @@ describe('CreateTeamModal', () => {
     // Check that required fields have the required attribute
     expect(screen.getByTestId('team-name-input')).toHaveAttribute('required');
     expect(screen.getByTestId('integration-select')).toHaveAttribute('required');
-    expect(screen.getByTestId('channel-select')).toHaveAttribute('required');
-    expect(screen.getByTestId('timezone-select')).toHaveAttribute('required');
+    // Channel is now optional
+    expect(screen.getByTestId('channel-select')).toBeInTheDocument();
 
     // Check that submit button is disabled when form is invalid
     const submitButton = screen.getByTestId('create-team-submit-button');
@@ -231,9 +232,6 @@ describe('CreateTeamModal', () => {
     fireEvent.change(screen.getByTestId('channel-select'), {
       target: { value: 'channel1' },
     });
-    fireEvent.change(screen.getByTestId('timezone-select'), {
-      target: { value: 'America/New_York' },
-    });
 
     // Submit the form
     fireEvent.click(screen.getByTestId('create-team-submit-button'));
@@ -243,7 +241,6 @@ describe('CreateTeamModal', () => {
         name: 'Test Team',
         integrationId: 'integration1',
         channelId: 'channel1',
-        timezone: 'America/New_York',
         description: 'Test Description',
       });
     });

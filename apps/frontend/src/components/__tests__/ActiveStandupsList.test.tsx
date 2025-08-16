@@ -197,7 +197,7 @@ describe('ActiveStandupsList', () => {
     });
 
     fireEvent.click(screen.getByText('New Standup'));
-    expect(mockNavigate).toHaveBeenCalledWith('/teams/team-1/standups/create');
+    expect(mockNavigate).toHaveBeenCalledWith('/teams/team-1/standups/wizard');
   });
 
   it('handles create standup button click from empty state', async () => {
@@ -210,7 +210,7 @@ describe('ActiveStandupsList', () => {
     });
 
     fireEvent.click(screen.getByText('Create Your First Standup'));
-    expect(mockNavigate).toHaveBeenCalledWith('/teams/team-1/standups/create');
+    expect(mockNavigate).toHaveBeenCalledWith('/teams/team-1/standups/wizard');
   });
 
   it('displays questions preview correctly', async () => {

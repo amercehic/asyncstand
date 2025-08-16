@@ -9,7 +9,6 @@ import {
   Clock,
   MessageCircle,
   Hash,
-  Users,
   Check,
   X,
   Zap,
@@ -118,7 +117,7 @@ export const StandupWizard: React.FC<StandupWizardProps> = ({
     schedule: {
       time: '09:00',
       days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      timezone: 'UTC',
     },
     reminderMinutesBefore: 15,
     responseTimeoutHours: 2,
@@ -139,6 +138,21 @@ export const StandupWizard: React.FC<StandupWizardProps> = ({
 
   const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  // Valid timezones as per API error message
+  const validTimezones = [
+    'UTC',
+    'America/New_York',
+    'America/Chicago',
+    'America/Denver',
+    'America/Los_Angeles',
+    'Europe/London',
+    'Europe/Berlin',
+    'Europe/Paris',
+    'Asia/Tokyo',
+    'Asia/Shanghai',
+    'Australia/Sydney',
+  ];
 
   const convertNumbersToNames = (dayNumbers: number[]) =>
     dayNumbers.map(num => dayNames[num] as CreateStandupConfigRequest['schedule']['days'][0]);
@@ -497,13 +511,17 @@ export const StandupWizard: React.FC<StandupWizardProps> = ({
 
                   <div>
                     <label className="block text-sm font-medium mb-3">Timezone</label>
-                    <input
-                      type="text"
-                      value={formData.schedule?.timezone || ''}
+                    <select
+                      value={formData.schedule?.timezone || 'UTC'}
                       onChange={e => updateSchedule({ timezone: e.target.value })}
                       className="w-full h-12 px-4 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
-                      placeholder="e.g., America/New_York"
-                    />
+                    >
+                      {validTimezones.map(timezone => (
+                        <option key={timezone} value={timezone}>
+                          {timezone}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               </motion.div>

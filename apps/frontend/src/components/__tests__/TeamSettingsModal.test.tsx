@@ -224,9 +224,6 @@ describe('TeamSettingsModal', () => {
     const descriptionInput = screen.getByDisplayValue('A test team for testing purposes');
     fireEvent.change(descriptionInput, { target: { value: 'Updated description' } });
 
-    const timezoneSelect = screen.getByDisplayValue('UTC');
-    fireEvent.change(timezoneSelect, { target: { value: 'America/New_York' } });
-
     // Submit the form
     const saveButton = screen.getByText('Save Changes');
     fireEvent.click(saveButton);
@@ -235,7 +232,6 @@ describe('TeamSettingsModal', () => {
       expect(teamsApi.updateTeam).toHaveBeenCalledWith('team-1', {
         name: 'Updated Team Name',
         description: 'Updated description',
-        timezone: 'America/New_York',
       });
     });
 
