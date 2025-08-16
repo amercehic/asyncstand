@@ -130,8 +130,6 @@ describe('TeamManagementService', () => {
         data: {
           orgId: mockOrgId,
           integrationId: mockIntegrationId,
-          channelId: mockChannel.id,
-          slackChannelId: mockChannelId,
           name: createTeamDto.name,
           timezone: createTeamDto.timezone,
           createdByUserId: mockUserId,
@@ -179,56 +177,6 @@ describe('TeamManagementService', () => {
         new ApiError(ErrorCode.CONFLICT, 'Team name already exists in organization', 409),
       );
     });
-
-    it('should throw error when channel is already assigned to another team', async () => {
-      // Team name check passes
-      mockPrisma.team.findFirst
-        .mockResolvedValueOnce(null) // No existing team name
-        .mockResolvedValueOnce({ id: 'other-team' } as Team); // Channel already assigned
-
-      await expect(service.createTeam(mockOrgId, mockUserId, createTeamDto)).rejects.toThrow(
-        new ApiError(ErrorCode.CONFLICT, 'Channel is already assigned to another team', 409),
-      );
-    });
-
-    it('should throw error when channel not found in database', async () => {
-      mockPrisma.channel.findUnique.mockResolvedValue(null);
-
-      await expect(service.createTeam(mockOrgId, mockUserId, createTeamDto)).rejects.toThrow(
-        new ApiError(
-          ErrorCode.NOT_FOUND,
-          'Channel not found. Please sync the workspace first.',
-          404,
-        ),
-      );
-    });
-
-    it('should throw error when channel validation fails', async () => {
-      // Enable channel validation for this test
-      const originalEnv = process.env.ENABLE_CHANNEL_VALIDATION;
-      process.env.ENABLE_CHANNEL_VALIDATION = 'true';
-
-      try {
-        (mockSlackApiService as unknown as { callSlackApi: jest.Mock }).callSlackApi = jest
-          .fn()
-          .mockRejectedValue(new Error('Bot not in channel'));
-
-        await expect(service.createTeam(mockOrgId, mockUserId, createTeamDto)).rejects.toThrow(
-          new ApiError(
-            ErrorCode.EXTERNAL_SERVICE_ERROR,
-            'Bot does not have access to this channel or channel does not exist',
-            400,
-          ),
-        );
-      } finally {
-        // Restore original environment
-        if (originalEnv !== undefined) {
-          process.env.ENABLE_CHANNEL_VALIDATION = originalEnv;
-        } else {
-          delete process.env.ENABLE_CHANNEL_VALIDATION;
-        }
-      }
-    });
   });
 
   describe('updateTeam', () => {
@@ -242,7 +190,6 @@ describe('TeamManagementService', () => {
       orgId: mockOrgId,
       name: 'Original Team',
       integrationId: mockIntegrationId,
-      slackChannelId: 'C9876543210',
     });
 
     beforeEach(() => {
@@ -288,40 +235,6 @@ describe('TeamManagementService', () => {
       await expect(service.updateTeam(mockTeamId, mockOrgId, updateTeamDto)).rejects.toThrow(
         new ApiError(ErrorCode.CONFLICT, 'Team name already exists in organization', 409),
       );
-    });
-
-    it('should handle channel update when channelId is provided', async () => {
-      const updateWithChannel = {
-        ...updateTeamDto,
-        channelId: 'C1111111111',
-        integrationId: mockIntegrationId,
-      };
-
-      const newChannel = IntegrationFactory.createMockSlackChannel({
-        id: 'new-channel-db-id',
-        channelId: 'C1111111111',
-      });
-
-      mockPrisma.team.findFirst.mockResolvedValue(null); // No conflicts
-      mockPrisma.channel.findUnique.mockResolvedValue(newChannel as Channel);
-      (mockSlackApiService as unknown as { callSlackApi: jest.Mock }).callSlackApi = jest
-        .fn()
-        .mockResolvedValue({
-          channel: { name: 'new-channel' },
-        });
-
-      await service.updateTeam(mockTeamId, mockOrgId, updateWithChannel);
-
-      expect(mockPrisma.team.update).toHaveBeenCalledWith({
-        where: { id: mockTeamId },
-        data: {
-          name: 'Updated Team Name',
-          timezone: 'America/Los_Angeles',
-          integrationId: 'integration-123',
-          channelId: newChannel.id,
-          slackChannelId: 'C1111111111',
-        },
-      });
     });
   });
 
@@ -388,18 +301,14 @@ describe('TeamManagementService', () => {
         {
           id: 'team1',
           name: 'Team 1',
-          channelId: 'channel1',
-          _count: { members: 5 },
-          configs: [{ id: 'config1' }],
+          _count: { members: 5, configs: 1 },
           createdBy: { name: 'John Doe' },
           createdAt: new Date(),
         },
         {
           id: 'team2',
           name: 'Team 2',
-          channelId: 'channel2',
-          _count: { members: 3 },
-          configs: [],
+          _count: { members: 3, configs: 0 },
           createdBy: null,
           createdAt: new Date(),
         },
@@ -407,8 +316,7 @@ describe('TeamManagementService', () => {
 
       mockPrisma.team.findMany.mockResolvedValue(
         mockTeams as unknown as (Team & {
-          _count: { members: number };
-          configs: StandupConfig[];
+          _count: { members: number; configs: number };
           createdBy: { name: string } | null;
           createdAt: Date;
         })[],
@@ -420,20 +328,16 @@ describe('TeamManagementService', () => {
       expect(result.teams[0]).toEqual({
         id: 'team1',
         name: 'Team 1',
-        channelName: 'channel1',
-        channel: null,
         memberCount: 5,
-        hasStandupConfig: true,
+        standupConfigCount: 1,
         createdAt: mockTeams[0].createdAt,
         createdBy: { name: 'John Doe' },
       });
       expect(result.teams[1]).toEqual({
         id: 'team2',
         name: 'Team 2',
-        channelName: 'channel2',
-        channel: null,
         memberCount: 3,
-        hasStandupConfig: false,
+        standupConfigCount: 0,
         createdAt: mockTeams[1].createdAt,
         createdBy: { name: 'System' },
       });
@@ -446,7 +350,6 @@ describe('TeamManagementService', () => {
       name: 'Test Team',
       timezone: 'America/New_York',
       orgId: mockOrgId,
-      channelId: 'channel-db-id',
       integration: { externalTeamId: 'T1234567890' },
       members: [
         {
@@ -460,10 +363,15 @@ describe('TeamManagementService', () => {
       configs: [
         {
           id: 'config1',
+          name: 'Daily Standup',
+          deliveryType: 'direct_message',
           questions: ['Question 1', 'Question 2'],
           weekdays: [1, 2, 3, 4, 5],
           timeLocal: '09:00',
           reminderMinutesBefore: 15,
+          isActive: true,
+          targetChannel: null,
+          configMembers: [],
         },
       ],
       createdBy: { name: 'Creator' },
@@ -479,7 +387,6 @@ describe('TeamManagementService', () => {
           createdBy: { name: string };
         },
       );
-      mockPrisma.channel.findUnique.mockResolvedValue({ name: 'test-channel' } as Channel);
 
       const result = await service.getTeamDetails(mockTeamId, mockOrgId);
 
@@ -488,7 +395,6 @@ describe('TeamManagementService', () => {
         name: 'Test Team',
         timezone: 'America/New_York',
         integration: { teamName: 'T1234567890' },
-        channel: { id: 'channel-db-id', name: 'test-channel' },
         members: [
           {
             id: 'member1',
@@ -498,7 +404,16 @@ describe('TeamManagementService', () => {
             addedBy: { name: 'Admin' },
           },
         ],
-        standupConfig: mockTeamDetails.configs[0],
+        standupConfigs: [
+          {
+            id: 'config1',
+            name: 'Daily Standup',
+            deliveryType: 'direct_message',
+            targetChannel: undefined,
+            isActive: true,
+            memberCount: 0,
+          },
+        ],
         createdAt: mockTeamDetails.createdAt,
         createdBy: { name: 'Creator' },
       });
@@ -619,18 +534,14 @@ describe('TeamManagementService', () => {
         {
           channelId: 'C1111111111',
           name: 'general',
-          teams: [],
         },
         {
           channelId: 'C2222222222',
           name: 'development',
-          teams: [{ name: 'Dev Team' }],
         },
       ];
 
-      mockPrisma.channel.findMany.mockResolvedValue(
-        mockChannels as (Channel & { teams: { name: string }[] })[],
-      );
+      mockPrisma.channel.findMany.mockResolvedValue(mockChannels as Channel[]);
 
       const result = await service.getAvailableChannels(mockOrgId);
 
@@ -644,8 +555,8 @@ describe('TeamManagementService', () => {
       expect(result.channels[1]).toEqual({
         id: 'C2222222222',
         name: 'development',
-        isAssigned: true,
-        assignedTeamName: 'Dev Team',
+        isAssigned: false,
+        assignedTeamName: undefined,
       });
     });
   });

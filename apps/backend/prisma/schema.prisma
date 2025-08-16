@@ -218,7 +218,7 @@ model Channel {
   lastSyncAt     DateTime?    // When channel info was last synced
 
   // Relations
-  teams          Team[]       // Teams assigned to this channel
+  standupConfigs StandupConfig[] // Standup configs that target this channel
 
   @@unique([integrationId, channelId])
   @@index([integrationId, isArchived])
@@ -263,9 +263,6 @@ model Team {
   orgId          String
   integration    Integration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
   integrationId  String
-  channel        Channel?     @relation(fields: [channelId], references: [id], onDelete: SetNull)
-  channelId      String?      // Now references Channel.id, not Slack channel ID
-  slackChannelId String?      // The actual Slack channel ID (e.g., C1234567890) - optional for DM standups
   name           String
   timezone       String
   createdBy      User?        @relation("TeamCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
@@ -278,7 +275,7 @@ model Team {
   configs        StandupConfig[]
   instances      StandupInstance[]
 
-  @@index([integrationId, slackChannelId])
+  @@index([integrationId])
   @@index([orgId, createdAt])
 }
 
@@ -316,6 +313,8 @@ model StandupConfig {
   teamId                 String               // Allow multiple configs per team
   name                   String               // Name to distinguish multiple configs
   deliveryType           StandupDeliveryType  @default(channel)
+  targetChannel          Channel?             @relation(fields: [targetChannelId], references: [id], onDelete: SetNull)
+  targetChannelId        String?              // For channel-based standups
   questions              String[]
   weekdays               Int[]                // 0 = Sunday
   timeLocal              String
@@ -332,6 +331,7 @@ model StandupConfig {
   configMembers          StandupConfigMember[]
 
   @@unique([teamId, name]) // Prevent duplicate names per team
+  @@index([targetChannelId])
 }
 
 model StandupConfigMember {

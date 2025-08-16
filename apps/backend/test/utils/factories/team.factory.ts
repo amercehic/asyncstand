@@ -6,8 +6,6 @@ export class TeamFactory {
       id: faker.string.uuid(),
       orgId: faker.string.uuid(),
       integrationId: faker.string.uuid(),
-      channelId: faker.string.uuid(),
-      slackChannelId: faker.string.alphanumeric(10),
       name: faker.company.name(),
       timezone: 'America/New_York',
       createdByUserId: faker.string.uuid(),
@@ -36,7 +34,6 @@ export class TeamFactory {
     return {
       name: faker.company.name(),
       integrationId: faker.string.uuid(),
-      channelId: faker.string.alphanumeric(10),
       timezone: 'America/New_York',
       description: faker.lorem.sentence(),
       ...overrides,

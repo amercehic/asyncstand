@@ -359,9 +359,15 @@ describe('SlackMessagingService', () => {
       team: {
         name: 'Test Team',
         orgId: 'org-123',
-        slackChannelId: mockChannelId,
         integrationId: mockIntegrationId,
-        configs: [{ deliveryType: 'channel' }],
+        configs: [
+          {
+            deliveryType: 'channel',
+            targetChannel: {
+              channelId: mockChannelId,
+            },
+          },
+        ],
       },
       configSnapshot: {
         questions: ['Question 1', 'Question 2'],
@@ -384,7 +390,7 @@ describe('SlackMessagingService', () => {
           id: string;
           team: {
             name: string;
-            slackChannelId: string;
+            orgId: string;
             integrationId: string;
             configs: Array<{ deliveryType: string }>;
           };
@@ -416,12 +422,16 @@ describe('SlackMessagingService', () => {
             select: {
               name: true,
               orgId: true,
-              slackChannelId: true,
               integrationId: true,
               configs: {
                 where: { isActive: true },
                 select: {
                   deliveryType: true,
+                  targetChannel: {
+                    select: {
+                      channelId: true,
+                    },
+                  },
                   configMembers: {
                     where: { include: true },
                     include: {
@@ -515,8 +525,14 @@ describe('SlackMessagingService', () => {
       targetDate: new Date('2024-01-15'),
       team: {
         name: 'Test Team',
-        channelId: mockChannelId,
         integrationId: mockIntegrationId,
+        configs: [
+          {
+            targetChannel: {
+              channelId: mockChannelId,
+            },
+          },
+        ],
       },
       configSnapshot: {
         questions: ['Question 1', 'Question 2'],
@@ -537,7 +553,11 @@ describe('SlackMessagingService', () => {
       mockPrisma.standupInstance.findFirst.mockResolvedValue(
         mockInstance as {
           id: string;
-          team: { name: string; channelId: string; integrationId: string };
+          team: {
+            name: string;
+            integrationId: string;
+            configs: Array<{ targetChannel: { channelId: string } }>;
+          };
           configSnapshot: {
             questions: string[];
             responseTimeoutHours: number;
@@ -576,7 +596,13 @@ describe('SlackMessagingService', () => {
         name: 'Test Team',
         orgId: 'org-123',
         integrationId: mockIntegrationId,
-        channelId: mockChannelId,
+        configs: [
+          {
+            targetChannel: {
+              channelId: mockChannelId,
+            },
+          },
+        ],
       },
       configSnapshot: {
         questions: ['Question 1'],
@@ -592,7 +618,12 @@ describe('SlackMessagingService', () => {
       } as {
         id: string;
         createdAt: Date;
-        team: { name: string; orgId: string; channelId: string; integrationId: string };
+        team: {
+          name: string;
+          orgId: string;
+          integrationId: string;
+          configs: Array<{ targetChannel: { channelId: string } }>;
+        };
         configSnapshot: {
           questions: string[];
           responseTimeoutHours: number;

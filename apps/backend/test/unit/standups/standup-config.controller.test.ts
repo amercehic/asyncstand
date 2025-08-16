@@ -120,7 +120,6 @@ describe('StandupConfigController', () => {
         team: {
           id: mockTeamId,
           name: 'Test Team',
-          channelName: 'test-channel',
         },
         questions: ['Question 1', 'Question 2', 'Question 3'],
         weekdays: [1, 2, 3, 4, 5],

@@ -18,13 +18,11 @@ import { TeamManagementService } from '@/teams/team-management.service';
 import { CreateTeamDto } from '@/teams/dto/create-team.dto';
 import { UpdateTeamDto } from '@/teams/dto/update-team.dto';
 import { AddTeamMemberDto } from '@/teams/dto/add-team-member.dto';
-import { ValidateChannelDto } from '@/teams/dto/validate-channel.dto';
 import {
   TeamListResponse,
   TeamDetailsResponse,
   AvailableChannelsResponse,
   AvailableMembersResponse,
-  ChannelValidationResponse,
 } from '@/teams/types/team-management.types';
 import { OrgRole } from '@prisma/client';
 import { AuditLogService } from '@/common/audit/audit-log.service';
@@ -41,7 +39,6 @@ import {
   SwaggerGetAvailableChannels,
   SwaggerGetAvailableMembers,
   SwaggerGetChannelsList,
-  SwaggerValidateChannelAccess,
 } from '@/swagger/teams.swagger';
 
 interface AuthenticatedUser {
@@ -289,17 +286,116 @@ export class TeamsController {
     return this.teamManagementService.getChannelsList(orgId);
   }
 
-  @Post(':id/validate-channel')
+  @Post(':id/sync-members')
   @Roles(OrgRole.admin, OrgRole.owner)
-  @SwaggerValidateChannelAccess()
-  async validateChannelAccess(
-    @Body(ValidationPipe) validateChannelDto: ValidateChannelDto,
-  ): Promise<ChannelValidationResponse> {
-    // For now, we'll implement a simple validation
-    // In a real implementation, we'd get the team's integration ID
-    return {
-      valid: true,
-      channelName: validateChannelDto.channelId,
-    };
+  async syncTeamMembers(
+    @Param('id') teamId: string,
+    @CurrentOrg() orgId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<{ success: boolean; syncedCount: number }> {
+    const result = await this.teamManagementService.syncTeamMembers(teamId, orgId);
+
+    await this.auditLogService.log({
+      action: 'team.members_synced',
+      orgId,
+      actorType: AuditActorType.USER,
+      actorUserId: user.userId,
+      category: AuditCategory.DATA_MODIFICATION,
+      severity: AuditSeverity.LOW,
+      requestData: {
+        method: 'POST',
+        path: `/teams/${teamId}/sync-members`,
+        ipAddress: '127.0.0.1',
+      },
+      resources: [
+        {
+          type: 'team',
+          id: teamId,
+          action: ResourceAction.UPDATED,
+        },
+      ],
+    });
+
+    return result;
+  }
+
+  @Put(':id/members/:memberId/activate')
+  @Roles(OrgRole.admin, OrgRole.owner)
+  async activateTeamMember(
+    @Param('id') teamId: string,
+    @Param('memberId') memberId: string,
+    @CurrentOrg() orgId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<{ success: boolean }> {
+    await this.teamManagementService.updateMemberStatus(teamId, memberId, orgId, true);
+
+    await this.auditLogService.log({
+      action: 'team.member_activated',
+      orgId,
+      actorType: AuditActorType.USER,
+      actorUserId: user.userId,
+      category: AuditCategory.DATA_MODIFICATION,
+      severity: AuditSeverity.LOW,
+      requestData: {
+        method: 'PUT',
+        path: `/teams/${teamId}/members/${memberId}/activate`,
+        ipAddress: '127.0.0.1',
+      },
+      resources: [
+        {
+          type: 'team_member',
+          id: memberId,
+          action: ResourceAction.UPDATED,
+        },
+      ],
+    });
+
+    return { success: true };
+  }
+
+  @Put(':id/members/:memberId/deactivate')
+  @Roles(OrgRole.admin, OrgRole.owner)
+  async deactivateTeamMember(
+    @Param('id') teamId: string,
+    @Param('memberId') memberId: string,
+    @CurrentOrg() orgId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<{ success: boolean }> {
+    await this.teamManagementService.updateMemberStatus(teamId, memberId, orgId, false);
+
+    await this.auditLogService.log({
+      action: 'team.member_deactivated',
+      orgId,
+      actorType: AuditActorType.USER,
+      actorUserId: user.userId,
+      category: AuditCategory.DATA_MODIFICATION,
+      severity: AuditSeverity.LOW,
+      requestData: {
+        method: 'PUT',
+        path: `/teams/${teamId}/members/${memberId}/deactivate`,
+        ipAddress: '127.0.0.1',
+      },
+      resources: [
+        {
+          type: 'team_member',
+          id: memberId,
+          action: ResourceAction.UPDATED,
+        },
+      ],
+    });
+
+    return { success: true };
+  }
+
+  @Get(':id/available-channels')
+  @Roles(OrgRole.admin, OrgRole.owner, OrgRole.member)
+  async getTeamAvailableChannels(@Param('id') teamId: string, @CurrentOrg() orgId: string) {
+    return this.teamManagementService.getTeamAvailableChannels(teamId, orgId);
+  }
+
+  @Get(':id/standups')
+  @Roles(OrgRole.admin, OrgRole.owner, OrgRole.member)
+  async getTeamStandups(@Param('id') teamId: string, @CurrentOrg() orgId: string) {
+    return this.teamManagementService.getTeamStandups(teamId, orgId);
   }
 }

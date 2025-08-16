@@ -15,7 +15,6 @@ export interface StandupConfigResponse {
   team: {
     id: string;
     name: string;
-    channelName: string;
   };
   memberParticipation: MemberParticipationResponse[];
   createdAt: Date;

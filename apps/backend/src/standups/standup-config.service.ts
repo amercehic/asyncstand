@@ -50,7 +50,6 @@ export class StandupConfigService {
             integrationUser: true,
           },
         },
-        channel: true,
       },
     });
 
@@ -62,12 +61,27 @@ export class StandupConfigService {
       );
     }
 
-    if (!team.channel) {
-      throw new ApiError(
-        ErrorCode.CONFIGURATION_ERROR,
-        'Team must have a Slack channel assigned before configuring standups',
-        HttpStatus.BAD_REQUEST,
-      );
+    // Validate channel if delivery type is channel
+    if (data.deliveryType === 'channel') {
+      if (!data.targetChannelId) {
+        throw new ApiError(
+          ErrorCode.CONFIGURATION_ERROR,
+          'Target channel is required for channel-based standups',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const targetChannel = await this.prisma.channel.findUnique({
+        where: { id: data.targetChannelId },
+      });
+
+      if (!targetChannel || targetChannel.integrationId !== team.integrationId) {
+        throw new ApiError(
+          ErrorCode.NOT_FOUND,
+          'Target channel not found or does not belong to team integration',
+          HttpStatus.NOT_FOUND,
+        );
+      }
     }
 
     // Check for name conflicts
@@ -101,6 +115,7 @@ export class StandupConfigService {
           teamId,
           name: data.name,
           deliveryType: data.deliveryType,
+          targetChannelId: data.targetChannelId,
           questions: data.questions,
           weekdays: data.weekdays,
           timeLocal: data.timeLocal,
@@ -263,11 +278,7 @@ export class StandupConfigService {
         team: { orgId },
       },
       include: {
-        team: {
-          include: {
-            channel: true,
-          },
-        },
+        team: true,
         configMembers: {
           include: {
             teamMember: {
@@ -323,7 +334,6 @@ export class StandupConfigService {
       team: {
         id: config.team.id,
         name: config.team.name,
-        channelName: config.team.channel?.name || 'Unknown Channel',
       },
       memberParticipation,
       createdAt: config.createdAt,
@@ -769,11 +779,7 @@ export class StandupConfigService {
         team: { orgId },
       },
       include: {
-        team: {
-          include: {
-            channel: true,
-          },
-        },
+        team: true,
         configMembers: {
           include: {
             teamMember: {
@@ -819,7 +825,6 @@ export class StandupConfigService {
         team: {
           id: config.team.id,
           name: config.team.name,
-          channelName: config.team.channel?.name || 'Unknown Channel',
         },
         memberParticipation,
         createdAt: config.createdAt,

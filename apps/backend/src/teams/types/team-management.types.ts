@@ -1,13 +1,8 @@
 export interface TeamListItem {
   id: string;
   name: string;
-  channelName: string;
-  channel: {
-    id: string;
-    name: string;
-  } | null;
   memberCount: number;
-  hasStandupConfig: boolean;
+  standupConfigCount: number;
   createdAt: Date;
   createdBy: {
     name: string;
@@ -36,18 +31,19 @@ export interface TeamDetailsResponse {
   integration: {
     teamName: string;
   };
-  channel: {
+  members: TeamMemberDetails[];
+  standupConfigs: Array<{
     id: string;
     name: string;
-  };
-  members: TeamMemberDetails[];
-  standupConfig?: {
-    id: string;
-    questions: string[];
-    weekdays: number[];
-    timeLocal: string;
-    reminderMinutesBefore: number;
-  };
+    deliveryType: string;
+    targetChannel?: {
+      id: string;
+      name: string;
+      channelId: string;
+    };
+    isActive: boolean;
+    memberCount: number;
+  }>;
   createdAt: Date;
   createdBy: {
     name: string;

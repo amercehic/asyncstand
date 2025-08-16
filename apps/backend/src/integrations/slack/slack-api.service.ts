@@ -288,36 +288,21 @@ export class SlackApiService implements ISlackApiService {
               },
             });
 
-            let channelRecord;
             if (existingChannel) {
-              channelRecord = await this.prisma.channel.update({
+              await this.prisma.channel.update({
                 where: { id: existingChannel.id },
                 data: channelData,
               });
               result.updated++;
             } else {
-              channelRecord = await this.prisma.channel.create({
+              await this.prisma.channel.create({
                 data: channelData,
               });
               result.added++;
             }
 
-            // Also update any teams that are assigned to this channel
-            const assignedTeams = await this.prisma.team.findMany({
-              where: {
-                integrationId,
-                slackChannelId: channel.id,
-              },
-            });
-
-            for (const team of assignedTeams) {
-              await this.prisma.team.update({
-                where: { id: team.id },
-                data: {
-                  channelId: channelRecord.id,
-                },
-              });
-            }
+            // Teams are no longer directly tied to channels
+            // Channel assignment is now done through StandupConfig.targetChannelId
           } catch (error) {
             const errorMessage = `Failed to sync channel ${channel.id}: ${error instanceof Error ? error.message : 'Unknown error'}`;
             result.errors.push(errorMessage);

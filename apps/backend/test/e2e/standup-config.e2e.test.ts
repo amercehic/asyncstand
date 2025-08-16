@@ -130,8 +130,6 @@ describe('Standup Configuration (e2e)', () => {
         orgId: org.id,
         name: 'Standup Test Team',
         integrationId: integration.id,
-        channelId: channel.id,
-        slackChannelId: 'C1234567890',
         timezone: 'America/New_York',
         createdByUserId: adminUser.id,
       },
@@ -490,8 +488,6 @@ describe('Standup Configuration (e2e)', () => {
           orgId: testData.orgId,
           name: 'Another Team',
           integrationId: testData.integrationId,
-          channelId: testData.channelId,
-          slackChannelId: 'C9999999999',
           timezone: 'America/New_York',
           createdByUserId: testData.adminUserId,
         },
@@ -889,21 +885,11 @@ describe('Standup Configuration (e2e)', () => {
         },
       });
 
-      const otherChannel = await prisma.channel.create({
-        data: {
-          integrationId: otherIntegration.id,
-          channelId: 'C_OTHER_STANDUP',
-          name: 'other-standup-channel',
-        },
-      });
-
       const otherTeam = await prisma.team.create({
         data: {
           orgId: otherOrg.id,
           name: 'Other Standup Team',
           integrationId: otherIntegration.id,
-          channelId: otherChannel.id,
-          slackChannelId: 'C_OTHER_STANDUP',
           timezone: 'America/New_York',
           createdByUserId: otherAdmin.id,
         },
