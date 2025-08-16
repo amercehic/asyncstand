@@ -4,7 +4,7 @@ import { toast } from '@/components/ui';
 import { ModernButton, FormField } from '@/components/ui';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { X, Settings, Hash, Globe, Building2, Trash2, AlertTriangle } from 'lucide-react';
+import { X, Settings, Hash, Building2, Trash2, AlertTriangle } from 'lucide-react';
 import { teamsApi } from '@/lib/api';
 import { useTeams } from '@/contexts';
 import type { Team, UpdateTeamRequest } from '@/types';
@@ -20,49 +20,11 @@ interface TeamSettingsModalProps {
 interface TeamSettingsFormData {
   name: string;
   description: string;
-  timezone: string;
 }
 
 interface FormFieldError {
   [key: string]: string;
 }
-
-const TIMEZONES = [
-  { value: 'UTC', label: 'UTC' },
-  { value: 'America/New_York', label: 'Eastern Time (New York)' },
-  { value: 'America/Chicago', label: 'Central Time (Chicago)' },
-  { value: 'America/Denver', label: 'Mountain Time (Denver)' },
-  { value: 'America/Los_Angeles', label: 'Pacific Time (Los Angeles)' },
-  { value: 'America/Toronto', label: 'Toronto' },
-  { value: 'America/Vancouver', label: 'Vancouver' },
-  { value: 'Europe/London', label: 'London' },
-  { value: 'Europe/Paris', label: 'Paris' },
-  { value: 'Europe/Berlin', label: 'Berlin' },
-  { value: 'Europe/Rome', label: 'Rome' },
-  { value: 'Europe/Madrid', label: 'Madrid' },
-  { value: 'Europe/Amsterdam', label: 'Amsterdam' },
-  { value: 'Europe/Stockholm', label: 'Stockholm' },
-  { value: 'Europe/Oslo', label: 'Oslo' },
-  { value: 'Europe/Copenhagen', label: 'Copenhagen' },
-  { value: 'Europe/Helsinki', label: 'Helsinki' },
-  { value: 'Europe/Warsaw', label: 'Warsaw' },
-  { value: 'Europe/Prague', label: 'Prague' },
-  { value: 'Europe/Vienna', label: 'Vienna' },
-  { value: 'Europe/Zurich', label: 'Zurich' },
-  { value: 'Asia/Tokyo', label: 'Tokyo' },
-  { value: 'Asia/Seoul', label: 'Seoul' },
-  { value: 'Asia/Shanghai', label: 'Shanghai' },
-  { value: 'Asia/Hong_Kong', label: 'Hong Kong' },
-  { value: 'Asia/Singapore', label: 'Singapore' },
-  { value: 'Asia/Bangkok', label: 'Bangkok' },
-  { value: 'Asia/Mumbai', label: 'Mumbai' },
-  { value: 'Asia/Dubai', label: 'Dubai' },
-  { value: 'Asia/Jerusalem', label: 'Jerusalem' },
-  { value: 'Australia/Sydney', label: 'Sydney' },
-  { value: 'Australia/Melbourne', label: 'Melbourne' },
-  { value: 'Australia/Perth', label: 'Perth' },
-  { value: 'Pacific/Auckland', label: 'Auckland' },
-];
 
 export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
   ({ isOpen, onClose, onSuccess, onTeamDeleted, team }) => {
@@ -74,7 +36,6 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
     const [formData, setFormData] = useState<TeamSettingsFormData>({
       name: team.name,
       description: team.description || '',
-      timezone: 'UTC', // Default to UTC if no timezone info available
     });
     const [errors, setErrors] = useState<FormFieldError>({});
 
@@ -83,7 +44,6 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
       setFormData({
         name: team.name,
         description: team.description || '',
-        timezone: 'UTC', // Default since team timezone isn't in the current Team interface
       });
     }, [team]);
 
@@ -121,10 +81,6 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
         newErrors.description = 'Description cannot exceed 500 characters';
       }
 
-      if (!formData.timezone) {
-        newErrors.timezone = 'Timezone is required';
-      }
-
       setErrors(newErrors);
       return Object.keys(newErrors).length === 0;
     }, [formData]);
@@ -134,18 +90,13 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
       return (
         formData.name.trim().length >= 2 &&
         formData.name.trim().length <= 100 &&
-        formData.description.length <= 500 &&
-        formData.timezone
+        formData.description.length <= 500
       );
     }, [formData]);
 
     // Check if form has changes
     const hasChanges = React.useMemo(() => {
-      return (
-        formData.name !== team.name ||
-        formData.description !== (team.description || '') ||
-        formData.timezone !== 'UTC' // Always show as changed since we don't know original timezone
-      );
+      return formData.name !== team.name || formData.description !== (team.description || '');
     }, [formData, team]);
 
     const handleClose = useCallback(() => {
@@ -153,7 +104,6 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
       setFormData({
         name: team.name,
         description: team.description || '',
-        timezone: 'UTC',
       });
       setErrors({});
       setShowDeleteConfirmation(false);
@@ -180,10 +130,6 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
           }
           if (formData.description !== (team.description || '')) {
             updateData.description = formData.description.trim();
-          }
-          if (formData.timezone !== 'UTC') {
-            // Always include timezone for now
-            updateData.timezone = formData.timezone;
           }
 
           await teamsApi.updateTeam(team.id, updateData);
@@ -348,37 +294,6 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
                     <div className="text-xs text-muted-foreground mt-1">
                       {formData.description.length}/500 characters
                     </div>
-                  </div>
-
-                  {/* Timezone */}
-                  <div>
-                    <Label
-                      htmlFor="timezone"
-                      className="flex items-center gap-2 text-sm font-medium mb-2"
-                    >
-                      <Globe className="w-4 h-4" />
-                      Timezone
-                    </Label>
-                    <select
-                      id="timezone"
-                      value={formData.timezone}
-                      onChange={e => handleInputChange('timezone', e.target.value)}
-                      className="w-full px-4 py-3 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50"
-                      required
-                      disabled={isUpdating}
-                    >
-                      {TIMEZONES.map(({ value, label }) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                    {errors.timezone && (
-                      <p className="text-sm text-red-600 mt-1">{errors.timezone}</p>
-                    )}
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Used for standup scheduling and notifications
-                    </p>
                   </div>
 
                   {/* Channel Info (Read-only) */}

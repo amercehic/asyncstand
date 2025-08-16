@@ -46,6 +46,11 @@ const StandupResponsePage = React.lazy(() =>
     default: module.StandupResponsePage,
   }))
 );
+const StandupWizardPage = React.lazy(() =>
+  import(/* webpackChunkName: "standups" */ '@/pages/StandupWizardPage').then(module => ({
+    default: module.StandupWizardPage,
+  }))
+);
 const IntegrationsPage = React.lazy(() =>
   import(/* webpackChunkName: "integrations" */ '@/pages/IntegrationsPage').then(module => ({
     default: module.IntegrationsPage,
@@ -177,6 +182,17 @@ const router = createBrowserRouter([
           <ProtectedRoute>
             <Suspense fallback={<PageLoader />}>
               <StandupConfigPage />
+            </Suspense>
+          </ProtectedRoute>
+        ),
+        errorElement: <ErrorPage />,
+      },
+      {
+        path: 'teams/:teamId/standups/wizard',
+        element: (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <StandupWizardPage />
             </Suspense>
           </ProtectedRoute>
         ),

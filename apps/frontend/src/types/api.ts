@@ -31,14 +31,24 @@ export interface Team {
     id: string;
     name: string;
   };
-  standupConfig?: {
+  standupConfigs?: Array<{
     id: string;
+    name: string;
+    deliveryType: StandupDeliveryType;
     questions: string[];
     weekdays: number[];
     timeLocal: string;
+    timezone: string;
     reminderMinutesBefore: number;
+    responseTimeoutHours: number;
     isActive: boolean;
-  };
+    targetChannelId?: string;
+    targetChannel?: {
+      id: string;
+      channelId: string;
+      name: string;
+    };
+  }>;
   isActive?: boolean;
   createdAt: string;
   updatedAt: string;
@@ -55,7 +65,12 @@ export interface Standup {
     days: ('monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday')[];
     timezone: string;
   };
-  slackChannelId?: string;
+  targetChannelId?: string;
+  targetChannel?: {
+    id: string;
+    channelId: string;
+    name: string;
+  };
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -113,8 +128,8 @@ export interface SignUpRequest {
 export interface CreateTeamRequest {
   name: string;
   integrationId: string;
-  channelId: string;
-  timezone: string;
+  channelId?: string;
+  timezone?: string;
   description?: string;
 }
 
@@ -132,7 +147,10 @@ export interface CreateStandupConfigRequest {
   deliveryType: StandupDeliveryType;
   questions: string[];
   schedule: StandupConfig['schedule'];
-  slackChannelId?: string;
+  targetChannelId?: string;
+  memberIds?: string[];
+  reminderMinutesBefore?: number;
+  responseTimeoutHours?: number;
 }
 
 // API Response types

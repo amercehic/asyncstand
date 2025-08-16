@@ -29,7 +29,7 @@ interface StandupFormData {
     days: ('monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday')[];
     timezone: string;
   };
-  slackChannelId?: string;
+  targetChannelId?: string;
 }
 
 const DAYS_OF_WEEK = [
@@ -138,7 +138,7 @@ export const StandupConfigPage = React.memo(() => {
       days: [...STANDUP_TEMPLATES[0].schedule.days],
       timezone: 'UTC',
     },
-    slackChannelId: '',
+    targetChannelId: '',
   });
 
   useEffect(() => {
@@ -156,7 +156,7 @@ export const StandupConfigPage = React.memo(() => {
         if (teamData.channel) {
           setFormData(prev => ({
             ...prev,
-            slackChannelId: teamData.channel!.id,
+            targetChannelId: teamData.channel!.id,
           }));
         }
 
@@ -170,7 +170,7 @@ export const StandupConfigPage = React.memo(() => {
               deliveryType: existingStandup.deliveryType,
               questions: existingStandup.questions,
               schedule: existingStandup.schedule,
-              slackChannelId: existingStandup.slackChannelId || '',
+              targetChannelId: existingStandup.targetChannelId || '',
             });
           }
         } catch (configError: unknown) {
@@ -303,7 +303,7 @@ export const StandupConfigPage = React.memo(() => {
         deliveryType: formData.deliveryType,
         questions: formData.questions,
         schedule: formData.schedule,
-        slackChannelId: formData.slackChannelId || undefined,
+        targetChannelId: formData.targetChannelId || undefined,
       };
 
       await standupsApi.createStandup(teamId!, standupData);

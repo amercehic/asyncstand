@@ -23,7 +23,7 @@ interface StandupFormData {
     days: ('monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday')[];
     timezone: string;
   };
-  slackChannelId?: string;
+  targetChannelId?: string;
 }
 
 const DAYS_OF_WEEK = [
@@ -65,7 +65,7 @@ export const StandupEditModal: React.FC<StandupEditModalProps> = ({
       days: [...standup.schedule.days],
       timezone: standup.schedule.timezone,
     },
-    slackChannelId: standup.slackChannelId,
+    targetChannelId: standup.targetChannelId,
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -99,7 +99,7 @@ export const StandupEditModal: React.FC<StandupEditModalProps> = ({
     }
 
     // Compare slack channel
-    if (formData.slackChannelId !== standup.slackChannelId) return true;
+    if (formData.targetChannelId !== standup.targetChannelId) return true;
 
     return false;
   }, [formData, standup]);
@@ -116,7 +116,7 @@ export const StandupEditModal: React.FC<StandupEditModalProps> = ({
           days: [...standup.schedule.days],
           timezone: standup.schedule.timezone,
         },
-        slackChannelId: standup.slackChannelId,
+        targetChannelId: standup.targetChannelId,
       });
     }
   }, [standup]);

@@ -352,7 +352,7 @@ export const ActiveStandupsList: React.FC<ActiveStandupsListProps> = ({
           {showCreateButton && teamId && (
             <ModernButton
               variant="primary"
-              onClick={() => navigate(`/teams/${teamId}/standups/create`)}
+              onClick={() => navigate(`/teams/${teamId}/standups/wizard`)}
             >
               <Plus className="w-4 h-4 mr-2" />
               New Standup
@@ -567,7 +567,7 @@ export const ActiveStandupsList: React.FC<ActiveStandupsListProps> = ({
             {showCreateButton && teamId && (
               <ModernButton
                 variant="primary"
-                onClick={() => navigate(`/teams/${teamId}/standups/create`)}
+                onClick={() => navigate(`/teams/${teamId}/standups/wizard`)}
                 className="inline-flex items-center gap-2"
               >
                 <Zap className="w-4 h-4" />

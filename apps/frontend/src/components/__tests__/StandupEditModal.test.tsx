@@ -57,7 +57,7 @@ describe('StandupEditModal', () => {
       days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
       timezone: 'UTC',
     },
-    slackChannelId: 'channel-1',
+    targetChannelId: 'channel-1',
     isActive: true,
     createdAt: '2023-01-01T00:00:00.000Z',
     updatedAt: '2023-01-01T00:00:00.000Z',
@@ -310,7 +310,7 @@ describe('StandupEditModal', () => {
             days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
             timezone: 'UTC',
           }),
-          slackChannelId: 'channel-1',
+          targetChannelId: 'channel-1',
         })
       );
     });

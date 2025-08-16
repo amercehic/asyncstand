@@ -76,7 +76,7 @@ export const DashboardPage = React.memo(() => {
                   }
 
                   // Bonus for having slack integration
-                  if (standup.slackChannelId) {
+                  if (standup.targetChannelId) {
                     standupScore += 5;
                   }
 

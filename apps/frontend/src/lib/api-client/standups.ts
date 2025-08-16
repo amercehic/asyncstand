@@ -58,7 +58,8 @@ export const standupsApi = {
           : [],
         timezone: String(data.timezone || 'UTC'),
       },
-      slackChannelId: data.team?.channelName ? String(data.team.channelName) : undefined,
+      targetChannelId: data.targetChannelId,
+      targetChannel: data.targetChannel,
       isActive: Boolean(data.isActive ?? true),
       createdAt: new Date(data.createdAt || Date.now()).toISOString(),
       updatedAt: new Date(data.updatedAt || Date.now()).toISOString(),
@@ -79,7 +80,7 @@ export const standupsApi = {
     const createData = {
       teamId,
       name: data.name || 'Daily Standup',
-      deliveryType: data.deliveryType || StandupDeliveryType.channel,
+      deliveryType: data.deliveryType || StandupDeliveryType.direct_message,
       questions: data.questions || [],
       timeLocal: data.schedule?.time || '09:00',
       timezone: data.schedule?.timezone || 'UTC',
@@ -96,6 +97,7 @@ export const standupsApi = {
           };
           return dayMap[day as keyof typeof dayMap];
         }) || [],
+      targetChannelId: data.targetChannelId,
       reminderMinutesBefore: 10,
       responseTimeoutHours: 2,
       isActive: true,
@@ -130,6 +132,7 @@ export const standupsApi = {
           return dayMap[day as keyof typeof dayMap];
         }),
       }),
+      ...(data.targetChannelId !== undefined && { targetChannelId: data.targetChannelId }),
       ...(data.isActive !== undefined && { isActive: data.isActive }),
     };
 

@@ -42,6 +42,7 @@ export const TeamDetailPage = React.memo(() => {
   const [isMemberAssignmentOpen, setIsMemberAssignmentOpen] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState<Team['members'][0] | null>(null);
   const [isRemovingMember, setIsRemovingMember] = useState(false);
+  const [isSyncingMembers, setIsSyncingMembers] = useState(false);
   const [showStats, setShowStats] = useState(true);
 
   // Function to fetch only standups data (for refreshing after deletion)
@@ -179,13 +180,13 @@ export const TeamDetailPage = React.memo(() => {
     const totalStandups = standups.length;
     const activeCount = activeStandups.length;
     const pausedCount = pausedStandups.length;
-    const hasIntegration = !!team.channel;
+    const hasChannelStandups = activeStandups.some(s => s.deliveryType === 'channel');
     const memberCount = team.members.length;
 
     // Calculate health score
     let healthScore = 50;
-    if (hasIntegration) healthScore += 20;
-    if (activeCount > 0) healthScore += 20;
+    if (activeCount > 0) healthScore += 30;
+    if (hasChannelStandups) healthScore += 10;
     healthScore += Math.min(10, memberCount * 2);
     healthScore = Math.min(100, healthScore);
 
@@ -203,10 +204,9 @@ export const TeamDetailPage = React.memo(() => {
       totalStandups,
       activeCount,
       pausedCount,
-      hasIntegration,
+      hasChannelStandups,
       memberCount,
       healthScore,
-      integrationName: team.channel?.name,
       completionRate,
       recentActivity: recentInstances.length,
     };
@@ -250,6 +250,35 @@ export const TeamDetailPage = React.memo(() => {
         console.error('Error refreshing team data:', error);
         toast.error('Failed to refresh team data');
       }
+    }
+  };
+
+  const handleSyncMembers = async () => {
+    if (!teamId) return;
+
+    setIsSyncingMembers(true);
+    try {
+      const result = await teamsApi.syncTeamMembers(teamId);
+
+      // Refresh team data to show synced members
+      const teamData = await teamsApi.getTeam(teamId);
+      setTeam(teamData);
+
+      toast.success(
+        `Successfully imported ${result.syncedCount} new member${result.syncedCount !== 1 ? 's' : ''} from Slack`,
+        {
+          richContent: {
+            title: 'Members Imported',
+            description: `${result.syncedCount} Slack users added to ${team?.name}`,
+            metadata: 'Just now',
+          },
+        }
+      );
+    } catch (error) {
+      console.error('Error syncing members:', error);
+      toast.error('Failed to import members from Slack');
+    } finally {
+      setIsSyncingMembers(false);
     }
   };
 
@@ -367,13 +396,22 @@ export const TeamDetailPage = React.memo(() => {
                   </p>
                 )}
                 <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-                  {team.channel ? (
+                  {activeStandups.some(s => s.deliveryType === 'channel') ? (
                     <div className="flex items-center gap-2">
                       <div className="w-5 h-5 sm:w-6 sm:h-6 bg-green-500 rounded flex items-center justify-center">
                         <Slack className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white" />
                       </div>
                       <span className="text-xs sm:text-sm font-medium text-green-600">
-                        #{team.channel.name}
+                        Channel delivery
+                      </span>
+                    </div>
+                  ) : activeStandups.some(s => s.deliveryType === 'direct_message') ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 sm:w-6 sm:h-6 bg-blue-500 rounded flex items-center justify-center">
+                        <Users className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white" />
+                      </div>
+                      <span className="text-xs sm:text-sm font-medium text-blue-600">
+                        Direct messages
                       </span>
                     </div>
                   ) : (
@@ -381,9 +419,7 @@ export const TeamDetailPage = React.memo(() => {
                       <div className="w-5 h-5 sm:w-6 sm:h-6 bg-muted border border-dashed border-muted-foreground/30 rounded flex items-center justify-center">
                         <Link2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-muted-foreground" />
                       </div>
-                      <span className="text-xs sm:text-sm text-muted-foreground">
-                        No integration
-                      </span>
+                      <span className="text-xs sm:text-sm text-muted-foreground">No standups</span>
                     </div>
                   )}
                   <div className="flex items-center gap-2">
@@ -420,7 +456,7 @@ export const TeamDetailPage = React.memo(() => {
                 <Settings className="w-4 h-4 mr-2 group-hover:rotate-90 transition-transform" />
                 <span className="sm:inline">Settings</span>
               </ModernButton>
-              <Link to={`/teams/${teamId}/standups/create`} className="flex-1 sm:flex-none">
+              <Link to={`/teams/${teamId}/standups/wizard`} className="flex-1 sm:flex-none">
                 <ModernButton
                   variant="primary"
                   className="group shadow-lg shadow-primary/20 w-full"
@@ -604,26 +640,30 @@ export const TeamDetailPage = React.memo(() => {
                       </div>
                     </div>
 
-                    {/* Integration Status */}
+                    {/* Delivery Status */}
                     <div className="bg-card rounded-lg border border-border p-3">
                       <div className="flex items-center gap-2 mb-2">
-                        {teamStats.hasIntegration ? (
+                        {teamStats.hasChannelStandups ? (
                           <>
                             <Slack className="w-4 h-4 text-green-500" />
-                            <span className="text-sm font-medium">Slack Connected</span>
+                            <span className="text-sm font-medium">Channel Delivery</span>
+                          </>
+                        ) : teamStats.activeCount > 0 ? (
+                          <>
+                            <Users className="w-4 h-4 text-blue-500" />
+                            <span className="text-sm font-medium">Direct Messages</span>
                           </>
                         ) : (
                           <>
                             <Link2 className="w-4 h-4 text-muted-foreground" />
-                            <span className="text-sm font-medium">No Integration</span>
+                            <span className="text-sm font-medium">No Active Standups</span>
                           </>
                         )}
                       </div>
-                      {teamStats.hasIntegration && (
-                        <span className="text-xs text-muted-foreground">
-                          #{teamStats.integrationName}
-                        </span>
-                      )}
+                      <span className="text-xs text-muted-foreground">
+                        {teamStats.activeCount} active standup
+                        {teamStats.activeCount !== 1 ? 's' : ''}
+                      </span>
                     </div>
 
                     {/* Activity Indicator */}
@@ -705,47 +745,65 @@ export const TeamDetailPage = React.memo(() => {
                 whileHover={{ y: -2, scale: 1.02 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                 className={`bg-gradient-to-br ${
-                  team.channel
+                  activeStandups.some(s => s.deliveryType === 'channel')
                     ? 'from-green-50 to-green-100/50 dark:from-green-950/30 dark:to-green-900/20 border-green-200/60 dark:border-green-800/40 shadow-green-500/10 hover:shadow-green-500/20'
-                    : 'from-yellow-50 to-yellow-100/50 dark:from-yellow-950/30 dark:to-yellow-900/20 border-yellow-200/60 dark:border-yellow-800/40 shadow-yellow-500/10 hover:shadow-yellow-500/20'
+                    : activeStandups.length > 0
+                      ? 'from-blue-50 to-blue-100/50 dark:from-blue-950/30 dark:to-blue-900/20 border-blue-200/60 dark:border-blue-800/40 shadow-blue-500/10 hover:shadow-blue-500/20'
+                      : 'from-yellow-50 to-yellow-100/50 dark:from-yellow-950/30 dark:to-yellow-900/20 border-yellow-200/60 dark:border-yellow-800/40 shadow-yellow-500/10 hover:shadow-yellow-500/20'
                 } rounded-lg p-4 border shadow-md hover:shadow-lg transition-shadow group relative overflow-hidden`}
               >
                 <div
                   className={`absolute inset-0 bg-gradient-to-br ${
-                    team.channel ? 'from-green-400/5' : 'from-yellow-400/5'
+                    activeStandups.some(s => s.deliveryType === 'channel')
+                      ? 'from-green-400/5'
+                      : activeStandups.length > 0
+                        ? 'from-blue-400/5'
+                        : 'from-yellow-400/5'
                   } to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300`}
                 />
                 <div className="relative z-10">
                   <div className="flex items-center justify-between mb-2">
                     <div
                       className={`w-10 h-10 bg-gradient-to-br ${
-                        team.channel
+                        activeStandups.some(s => s.deliveryType === 'channel')
                           ? 'from-green-500 to-green-600'
-                          : 'from-yellow-500 to-yellow-600'
+                          : activeStandups.length > 0
+                            ? 'from-blue-500 to-blue-600'
+                            : 'from-yellow-500 to-yellow-600'
                       } rounded-lg flex items-center justify-center shadow-md group-hover:scale-105 transition-transform`}
                     >
-                      {team.channel ? (
+                      {activeStandups.some(s => s.deliveryType === 'channel') ? (
                         <Slack className="w-5 h-5 text-white" />
+                      ) : activeStandups.length > 0 ? (
+                        <Users className="w-5 h-5 text-white" />
                       ) : (
                         <Link2 className="w-5 h-5 text-white" />
                       )}
                     </div>
                     <div
                       className={`w-1.5 h-1.5 ${
-                        team.channel ? 'bg-green-500' : 'bg-yellow-500'
+                        activeStandups.some(s => s.deliveryType === 'channel')
+                          ? 'bg-green-500'
+                          : activeStandups.length > 0
+                            ? 'bg-blue-500'
+                            : 'bg-yellow-500'
                       } rounded-full animate-pulse`}
                     />
                   </div>
                   <p className="text-2xl font-bold text-foreground mb-0.5">
-                    {team.channel ? 'Connected' : 'Not Connected'}
+                    {activeStandups.some(s => s.deliveryType === 'channel')
+                      ? 'Channel'
+                      : activeStandups.length > 0
+                        ? 'Direct Message'
+                        : 'No Standups'}
                   </p>
-                  {team.channel ? (
-                    <p className="text-xs text-muted-foreground font-medium">
-                      #{team.channel.name}
-                    </p>
-                  ) : (
-                    <p className="text-xs text-muted-foreground font-medium">Set up integration</p>
-                  )}
+                  <p className="text-xs text-muted-foreground font-medium">
+                    {activeStandups.some(s => s.deliveryType === 'channel')
+                      ? 'Slack channel delivery'
+                      : activeStandups.length > 0
+                        ? 'Direct message delivery'
+                        : 'Create your first standup'}
+                  </p>
                 </div>
               </motion.div>
             </motion.div>
@@ -831,22 +889,37 @@ export const TeamDetailPage = React.memo(() => {
                   transition={{ duration: 0.6, delay: 0.1 }}
                   className="bg-card rounded-xl border border-border p-6"
                 >
-                  <div className="flex items-start justify-between mb-6">
-                    <div>
-                      <h3 className="text-lg font-semibold mb-1">Team Members</h3>
-                      <span className="text-sm text-muted-foreground">
-                        {team.members.length} member{team.members.length !== 1 ? 's' : ''}
-                      </span>
+                  <div className="mb-6">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-lg font-semibold mb-1">Team Members</h3>
+                        <span className="text-sm text-muted-foreground">
+                          {team.members.length} member{team.members.length !== 1 ? 's' : ''}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex gap-2 ml-4">
+                    <div className="flex flex-col gap-2">
+                      <ModernButton
+                        variant="outline"
+                        size="sm"
+                        onClick={handleSyncMembers}
+                        disabled={isSyncingMembers}
+                        isLoading={isSyncingMembers}
+                        title="Import members from Slack workspace"
+                        className="w-full"
+                      >
+                        <Users className="w-4 h-4 mr-1" />
+                        Import from Slack
+                      </ModernButton>
                       <ModernButton
                         variant="outline"
                         size="sm"
                         onClick={() => setIsMemberAssignmentOpen(true)}
-                        title="Assign platform members to this team"
+                        title="Manually assign specific members"
+                        className="w-full"
                       >
                         <UserPlus className="w-4 h-4 mr-1" />
-                        Assign
+                        Manage Members
                       </ModernButton>
                     </div>
                   </div>
@@ -923,7 +996,7 @@ export const TeamDetailPage = React.memo(() => {
                     Quick Actions
                   </h3>
                   <div className="space-y-2">
-                    <Link to={`/teams/${teamId}/standups/create`} className="block">
+                    <Link to={`/teams/${teamId}/standups/wizard`} className="block">
                       <ModernButton variant="outline" className="w-full justify-start">
                         <Plus className="w-4 h-4 mr-2" />
                         Create New Standup
