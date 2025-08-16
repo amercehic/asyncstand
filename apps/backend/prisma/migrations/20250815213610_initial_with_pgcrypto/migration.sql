@@ -1,3 +1,6 @@
+-- CreateExtension
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
 -- CreateEnum
 CREATE TYPE "public"."OrgRole" AS ENUM ('owner', 'admin', 'member');
 
@@ -9,6 +12,9 @@ CREATE TYPE "public"."IntegrationPlatform" AS ENUM ('slack', 'teams');
 
 -- CreateEnum
 CREATE TYPE "public"."TokenStatus" AS ENUM ('ok', 'expired', 'revoked');
+
+-- CreateEnum
+CREATE TYPE "public"."StandupDeliveryType" AS ENUM ('channel', 'direct_message');
 
 -- CreateEnum
 CREATE TYPE "public"."StandupInstanceState" AS ENUM ('pending', 'collecting', 'posted');
@@ -118,6 +124,7 @@ CREATE TABLE "public"."Integration" (
     "expiresAt" TIMESTAMP(3),
     "tokenStatus" "public"."TokenStatus" NOT NULL,
     "scopes" TEXT[],
+    "userScopes" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "installedByUserId" TEXT,
     "botToken" TEXT,
     "botUserId" TEXT,
@@ -137,11 +144,50 @@ CREATE TABLE "public"."IntegrationSyncState" (
 );
 
 -- CreateTable
+CREATE TABLE "public"."Channel" (
+    "id" TEXT NOT NULL,
+    "integrationId" TEXT NOT NULL,
+    "channelId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "topic" TEXT,
+    "purpose" TEXT,
+    "isPrivate" BOOLEAN NOT NULL DEFAULT false,
+    "isArchived" BOOLEAN NOT NULL DEFAULT false,
+    "memberCount" INTEGER,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "lastSyncAt" TIMESTAMP(3),
+
+    CONSTRAINT "Channel_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."IntegrationUser" (
+    "id" TEXT NOT NULL,
+    "integrationId" TEXT NOT NULL,
+    "externalUserId" TEXT NOT NULL,
+    "name" TEXT,
+    "displayName" TEXT,
+    "email" TEXT,
+    "isBot" BOOLEAN NOT NULL DEFAULT false,
+    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
+    "profileImage" TEXT,
+    "timezone" TEXT,
+    "platformData" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "lastSyncAt" TIMESTAMP(3),
+
+    CONSTRAINT "IntegrationUser_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "public"."Team" (
     "id" TEXT NOT NULL,
     "orgId" TEXT NOT NULL,
     "integrationId" TEXT NOT NULL,
-    "channelId" TEXT NOT NULL,
+    "channelId" TEXT,
+    "slackChannelId" TEXT,
     "name" TEXT NOT NULL,
     "timezone" TEXT NOT NULL,
     "createdByUserId" TEXT,
@@ -156,6 +202,7 @@ CREATE TABLE "public"."TeamMember" (
     "id" TEXT NOT NULL,
     "teamId" TEXT NOT NULL,
     "platformUserId" TEXT,
+    "integrationUserId" TEXT,
     "userId" TEXT,
     "name" TEXT,
     "active" BOOLEAN NOT NULL DEFAULT true,
@@ -169,10 +216,18 @@ CREATE TABLE "public"."TeamMember" (
 CREATE TABLE "public"."StandupConfig" (
     "id" TEXT NOT NULL,
     "teamId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "deliveryType" "public"."StandupDeliveryType" NOT NULL DEFAULT 'channel',
     "questions" TEXT[],
     "weekdays" INTEGER[],
     "timeLocal" TEXT NOT NULL,
+    "timezone" TEXT NOT NULL,
     "reminderMinutesBefore" INTEGER NOT NULL DEFAULT 10,
+    "responseTimeoutHours" INTEGER NOT NULL DEFAULT 2,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdByUserId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "StandupConfig_pkey" PRIMARY KEY ("id")
 );
@@ -182,6 +237,8 @@ CREATE TABLE "public"."StandupConfigMember" (
     "standupConfigId" TEXT NOT NULL,
     "teamMemberId" TEXT NOT NULL,
     "include" BOOLEAN NOT NULL,
+    "role" TEXT,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "StandupConfigMember_pkey" PRIMARY KEY ("standupConfigId","teamMemberId")
 );
@@ -194,6 +251,8 @@ CREATE TABLE "public"."StandupInstance" (
     "targetDate" TIMESTAMP(3) NOT NULL,
     "state" "public"."StandupInstanceState" NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "reminderMessageTs" TEXT,
+    "summaryMessageTs" TEXT,
 
     CONSTRAINT "StandupInstance_pkey" PRIMARY KEY ("id")
 );
@@ -346,22 +405,58 @@ CREATE INDEX "Integration_tokenStatus_idx" ON "public"."Integration"("tokenStatu
 CREATE UNIQUE INDEX "Integration_orgId_platform_externalTeamId_key" ON "public"."Integration"("orgId", "platform", "externalTeamId");
 
 -- CreateIndex
-CREATE INDEX "Team_integrationId_channelId_idx" ON "public"."Team"("integrationId", "channelId");
+CREATE INDEX "Channel_integrationId_isArchived_idx" ON "public"."Channel"("integrationId", "isArchived");
+
+-- CreateIndex
+CREATE INDEX "Channel_name_idx" ON "public"."Channel"("name");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Channel_integrationId_channelId_key" ON "public"."Channel"("integrationId", "channelId");
+
+-- CreateIndex
+CREATE INDEX "IntegrationUser_integrationId_isDeleted_idx" ON "public"."IntegrationUser"("integrationId", "isDeleted");
+
+-- CreateIndex
+CREATE INDEX "IntegrationUser_integrationId_externalUserId_idx" ON "public"."IntegrationUser"("integrationId", "externalUserId");
+
+-- CreateIndex
+CREATE INDEX "IntegrationUser_email_idx" ON "public"."IntegrationUser"("email");
+
+-- CreateIndex
+CREATE INDEX "IntegrationUser_isDeleted_isBot_idx" ON "public"."IntegrationUser"("isDeleted", "isBot");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "IntegrationUser_integrationId_externalUserId_key" ON "public"."IntegrationUser"("integrationId", "externalUserId");
+
+-- CreateIndex
+CREATE INDEX "Team_integrationId_slackChannelId_idx" ON "public"."Team"("integrationId", "slackChannelId");
 
 -- CreateIndex
 CREATE INDEX "Team_orgId_createdAt_idx" ON "public"."Team"("orgId", "createdAt");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Team_integrationId_channelId_key" ON "public"."Team"("integrationId", "channelId");
+CREATE INDEX "TeamMember_teamId_addedAt_idx" ON "public"."TeamMember"("teamId", "addedAt");
 
 -- CreateIndex
-CREATE INDEX "TeamMember_teamId_addedAt_idx" ON "public"."TeamMember"("teamId", "addedAt");
+CREATE INDEX "TeamMember_integrationUserId_idx" ON "public"."TeamMember"("integrationUserId");
+
+-- CreateIndex
+CREATE INDEX "TeamMember_platformUserId_idx" ON "public"."TeamMember"("platformUserId");
+
+-- CreateIndex
+CREATE INDEX "TeamMember_userId_teamId_idx" ON "public"."TeamMember"("userId", "teamId");
+
+-- CreateIndex
+CREATE INDEX "TeamMember_active_teamId_idx" ON "public"."TeamMember"("active", "teamId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "TeamMember_teamId_platformUserId_key" ON "public"."TeamMember"("teamId", "platformUserId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "unique_team_user" ON "public"."TeamMember"("teamId", "userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "StandupConfig_teamId_name_key" ON "public"."StandupConfig"("teamId", "name");
 
 -- CreateIndex
 CREATE INDEX "StandupInstance_teamId_targetDate_idx" ON "public"."StandupInstance"("teamId", "targetDate");
@@ -418,16 +513,28 @@ ALTER TABLE "public"."Integration" ADD CONSTRAINT "Integration_installedByUserId
 ALTER TABLE "public"."IntegrationSyncState" ADD CONSTRAINT "IntegrationSyncState_integrationId_fkey" FOREIGN KEY ("integrationId") REFERENCES "public"."Integration"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "public"."Channel" ADD CONSTRAINT "Channel_integrationId_fkey" FOREIGN KEY ("integrationId") REFERENCES "public"."Integration"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."IntegrationUser" ADD CONSTRAINT "IntegrationUser_integrationId_fkey" FOREIGN KEY ("integrationId") REFERENCES "public"."Integration"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "public"."Team" ADD CONSTRAINT "Team_orgId_fkey" FOREIGN KEY ("orgId") REFERENCES "public"."Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."Team" ADD CONSTRAINT "Team_integrationId_fkey" FOREIGN KEY ("integrationId") REFERENCES "public"."Integration"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "public"."Team" ADD CONSTRAINT "Team_channelId_fkey" FOREIGN KEY ("channelId") REFERENCES "public"."Channel"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "public"."Team" ADD CONSTRAINT "Team_createdByUserId_fkey" FOREIGN KEY ("createdByUserId") REFERENCES "public"."User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."TeamMember" ADD CONSTRAINT "TeamMember_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "public"."Team"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."TeamMember" ADD CONSTRAINT "TeamMember_integrationUserId_fkey" FOREIGN KEY ("integrationUserId") REFERENCES "public"."IntegrationUser"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."TeamMember" ADD CONSTRAINT "TeamMember_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -437,6 +544,9 @@ ALTER TABLE "public"."TeamMember" ADD CONSTRAINT "TeamMember_addedByUserId_fkey"
 
 -- AddForeignKey
 ALTER TABLE "public"."StandupConfig" ADD CONSTRAINT "StandupConfig_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "public"."Team"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."StandupConfig" ADD CONSTRAINT "StandupConfig_createdByUserId_fkey" FOREIGN KEY ("createdByUserId") REFERENCES "public"."User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."StandupConfigMember" ADD CONSTRAINT "StandupConfigMember_standupConfigId_fkey" FOREIGN KEY ("standupConfigId") REFERENCES "public"."StandupConfig"("id") ON DELETE CASCADE ON UPDATE CASCADE;

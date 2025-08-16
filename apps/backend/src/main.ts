@@ -93,16 +93,30 @@ async function bootstrap() {
 
   // Enable CORS for development
   if (nodeEnv === 'development') {
-    const frontendUrl = configService.get<string>('frontendUrl');
+    const frontendUrl = configService.get<string>('FRONTEND_URL');
+    const ngrokUrl = configService.get<string>('NGROK_URL');
     const allowedOrigins = [
       'http://localhost:5173', // Local development
       'http://localhost:3000', // Alternative local port
+      'http://localhost:5174', // Alternative Vite port
+      'http://127.0.0.1:5173', // IPv4 localhost
+      'http://127.0.0.1:3000', // IPv4 localhost alternative
     ];
 
     // Add configured frontend URL if available
     if (frontendUrl && !allowedOrigins.includes(frontendUrl)) {
       allowedOrigins.push(frontendUrl);
     }
+
+    // Add ngrok URL if available (without /api or other paths)
+    if (ngrokUrl) {
+      const ngrokOrigin = new URL(ngrokUrl).origin;
+      if (!allowedOrigins.includes(ngrokOrigin)) {
+        allowedOrigins.push(ngrokOrigin);
+      }
+    }
+
+    logger.log(`🔒 CORS enabled for origins: ${allowedOrigins.join(', ')}`);
 
     app.enableCors({
       origin: (origin, callback) => {
@@ -114,14 +128,18 @@ async function bootstrap() {
           allowedOrigins.includes(origin) ||
           origin.includes('.ngrok-free.app') ||
           origin.includes('.ngrok.io') ||
-          origin.includes('.ngrok.app')
+          origin.includes('.ngrok.app') ||
+          origin.includes('.ngrok-free.com')
         ) {
           return callback(null, true);
         }
 
+        logger.warn(`⚠️ CORS rejected origin: ${origin}`);
         return callback(new Error('Not allowed by CORS'), false);
       },
       credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'ngrok-skip-browser-warning'],
     });
   }
 

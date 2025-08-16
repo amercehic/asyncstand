@@ -19,7 +19,7 @@
       {
         "command": "/standup",
         "description": "Manage standup responses and settings",
-        "url": "https://a6e796a052c7.ngrok-free.app/slack/slash-commands",
+        "url": "https://bc902dfdb558.ngrok-free.app/slack/slash-commands",
         "usage_hint": "[status|submit|skip|help]",
         "should_escape": false
       }
@@ -27,7 +27,7 @@
   },
   "oauth_config": {
     "redirect_urls": [
-      "https://a6e796a052c7.ngrok-free.app/slack/oauth/callback",
+      "https://bc902dfdb558.ngrok-free.app/slack/oauth/callback",
       "https://localhost:3001/slack/oauth/callback",
       "http://localhost:3001/slack/oauth/callback"
     ],
@@ -60,7 +60,7 @@
   },
   "settings": {
     "event_subscriptions": {
-      "request_url": "https://a6e796a052c7.ngrok-free.app/slack/events",
+      "request_url": "https://bc902dfdb558.ngrok-free.app/slack/events",
       "bot_events": [
         "message.im",
         "app_mention",
@@ -72,7 +72,7 @@
     },
     "interactivity": {
       "is_enabled": true,
-      "request_url": "https://a6e796a052c7.ngrok-free.app/slack/interactive-components"
+      "request_url": "https://bc902dfdb558.ngrok-free.app/slack/interactive-components"
     },
     "org_deploy_enabled": false,
     "socket_mode_enabled": false,
