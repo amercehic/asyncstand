@@ -10,7 +10,27 @@ export function Layout() {
       <PageErrorBoundary>
         <Outlet />
       </PageErrorBoundary>
-      <Toaster position="top-center" richColors closeButton />
+      <Toaster
+        position="top-right"
+        expand={true}
+        richColors={true}
+        closeButton={true}
+        toastOptions={{
+          style: {
+            background: 'var(--popover)',
+            border: '1px solid var(--border)',
+            color: 'var(--popover-foreground)',
+          },
+          className: 'toast-custom',
+          duration: 4000,
+          classNames: {
+            success: '!border-l-4 !border-l-green-500',
+            error: '!border-l-4 !border-l-red-500',
+            warning: '!border-l-4 !border-l-orange-500',
+            info: '!border-l-4 !border-l-blue-500',
+          },
+        }}
+      />
 
       {/* Fixed theme toggle in bottom-right corner */}
       <div className="fixed bottom-6 right-6 z-50">

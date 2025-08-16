@@ -1,0 +1,22 @@
+/* Toast Left Border Styling */
+[data-sonner-toaster] [data-type="success"] {
+  border-left: 4px solid rgb(34 197 94) !important;
+}
+
+[data-sonner-toaster] [data-type="error"] {
+  border-left: 4px solid rgb(239 68 68) !important;
+}
+
+[data-sonner-toaster] [data-type="warning"] {
+  border-left: 4px solid rgb(245 158 11) !important;
+}
+
+[data-sonner-toaster] [data-type="info"] {
+  border-left: 4px solid rgb(59 130 246) !important;
+}
+
+/* Ensure borders are visible */
+[data-sonner-toaster] [data-toast] {
+  border-radius: 0.75rem !important;
+  overflow: hidden !important;
+}

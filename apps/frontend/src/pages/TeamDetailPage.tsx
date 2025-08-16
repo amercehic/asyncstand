@@ -715,9 +715,7 @@ export const TeamDetailPage = React.memo(() => {
                 <div className="text-4xl font-bold text-gray-900 dark:text-white mb-1">
                   {team.members.length}
                 </div>
-                <div className="text-gray-600 dark:text-gray-400 font-medium">
-                  Team Members
-                </div>
+                <div className="text-gray-600 dark:text-gray-400 font-medium">Team Members</div>
               </motion.div>
 
               {/* Active Standups Card */}
@@ -735,9 +733,7 @@ export const TeamDetailPage = React.memo(() => {
                 <div className="text-4xl font-bold text-gray-900 dark:text-white mb-1">
                   {activeStandups.length}
                 </div>
-                <div className="text-gray-600 dark:text-gray-400 font-medium">
-                  Active Standups
-                </div>
+                <div className="text-gray-600 dark:text-gray-400 font-medium">Active Standups</div>
               </motion.div>
 
               {/* Delivery Method Card */}

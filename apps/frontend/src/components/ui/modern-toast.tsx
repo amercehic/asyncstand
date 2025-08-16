@@ -9,6 +9,10 @@ import {
   Star,
   Zap,
   Sparkles,
+  Heart,
+  Upload,
+  Mail,
+  Trash2,
 } from 'lucide-react';
 
 // Types for our enhanced toast system
@@ -137,8 +141,11 @@ const ToastContent: React.FC<{
 
 // Modern toast API
 export const modernToast = {
-  success: (message: string, options?: ModernToastOptions) => {
-    const { persistent, ...otherOptions } = options || {};
+  success: (
+    message: string,
+    options?: Omit<ModernToastOptions, 'description'> & { description?: string }
+  ) => {
+    const { persistent, description, ...otherOptions } = options || {};
     // Filter out our custom properties that shouldn't go to Sonner
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { action, richContent, icon, progress, sound, ...sonnerOptions } = otherOptions;
@@ -152,7 +159,30 @@ export const modernToast = {
     }
 
     return sonnerToast.custom(
-      () => <ToastContent type="success" message={message} options={options} />,
+      t => (
+        <div className="bg-background border-border rounded-lg shadow-lg p-4 flex items-start gap-3 min-w-[400px] border-l-4 border-l-green-500 animate-in slide-in-from-right-full">
+          <div className="flex-shrink-0 mt-0.5">
+            <CheckCircle2 className="w-5 h-5 text-green-500 animate-in zoom-in-50 duration-300" />
+          </div>
+          <div className="flex-1">
+            <div className="font-medium text-foreground text-sm">{message}</div>
+            {description && <div className="text-muted-foreground text-sm mt-1">{description}</div>}
+          </div>
+          <button
+            onClick={() => sonnerToast.dismiss(t)}
+            className="flex-shrink-0 w-6 h-6 rounded-full bg-transparent hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-all duration-200"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+      ),
       {
         duration: persistent ? Infinity : 4000,
         position: 'top-right',
@@ -161,10 +191,16 @@ export const modernToast = {
     );
   },
 
-  error: (message: string, options?: ModernToastOptions) => {
-    const { persistent, ...otherOptions } = options || {};
+  error: (
+    message: string,
+    options?: Omit<ModernToastOptions, 'description'> & {
+      description?: string;
+      action?: { label: string; onClick: () => void };
+    }
+  ) => {
+    const { persistent, description, action, ...otherOptions } = options || {};
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { action, richContent, icon, progress, sound, ...sonnerOptions } = otherOptions;
+    const { richContent, icon, progress, sound, ...sonnerOptions } = otherOptions;
 
     // Fallback for test environments or when custom is not available
     if (!sonnerToast.custom) {
@@ -175,7 +211,41 @@ export const modernToast = {
     }
 
     return sonnerToast.custom(
-      () => <ToastContent type="error" message={message} options={options} />,
+      t => (
+        <div className="bg-background border-border rounded-lg shadow-lg p-4 flex items-start gap-3 min-w-[400px] border-l-4 border-l-red-500 animate-in slide-in-from-right-full">
+          <div className="flex-shrink-0 mt-0.5">
+            <XCircle className="w-5 h-5 text-red-500" />
+          </div>
+          <div className="flex-1">
+            <div className="font-medium text-foreground text-sm">{message}</div>
+            {description && <div className="text-muted-foreground text-sm mt-1">{description}</div>}
+            {action && (
+              <button
+                onClick={() => {
+                  sonnerToast.dismiss(t);
+                  action.onClick();
+                }}
+                className="mt-2 text-xs font-medium text-red-600 hover:text-red-700 transition-colors"
+              >
+                {action.label}
+              </button>
+            )}
+          </div>
+          <button
+            onClick={() => sonnerToast.dismiss(t)}
+            className="flex-shrink-0 w-6 h-6 rounded-full bg-transparent hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-all duration-200"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+      ),
       {
         duration: persistent ? Infinity : 6000,
         position: 'top-right',
@@ -184,10 +254,16 @@ export const modernToast = {
     );
   },
 
-  warning: (message: string, options?: ModernToastOptions) => {
-    const { persistent, ...otherOptions } = options || {};
+  warning: (
+    message: string,
+    options?: Omit<ModernToastOptions, 'description'> & {
+      description?: string;
+      action?: { label: string; onClick: () => void };
+    }
+  ) => {
+    const { persistent, description, action, ...otherOptions } = options || {};
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { action, richContent, icon, progress, sound, ...sonnerOptions } = otherOptions;
+    const { richContent, icon, progress, sound, ...sonnerOptions } = otherOptions;
 
     // Fallback for test environments or when custom is not available
     if (!sonnerToast.custom) {
@@ -198,7 +274,41 @@ export const modernToast = {
     }
 
     return sonnerToast.custom(
-      () => <ToastContent type="warning" message={message} options={options} />,
+      t => (
+        <div className="bg-background border-border rounded-lg shadow-lg p-4 flex items-start gap-3 min-w-[400px] border-l-4 border-l-orange-500 animate-in slide-in-from-right-full">
+          <div className="flex-shrink-0 mt-0.5">
+            <AlertTriangle className="w-5 h-5 text-orange-500" />
+          </div>
+          <div className="flex-1">
+            <div className="font-medium text-foreground text-sm">{message}</div>
+            {description && <div className="text-muted-foreground text-sm mt-1">{description}</div>}
+            {action && (
+              <button
+                onClick={() => {
+                  sonnerToast.dismiss(t);
+                  action.onClick();
+                }}
+                className="mt-2 text-xs font-medium text-orange-600 hover:text-orange-700 transition-colors"
+              >
+                {action.label}
+              </button>
+            )}
+          </div>
+          <button
+            onClick={() => sonnerToast.dismiss(t)}
+            className="flex-shrink-0 w-6 h-6 rounded-full bg-transparent hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-all duration-200"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+      ),
       {
         duration: persistent ? Infinity : 5000,
         position: 'top-right',
@@ -207,8 +317,11 @@ export const modernToast = {
     );
   },
 
-  info: (message: string, options?: ModernToastOptions) => {
-    const { persistent, ...otherOptions } = options || {};
+  info: (
+    message: string,
+    options?: Omit<ModernToastOptions, 'description'> & { description?: string }
+  ) => {
+    const { persistent, description, ...otherOptions } = options || {};
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { action, richContent, icon, progress, sound, ...sonnerOptions } = otherOptions;
 
@@ -221,7 +334,30 @@ export const modernToast = {
     }
 
     return sonnerToast.custom(
-      () => <ToastContent type="info" message={message} options={options} />,
+      t => (
+        <div className="bg-background border-border rounded-lg shadow-lg p-4 flex items-start gap-3 min-w-[400px] border-l-4 border-l-blue-500 animate-in slide-in-from-right-full">
+          <div className="flex-shrink-0 mt-0.5">
+            <Info className="w-5 h-5 text-blue-500" />
+          </div>
+          <div className="flex-1">
+            <div className="font-medium text-foreground text-sm">{message}</div>
+            {description && <div className="text-muted-foreground text-sm mt-1">{description}</div>}
+          </div>
+          <button
+            onClick={() => sonnerToast.dismiss(t)}
+            className="flex-shrink-0 w-6 h-6 rounded-full bg-transparent hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-all duration-200"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+      ),
       {
         duration: persistent ? Infinity : 4000,
         position: 'top-right',
@@ -375,7 +511,7 @@ export const modernToast = {
       success: string | ((data: T) => string);
       error: string | ((error: Error) => string);
     },
-    options?: ModernToastOptions
+    options?: Omit<ModernToastOptions, 'description'> & { description?: string }
   ): Promise<string | number> => {
     const toastId = modernToast.loading(messages.loading, { persistent: true });
 
@@ -393,6 +529,130 @@ export const modernToast = {
           : messages.error;
       return modernToast.error(errorMessage, options);
     }
+  },
+
+  // Additional toast methods matching the provided design
+  custom: (render: (t: string | number) => React.ReactElement, options?: ModernToastOptions) => {
+    const { persistent, ...otherOptions } = options || {};
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { action, richContent, icon, progress, sound, ...sonnerOptions } = otherOptions;
+
+    if (!sonnerToast.custom) {
+      return sonnerToast.success?.('Custom toast') || '';
+    }
+
+    return sonnerToast.custom(render, {
+      duration: persistent ? Infinity : 4000,
+      position: 'top-right',
+      ...sonnerOptions,
+    });
+  },
+
+  // Design pattern toasts from the example
+  heartToast: () => {
+    if (!sonnerToast.custom) {
+      return sonnerToast.success?.("You're awesome!") || '';
+    }
+
+    return sonnerToast.custom(t => (
+      <div className="flex items-center gap-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white p-4 rounded-lg shadow-lg min-w-80">
+        <Heart className="w-6 h-6 text-white animate-pulse" />
+        <div className="flex-1">
+          <p className="font-medium">You're awesome!</p>
+          <p className="text-sm opacity-90">Thanks for being part of our community.</p>
+        </div>
+        <button
+          onClick={() => sonnerToast.dismiss(t)}
+          className="text-white/80 hover:text-white transition-colors"
+        >
+          ×
+        </button>
+      </div>
+    ));
+  },
+
+  richMessageToast: (options: { from: string; preview: string }) => {
+    if (!sonnerToast.custom) {
+      return sonnerToast.info?.('New message received') || '';
+    }
+
+    return sonnerToast.custom(t => (
+      <div className="w-96 overflow-hidden shadow-lg border-0 bg-card rounded-lg">
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-4 text-white">
+          <div className="flex items-center gap-3">
+            <Mail className="w-6 h-6" />
+            <div>
+              <h4 className="font-medium">New message received</h4>
+              <p className="text-sm text-blue-100">From: {options.from}</p>
+            </div>
+          </div>
+        </div>
+        <div className="p-4">
+          <p className="text-sm text-muted-foreground mb-3">"{options.preview}"</p>
+          <div className="flex gap-2">
+            <button
+              className="px-3 py-1.5 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90"
+              onClick={() => {
+                sonnerToast.dismiss(t);
+                sonnerToast.success('Message marked as read');
+              }}
+            >
+              Read
+            </button>
+            <button
+              className="px-3 py-1.5 bg-secondary text-secondary-foreground rounded-md text-sm font-medium hover:bg-secondary/80"
+              onClick={() => sonnerToast.dismiss(t)}
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      </div>
+    ));
+  },
+
+  uploadPromiseToast: () => {
+    const promise = new Promise<{ data: string }>(resolve => {
+      setTimeout(() => resolve({ data: 'File uploaded successfully!' }), 3000);
+    });
+
+    return sonnerToast.promise(promise, {
+      loading: (
+        <div className="flex items-center gap-2">
+          <Upload className="w-4 h-4 animate-spin" />
+          Uploading file...
+        </div>
+      ),
+      success: (data: { data: string }) => (
+        <div className="flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-green-500" />
+          {data.data}
+        </div>
+      ),
+      error: 'Upload failed',
+    });
+  },
+
+  actionToast: (message: string, actionLabel: string, onAction: () => void) => {
+    return sonnerToast(message, {
+      icon: <Trash2 className="w-4 h-4 text-gray-500" />,
+      action: {
+        label: actionLabel,
+        onClick: onAction,
+      },
+    });
+  },
+
+  multipleSequentialToasts: (messages: string[]) => {
+    messages.forEach((message, index) => {
+      setTimeout(() => {
+        if (index === messages.length - 1) {
+          sonnerToast.info(message);
+        } else {
+          sonnerToast.success(message);
+        }
+      }, index * 500);
+    });
   },
 
   // Dismiss functions

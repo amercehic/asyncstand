@@ -7,5 +7,6 @@ export { TeamDetailPage } from '@/pages/TeamDetailPage';
 export { StandupConfigPage } from '@/pages/StandupConfigPage';
 export { StandupResponsePage } from '@/pages/StandupResponsePage';
 export { StandupWizardPage } from '@/pages/StandupWizardPage';
+export { ToastDemoPage } from '@/pages/ToastDemoPage';
 export { NotFoundPage } from '@/pages/NotFoundPage';
 export { ErrorPage } from '@/pages/ErrorPage';
