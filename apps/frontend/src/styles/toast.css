@@ -1,22 +1,80 @@
-/* Toast Left Border Styling */
-[data-sonner-toaster] [data-type="success"] {
-  border-left: 4px solid rgb(34 197 94) !important;
+/* container spacing (keeps text/icon centered) */
+[data-sonner-toaster] [data-sonner-toast] {
+  display: flex !important;
+  align-items: center !important;
+  padding: 12px 16px 12px 44px !important; /* room for the green check */
+  position: relative !important;
+  min-height: 56px !important;
+  box-sizing: border-box !important;
 }
 
-[data-sonner-toaster] [data-type="error"] {
-  border-left: 4px solid rgb(239 68 68) !important;
+/* green checkmark, vertically centered */
+[data-sonner-toaster] [data-sonner-toast] .toast-icon {
+  position: absolute !important;
+  left: 14px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  font-size: 18px !important;
+  color: rgb(34 197 94) !important;
+  stroke: rgb(34 197 94) !important;
 }
 
-[data-sonner-toaster] [data-type="warning"] {
-  border-left: 4px solid rgb(245 158 11) !important;
+/* title + description */
+[data-sonner-toaster] [data-sonner-toast] [data-title],
+[data-sonner-toaster] [data-sonner-toast] .toast-title {
+  font-weight: 800 !important;
+  font-size: 1rem !important;
+  line-height: 1.3 !important;
+}
+[data-sonner-toaster] [data-sonner-toast] [data-description],
+[data-sonner-toaster] [data-sonner-toast] .toast-description {
+  margin-top: 4px !important;
+  font-size: 0.9rem !important;
+  line-height: 1.35 !important;
+  white-space: normal !important;
 }
 
-[data-sonner-toaster] [data-type="info"] {
-  border-left: 4px solid rgb(59 130 246) !important;
+/* CLOSE PILL — center of the pill sits exactly on the card's top-left corner */
+[data-sonner-toaster] [data-sonner-toast] [data-close-button] {
+  width: 20px !important;
+  height: 20px !important;
+  border-radius: 9999px !important;
+  position: absolute !important;
+  z-index: 5 !important;
+
+  /* put the pill's CENTER on the corner */
+  top: 0 !important;
+  left: 0 !important;
+  transform: translate(-50%, -50%) !important;
+
+  background: #fff !important;
+  color: #000 !important;
+  border: 1px solid rgba(0, 0, 0, 0.15) !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
-/* Ensure borders are visible */
-[data-sonner-toaster] [data-toast] {
-  border-radius: 0.75rem !important;
-  overflow: hidden !important;
+/* use ×, not the default svg */
+[data-sonner-toaster] [data-sonner-toast] [data-close-button] svg {
+  display: none !important;
+}
+[data-sonner-toaster] [data-sonner-toast] [data-close-button]::before {
+  content: '×';
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  line-height: 1;
+  color: #000 !important;
+}
+
+/* mobile: slightly tighter padding */
+@media (max-width: 480px) {
+  [data-sonner-toaster] [data-sonner-toast] {
+    padding: 10px 14px 10px 40px !important;
+    min-height: 52px !important;
+  }
+  [data-sonner-toaster] [data-sonner-toast] .toast-icon {
+    left: 12px !important;
+  }
 }

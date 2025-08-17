@@ -2,6 +2,7 @@ import { Outlet } from 'react-router-dom';
 import { Toaster, ThemeToggle } from '@/components/ui';
 import { PageErrorBoundary } from '@/components/PageErrorBoundary';
 import { Navbar } from '@/components/Navbar';
+import { AlertTriangle, CircleCheckBig, CircleX, Info } from 'lucide-react';
 
 export function Layout() {
   return (
@@ -15,6 +16,12 @@ export function Layout() {
         expand={true}
         richColors={true}
         closeButton={true}
+        icons={{
+          success: <CircleCheckBig className="w-4 h-4" />,
+          error: <CircleX className="w-4 h-4" />,
+          warning: <AlertTriangle className="w-4 h-4" />,
+          info: <Info className="w-4 h-4" />,
+        }}
         toastOptions={{
           style: {
             background: 'var(--popover)',
@@ -28,6 +35,11 @@ export function Layout() {
             error: '!border-l-4 !border-l-red-500',
             warning: '!border-l-4 !border-l-orange-500',
             info: '!border-l-4 !border-l-blue-500',
+            icon: 'toast-icon',
+            closeButton:
+              'toast-close !text-black hover:!text-black !bg-white !border !border-black/15 !shadow-none !outline-none focus:!outline-none focus:!ring-0 ring-0',
+            title: 'toast-title',
+            description: 'toast-description',
           },
         }}
       />
