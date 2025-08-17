@@ -1,7 +1,7 @@
 import React from 'react';
 import { Sun, Moon, Monitor } from 'lucide-react';
 import { useTheme } from '@/contexts';
-import { ModernButton } from '@/components/ui/modern-button';
+import { ModernButton } from '@/components/ui/ModernButton';
 
 export const ThemeToggle = React.memo(() => {
   const { theme, setTheme, isLoaded } = useTheme();

@@ -4,8 +4,8 @@ import { motion } from 'framer-motion';
 import { ModernButton } from '@/components/ui';
 import { Send, Clock, CheckCircle, Users, AlertTriangle } from 'lucide-react';
 import { toast } from '@/components/ui';
-import { magicTokenApiClient } from '@/lib/api-client/magic-token';
-import type { MagicTokenStandupInfo } from '@/lib/api-client/magic-token';
+import { magicTokenApiClient } from '@/lib/api-client/magicToken';
+import type { MagicTokenStandupInfo } from '@/lib/api-client/magicToken';
 
 interface ResponseFormData {
   answers: Record<string, string>;

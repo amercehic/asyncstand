@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { ModernButton } from '@/components/ui/modern-button';
+import { ModernButton } from '@/components/ui/ModernButton';
 
 // Simple render without providers for isolated component testing
 describe('ModernButton', () => {
