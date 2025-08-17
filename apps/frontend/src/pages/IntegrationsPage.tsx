@@ -12,6 +12,7 @@ import {
   Clock,
   Users,
   MessageSquare,
+  ChevronRight,
 } from 'lucide-react';
 import { toast } from '@/components/ui';
 import { integrationsApi, type SlackIntegration } from '@/lib/api';
@@ -280,53 +281,112 @@ export const IntegrationsPage = React.memo(() => {
           <p className="text-muted-foreground mb-6">
             Connect your workspace tools to get started with async standups.
           </p>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Slack Card */}
             {integrations.length > 0 ? (
-              <ModernButton
-                variant="secondary"
-                size="lg"
-                className="border-2 border-green-500 bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-300 cursor-default"
-                disabled
+              <motion.div
+                whileHover={{ y: -2 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                className="bg-card rounded-xl border border-border p-4 relative overflow-hidden cursor-default"
               >
-                <SlackIcon className="mr-3" size={20} />
-                Slack Already Connected
-              </ModernButton>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-[#4A154B] rounded-lg flex items-center justify-center">
+                      <SlackIcon className="text-white" size={20} />
+                    </div>
+                    <div>
+                      <p className="font-medium text-foreground">Slack</p>
+                      <p className="text-xs text-muted-foreground">Workspace connected</p>
+                    </div>
+                  </div>
+                  <CheckCircle2 className="w-5 h-5 text-green-500" />
+                </div>
+                <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  Active
+                </div>
+              </motion.div>
             ) : (
-              <ModernButton
-                variant="primary"
-                size="lg"
-                className="bg-gradient-to-r from-[#4A154B] to-[#350d36] hover:from-[#4A154B]/90 hover:to-[#350d36]/90 text-white border-0"
+              <motion.div
+                whileHover={{ y: -4, scale: 1.02 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                className="bg-card hover:shadow-xl border border-border/50 rounded-xl p-4 relative overflow-hidden group cursor-pointer"
                 onClick={() => handleConnectIntegration('slack')}
               >
-                <SlackIcon className="mr-3" size={20} />
-                Connect Slack Workspace
-              </ModernButton>
+                <div className="absolute inset-0 bg-gradient-to-br from-[#4A154B]/5 to-purple-500/5 group-hover:from-[#4A154B]/10 group-hover:to-purple-500/10 transition-all duration-300" />
+                <div className="relative">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-[#4A154B] rounded-lg flex items-center justify-center">
+                        <SlackIcon className="text-white" size={20} />
+                      </div>
+                      <div>
+                        <p className="font-medium text-foreground">Slack</p>
+                        <p className="text-xs text-muted-foreground">Connect workspace</p>
+                      </div>
+                    </div>
+                    <motion.div
+                      animate={{ x: [0, 3, 0] }}
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                    >
+                      <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                    </motion.div>
+                  </div>
+                  <ModernButton
+                    variant="primary"
+                    size="sm"
+                    className="w-full bg-gradient-to-r from-[#4A154B] to-[#350d36] hover:from-[#5A255B] hover:to-[#451146]"
+                  >
+                    Connect
+                  </ModernButton>
+                </div>
+              </motion.div>
             )}
 
+            {/* Microsoft Teams Card */}
             <Tooltip content="Microsoft Teams integration coming soon!" position="top">
-              <ModernButton
-                variant="secondary"
-                size="lg"
-                className="border-2 border-dashed border-gray-300 dark:border-gray-600 text-muted-foreground cursor-not-allowed opacity-60"
-                onClick={() => handleConnectIntegration('teams')}
-                disabled
+              <motion.div
+                whileHover={{ y: -2 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                className="bg-card rounded-xl border border-border p-4 relative overflow-hidden opacity-60 cursor-not-allowed"
               >
-                <TeamsIcon className="mr-3" size={20} />
-                Microsoft Teams
-              </ModernButton>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gray-200 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+                      <TeamsIcon className="text-gray-400" size={20} />
+                    </div>
+                    <div>
+                      <p className="font-medium text-muted-foreground">Microsoft Teams</p>
+                      <p className="text-xs text-muted-foreground">Coming soon</p>
+                    </div>
+                  </div>
+                  <Clock className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <div className="text-xs text-muted-foreground">Not available yet</div>
+              </motion.div>
             </Tooltip>
 
+            {/* Discord Card */}
             <Tooltip content="Discord integration coming soon!" position="top">
-              <ModernButton
-                variant="secondary"
-                size="lg"
-                className="border-2 border-dashed border-gray-300 dark:border-gray-600 text-muted-foreground cursor-not-allowed opacity-60"
-                onClick={() => handleConnectIntegration('discord')}
-                disabled
+              <motion.div
+                whileHover={{ y: -2 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                className="bg-card rounded-xl border border-border p-4 relative overflow-hidden opacity-60 cursor-not-allowed"
               >
-                <DiscordIcon className="mr-3" size={20} />
-                Discord
-              </ModernButton>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gray-200 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+                      <DiscordIcon className="text-gray-400" size={20} />
+                    </div>
+                    <div>
+                      <p className="font-medium text-muted-foreground">Discord</p>
+                      <p className="text-xs text-muted-foreground">Coming soon</p>
+                    </div>
+                  </div>
+                  <Clock className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <div className="text-xs text-muted-foreground">Not available yet</div>
+              </motion.div>
             </Tooltip>
           </div>
         </motion.div>
