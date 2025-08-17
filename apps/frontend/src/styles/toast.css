@@ -1,3 +1,17 @@
+/* Fix Sonner's default excessive spacing between toasts */
+[data-sonner-toaster] {
+  --gap: 8px !important;
+}
+
+[data-sonner-toaster] ol {
+  gap: 8px !important;
+}
+
+[data-sonner-toaster] ol li {
+  margin: 0 !important;
+  margin-bottom: 0 !important;
+}
+
 /* container spacing (keeps text/icon centered) */
 [data-sonner-toaster] [data-sonner-toast] {
   display: flex !important;
@@ -8,7 +22,85 @@
   box-sizing: border-box !important;
 }
 
-/* green checkmark, vertically centered */
+/* Keyframe animations for toast icons */
+@keyframes checkmark-draw {
+  0% {
+    stroke-dasharray: 0 50;
+    opacity: 0;
+    transform: translateY(-50%) scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1.1);
+  }
+  100% {
+    stroke-dasharray: 50 0;
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+}
+
+@keyframes error-shake {
+  0%, 100% {
+    transform: translateY(-50%) translateX(0);
+  }
+  25% {
+    transform: translateY(-50%) translateX(-2px);
+  }
+  75% {
+    transform: translateY(-50%) translateX(2px);
+  }
+}
+
+@keyframes bounce-in {
+  0% {
+    transform: translateY(-50%) scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: translateY(-50%) scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-50%) scale(1);
+    opacity: 1;
+  }
+}
+
+/* Success toast icon - animated checkmark */
+[data-sonner-toaster] [data-sonner-toast][data-type="success"] .toast-icon {
+  position: absolute !important;
+  left: 14px !important;
+  top: 50% !important;
+  font-size: 18px !important;
+  color: rgb(34 197 94) !important;
+  stroke: rgb(34 197 94) !important;
+  animation: checkmark-draw 0.6s ease-out forwards !important;
+}
+
+/* Error toast icon - animated X with shake */
+[data-sonner-toaster] [data-sonner-toast][data-type="error"] .toast-icon {
+  position: absolute !important;
+  left: 14px !important;
+  top: 50% !important;
+  font-size: 18px !important;
+  color: rgb(239 68 68) !important;
+  stroke: rgb(239 68 68) !important;
+  animation: bounce-in 0.4s ease-out, error-shake 0.5s ease-in-out 0.4s !important;
+}
+
+/* Warning toast icon */
+[data-sonner-toaster] [data-sonner-toast][data-type="warning"] .toast-icon {
+  position: absolute !important;
+  left: 14px !important;
+  top: 50% !important;
+  font-size: 18px !important;
+  color: rgb(245 158 11) !important;
+  stroke: rgb(245 158 11) !important;
+  animation: bounce-in 0.4s ease-out !important;
+}
+
+/* Default toast icon (fallback) */
 [data-sonner-toaster] [data-sonner-toast] .toast-icon {
   position: absolute !important;
   left: 14px !important;
@@ -17,12 +109,13 @@
   font-size: 18px !important;
   color: rgb(34 197 94) !important;
   stroke: rgb(34 197 94) !important;
+  animation: bounce-in 0.4s ease-out !important;
 }
 
 /* title + description */
 [data-sonner-toaster] [data-sonner-toast] [data-title],
 [data-sonner-toaster] [data-sonner-toast] .toast-title {
-  font-weight: 800 !important;
+  font-weight: 500 !important;
   font-size: 1rem !important;
   line-height: 1.3 !important;
 }
