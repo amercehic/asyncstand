@@ -70,8 +70,21 @@ export const standupsApi = {
   },
 
   async getStandup(standupId: string): Promise<Standup> {
-    const response = await api.get<Standup>(`/standups/${standupId}`);
+    const response = await api.get<Standup>(`/standups/instances/${standupId}`);
     return response.data;
+  },
+
+  async getStandupConfig(configId: string): Promise<Standup> {
+    const response = await api.get(`/standups/config/${configId}`);
+    const configData = response.data as StandupConfigResponse;
+    // Map the response to match frontend Standup type
+    return this.mapStandupConfigsToStandups([configData], configData.teamId)[0];
+  },
+
+  async getAllTeamStandupConfigs(teamId: string): Promise<Standup[]> {
+    const response = await api.get(`/standups/config/teams/${teamId}/standups`);
+    const configs = response.data as StandupConfigResponse[];
+    return this.mapStandupConfigsToStandups(configs, teamId);
   },
 
   async createStandup(teamId: string, data: Partial<Standup>): Promise<Standup> {
@@ -167,7 +180,7 @@ export const standupsApi = {
   },
 
   async getInstance(instanceId: string): Promise<StandupInstance> {
-    const response = await api.get<StandupInstance>(`/instances/${instanceId}`);
+    const response = await api.get<StandupInstance>(`/standups/instances/${instanceId}`);
     return response.data;
   },
 

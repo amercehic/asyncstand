@@ -178,6 +178,8 @@ export class StandupConfigService {
     return { id: result.id };
   }
 
+  // DEPRECATED: Use updateStandupConfigById instead
+  // This method was used when there was only one config per team
   async updateStandupConfig(
     teamId: string,
     orgId: string,
@@ -266,6 +268,74 @@ export class StandupConfigService {
     });
 
     this.logger.info('Standup configuration updated successfully', { teamId, configId: config.id });
+  }
+
+  async getStandupConfigById(configId: string, orgId: string): Promise<StandupConfigResponse> {
+    this.logger.info('Getting standup configuration by ID', { configId, orgId });
+
+    const config = await this.prisma.standupConfig.findFirst({
+      where: {
+        id: configId,
+        team: { orgId },
+      },
+      include: {
+        team: true,
+        configMembers: {
+          include: {
+            teamMember: {
+              include: {
+                user: true,
+                integrationUser: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!config) {
+      throw new ApiError(
+        ErrorCode.STANDUP_CONFIG_NOT_FOUND,
+        'Standup configuration not found',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    const memberParticipation: MemberParticipationResponse[] = config.configMembers.map((cm) => ({
+      teamMember: {
+        id: cm.teamMember.id,
+        name:
+          cm.teamMember.user?.name ||
+          cm.teamMember.integrationUser?.name ||
+          cm.teamMember.name ||
+          'Unknown',
+        platformUserId:
+          cm.teamMember.platformUserId || cm.teamMember.integrationUser?.externalUserId || '',
+      },
+      include: cm.include,
+      role: cm.role,
+    }));
+
+    return {
+      id: config.id,
+      teamId: config.teamId,
+      name: config.name,
+      deliveryType: config.deliveryType,
+      questions: config.questions,
+      weekdays: config.weekdays,
+      timeLocal: config.timeLocal,
+      timezone: config.timezone,
+      reminderMinutesBefore: config.reminderMinutesBefore,
+      responseTimeoutHours: config.responseTimeoutHours,
+      isActive: config.isActive,
+      team: {
+        id: config.team.id,
+        name: config.team.name,
+      },
+      memberParticipation,
+      createdAt: config.createdAt,
+      updatedAt: config.updatedAt,
+    };
   }
 
   async getStandupConfig(teamId: string, orgId: string): Promise<StandupConfigResponse> {

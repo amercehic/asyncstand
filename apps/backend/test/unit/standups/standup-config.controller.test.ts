@@ -29,12 +29,17 @@ describe('StandupConfigController', () => {
     const mockStandupConfigServiceMethods = {
       createStandupConfig: jest.fn(),
       getStandupConfig: jest.fn(),
+      getStandupConfigById: jest.fn(),
+      getTeamStandupConfigs: jest.fn(),
       updateStandupConfig: jest.fn(),
+      updateStandupConfigById: jest.fn(),
       deleteStandupConfig: jest.fn(),
+      deleteStandupConfigById: jest.fn(),
       getPreview: jest.fn(),
       getMemberParticipation: jest.fn(),
       updateMemberParticipation: jest.fn(),
       bulkUpdateParticipation: jest.fn(),
+      bulkUpdateParticipationById: jest.fn(),
       getValidTimezones: jest.fn(),
       getQuestionTemplates: jest.fn(),
       listTeamsWithStandups: jest.fn(),
@@ -81,31 +86,57 @@ describe('StandupConfigController', () => {
     };
 
     it('should create standup configuration successfully', async () => {
-      const expectedResult = { id: mockConfigId };
-      mockStandupConfigService.createStandupConfig.mockResolvedValue(expectedResult);
+      const expectedConfig = {
+        id: mockConfigId,
+        teamId: mockTeamId,
+        name: 'Daily Standup',
+        deliveryType: StandupDeliveryType.channel,
+        questions: [
+          'What did you accomplish yesterday?',
+          'What will you work on today?',
+          'Are there any blockers?',
+        ],
+        weekdays: [1, 2, 3, 4, 5],
+        timeLocal: '09:00',
+        timezone: 'America/New_York',
+        reminderMinutesBefore: 15,
+        responseTimeoutHours: 2,
+        isActive: true,
+        team: {
+          id: mockTeamId,
+          name: 'Test Team',
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        memberParticipation: [],
+      };
+      mockStandupConfigService.createStandupConfig.mockResolvedValue(undefined);
+      mockStandupConfigService.getStandupConfig.mockResolvedValue(expectedConfig);
 
-      const result = await controller.createStandupConfig(
-        mockTeamId,
+      const createData = { ...createDto, teamId: mockTeamId };
+      const result = await controller.createStandupConfigFromBody(
         mockOrgId,
         mockUserId,
-        createDto,
+        createData,
       );
 
-      expect(result).toEqual(expectedResult);
+      expect(result).toEqual(expectedConfig);
       expect(mockStandupConfigService.createStandupConfig).toHaveBeenCalledWith(
         mockTeamId,
         mockOrgId,
         mockUserId,
-        createDto,
+        createData,
       );
+      expect(mockStandupConfigService.getStandupConfig).toHaveBeenCalledWith(mockTeamId, mockOrgId);
     });
 
     it('should pass through service errors', async () => {
       const error = new Error('Team not found');
       mockStandupConfigService.createStandupConfig.mockRejectedValue(error);
 
+      const createData = { ...createDto, teamId: mockTeamId };
       await expect(
-        controller.createStandupConfig(mockTeamId, mockOrgId, mockUserId, createDto),
+        controller.createStandupConfigFromBody(mockOrgId, mockUserId, createData),
       ).rejects.toThrow(error);
     });
   });
@@ -133,19 +164,22 @@ describe('StandupConfigController', () => {
         memberParticipation: [],
       };
 
-      mockStandupConfigService.getStandupConfig.mockResolvedValue(expectedConfig);
+      mockStandupConfigService.getStandupConfigById.mockResolvedValue(expectedConfig);
 
-      const result = await controller.getStandupConfig(mockTeamId, mockOrgId);
+      const result = await controller.getStandupConfigById(mockConfigId, mockOrgId);
 
       expect(result).toEqual(expectedConfig);
-      expect(mockStandupConfigService.getStandupConfig).toHaveBeenCalledWith(mockTeamId, mockOrgId);
+      expect(mockStandupConfigService.getStandupConfigById).toHaveBeenCalledWith(
+        mockConfigId,
+        mockOrgId,
+      );
     });
 
     it('should pass through service errors', async () => {
       const error = new Error('Configuration not found');
-      mockStandupConfigService.getStandupConfig.mockRejectedValue(error);
+      mockStandupConfigService.getStandupConfigById.mockRejectedValue(error);
 
-      await expect(controller.getStandupConfig(mockTeamId, mockOrgId)).rejects.toThrow(error);
+      await expect(controller.getStandupConfigById(mockConfigId, mockOrgId)).rejects.toThrow(error);
     });
   });
 
@@ -157,13 +191,13 @@ describe('StandupConfigController', () => {
     };
 
     it('should update standup configuration successfully', async () => {
-      mockStandupConfigService.updateStandupConfig.mockResolvedValue(undefined);
+      mockStandupConfigService.updateStandupConfigById.mockResolvedValue(undefined);
 
-      const result = await controller.updateStandupConfig(mockTeamId, mockOrgId, updateDto);
+      const result = await controller.updateStandupConfigById(mockConfigId, mockOrgId, updateDto);
 
-      expect(result).toEqual({ message: 'Standup configuration updated successfully' });
-      expect(mockStandupConfigService.updateStandupConfig).toHaveBeenCalledWith(
-        mockTeamId,
+      expect(result).toEqual({ success: true });
+      expect(mockStandupConfigService.updateStandupConfigById).toHaveBeenCalledWith(
+        mockConfigId,
         mockOrgId,
         updateDto,
       );
@@ -171,32 +205,34 @@ describe('StandupConfigController', () => {
 
     it('should pass through service errors', async () => {
       const error = new Error('Configuration not found');
-      mockStandupConfigService.updateStandupConfig.mockRejectedValue(error);
+      mockStandupConfigService.updateStandupConfigById.mockRejectedValue(error);
 
       await expect(
-        controller.updateStandupConfig(mockTeamId, mockOrgId, updateDto),
+        controller.updateStandupConfigById(mockConfigId, mockOrgId, updateDto),
       ).rejects.toThrow(error);
     });
   });
 
   describe('deleteStandupConfig', () => {
     it('should delete standup configuration successfully', async () => {
-      mockStandupConfigService.deleteStandupConfig.mockResolvedValue(undefined);
+      mockStandupConfigService.deleteStandupConfigById.mockResolvedValue(undefined);
 
-      const result = await controller.deleteStandupConfig(mockTeamId, mockOrgId);
+      const result = await controller.deleteStandupConfigById(mockConfigId, mockOrgId);
 
-      expect(result).toEqual({ message: 'Standup configuration deleted successfully' });
-      expect(mockStandupConfigService.deleteStandupConfig).toHaveBeenCalledWith(
-        mockTeamId,
+      expect(result).toEqual({ success: true });
+      expect(mockStandupConfigService.deleteStandupConfigById).toHaveBeenCalledWith(
+        mockConfigId,
         mockOrgId,
       );
     });
 
     it('should pass through service errors', async () => {
       const error = new Error('Configuration not found');
-      mockStandupConfigService.deleteStandupConfig.mockRejectedValue(error);
+      mockStandupConfigService.deleteStandupConfigById.mockRejectedValue(error);
 
-      await expect(controller.deleteStandupConfig(mockTeamId, mockOrgId)).rejects.toThrow(error);
+      await expect(controller.deleteStandupConfigById(mockConfigId, mockOrgId)).rejects.toThrow(
+        error,
+      );
     });
   });
 
@@ -315,24 +351,29 @@ describe('StandupConfigController', () => {
     };
 
     it('should bulk update member participation successfully', async () => {
-      mockStandupConfigService.bulkUpdateParticipation.mockResolvedValue(undefined);
+      mockStandupConfigService.bulkUpdateParticipationById.mockResolvedValue(undefined);
 
-      const result = await controller.bulkUpdateParticipation(mockTeamId, bulkUpdateDto);
+      const result = await controller.bulkUpdateParticipationById(
+        mockConfigId,
+        mockOrgId,
+        bulkUpdateDto,
+      );
 
-      expect(result).toEqual({ message: 'Member participation updated successfully' });
-      expect(mockStandupConfigService.bulkUpdateParticipation).toHaveBeenCalledWith(
-        mockTeamId,
+      expect(result).toEqual({ success: true, updated: 2 });
+      expect(mockStandupConfigService.bulkUpdateParticipationById).toHaveBeenCalledWith(
+        mockConfigId,
+        mockOrgId,
         bulkUpdateDto,
       );
     });
 
     it('should pass through service errors', async () => {
       const error = new Error('One or more members not found');
-      mockStandupConfigService.bulkUpdateParticipation.mockRejectedValue(error);
+      mockStandupConfigService.bulkUpdateParticipationById.mockRejectedValue(error);
 
-      await expect(controller.bulkUpdateParticipation(mockTeamId, bulkUpdateDto)).rejects.toThrow(
-        error,
-      );
+      await expect(
+        controller.bulkUpdateParticipationById(mockConfigId, mockOrgId, bulkUpdateDto),
+      ).rejects.toThrow(error);
     });
   });
 
@@ -449,10 +490,11 @@ describe('StandupConfigController', () => {
     it('should use ValidationPipe for request body validation', async () => {
       // This test verifies that ValidationPipe is applied to endpoints that accept DTOs
       // The actual validation logic is tested in DTO validation tests
-      const createMethod = controller.createStandupConfig;
-      const updateMethod = controller.updateStandupConfig;
+      // Methods renamed to use config ID
+      const createMethod = controller.createStandupConfigFromBody;
+      const updateMethod = controller.updateStandupConfigById;
       const updateMemberMethod = controller.updateMemberParticipation;
-      const bulkUpdateMethod = controller.bulkUpdateParticipation;
+      const bulkUpdateMethod = controller.bulkUpdateParticipationById;
 
       expect(createMethod).toBeDefined();
       expect(updateMethod).toBeDefined();
@@ -467,14 +509,14 @@ describe('StandupConfigController', () => {
       // This is more for documentation purposes as the actual HTTP status codes
       // are determined by NestJS based on the method type and success/error responses
 
-      expect(controller.createStandupConfig).toBeDefined();
-      expect(controller.getStandupConfig).toBeDefined();
-      expect(controller.updateStandupConfig).toBeDefined();
-      expect(controller.deleteStandupConfig).toBeDefined();
+      expect(controller.createStandupConfigFromBody).toBeDefined();
+      expect(controller.getStandupConfigById).toBeDefined();
+      expect(controller.updateStandupConfigById).toBeDefined();
+      expect(controller.deleteStandupConfigById).toBeDefined();
       expect(controller.getStandupPreview).toBeDefined();
       expect(controller.getMemberParticipation).toBeDefined();
       expect(controller.updateMemberParticipation).toBeDefined();
-      expect(controller.bulkUpdateParticipation).toBeDefined();
+      expect(controller.bulkUpdateParticipationById).toBeDefined();
       expect(controller.getValidTimezones).toBeDefined();
       expect(controller.getQuestionTemplates).toBeDefined();
       expect(controller.listTeamsWithStandups).toBeDefined();

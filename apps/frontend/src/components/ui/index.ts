@@ -3,14 +3,22 @@ export { Input } from '@/components/ui/Input';
 export { Label } from '@/components/ui/Label';
 export { ModernButton } from '@/components/ui/ModernButton';
 export { PageTransition } from '@/components/ui/PageTransition';
-export { Toaster } from '@/components/ui/Sonner';
 export { ThemeToggle } from '@/components/ui/ThemeToggle';
 export { Tooltip } from '@/components/ui/Tooltip';
 export { SkipLinks } from '@/components/ui/SkipLinks';
 export { Dropdown } from '@/components/ui/Dropdown';
 export { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 export { cn } from '@/components/ui/utils';
-export { modernToast, toast } from '@/components/ui/ModernToast';
+
+// Modern Toast System
+export {
+  Toaster,
+  ModernToaster,
+  toast,
+  ToastManager,
+  useToast,
+  useToastManager,
+} from '@/components/ui/Toast';
 
 // Performance-optimized components
 export { LazyImage } from '@/components/ui/LazyImage';

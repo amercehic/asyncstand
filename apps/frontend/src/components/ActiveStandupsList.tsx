@@ -22,7 +22,6 @@ import {
 } from 'lucide-react';
 import { toast } from '@/components/ui';
 import { standupsApi } from '@/lib/api';
-import { StandupEditModal } from '@/components/StandupEditModal';
 import type { StandupConfig } from '@/types';
 
 interface ActiveStandupsListProps {
@@ -159,14 +158,6 @@ export const ActiveStandupsList: React.FC<ActiveStandupsListProps> = ({
     isDeleting: false,
   });
 
-  const [editModal, setEditModal] = useState<{
-    isOpen: boolean;
-    standup: StandupConfig | null;
-  }>({
-    isOpen: false,
-    standup: null,
-  });
-
   const fetchStandups = async () => {
     if (!teamId) return;
 
@@ -215,16 +206,7 @@ export const ActiveStandupsList: React.FC<ActiveStandupsListProps> = ({
   };
 
   const handleEditStandup = (standup: StandupConfig) => {
-    setEditModal({
-      isOpen: true,
-      standup: standup,
-    });
-  };
-
-  const handleEditSuccess = async () => {
-    await fetchStandups(); // Refresh the standups list
-    onStandupsChange?.(); // Notify parent component
-    setEditModal({ isOpen: false, standup: null });
+    navigate(`/standups/${standup.id}/edit`);
   };
 
   const handleDuplicateStandup = () => {
@@ -593,16 +575,6 @@ export const ActiveStandupsList: React.FC<ActiveStandupsListProps> = ({
           />
         )}
       </AnimatePresence>
-
-      {/* Edit Standup Modal */}
-      {editModal.standup && (
-        <StandupEditModal
-          isOpen={editModal.isOpen}
-          onClose={() => setEditModal({ isOpen: false, standup: null })}
-          onSuccess={handleEditSuccess}
-          standup={editModal.standup}
-        />
-      )}
     </div>
   );
 };

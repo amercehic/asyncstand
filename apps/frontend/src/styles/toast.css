@@ -1,198 +1,228 @@
-/* Fix Sonner's default excessive spacing between toasts */
+/* ===== CUSTOM TOAST SYSTEM - MATCHES APP THEME ===== */
+
+/* Toaster container positioning and spacing */
 [data-sonner-toaster] {
-  --gap: 8px !important;
+  --gap: 12px;
+  --offset: 16px;
 }
 
+[data-sonner-toaster][data-y-position='top-right'] {
+  top: 16px !important;
+  right: 16px !important;
+}
+
+/* Clean list styling */
 [data-sonner-toaster] ol {
-  gap: 8px !important;
+  gap: 12px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  list-style: none !important;
 }
 
 [data-sonner-toaster] ol li {
   margin: 0 !important;
-  margin-bottom: 0 !important;
+  padding: 0 !important;
 }
 
-/* container spacing (keeps text/icon centered) */
+/* ===== MAIN TOAST STYLING ===== */
 [data-sonner-toaster] [data-sonner-toast] {
+  /* Layout */
   display: flex !important;
-  align-items: center !important;
-  padding: 12px 16px 12px 44px !important; /* room for the green check */
-  position: relative !important;
-  min-height: 56px !important;
+  align-items: flex-start !important;
+  padding: 16px 20px !important;
+  min-height: 64px !important;
   box-sizing: border-box !important;
+
+  /* Theme colors - matches your app */
+  background: hsl(var(--card)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  color: hsl(var(--card-foreground)) !important;
+
+  /* Modern design */
+  border-radius: 12px !important;
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.1),
+    0 2px 4px rgba(0, 0, 0, 0.06) !important;
+
+  /* Reset any conflicting styles */
+  position: relative !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
+  margin: 0 !important;
 }
 
-/* Keyframe animations for toast icons */
-@keyframes checkmark-draw {
-  0% {
-    stroke-dasharray: 0 50;
-    opacity: 0;
-    transform: translateY(-50%) scale(0.8);
-  }
-  50% {
-    opacity: 1;
-    transform: translateY(-50%) scale(1.1);
-  }
-  100% {
-    stroke-dasharray: 50 0;
-    opacity: 1;
-    transform: translateY(-50%) scale(1);
-  }
+/* Success toasts - green accent */
+[data-sonner-toaster] [data-sonner-toast][data-type='success'] {
+  border-left: 4px solid hsl(var(--success, 142 76% 36%)) !important;
 }
 
-@keyframes error-shake {
-  0%,
-  100% {
-    transform: translateY(-50%) translateX(0);
-  }
-  25% {
-    transform: translateY(-50%) translateX(-2px);
-  }
-  75% {
-    transform: translateY(-50%) translateX(2px);
-  }
+/* Error toasts - red accent */
+[data-sonner-toaster] [data-sonner-toast][data-type='error'] {
+  border-left: 4px solid hsl(var(--destructive, 0 84% 60%)) !important;
 }
 
-@keyframes bounce-in {
-  0% {
-    transform: translateY(-50%) scale(0);
-    opacity: 0;
-  }
-  50% {
-    transform: translateY(-50%) scale(1.2);
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(-50%) scale(1);
-    opacity: 1;
-  }
+/* Warning toasts - orange accent */
+[data-sonner-toaster] [data-sonner-toast][data-type='warning'] {
+  border-left: 4px solid hsl(25 95% 53%) !important;
 }
 
-/* Success toast icon - animated checkmark */
-[data-sonner-toaster] [data-sonner-toast][data-type='success'] .toast-icon {
-  position: absolute !important;
-  left: 14px !important;
-  top: 50% !important;
-  font-size: 18px !important;
-  color: rgb(34 197 94) !important;
-  stroke: rgb(34 197 94) !important;
-  animation: checkmark-draw 0.6s ease-out forwards !important;
+/* Info toasts - blue accent */
+[data-sonner-toaster] [data-sonner-toast][data-type='info'] {
+  border-left: 4px solid hsl(var(--primary, 221 83% 53%)) !important;
 }
 
-/* Error toast icon - animated X with shake */
-[data-sonner-toaster] [data-sonner-toast][data-type='error'] .toast-icon {
-  position: absolute !important;
-  left: 14px !important;
-  top: 50% !important;
-  font-size: 18px !important;
-  color: rgb(239 68 68) !important;
-  stroke: rgb(239 68 68) !important;
-  animation:
-    bounce-in 0.4s ease-out,
-    error-shake 0.5s ease-in-out 0.4s !important;
+/* ===== ICON STYLING ===== */
+[data-sonner-toaster] [data-sonner-toast] [data-icon] {
+  margin-right: 12px !important;
+  margin-top: 2px !important;
+  flex-shrink: 0 !important;
 }
 
-/* Warning toast icon */
-[data-sonner-toaster] [data-sonner-toast][data-type='warning'] .toast-icon {
-  position: absolute !important;
-  left: 14px !important;
-  top: 50% !important;
-  font-size: 18px !important;
-  color: rgb(249 115 22) !important; /* orange-500 to match border */
-  stroke: rgb(249 115 22) !important;
-  animation: bounce-in 0.4s ease-out !important;
+/* Success icon */
+[data-sonner-toaster] [data-sonner-toast][data-type='success'] [data-icon] {
+  color: hsl(var(--success, 142 76% 36%)) !important;
 }
 
-/* Info toast icon */
-[data-sonner-toaster] [data-sonner-toast][data-type='info'] .toast-icon {
-  position: absolute !important;
-  left: 14px !important;
-  top: 50% !important;
-  font-size: 18px !important;
-  color: rgb(59 130 246) !important; /* blue-500 to match border */
-  stroke: rgb(59 130 246) !important;
-  animation: bounce-in 0.4s ease-out !important;
+/* Error icon */
+[data-sonner-toaster] [data-sonner-toast][data-type='error'] [data-icon] {
+  color: hsl(var(--destructive, 0 84% 60%)) !important;
 }
 
-/* Loading toast icon */
-[data-sonner-toaster] [data-sonner-toast][data-type='loading'] .toast-icon {
-  position: absolute !important;
-  left: 14px !important;
-  top: 50% !important;
-  font-size: 18px !important;
-  color: rgb(59 130 246) !important; /* blue-500 for loading */
-  stroke: rgb(59 130 246) !important;
-  animation: bounce-in 0.4s ease-out !important;
+/* Warning icon */
+[data-sonner-toaster] [data-sonner-toast][data-type='warning'] [data-icon] {
+  color: hsl(25 95% 53%) !important;
 }
 
-/* Default toast icon (fallback) */
-[data-sonner-toaster] [data-sonner-toast] .toast-icon {
-  position: absolute !important;
-  left: 14px !important;
-  top: 50% !important;
-  transform: translateY(-50%) !important;
-  font-size: 18px !important;
-  color: rgb(107 114 128) !important; /* gray-500 for default */
-  stroke: rgb(107 114 128) !important;
-  animation: bounce-in 0.4s ease-out !important;
+/* Info icon */
+[data-sonner-toaster] [data-sonner-toast][data-type='info'] [data-icon] {
+  color: hsl(var(--primary, 221 83% 53%)) !important;
 }
 
-/* title + description */
-[data-sonner-toaster] [data-sonner-toast] [data-title],
-[data-sonner-toaster] [data-sonner-toast] .toast-title {
-  font-weight: 500 !important;
-  font-size: 1rem !important;
-  line-height: 1.3 !important;
-}
-[data-sonner-toaster] [data-sonner-toast] [data-description],
-[data-sonner-toaster] [data-sonner-toast] .toast-description {
-  margin-top: 4px !important;
-  font-size: 0.9rem !important;
-  line-height: 1.35 !important;
-  white-space: normal !important;
+/* ===== TEXT CONTENT ===== */
+[data-sonner-toaster] [data-sonner-toast] [data-content] {
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
 }
 
-/* CLOSE PILL — center of the pill sits exactly on the card's top-left corner */
+/* Title styling */
+[data-sonner-toaster] [data-sonner-toast] [data-title] {
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  line-height: 1.4 !important;
+  color: hsl(var(--card-foreground)) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Description styling */
+[data-sonner-toaster] [data-sonner-toast] [data-description] {
+  font-size: 13px !important;
+  line-height: 1.4 !important;
+  color: hsl(var(--muted-foreground)) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* ===== CLOSE BUTTON ===== */
 [data-sonner-toaster] [data-sonner-toast] [data-close-button] {
+  /* Position */
+  position: absolute !important;
+  top: 8px !important;
+  right: 8px !important;
+
+  /* Size */
   width: 20px !important;
   height: 20px !important;
-  border-radius: 9999px !important;
-  position: absolute !important;
-  z-index: 5 !important;
 
-  /* put the pill's CENTER on the corner */
-  top: 0 !important;
-  left: 0 !important;
-  transform: translate(-50%, -50%) !important;
+  /* Styling */
+  background: hsl(var(--muted)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: 6px !important;
+  color: hsl(var(--muted-foreground)) !important;
 
-  background: #fff !important;
-  color: #000 !important;
-  border: 1px solid rgba(0, 0, 0, 0.15) !important;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06) !important;
-  display: inline-flex !important;
+  /* Layout */
+  display: flex !important;
   align-items: center !important;
   justify-content: center !important;
+
+  /* Interaction */
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  z-index: 10 !important;
 }
 
-/* use ×, not the default svg */
+[data-sonner-toaster] [data-sonner-toast] [data-close-button]:hover {
+  background: hsl(var(--muted-foreground)) !important;
+  color: hsl(var(--muted)) !important;
+}
+
+/* Hide default close button icon, use custom */
 [data-sonner-toaster] [data-sonner-toast] [data-close-button] svg {
   display: none !important;
 }
+
 [data-sonner-toaster] [data-sonner-toast] [data-close-button]::before {
-  content: '×';
-  font-size: 12px !important;
-  font-weight: 700 !important;
-  line-height: 1;
-  color: #000 !important;
+  content: '×' !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
 }
 
-/* mobile: slightly tighter padding */
-@media (max-width: 480px) {
+/* ===== ANIMATIONS ===== */
+@keyframes toast-slide-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes toast-slide-out {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-mounted='true'] {
+  animation: toast-slide-in 0.2s ease-out !important;
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-removed='true'] {
+  animation: toast-slide-out 0.2s ease-in !important;
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+@media (max-width: 640px) {
+  [data-sonner-toaster] {
+    left: 8px !important;
+    right: 8px !important;
+    top: 8px !important;
+  }
+
   [data-sonner-toaster] [data-sonner-toast] {
-    padding: 10px 14px 10px 40px !important;
-    min-height: 52px !important;
+    padding: 14px 16px !important;
+    min-height: 56px !important;
   }
-  [data-sonner-toaster] [data-sonner-toast] .toast-icon {
-    left: 12px !important;
+
+  [data-sonner-toaster] [data-sonner-toast] [data-icon] {
+    margin-right: 10px !important;
   }
+}
+
+/* ===== DARK MODE SUPPORT ===== */
+[data-theme='dark'] [data-sonner-toaster] [data-sonner-toast] {
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    0 2px 4px rgba(0, 0, 0, 0.2) !important;
 }

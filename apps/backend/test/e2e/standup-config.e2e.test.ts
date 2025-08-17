@@ -449,7 +449,7 @@ describe('Standup Configuration (e2e)', () => {
 
     it('should get standup configuration for authorized user', async () => {
       const response = await request(app.getHttpServer())
-        .get(`/standups/config/${testData.teamId}`)
+        .get(`/standups/config/${testData.configId}`)
         .set('Authorization', `Bearer ${testData.adminToken}`)
         .expect(200);
 
@@ -467,7 +467,7 @@ describe('Standup Configuration (e2e)', () => {
 
     it('should allow members to view standup configuration', async () => {
       const response = await request(app.getHttpServer())
-        .get(`/standups/config/${testData.teamId}`)
+        .get(`/standups/config/${testData.configId}`)
         .set('Authorization', `Bearer ${testData.memberToken}`)
         .expect(200);
 
@@ -500,7 +500,7 @@ describe('Standup Configuration (e2e)', () => {
     });
 
     it('should require authentication', async () => {
-      await request(app.getHttpServer()).get(`/standups/config/${testData.teamId}`).expect(401);
+      await request(app.getHttpServer()).get(`/standups/config/${testData.configId}`).expect(401);
     });
   });
 

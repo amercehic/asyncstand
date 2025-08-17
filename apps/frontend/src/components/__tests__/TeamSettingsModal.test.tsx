@@ -15,30 +15,23 @@ vi.mock('@/lib/api', () => ({
   },
 }));
 
-vi.mock('sonner', () => ({
+vi.mock('@/components/ui/Toast', () => ({
   toast: {
+    loading: vi.fn(),
     success: vi.fn(),
     error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+    dismiss: vi.fn(),
+    dismissAll: vi.fn(),
+    update: vi.fn(),
     custom: vi.fn(),
   },
   Toaster: () => null,
-}));
-
-vi.mock('@/components/ui/modern-toast', () => ({
-  modernToast: {
-    loading: vi.fn(),
-    success: vi.fn(),
-    error: vi.fn(),
-    warning: vi.fn(),
-    info: vi.fn(),
-  },
-  toast: {
-    loading: vi.fn(),
-    success: vi.fn(),
-    error: vi.fn(),
-    warning: vi.fn(),
-    info: vi.fn(),
-  },
+  ModernToaster: () => null,
+  ToastManager: () => null,
+  useToast: vi.fn(),
+  useToastManager: vi.fn(),
 }));
 
 describe('TeamSettingsModal', () => {
