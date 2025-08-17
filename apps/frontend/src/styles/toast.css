@@ -41,7 +41,8 @@
 }
 
 @keyframes error-shake {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(-50%) translateX(0);
   }
   25% {
@@ -68,7 +69,7 @@
 }
 
 /* Success toast icon - animated checkmark */
-[data-sonner-toaster] [data-sonner-toast][data-type="success"] .toast-icon {
+[data-sonner-toaster] [data-sonner-toast][data-type='success'] .toast-icon {
   position: absolute !important;
   left: 14px !important;
   top: 50% !important;
@@ -79,18 +80,20 @@
 }
 
 /* Error toast icon - animated X with shake */
-[data-sonner-toaster] [data-sonner-toast][data-type="error"] .toast-icon {
+[data-sonner-toaster] [data-sonner-toast][data-type='error'] .toast-icon {
   position: absolute !important;
   left: 14px !important;
   top: 50% !important;
   font-size: 18px !important;
   color: rgb(239 68 68) !important;
   stroke: rgb(239 68 68) !important;
-  animation: bounce-in 0.4s ease-out, error-shake 0.5s ease-in-out 0.4s !important;
+  animation:
+    bounce-in 0.4s ease-out,
+    error-shake 0.5s ease-in-out 0.4s !important;
 }
 
 /* Warning toast icon */
-[data-sonner-toaster] [data-sonner-toast][data-type="warning"] .toast-icon {
+[data-sonner-toaster] [data-sonner-toast][data-type='warning'] .toast-icon {
   position: absolute !important;
   left: 14px !important;
   top: 50% !important;

@@ -180,7 +180,29 @@ export const TeamMemberAssignmentModal: React.FC<TeamMemberAssignmentModalProps>
       // Wait for all operations to complete
       await Promise.all(operations);
 
-      // Toast notification will be handled by parent component with richer content
+      // Success toast notification
+      if (selectedToAdd.length > 0 && selectedToRemove.length > 0) {
+        toast.success(
+          `Updated team members successfully! Added ${selectedToAdd.length}, removed ${selectedToRemove.length}`,
+          {
+            id: `team-members-${team.id}`,
+          }
+        );
+      } else if (selectedToAdd.length > 0) {
+        toast.success(
+          `Added ${selectedToAdd.length} member${selectedToAdd.length > 1 ? 's' : ''} to ${team.name} team`,
+          {
+            id: `team-members-${team.id}`,
+          }
+        );
+      } else if (selectedToRemove.length > 0) {
+        toast.success(
+          `Removed ${selectedToRemove.length} member${selectedToRemove.length > 1 ? 's' : ''} from ${team.name} team`,
+          {
+            id: `team-members-${team.id}`,
+          }
+        );
+      }
 
       onSuccess();
       setShowConfirmDialog(false);

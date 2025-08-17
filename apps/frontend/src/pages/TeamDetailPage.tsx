@@ -233,19 +233,8 @@ export const TeamDetailPage = React.memo(() => {
     // Refetch team data after member assignment changes
     if (teamId) {
       try {
-        const previousMemberCount = team?.members?.length || 0;
         const teamData = await teamsApi.getTeam(teamId);
         setTeam(teamData);
-
-        // Show rich toast notification for member additions
-        const newMemberCount = teamData.members?.length || 0;
-        if (newMemberCount > previousMemberCount) {
-          const newMembers = teamData.members?.slice(-1) || []; // Get the last added member
-          const newMember = newMembers[0];
-          if (newMember) {
-            toast.memberAdded(newMember.name, teamData.name);
-          }
-        }
       } catch (error) {
         console.error('Error refreshing team data:', error);
         toast.error('Failed to refresh team data');
