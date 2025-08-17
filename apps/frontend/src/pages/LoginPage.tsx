@@ -87,12 +87,12 @@ export const LoginPage = React.memo(() => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
+    <div className="min-h-screen flex flex-col justify-center px-4 py-8 sm:py-12">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.3 }}
-        className="w-full max-w-md"
+        className="w-full max-w-md mx-auto"
       >
         {/* Back button */}
         <motion.button
@@ -100,7 +100,7 @@ export const LoginPage = React.memo(() => {
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.1 }}
           onClick={() => navigate('/')}
-          className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-smooth mb-8 group"
+          className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-smooth mb-6 sm:mb-8 group"
           data-testid="back-to-home-button"
         >
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform duration-200" />
@@ -112,7 +112,7 @@ export const LoginPage = React.memo(() => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-card border border-border rounded-2xl p-8 shadow-card"
+          className="bg-card border border-border rounded-2xl p-6 sm:p-8 shadow-card"
         >
           <div className="text-center mb-8">
             <div className="text-2xl font-semibold gradient-text mb-2">AsyncStand</div>
@@ -246,24 +246,26 @@ export const LoginPage = React.memo(() => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
-          className="text-center mt-8 text-sm text-muted-foreground"
+          className="text-center mt-6 sm:mt-8 px-2"
         >
-          By signing in, you agree to our{' '}
-          <a
-            href="#"
-            className="text-primary hover:text-primary/80 transition-smooth"
-            data-testid="terms-link"
-          >
-            Terms of Service
-          </a>{' '}
-          and{' '}
-          <a
-            href="#"
-            className="text-primary hover:text-primary/80 transition-smooth"
-            data-testid="privacy-policy-link"
-          >
-            Privacy Policy
-          </a>
+          <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+            By signing in, you agree to our{' '}
+            <a
+              href="#"
+              className="text-primary hover:text-primary/80 transition-smooth underline"
+              data-testid="terms-link"
+            >
+              Terms of Service
+            </a>{' '}
+            and{' '}
+            <a
+              href="#"
+              className="text-primary hover:text-primary/80 transition-smooth underline"
+              data-testid="privacy-policy-link"
+            >
+              Privacy Policy
+            </a>
+          </p>
         </motion.div>
       </motion.div>
     </div>

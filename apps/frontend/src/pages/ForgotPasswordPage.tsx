@@ -51,14 +51,14 @@ export const ForgotPasswordPage: React.FC = () => {
 
   if (isSubmitted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex flex-col justify-center p-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="w-full max-w-md"
+          className="w-full max-w-md mx-auto"
         >
-          <div className="bg-card/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-border p-8">
+          <div className="bg-card/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-border p-6 sm:p-8">
             {/* Success Icon */}
             <motion.div
               initial={{ scale: 0 }}
@@ -122,14 +122,14 @@ export const ForgotPasswordPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex flex-col justify-center p-4">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-md"
+        className="w-full max-w-md mx-auto"
       >
-        <div className="bg-card/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-border p-8">
+        <div className="bg-card/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-border p-6 sm:p-8">
           {/* Logo/Header */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
