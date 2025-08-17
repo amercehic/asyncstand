@@ -693,80 +693,140 @@ export const TeamDetailPage = React.memo(() => {
 
           {/* Main Content */}
           <div className="flex-1">
-            {/* Stats Cards */}
+            {/* Modern Stats Cards */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
               className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
             >
-              {/* Team Members Card */}
+              {/* Team Performance Card */}
               <motion.div
-                whileHover={{ y: -2 }}
+                whileHover={{ y: -4, scale: 1.02 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                className="bg-blue-100/60 dark:bg-blue-950/20 rounded-2xl p-6 border-0 relative"
+                className="bg-card hover:shadow-xl border border-border/50 rounded-xl p-6 relative overflow-hidden group cursor-pointer"
+                onClick={() =>
+                  toast.info('Team performance analytics coming soon!', {
+                    description: 'Track engagement, completion rates, and team health metrics',
+                    icon: <TrendingUp className="w-4 h-4" />,
+                  })
+                }
               >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center">
-                    <Users className="w-6 h-6 text-white" />
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-green-500/5 group-hover:from-emerald-500/10 group-hover:to-green-500/10 transition-all duration-300" />
+                <div className="relative space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-green-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/25">
+                      <TrendingUp className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                      <ArrowLeft className="w-3 h-3 rotate-45" />
+                      <span className="text-xs font-medium">
+                        +{teamStats?.completionRate || 0}%
+                      </span>
+                    </div>
                   </div>
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <div className="space-y-1">
+                    <h3 className="font-semibold text-foreground">Team Performance</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {teamStats?.completionRate || 0}% completion rate this month
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between pt-2">
+                    <span className="text-2xl font-bold text-foreground">
+                      {teamStats?.healthScore || 0}%
+                    </span>
+                    <span className="text-xs text-muted-foreground">Health Score</span>
+                  </div>
                 </div>
-                <div className="text-4xl font-bold text-gray-900 dark:text-white mb-1">
-                  {team.members.length}
-                </div>
-                <div className="text-gray-600 dark:text-gray-400 font-medium">Team Members</div>
               </motion.div>
 
-              {/* Active Standups Card */}
+              {/* Team Collaboration Card */}
               <motion.div
-                whileHover={{ y: -2 }}
+                whileHover={{ y: -4, scale: 1.02 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                className="bg-green-100/60 dark:bg-green-950/20 rounded-2xl p-6 border-0 relative"
+                className="bg-card hover:shadow-xl border border-border/50 rounded-xl p-6 relative overflow-hidden group cursor-pointer"
+                onClick={() => setIsMemberAssignmentOpen(true)}
               >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="w-12 h-12 bg-green-500 rounded-2xl flex items-center justify-center">
-                    <Calendar className="w-6 h-6 text-white" />
-                  </div>
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                </div>
-                <div className="text-4xl font-bold text-gray-900 dark:text-white mb-1">
-                  {activeStandups.length}
-                </div>
-                <div className="text-gray-600 dark:text-gray-400 font-medium">Active Standups</div>
-              </motion.div>
-
-              {/* Delivery Method Card */}
-              <motion.div
-                whileHover={{ y: -2 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                className="bg-blue-100/60 dark:bg-blue-950/20 rounded-2xl p-6 border-0 relative"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center">
-                    {activeStandups.some(s => s.deliveryType === 'channel') ? (
-                      <Slack className="w-6 h-6 text-white" />
-                    ) : activeStandups.length > 0 ? (
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 group-hover:from-blue-500/10 group-hover:to-purple-500/10 transition-all duration-300" />
+                <div className="relative space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25">
                       <Users className="w-6 h-6 text-white" />
-                    ) : (
-                      <Link2 className="w-6 h-6 text-white" />
-                    )}
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-1 transition-transform" />
                   </div>
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <div className="space-y-1">
+                    <h3 className="font-semibold text-foreground">Team Collaboration</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Manage {team.members.length} active team members
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 pt-2">
+                    <div className="flex -space-x-2">
+                      {team.members.slice(0, 3).map(member => (
+                        <div
+                          key={member.id}
+                          className="w-6 h-6 bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center text-white text-xs font-medium border-2 border-background"
+                        >
+                          {member.name.charAt(0)}
+                        </div>
+                      ))}
+                      {team.members.length > 3 && (
+                        <div className="w-6 h-6 bg-muted rounded-full flex items-center justify-center text-xs font-medium border-2 border-background">
+                          +{team.members.length - 3}
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-sm font-medium text-foreground">
+                      {team.members.length} members
+                    </span>
+                  </div>
                 </div>
-                <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-                  {activeStandups.some(s => s.deliveryType === 'channel')
-                    ? 'Channel'
-                    : activeStandups.length > 0
-                      ? 'Direct Message'
-                      : 'No Standups'}
-                </div>
-                <div className="text-gray-600 dark:text-gray-400 font-medium">
-                  {activeStandups.some(s => s.deliveryType === 'channel')
-                    ? 'Slack channel delivery'
-                    : activeStandups.length > 0
-                      ? 'Direct message delivery'
-                      : 'Create your first standup'}
+              </motion.div>
+
+              {/* Automation Hub Card */}
+              <motion.div
+                whileHover={{ y: -4, scale: 1.02 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                className="bg-card hover:shadow-xl border border-border/50 rounded-xl p-6 relative overflow-hidden group"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 to-purple-500/5 group-hover:from-violet-500/10 group-hover:to-purple-500/10 transition-all duration-300" />
+                <div className="relative space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg shadow-violet-500/25">
+                      <Zap className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="text-xs bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 px-2 py-1 rounded-full font-medium">
+                      {activeStandups.length} Active
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="font-semibold text-foreground">Automation Hub</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {activeStandups.length > 0
+                        ? `${activeStandups.length} standup${activeStandups.length !== 1 ? 's' : ''} running`
+                        : 'No automated standups configured'}
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between pt-2">
+                    <div className="flex items-center gap-2">
+                      {activeStandups.some(s => s.deliveryType === 'channel') ? (
+                        <Slack className="w-4 h-4 text-green-500" />
+                      ) : activeStandups.length > 0 ? (
+                        <Users className="w-4 h-4 text-blue-500" />
+                      ) : (
+                        <Clock className="w-4 h-4 text-muted-foreground" />
+                      )}
+                      <span className="text-sm font-medium text-foreground">
+                        {activeStandups.some(s => s.deliveryType === 'channel')
+                          ? 'Channel Delivery'
+                          : activeStandups.length > 0
+                            ? 'Direct Messages'
+                            : 'No Active Standups'}
+                      </span>
+                    </div>
+                    <Activity className="w-4 h-4 text-muted-foreground" />
+                  </div>
                 </div>
               </motion.div>
             </motion.div>

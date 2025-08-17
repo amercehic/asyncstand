@@ -81,11 +81,6 @@ const ResetPasswordPage = React.lazy(() =>
     default: module.ResetPasswordPage,
   }))
 );
-const ToastDemoPage = React.lazy(() =>
-  import(/* webpackChunkName: "ui-demo" */ '@/pages/ToastDemoPage').then(module => ({
-    default: module.ToastDemoPage,
-  }))
-);
 
 // Loading component
 const PageLoader = () => (
@@ -252,15 +247,6 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<PageLoader />}>
             <MagicTokenStandupPage />
-          </Suspense>
-        ),
-        errorElement: <ErrorPage />,
-      },
-      {
-        path: 'toast-demo',
-        element: (
-          <Suspense fallback={<PageLoader />}>
-            <ToastDemoPage />
           </Suspense>
         ),
         errorElement: <ErrorPage />,
