@@ -20,34 +20,40 @@ const typeIcons = {
 
 const typeStyles = {
   success: {
-    border: 'border-l-green-500',
+    border: 'border-l-4 border-l-green-500',
     icon: 'text-green-500',
     bg: 'bg-card',
+    progress: 'bg-green-500',
   },
   error: {
-    border: 'border-l-red-500',
+    border: 'border-l-4 border-l-red-500',
     icon: 'text-red-500',
     bg: 'bg-card',
+    progress: 'bg-red-500',
   },
   warning: {
-    border: 'border-l-orange-500',
+    border: 'border-l-4 border-l-orange-500',
     icon: 'text-orange-500',
     bg: 'bg-card',
+    progress: 'bg-orange-500',
   },
   info: {
-    border: 'border-l-blue-500',
+    border: 'border-l-4 border-l-blue-500',
     icon: 'text-blue-500',
     bg: 'bg-card',
+    progress: 'bg-blue-500',
   },
   loading: {
-    border: 'border-l-blue-500',
+    border: 'border-l-4 border-l-blue-500',
     icon: 'text-blue-500 animate-spin',
     bg: 'bg-card',
+    progress: 'bg-blue-500',
   },
   custom: {
-    border: 'border-l-gray-500',
+    border: 'border-l-4 border-l-gray-500',
     icon: 'text-gray-500',
     bg: 'bg-card',
+    progress: 'bg-gray-500',
   },
 };
 
@@ -111,8 +117,8 @@ export const ToastComponent: React.FC<ToastProps> = ({ toast, onRemove }) => {
   return (
     <div
       className={cn(
-        'toast-item group relative flex w-full max-w-md items-start gap-3 rounded-lg border border-border p-4 shadow-lg backdrop-blur-sm transition-all duration-200 ease-out',
-        styles.bg,
+        'toast-item group relative flex w-full min-w-80 max-w-md items-start gap-4 rounded-xl border border-border/50 p-5 shadow-2xl backdrop-blur-md transition-all duration-300 ease-out hover:shadow-3xl hover:scale-[1.02]',
+        'bg-gradient-to-br from-card/95 to-card/80 dark:from-card/90 dark:to-card/70',
         styles.border,
         isVisible && !isExiting
           ? 'translate-x-0 opacity-100 scale-100'
@@ -126,15 +132,11 @@ export const ToastComponent: React.FC<ToastProps> = ({ toast, onRemove }) => {
     >
       {/* Progress bar */}
       {!toast.persistent && toast.duration && toast.duration > 0 && (
-        <div className="absolute bottom-0 left-0 h-1 w-full overflow-hidden rounded-b-lg bg-muted">
+        <div className="absolute bottom-0 left-0 h-1.5 w-full overflow-hidden rounded-b-xl bg-muted/30">
           <div
             className={cn(
-              'h-full transition-all duration-50 ease-linear',
-              toast.type === 'success' && 'bg-green-500',
-              toast.type === 'error' && 'bg-red-500',
-              toast.type === 'warning' && 'bg-orange-500',
-              toast.type === 'info' && 'bg-blue-500',
-              toast.type === 'loading' && 'bg-blue-500'
+              'h-full transition-all duration-50 ease-linear shadow-sm',
+              styles.progress
             )}
             style={{ width: `${progress}%` }}
           />
@@ -144,15 +146,26 @@ export const ToastComponent: React.FC<ToastProps> = ({ toast, onRemove }) => {
       {/* Icon */}
       <div className="flex-shrink-0">
         {toast.icon ? (
-          <div className={cn('mt-0.5', styles.icon)}>{toast.icon}</div>
+          <div
+            className={cn('mt-0.5 transition-all duration-200 group-hover:scale-110', styles.icon)}
+          >
+            {toast.icon}
+          </div>
         ) : IconComponent ? (
-          <IconComponent className={cn('h-5 w-5 mt-0.5', styles.icon)} />
+          <IconComponent
+            className={cn(
+              'h-5 w-5 mt-0.5 transition-all duration-200 group-hover:scale-110',
+              styles.icon
+            )}
+          />
         ) : null}
       </div>
 
       {/* Content */}
       <div className="flex-1 space-y-1">
-        {toast.title && <h4 className="font-medium text-sm text-card-foreground">{toast.title}</h4>}
+        {toast.title && (
+          <h4 className="font-semibold text-sm text-card-foreground">{toast.title}</h4>
+        )}
 
         {toast.richContent ? (
           <div className="space-y-2">
@@ -178,9 +191,9 @@ export const ToastComponent: React.FC<ToastProps> = ({ toast, onRemove }) => {
           </div>
         ) : (
           <>
-            <p className="text-sm text-card-foreground">{toast.message}</p>
+            <p className="text-sm text-card-foreground leading-relaxed">{toast.message}</p>
             {toast.description && (
-              <p className="text-sm text-muted-foreground">{toast.description}</p>
+              <p className="text-sm text-muted-foreground leading-relaxed">{toast.description}</p>
             )}
           </>
         )}
@@ -222,7 +235,7 @@ export const ToastComponent: React.FC<ToastProps> = ({ toast, onRemove }) => {
       {toast.dismissible !== false && (
         <button
           onClick={handleRemove}
-          className="flex-shrink-0 opacity-70 hover:opacity-100 transition-opacity"
+          className="flex-shrink-0 opacity-60 hover:opacity-100 hover:bg-muted/50 rounded-full p-1 transition-all duration-200 hover:scale-110"
           aria-label="Close notification"
         >
           <X className="h-4 w-4" />

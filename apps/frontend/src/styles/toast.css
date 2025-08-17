@@ -226,3 +226,18 @@
     0 4px 12px rgba(0, 0, 0, 0.3),
     0 2px 4px rgba(0, 0, 0, 0.2) !important;
 }
+
+/* ===== MODERN TOAST ENHANCEMENTS ===== */
+.shadow-3xl {
+  box-shadow:
+    0 25px 50px -12px rgba(0, 0, 0, 0.25),
+    0 10px 25px -5px rgba(0, 0, 0, 0.1),
+    0 4px 10px -2px rgba(0, 0, 0, 0.05);
+}
+
+.dark .shadow-3xl {
+  box-shadow:
+    0 25px 50px -12px rgba(0, 0, 0, 0.5),
+    0 10px 25px -5px rgba(0, 0, 0, 0.2),
+    0 4px 10px -2px rgba(0, 0, 0, 0.1);
+}
