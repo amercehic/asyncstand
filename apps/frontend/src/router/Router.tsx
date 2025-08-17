@@ -36,6 +36,11 @@ const TeamDetailPage = React.lazy(() =>
     default: module.TeamDetailPage,
   }))
 );
+const StandupsPage = React.lazy(() =>
+  import(/* webpackChunkName: "standups" */ '@/pages/StandupsPage').then(module => ({
+    default: module.StandupsPage,
+  }))
+);
 const StandupConfigPage = React.lazy(() =>
   import(/* webpackChunkName: "standups" */ '@/pages/StandupConfigPage').then(module => ({
     default: module.StandupConfigPage,
@@ -171,6 +176,17 @@ const router = createBrowserRouter([
           <ProtectedRoute>
             <Suspense fallback={<PageLoader />}>
               <TeamDetailPage />
+            </Suspense>
+          </ProtectedRoute>
+        ),
+        errorElement: <ErrorPage />,
+      },
+      {
+        path: 'standups',
+        element: (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <StandupsPage />
             </Suspense>
           </ProtectedRoute>
         ),
