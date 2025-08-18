@@ -1,5 +1,7 @@
 import React from 'react';
-import { cn, Label, Input } from '@/components/ui';
+import { cn } from '@/components/ui';
+import { Label } from '@/components/ui/Label';
+import { Input } from '@/components/ui/Input';
 
 interface FormFieldProps {
   label?: string;
