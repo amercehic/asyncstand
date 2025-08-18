@@ -148,14 +148,14 @@ describe('ActiveStandupsList', () => {
       expect(screen.getByText('Daily Standup')).toBeInTheDocument();
       expect(screen.getByText('Weekdays at 09:00')).toBeInTheDocument();
       expect(screen.getByText('3 questions')).toBeInTheDocument();
-      expect(screen.getByText('Active')).toBeInTheDocument();
+      expect(screen.getAllByText('Active')).toHaveLength(2); // Filter button + status badge
       expect(screen.getByText('Weekdays')).toBeInTheDocument();
 
       // Check inactive standup details
       expect(screen.getByText('Weekly Review')).toBeInTheDocument();
       expect(screen.getByText('Fridays at 15:00')).toBeInTheDocument();
       expect(screen.getByText('1 questions')).toBeInTheDocument();
-      expect(screen.getByText('Paused')).toBeInTheDocument();
+      expect(screen.getAllByText('Paused')).toHaveLength(2); // Filter button + status badge
 
       // Both standups should have UTC timezone
       expect(screen.getAllByText('UTC')).toHaveLength(2);

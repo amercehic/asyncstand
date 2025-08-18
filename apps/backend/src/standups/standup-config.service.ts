@@ -84,21 +84,7 @@ export class StandupConfigService {
       }
     }
 
-    // Check for name conflicts
-    const existingConfigByName = await this.prisma.standupConfig.findFirst({
-      where: {
-        teamId,
-        name: data.name,
-      },
-    });
-
-    if (existingConfigByName) {
-      throw new ApiError(
-        ErrorCode.STANDUP_CONFIG_ALREADY_EXISTS,
-        `A standup configuration with name "${data.name}" already exists for this team`,
-        HttpStatus.CONFLICT,
-      );
-    }
+    // Allow multiple configs per team with same name - only check for time conflicts
 
     // Check for time conflicts with existing configs
     await this.validateTimeConflicts(teamId, data.weekdays, data.timeLocal, data.timezone);
@@ -229,23 +215,7 @@ export class StandupConfigService {
       );
     }
 
-    // Check for name conflicts if name is being updated
-    if (data.name && data.name !== config.name) {
-      const existingConfigByName = await this.prisma.standupConfig.findFirst({
-        where: {
-          teamId: config.teamId,
-          name: data.name,
-        },
-      });
-
-      if (existingConfigByName) {
-        throw new ApiError(
-          ErrorCode.STANDUP_CONFIG_ALREADY_EXISTS,
-          `A standup configuration with name "${data.name}" already exists for this team`,
-          HttpStatus.CONFLICT,
-        );
-      }
-    }
+    // Allow multiple configs per team with same name - only validate time conflicts when schedule changes
 
     // Update the config
     await this.prisma.standupConfig.update({
@@ -321,6 +291,7 @@ export class StandupConfigService {
       teamId: config.teamId,
       name: config.name,
       deliveryType: config.deliveryType,
+      targetChannelId: config.targetChannelId || undefined,
       questions: config.questions,
       weekdays: config.weekdays,
       timeLocal: config.timeLocal,
@@ -394,6 +365,7 @@ export class StandupConfigService {
       teamId: config.teamId,
       name: config.name,
       deliveryType: config.deliveryType,
+      targetChannelId: config.targetChannelId || undefined,
       questions: config.questions,
       weekdays: config.weekdays,
       timeLocal: config.timeLocal,
@@ -489,23 +461,7 @@ export class StandupConfigService {
       );
     }
 
-    // Check for name conflicts if name is being updated
-    if (data.name && data.name !== config.name) {
-      const existingConfigByName = await this.prisma.standupConfig.findFirst({
-        where: {
-          teamId: config.teamId,
-          name: data.name,
-        },
-      });
-
-      if (existingConfigByName) {
-        throw new ApiError(
-          ErrorCode.STANDUP_CONFIG_ALREADY_EXISTS,
-          `A standup configuration with name "${data.name}" already exists for this team`,
-          HttpStatus.CONFLICT,
-        );
-      }
-    }
+    // Allow multiple configs per team with same name - only validate time conflicts when schedule changes
 
     // Update the config
     await this.prisma.standupConfig.update({
@@ -885,6 +841,7 @@ export class StandupConfigService {
         teamId: config.teamId,
         name: config.name,
         deliveryType: config.deliveryType,
+        targetChannelId: config.targetChannelId || undefined,
         questions: config.questions,
         weekdays: config.weekdays,
         timeLocal: config.timeLocal,

@@ -5,6 +5,7 @@ export interface StandupConfigResponse {
   teamId: string;
   name: string;
   deliveryType: StandupDeliveryType;
+  targetChannelId?: string;
   questions: string[];
   weekdays: number[];
   timeLocal: string;

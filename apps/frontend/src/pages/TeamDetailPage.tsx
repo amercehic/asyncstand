@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ModernButton, ConfirmationModal } from '@/components/ui';
 import {
@@ -34,6 +34,7 @@ type TabType = 'overview' | 'members' | 'standups' | 'settings';
 export const TeamDetailPage = React.memo(() => {
   const { teamId } = useParams<{ teamId: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { deleteTeam } = useTeams();
   const [team, setTeam] = useState<Team | null>(null);
   const [standups, setStandups] = useState<StandupConfig[]>([]);
@@ -43,11 +44,32 @@ export const TeamDetailPage = React.memo(() => {
   const [isMemberAssignmentOpen, setIsMemberAssignmentOpen] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState<Team['members'][0] | null>(null);
   const [isRemovingMember, setIsRemovingMember] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    const tabFromUrl = searchParams.get('tab') as TabType;
+    return tabFromUrl && ['overview', 'members', 'standups', 'settings'].includes(tabFromUrl)
+      ? tabFromUrl
+      : 'overview';
+  });
   const [showActionMenu, setShowActionMenu] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleTabChange = useCallback(
+    (tab: TabType) => {
+      setActiveTab(tab);
+      // Update URL to reflect current tab
+      const newSearchParams = new URLSearchParams(searchParams);
+      if (tab === 'overview') {
+        // Remove tab param for overview since it's the default
+        newSearchParams.delete('tab');
+      } else {
+        newSearchParams.set('tab', tab);
+      }
+      setSearchParams(newSearchParams);
+    },
+    [searchParams, setSearchParams]
+  );
 
   // Function to fetch only standups data (for refreshing after deletion)
   const fetchStandupsOnly = useCallback(async () => {
@@ -120,7 +142,6 @@ export const TeamDetailPage = React.memo(() => {
 
   const handleTeamUpdate = async () => {
     await fetchData();
-    toast.success('Team updated successfully');
   };
 
   const handleRemoveMember = async () => {
@@ -293,7 +314,7 @@ export const TeamDetailPage = React.memo(() => {
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => handleTabChange(tab.id)}
                     className={`flex items-center gap-2 py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
                       activeTab === tab.id
                         ? 'border-primary text-primary'
@@ -396,7 +417,7 @@ export const TeamDetailPage = React.memo(() => {
                   <ModernButton
                     variant="outline"
                     className="justify-start gap-3 h-auto p-4 group"
-                    onClick={() => setActiveTab('settings')}
+                    onClick={() => handleTabChange('settings')}
                   >
                     <Settings className="w-5 h-5" />
                     <div className="text-left">

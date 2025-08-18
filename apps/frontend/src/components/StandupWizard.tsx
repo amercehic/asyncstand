@@ -252,7 +252,11 @@ export const StandupWizard: React.FC<StandupWizardProps> = ({
       case 'schedule':
         return !!(formData.schedule?.time && formData.schedule?.days?.length);
       case 'delivery':
-        return !!formData.deliveryType;
+        if (!formData.deliveryType) return false;
+        if (formData.deliveryType === StandupDeliveryType.channel && !formData.targetChannelId) {
+          return false;
+        }
+        return true;
       case 'members':
         return selectedMembers.length > 0;
       case 'review':
@@ -607,6 +611,11 @@ export const StandupWizard: React.FC<StandupWizardProps> = ({
                         </option>
                       ))}
                     </select>
+                    {!formData.targetChannelId && (
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Please select a channel to continue to the next step.
+                      </p>
+                    )}
                   </div>
                 )}
               </motion.div>

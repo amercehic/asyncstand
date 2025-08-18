@@ -330,7 +330,6 @@ model StandupConfig {
   // Relations
   configMembers          StandupConfigMember[]
 
-  @@unique([teamId, name]) // Prevent duplicate names per team
   @@index([targetChannelId])
 }
 

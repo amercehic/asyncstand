@@ -259,6 +259,17 @@ const router = createBrowserRouter([
         errorElement: <ErrorPage />,
       },
       {
+        path: 'standups/:standupId/edit',
+        element: (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <StandupConfigPage />
+            </Suspense>
+          </ProtectedRoute>
+        ),
+        errorElement: <ErrorPage />,
+      },
+      {
         path: 'standup/submit',
         element: (
           <Suspense fallback={<PageLoader />}>

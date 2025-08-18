@@ -379,16 +379,31 @@ export class TeamManagementService {
         },
         isArchived: false, // Only show non-archived channels
       },
+      include: {
+        standupConfigs: {
+          where: {
+            isActive: true, // Only check active standup configs
+          },
+          include: {
+            team: {
+              select: { name: true },
+            },
+          },
+        },
+      },
       orderBy: { name: 'asc' },
     });
 
     return {
-      channels: channels.map((channel) => ({
-        id: channel.channelId, // Return Slack channel ID for team creation
-        name: channel.name,
-        isAssigned: false, // Teams no longer directly tied to channels
-        assignedTeamName: undefined,
-      })),
+      channels: channels.map((channel) => {
+        const activeStandupConfig = channel.standupConfigs[0]; // Get first active config if any
+        return {
+          id: channel.id, // Return database channel ID for standup creation
+          name: channel.name,
+          isAssigned: channel.standupConfigs.length > 0,
+          assignedTeamName: activeStandupConfig?.team?.name,
+        };
+      }),
     };
   }
 

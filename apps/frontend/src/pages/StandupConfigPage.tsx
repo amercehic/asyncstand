@@ -16,7 +16,8 @@ import {
 } from 'lucide-react';
 import { toast } from '@/components/ui';
 import { teamsApi, standupsApi } from '@/lib/api';
-import type { Team } from '@/types';
+import type { Team, Standup } from '@/types';
+import type { AvailableChannel } from '@/types/backend';
 import { StandupDeliveryType } from '@/types/backend';
 import type { AxiosError } from 'axios';
 
@@ -122,13 +123,18 @@ const STANDUP_TEMPLATES = [
 ] as const;
 
 export const StandupConfigPage = React.memo(() => {
-  const { teamId } = useParams<{ teamId: string }>();
+  const { teamId, standupId } = useParams<{ teamId?: string; standupId?: string }>();
   const navigate = useNavigate();
   const [team, setTeam] = useState<Team | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [showTemplateSelection, setShowTemplateSelection] = useState(true);
+
+  // Determine if we're in edit mode
+  const isEditMode = Boolean(standupId);
+  const [existingStandup, setExistingStandup] = useState<Standup | null>(null);
+  const [availableChannels, setAvailableChannels] = useState<AvailableChannel[]>([]);
   const [formData, setFormData] = useState<StandupFormData>({
     name: 'Daily Standup',
     deliveryType: StandupDeliveryType.channel,
@@ -138,78 +144,174 @@ export const StandupConfigPage = React.memo(() => {
       days: [...STANDUP_TEMPLATES[0].schedule.days],
       timezone: 'UTC',
     },
-    targetChannelId: '',
+    targetChannelId: undefined,
   });
 
   useEffect(() => {
-    const fetchTeamData = async () => {
-      if (!teamId) return;
-
+    const fetchData = async () => {
       try {
         setIsLoading(true);
 
-        // Fetch team data
-        const teamData = await teamsApi.getTeam(teamId);
-        setTeam(teamData);
+        if (isEditMode && standupId) {
+          // Edit mode: load existing standup data
+          try {
+            const [standupData, channelsData] = await Promise.all([
+              standupsApi.getStandupConfig(standupId),
+              teamsApi.getAvailableChannels(),
+            ]);
+            setExistingStandup(standupData);
+            setAvailableChannels(channelsData.channels);
 
-        // If team has a channel, auto-set it for new standups
-        if (teamData.channel) {
-          setFormData(prev => ({
-            ...prev,
-            targetChannelId: teamData.channel!.id,
-          }));
-        }
+            // Set the team data from the loaded standup
+            const teamData = await teamsApi.getTeam(standupData.teamId);
+            setTeam(teamData);
 
-        // Try to fetch existing standup config, but don't fail if it doesn't exist
-        try {
-          const standups = await standupsApi.getTeamStandups(teamId);
-          if (standups.length > 0) {
-            const existingStandup = standups[0];
+            // Pre-populate the form with existing data
             setFormData({
-              name: existingStandup.name,
-              deliveryType: existingStandup.deliveryType,
-              questions: existingStandup.questions,
-              schedule: existingStandup.schedule,
-              targetChannelId: existingStandup.targetChannelId || '',
+              name: standupData.name,
+              deliveryType: standupData.deliveryType,
+              questions: standupData.questions,
+              schedule: standupData.schedule,
+              targetChannelId: standupData.targetChannelId || undefined,
             });
-          }
-        } catch (configError: unknown) {
-          // If standup config doesn't exist, that's okay - user can create one
-          const axiosError = configError as AxiosError;
-          const errorData = axiosError?.response?.data as
-            | { code?: string; detail?: string }
-            | undefined;
 
-          if (
-            axiosError?.response?.status === 404 ||
-            errorData?.code === 'STANDUP_CONFIG_NOT_FOUND' ||
-            (errorData?.detail && errorData.detail.includes('STANDUP_CONFIG_NOT_FOUND'))
-          ) {
-            // No existing standup config found, user can create one
-          } else {
-            console.error('Error fetching standup config:', configError);
-            toast.error('Failed to load existing standup configuration');
+            // Hide template selection for edit mode
+            setShowTemplateSelection(false);
+          } catch (error) {
+            console.error('Error loading standup config:', error);
+            toast.error('Failed to load standup configuration');
+            navigate('/standups');
+            return;
           }
+        } else if (teamId) {
+          // Create mode: load team data and available channels
+          const [teamData, channelsData] = await Promise.all([
+            teamsApi.getTeam(teamId),
+            teamsApi.getAvailableChannels(),
+          ]);
+          setTeam(teamData);
+          setAvailableChannels(channelsData.channels);
+
+          // Try to fetch existing standup config for pre-population first
+          let shouldAutoSelectChannel = true;
+          try {
+            const standups = await standupsApi.getTeamStandups(teamId);
+            if (standups.length > 0) {
+              const existingStandup = standups[0];
+              // Use existing standup data as template for new standup
+              setFormData(prev => ({
+                ...prev,
+                name: `${existingStandup.name} Copy`, // Add "Copy" to differentiate
+                deliveryType: existingStandup.deliveryType,
+                questions: existingStandup.questions,
+                schedule: existingStandup.schedule,
+                // Don't copy targetChannelId, let it auto-select below
+              }));
+              // Still auto-select channel even when copying from existing standup
+              shouldAutoSelectChannel = true;
+            }
+          } catch (configError: unknown) {
+            // If standup config doesn't exist, that's okay - user can create one
+            const axiosError = configError as AxiosError;
+            const errorData = axiosError?.response?.data as
+              | { code?: string; detail?: string }
+              | undefined;
+
+            if (
+              axiosError?.response?.status === 404 ||
+              errorData?.code === 'STANDUP_CONFIG_NOT_FOUND' ||
+              (errorData?.detail && errorData.detail.includes('STANDUP_CONFIG_NOT_FOUND'))
+            ) {
+              // No existing standup config found, user can create one
+            } else {
+              console.error('Error fetching standup config:', configError);
+              toast.error('Failed to load existing standup configuration');
+            }
+          }
+
+          // Auto-select first available unassigned channel for new standups
+          if (shouldAutoSelectChannel) {
+            const unassignedChannels = channelsData.channels.filter(ch => !ch.isAssigned);
+            if (unassignedChannels.length > 0) {
+              setFormData(prev => ({
+                ...prev,
+                targetChannelId: unassignedChannels[0].id,
+              }));
+            }
+          }
+        } else {
+          // Neither edit mode nor create mode with team - redirect
+          navigate('/standups');
+          return;
         }
       } catch (error: unknown) {
-        console.error('Error fetching team:', error);
+        console.error('Error fetching data:', error);
         if ((error as AxiosError)?.response?.status === 404) {
-          toast.error('Team not found');
+          toast.error(isEditMode ? 'Standup not found' : 'Team not found');
         } else {
-          toast.error('Failed to load team data');
+          toast.error('Failed to load data');
         }
-        setTeam(null);
+        navigate(isEditMode ? '/standups' : '/teams');
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchTeamData();
-  }, [teamId]);
+    fetchData();
+  }, [teamId, standupId, isEditMode, navigate]);
 
   const handleInputChange = (field: keyof StandupFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
+
+  // Validation function to check if form is valid
+  const isFormValid = (): boolean => {
+    // Check required fields
+    if (!formData.name.trim()) return false;
+    if (formData.questions.some(q => !q.trim())) return false;
+    if (formData.schedule.days.length === 0) return false;
+
+    // Check channel selection for channel delivery type
+    if (formData.deliveryType === StandupDeliveryType.channel && !formData.targetChannelId) {
+      return false;
+    }
+
+    return true;
+  };
+
+  // Check if channel selection is valid (for displaying warnings)
+  const isChannelSelectionValid = (): boolean => {
+    if (formData.deliveryType !== StandupDeliveryType.channel) return true;
+    return Boolean(formData.targetChannelId);
+  };
+
+  // Filter available channels and ensure selected channel is included in edit mode
+  const availableChannelsForSelection = (() => {
+    const baseChannels = availableChannels.filter(
+      channel => !channel.isAssigned || (isEditMode && channel.id === formData.targetChannelId)
+    );
+
+    // In edit mode, if the current channel is not in the list, find and add it
+    let channels = [...baseChannels];
+    if (isEditMode && formData.targetChannelId) {
+      const hasCurrentChannel = channels.some(ch => ch.id === formData.targetChannelId);
+      if (!hasCurrentChannel) {
+        const currentChannel = availableChannels.find(ch => ch.id === formData.targetChannelId);
+        if (currentChannel) {
+          channels = [...channels, currentChannel];
+        }
+      }
+    }
+
+    return channels.sort((a, b) => {
+      // In edit mode, sort the currently selected channel first
+      if (isEditMode && formData.targetChannelId) {
+        if (a.id === formData.targetChannelId) return -1;
+        if (b.id === formData.targetChannelId) return 1;
+      }
+      return a.name.localeCompare(b.name);
+    });
+  })();
 
   const handleScheduleChange = (
     field: keyof StandupFormData['schedule'],
@@ -294,23 +396,44 @@ export const StandupConfigPage = React.memo(() => {
       return;
     }
 
+    if (formData.deliveryType === StandupDeliveryType.channel && !formData.targetChannelId) {
+      toast.error('Please select a channel for delivery');
+      return;
+    }
+
     setIsSaving(true);
 
     try {
-      const standupData = {
-        teamId: teamId!,
-        name: formData.name,
-        deliveryType: formData.deliveryType,
-        questions: formData.questions,
-        schedule: formData.schedule,
-        targetChannelId: formData.targetChannelId || undefined,
-      };
+      if (isEditMode && standupId) {
+        // Update existing standup
+        const updateData = {
+          name: formData.name,
+          deliveryType: formData.deliveryType,
+          questions: formData.questions,
+          schedule: formData.schedule,
+          targetChannelId: formData.targetChannelId || undefined,
+        };
 
-      await standupsApi.createStandup(teamId!, standupData);
-      toast.success('Standup configuration saved successfully');
-      navigate(`/teams/${teamId}`);
+        await standupsApi.updateStandup(standupId, updateData);
+        toast.success('Standup configuration updated successfully');
+        navigate(`/teams/${existingStandup?.teamId || teamId}?tab=standups`);
+      } else if (teamId) {
+        // Create new standup
+        const standupData = {
+          teamId: teamId!,
+          name: formData.name,
+          deliveryType: formData.deliveryType,
+          questions: formData.questions,
+          schedule: formData.schedule,
+          targetChannelId: formData.targetChannelId || undefined,
+        };
+
+        await standupsApi.createStandup(teamId!, standupData);
+        toast.success('Standup configuration created successfully');
+        navigate(`/teams/${teamId}`);
+      }
     } catch (error: unknown) {
-      console.error('Error creating standup:', error);
+      console.error(`Error ${isEditMode ? 'updating' : 'creating'} standup:`, error);
 
       // Handle specific error cases with better messaging
       const axiosError = error as {
@@ -336,7 +459,7 @@ export const StandupConfigPage = React.memo(() => {
           errorMessage || 'A standup configuration with this name already exists for this team'
         );
       } else {
-        toast.error('Failed to save standup configuration');
+        toast.error(`Failed to ${isEditMode ? 'update' : 'save'} standup configuration`);
       }
     } finally {
       setIsSaving(false);
@@ -381,14 +504,24 @@ export const StandupConfigPage = React.memo(() => {
           transition={{ duration: 0.6 }}
           className="flex items-center gap-4 mb-8"
         >
-          <Link to={`/teams/${teamId}`}>
+          <Link
+            to={
+              isEditMode
+                ? `/teams/${existingStandup?.teamId || teamId}?tab=standups`
+                : `/teams/${teamId}`
+            }
+          >
             <ModernButton variant="ghost" size="sm">
               <ArrowLeft className="w-4 h-4" />
             </ModernButton>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold">Create Standup</h1>
-            <p className="text-muted-foreground text-lg">Configure a new standup for {team.name}</p>
+            <h1 className="text-3xl font-bold">{isEditMode ? 'Edit Standup' : 'Create Standup'}</h1>
+            <p className="text-muted-foreground text-lg">
+              {isEditMode
+                ? `Editing "${formData.name}" for ${team.name}`
+                : `Configure a new standup for ${team.name}`}
+            </p>
           </div>
         </motion.div>
 
@@ -601,6 +734,70 @@ export const StandupConfigPage = React.memo(() => {
                   </button>
                 </div>
               </motion.div>
+
+              {/* Channel Selection - only show when delivery type is channel */}
+              {formData.deliveryType === StandupDeliveryType.channel && (
+                <motion.div
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: showTemplateSelection ? 0.3 : 0.2 }}
+                  className="bg-card rounded-2xl p-6 border border-border"
+                >
+                  <h2 className="text-xl font-semibold mb-4">Channel Selection</h2>
+                  <p className="text-muted-foreground mb-6 text-sm">
+                    Choose which Slack channel to send standup messages to.
+                  </p>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label htmlFor="targetChannel" className="block text-sm font-medium mb-2">
+                        Target Channel
+                      </label>
+                      <select
+                        id="targetChannel"
+                        value={formData.targetChannelId || ''}
+                        onChange={e =>
+                          setFormData(prev => ({
+                            ...prev,
+                            targetChannelId: e.target.value || undefined,
+                          }))
+                        }
+                        className={`w-full px-4 py-3 rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent ${
+                          !isChannelSelectionValid()
+                            ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
+                            : 'border-border'
+                        }`}
+                        required
+                        disabled={availableChannels.length === 0}
+                      >
+                        <option value="">
+                          {availableChannels.length === 0
+                            ? 'Loading channels...'
+                            : 'Select a channel...'}
+                        </option>
+                        {availableChannelsForSelection.map(channel => (
+                          <option key={channel.id} value={channel.id}>
+                            #{channel.name}
+                            {channel.isAssigned && channel.assignedTeamName
+                              ? ` (used by ${channel.assignedTeamName})`
+                              : ''}
+                          </option>
+                        ))}
+                      </select>
+                      {!isChannelSelectionValid() && (
+                        <p className="text-sm text-red-600 mt-1">
+                          Please select a channel for channel delivery type.
+                        </p>
+                      )}
+                      {availableChannelsForSelection.length === 0 && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                          No available channels. All channels are assigned to other standups.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
 
               {/* Questions */}
               <motion.div
@@ -822,18 +1019,18 @@ export const StandupConfigPage = React.memo(() => {
                     type="submit"
                     variant="primary"
                     className="w-full"
-                    disabled={isSaving}
+                    disabled={isSaving || !isFormValid()}
                     data-testid="save-standup-button"
                   >
                     {isSaving ? (
                       <>
                         <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin mr-2" />
-                        Saving...
+                        {isEditMode ? 'Updating...' : 'Saving...'}
                       </>
                     ) : (
                       <>
                         <Save className="w-4 h-4 mr-2" />
-                        Create Standup
+                        {isEditMode ? 'Update Standup' : 'Create Standup'}
                       </>
                     )}
                   </ModernButton>

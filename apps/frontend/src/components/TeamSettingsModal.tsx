@@ -4,7 +4,7 @@ import { toast } from '@/components/ui';
 import { ModernButton, FormField } from '@/components/ui';
 import { Textarea } from '@/components/ui/Textarea';
 import { Label } from '@/components/ui/Label';
-import { X, Settings, Hash, Building2 } from 'lucide-react';
+import { X, Settings, Hash, Building2, Trash2, AlertTriangle } from 'lucide-react';
 import { teamsApi } from '@/lib/api';
 import type { Team, UpdateTeamRequest } from '@/types';
 
@@ -32,6 +32,9 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
       description: team.description || '',
     });
     const [errors, setErrors] = useState<FormFieldError>({});
+    const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+    const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // Update form data when team changes
     useEffect(() => {
@@ -94,14 +97,16 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
     }, [formData, team]);
 
     const handleClose = useCallback(() => {
-      if (isUpdating) return;
+      if (isUpdating || isDeleting) return;
       setFormData({
         name: team.name,
         description: team.description || '',
       });
       setErrors({});
+      setShowDeleteConfirmation(false);
+      setDeleteConfirmationText('');
       onClose();
-    }, [isUpdating, team, onClose]);
+    }, [isUpdating, isDeleting, team, onClose]);
 
     const handleSubmit = useCallback(
       async (e: React.FormEvent) => {
@@ -148,10 +153,33 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
       [errors]
     );
 
+    const handleDeleteTeam = useCallback(async () => {
+      if (deleteConfirmationText !== team.name) {
+        toast.error('Please type the team name exactly to confirm deletion');
+        return;
+      }
+
+      setIsDeleting(true);
+      try {
+        await teamsApi.deleteTeam(team.id);
+        toast.success('Team deleted successfully!', {
+          id: `delete-team-${team.id}`,
+        });
+        onSuccess();
+        handleClose();
+      } catch (error) {
+        console.error('Error deleting team:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Failed to delete team';
+        toast.error(errorMessage, { id: `delete-team-${team.id}` });
+      } finally {
+        setIsDeleting(false);
+      }
+    }, [deleteConfirmationText, team.name, team.id, onSuccess, handleClose]);
+
     // Add ESC key handler
     useEffect(() => {
       const handleEscKey = (event: KeyboardEvent) => {
-        if (event.key === 'Escape' && isOpen && !isUpdating) {
+        if (event.key === 'Escape' && isOpen && !isUpdating && !isDeleting) {
           handleClose();
         }
       };
@@ -165,7 +193,7 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
           document.removeEventListener('keydown', handleEscKey);
         }
       };
-    }, [isOpen, isUpdating, handleClose]);
+    }, [isOpen, isUpdating, isDeleting, handleClose]);
 
     if (!isOpen) return null;
 
@@ -280,6 +308,104 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
                       </div>
                     </div>
                   )}
+
+                  {/* Danger Zone */}
+                  <div className="border-t border-border pt-6">
+                    <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                      <h3 className="text-sm font-semibold text-red-800 dark:text-red-200 mb-2">
+                        Danger Zone
+                      </h3>
+                      <p className="text-sm text-red-700 dark:text-red-300 mb-4">
+                        Permanently delete this team and all associated data. This action cannot be
+                        undone.
+                      </p>
+
+                      {!showDeleteConfirmation ? (
+                        <ModernButton
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => setShowDeleteConfirmation(true)}
+                          disabled={isUpdating || isDeleting}
+                          data-testid="show-delete-confirmation"
+                          className="bg-red-600 hover:bg-red-700 text-white"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete Team
+                        </ModernButton>
+                      ) : (
+                        <div className="space-y-4">
+                          <div className="flex items-start gap-3 p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                            <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                            <div>
+                              <p className="text-sm font-medium text-red-800 dark:text-red-200">
+                                Are you absolutely sure?
+                              </p>
+                              <p className="text-sm text-red-700 dark:text-red-300 mt-1">
+                                This action cannot be undone. This will permanently delete the team,
+                                all standups, and remove all team members.
+                              </p>
+                            </div>
+                          </div>
+
+                          <div>
+                            <Label className="text-sm font-medium text-red-800 dark:text-red-200 mb-2 block">
+                              Please type{' '}
+                              <span className="font-mono bg-red-200 dark:bg-red-800 px-1 rounded">
+                                {team.name}
+                              </span>{' '}
+                              to confirm:
+                            </Label>
+                            <FormField
+                              id="delete-confirmation"
+                              type="text"
+                              value={deleteConfirmationText}
+                              onChange={e => setDeleteConfirmationText(e.target.value)}
+                              placeholder={`Type "${team.name}" to confirm`}
+                              disabled={isDeleting}
+                              className="mb-3"
+                            />
+                          </div>
+
+                          <div className="flex gap-3">
+                            <ModernButton
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setShowDeleteConfirmation(false);
+                                setDeleteConfirmationText('');
+                              }}
+                              disabled={isDeleting}
+                            >
+                              Cancel
+                            </ModernButton>
+                            <ModernButton
+                              type="button"
+                              variant="destructive"
+                              size="sm"
+                              onClick={handleDeleteTeam}
+                              disabled={isDeleting || deleteConfirmationText !== team.name}
+                              data-testid="confirm-delete-team"
+                              className="bg-red-600 hover:bg-red-700 text-white"
+                            >
+                              {isDeleting ? (
+                                <>
+                                  <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin mr-2" />
+                                  Deleting...
+                                </>
+                              ) : (
+                                <>
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  Delete Team
+                                </>
+                              )}
+                            </ModernButton>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -289,7 +415,7 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
                   type="button"
                   variant="ghost"
                   onClick={handleClose}
-                  disabled={isUpdating}
+                  disabled={isUpdating || isDeleting}
                   className="flex-1"
                 >
                   Cancel
@@ -297,7 +423,7 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
                 <ModernButton
                   type="submit"
                   variant="primary"
-                  disabled={isUpdating || !isFormValid || !hasChanges}
+                  disabled={isUpdating || isDeleting || !isFormValid || !hasChanges}
                   className="flex-1"
                 >
                   {isUpdating ? (
