@@ -27,6 +27,7 @@ export interface Team {
   name: string;
   description?: string;
   members: User[];
+  memberCount?: number; // Used when members array is not populated
   channel?: {
     id: string;
     name: string;

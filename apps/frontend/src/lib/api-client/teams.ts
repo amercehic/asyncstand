@@ -14,6 +14,7 @@ function mapListItemToTeam(item: TeamListResponse['teams'][0]): Team {
     name: String(item.name),
     description: undefined,
     members: [],
+    memberCount: item.memberCount,
     createdAt: new Date(item.createdAt).toISOString(),
     updatedAt: new Date(item.createdAt).toISOString(),
   };

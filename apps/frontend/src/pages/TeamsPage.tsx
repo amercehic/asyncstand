@@ -78,7 +78,7 @@ const TeamCard = React.memo<TeamCardProps>(
       let score = 50; // Base score
       if (activeStandups.length > 0) score += 30; // Has active standups
       if (activeStandups.some(s => s.deliveryType === 'channel')) score += 10; // Has channel delivery
-      score += Math.min(10, team.members.length * 2); // More members = better, capped at 10
+      score += Math.min(10, (team.memberCount || team.members.length) * 2); // More members = better, capped at 10
       return Math.min(100, score);
     }, [team, activeStandups]);
 
@@ -156,25 +156,53 @@ const TeamCard = React.memo<TeamCardProps>(
             </div>
             <div className="flex items-center gap-2">
               <div className="flex -space-x-1">
-                {team.members.slice(0, 3).map(member => (
-                  <div
-                    key={member.id}
-                    className="w-6 h-6 bg-primary rounded-full border-2 border-card flex items-center justify-center"
-                  >
-                    <span className="text-white font-medium text-xs">
-                      {member.name.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                ))}
-                {team.members.length > 3 && (
+                {team.members.length > 0 ? (
+                  <>
+                    {team.members.slice(0, 3).map(member => (
+                      <div
+                        key={member.id}
+                        className="w-6 h-6 bg-primary rounded-full border-2 border-card flex items-center justify-center"
+                      >
+                        <span className="text-white font-medium text-xs">
+                          {member.name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    ))}
+                    {team.members.length > 3 && (
+                      <div className="w-6 h-6 bg-muted rounded-full border-2 border-card flex items-center justify-center">
+                        <span className="text-muted-foreground font-medium text-xs">
+                          +{team.members.length - 3}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                ) : team.memberCount && team.memberCount > 0 ? (
+                  <>
+                    {[...Array(Math.min(3, team.memberCount))].map((_, i) => (
+                      <div
+                        key={i}
+                        className="w-6 h-6 bg-primary rounded-full border-2 border-card flex items-center justify-center"
+                      >
+                        <Users className="w-3 h-3 text-white" />
+                      </div>
+                    ))}
+                    {team.memberCount > 3 && (
+                      <div className="w-6 h-6 bg-muted rounded-full border-2 border-card flex items-center justify-center">
+                        <span className="text-muted-foreground font-medium text-xs">
+                          +{team.memberCount - 3}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                ) : (
                   <div className="w-6 h-6 bg-muted rounded-full border-2 border-card flex items-center justify-center">
-                    <span className="text-muted-foreground font-medium text-xs">
-                      +{team.members.length - 3}
-                    </span>
+                    <Users className="w-3 h-3 text-muted-foreground" />
                   </div>
                 )}
               </div>
-              <span className="text-sm font-semibold">{team.members.length}</span>
+              <span className="text-sm font-semibold">
+                {team.memberCount || team.members.length}
+              </span>
             </div>
           </div>
 
@@ -471,7 +499,7 @@ export const TeamsPage = React.memo(() => {
         case 'name':
           return a.name.localeCompare(b.name);
         case 'members':
-          return b.members.length - a.members.length;
+          return (b.memberCount || b.members.length) - (a.memberCount || a.members.length);
         case 'activity': {
           // Sort by active standups count
           const aActive = (teamStandups[a.id] || []).filter(s => s.isActive).length;
@@ -492,7 +520,10 @@ export const TeamsPage = React.memo(() => {
   // Calculate statistics
   const stats = useMemo(() => {
     const totalTeams = teams.length;
-    const totalMembers = teams.reduce((acc, team) => acc + team.members.length, 0);
+    const totalMembers = teams.reduce(
+      (acc, team) => acc + (team.memberCount || team.members.length),
+      0
+    );
     const teamsWithChannelStandups = teams.filter(team =>
       (teamStandups[team.id] || []).some(s => s.deliveryType === 'channel')
     ).length;
