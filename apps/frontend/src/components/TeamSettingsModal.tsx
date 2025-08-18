@@ -4,16 +4,14 @@ import { toast } from '@/components/ui';
 import { ModernButton, FormField } from '@/components/ui';
 import { Textarea } from '@/components/ui/Textarea';
 import { Label } from '@/components/ui/Label';
-import { X, Settings, Hash, Building2, Trash2, AlertTriangle } from 'lucide-react';
+import { X, Settings, Hash, Building2 } from 'lucide-react';
 import { teamsApi } from '@/lib/api';
-import { useTeams } from '@/contexts';
 import type { Team, UpdateTeamRequest } from '@/types';
 
 interface TeamSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  onTeamDeleted?: () => void;
   team: Team;
 }
 
@@ -27,12 +25,8 @@ interface FormFieldError {
 }
 
 export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
-  ({ isOpen, onClose, onSuccess, onTeamDeleted, team }) => {
-    const { deleteTeam } = useTeams();
+  ({ isOpen, onClose, onSuccess, team }) => {
     const [isUpdating, setIsUpdating] = useState(false);
-    const [isDeleting, setIsDeleting] = useState(false);
-    const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
-    const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
     const [formData, setFormData] = useState<TeamSettingsFormData>({
       name: team.name,
       description: team.description || '',
@@ -100,16 +94,14 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
     }, [formData, team]);
 
     const handleClose = useCallback(() => {
-      if (isUpdating || isDeleting) return;
+      if (isUpdating) return;
       setFormData({
         name: team.name,
         description: team.description || '',
       });
       setErrors({});
-      setShowDeleteConfirmation(false);
-      setDeleteConfirmationText('');
       onClose();
-    }, [isUpdating, isDeleting, team, onClose]);
+    }, [isUpdating, team, onClose]);
 
     const handleSubmit = useCallback(
       async (e: React.FormEvent) => {
@@ -156,36 +148,10 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
       [errors]
     );
 
-    const handleDeleteTeam = useCallback(async () => {
-      if (deleteConfirmationText !== team.name) {
-        toast.error('Please type the team name exactly to confirm deletion');
-        return;
-      }
-
-      setIsDeleting(true);
-      try {
-        // Use the TeamsContext deleteTeam method which handles both API call and state update
-        // Skip confirmation since we already have our own confirmation UI
-        await deleteTeam(team.id, true);
-        handleClose();
-        // Call the dedicated deletion callback if provided, otherwise fall back to onSuccess
-        if (onTeamDeleted) {
-          onTeamDeleted();
-        } else {
-          onSuccess();
-        }
-      } catch (error) {
-        console.error('Error deleting team:', error);
-        // Error toast is handled by TeamsContext deleteTeam method
-      } finally {
-        setIsDeleting(false);
-      }
-    }, [deleteConfirmationText, team, deleteTeam, onTeamDeleted, onSuccess, handleClose]);
-
     // Add ESC key handler
     useEffect(() => {
       const handleEscKey = (event: KeyboardEvent) => {
-        if (event.key === 'Escape' && isOpen && !isUpdating && !isDeleting) {
+        if (event.key === 'Escape' && isOpen && !isUpdating) {
           handleClose();
         }
       };
@@ -199,7 +165,7 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
           document.removeEventListener('keydown', handleEscKey);
         }
       };
-    }, [isOpen, isUpdating, isDeleting, handleClose]);
+    }, [isOpen, isUpdating, handleClose]);
 
     if (!isOpen) return null;
 
@@ -237,7 +203,7 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
                   variant="ghost"
                   size="sm"
                   onClick={handleClose}
-                  disabled={isUpdating || isDeleting}
+                  disabled={isUpdating}
                   className="text-muted-foreground hover:text-foreground"
                 >
                   <X className="w-5 h-5" />
@@ -315,88 +281,6 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
                     </div>
                   )}
                 </div>
-
-                {/* Danger Zone */}
-                <div className="mt-8 p-6 bg-red-50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-800">
-                  <div className="flex items-center gap-2 mb-4">
-                    <AlertTriangle className="w-5 h-5 text-red-600" />
-                    <h3 className="text-lg font-semibold text-red-800 dark:text-red-200">
-                      Danger Zone
-                    </h3>
-                  </div>
-
-                  {!showDeleteConfirmation ? (
-                    <div>
-                      <p className="text-sm text-red-700 dark:text-red-300 mb-4">
-                        Once you delete a team, there is no going back. This will permanently delete
-                        the team, all its standups, and remove all members.
-                      </p>
-                      <ModernButton
-                        type="button"
-                        variant="ghost"
-                        onClick={() => setShowDeleteConfirmation(true)}
-                        disabled={isUpdating || isDeleting}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/50"
-                        data-testid="show-delete-confirmation"
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Delete Team
-                      </ModernButton>
-                    </div>
-                  ) : (
-                    <div>
-                      <p className="text-sm text-red-700 dark:text-red-300 mb-4">
-                        This action cannot be undone. Type{' '}
-                        <span className="font-mono font-bold">{team.name}</span> to confirm
-                        deletion.
-                      </p>
-                      <div className="space-y-4">
-                        <input
-                          type="text"
-                          value={deleteConfirmationText}
-                          onChange={e => setDeleteConfirmationText(e.target.value)}
-                          placeholder={`Type "${team.name}" to confirm`}
-                          className="w-full px-4 py-3 rounded-lg border border-red-300 bg-background focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                          disabled={isDeleting}
-                        />
-                        <div className="flex gap-3">
-                          <ModernButton
-                            type="button"
-                            variant="ghost"
-                            onClick={() => {
-                              setShowDeleteConfirmation(false);
-                              setDeleteConfirmationText('');
-                            }}
-                            disabled={isDeleting}
-                            className="flex-1"
-                          >
-                            Cancel
-                          </ModernButton>
-                          <ModernButton
-                            type="button"
-                            variant="ghost"
-                            onClick={handleDeleteTeam}
-                            disabled={isDeleting || deleteConfirmationText !== team.name}
-                            className="flex-1 text-red-600 hover:text-white hover:bg-red-600 disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-red-600"
-                            data-testid="confirm-delete-team"
-                          >
-                            {isDeleting ? (
-                              <>
-                                <div className="w-4 h-4 border-2 border-red-300 border-t-red-600 rounded-full animate-spin mr-2" />
-                                Deleting...
-                              </>
-                            ) : (
-                              <>
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                Delete Team
-                              </>
-                            )}
-                          </ModernButton>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
               </div>
 
               {/* Actions - Fixed at bottom */}
@@ -405,7 +289,7 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
                   type="button"
                   variant="ghost"
                   onClick={handleClose}
-                  disabled={isUpdating || isDeleting}
+                  disabled={isUpdating}
                   className="flex-1"
                 >
                   Cancel
@@ -413,7 +297,7 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
                 <ModernButton
                   type="submit"
                   variant="primary"
-                  disabled={isUpdating || isDeleting || !isFormValid || !hasChanges}
+                  disabled={isUpdating || !isFormValid || !hasChanges}
                   className="flex-1"
                 >
                   {isUpdating ? (
