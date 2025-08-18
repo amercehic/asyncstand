@@ -245,7 +245,9 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
                   id="description"
                   placeholder="Brief description of your team's purpose..."
                   value={formData.description}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange('description', e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                    handleInputChange('description', e.target.value)
+                  }
                   className="min-h-20 resize-none border-border"
                   data-testid="team-description-input"
                 />

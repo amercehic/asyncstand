@@ -276,7 +276,9 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
                     <Textarea
                       id="description"
                       value={formData.description}
-                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange('description', e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                        handleInputChange('description', e.target.value)
+                      }
                       placeholder="Describe your team's purpose and goals..."
                       className="min-h-[100px] px-4 py-3 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-150 disabled:opacity-50"
                       maxLength={500}
