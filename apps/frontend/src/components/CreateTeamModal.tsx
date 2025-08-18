@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toast, ModernButton, FormField, Textarea, Label } from '@/components/ui';
+import { toast, ModernButton, Textarea, Label } from '@/components/ui';
+import { FormField } from '@/components/form';
 import { X, Building2, Hash, Globe } from 'lucide-react';
 import { teamsApi, integrationsApi } from '@/lib/api';
 import { useTeams } from '@/contexts';

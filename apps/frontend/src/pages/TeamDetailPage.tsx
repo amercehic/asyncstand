@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ModernButton, ConfirmationModal } from '@/components/ui';
+import { ModernButton, ConfirmationModal, Dropdown } from '@/components/ui';
 import {
   ArrowLeft,
   Settings,
@@ -50,7 +50,6 @@ export const TeamDetailPage = React.memo(() => {
       ? tabFromUrl
       : 'overview';
   });
-  const [showActionMenu, setShowActionMenu] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
@@ -263,47 +262,27 @@ export const TeamDetailPage = React.memo(() => {
             </div>
 
             {/* Action menu */}
-            <div className="relative">
-              <ModernButton
-                variant="outline"
-                onClick={() => setShowActionMenu(!showActionMenu)}
-                className="gap-2"
-              >
-                <MoreVertical className="w-4 h-4" />
-                Actions
-              </ModernButton>
-
-              {showActionMenu && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="absolute right-0 top-full mt-2 w-48 bg-card border border-border rounded-lg shadow-lg z-10"
-                >
-                  <div className="p-2">
-                    <button
-                      onClick={() => {
-                        setIsTeamSettingsOpen(true);
-                        setShowActionMenu(false);
-                      }}
-                      className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-muted rounded-md transition-colors"
-                    >
-                      <Edit className="w-4 h-4" />
-                      Edit Team
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowActionMenu(false);
-                        toast.info('Archive team coming soon!');
-                      }}
-                      className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-muted rounded-md transition-colors text-orange-600"
-                    >
-                      <Archive className="w-4 h-4" />
-                      Archive Team
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </div>
+            <Dropdown
+              trigger={
+                <ModernButton variant="outline" className="gap-2">
+                  <MoreVertical className="w-4 h-4" />
+                  Actions
+                </ModernButton>
+              }
+              items={[
+                {
+                  label: 'Edit Team',
+                  icon: Edit,
+                  onClick: () => setIsTeamSettingsOpen(true),
+                },
+                {
+                  label: 'Archive Team',
+                  icon: Archive,
+                  onClick: () => toast.info('Archive team coming soon!'),
+                  className: 'text-orange-600',
+                },
+              ]}
+            />
           </div>
 
           {/* Tab navigation */}

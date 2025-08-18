@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ModernButton, FormField, toast } from '@/components/ui';
+import { ModernButton, toast } from '@/components/ui';
+import { FormField } from '@/components/form';
 import { ArrowLeft, Eye, EyeOff, Github, Mail, X, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '@/contexts';
 import { normalizeApiError } from '@/utils';
