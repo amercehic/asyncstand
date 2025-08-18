@@ -5,9 +5,9 @@ export { Tooltip } from '@/components/ui/Tooltip';
 export { SkipLinks } from '@/components/ui/SkipLinks';
 export { Dropdown } from '@/components/ui/Dropdown';
 export { ConfirmationModal } from '@/components/ui/ConfirmationModal';
-export { Input } from '@/components/ui/Input';
-export { Label } from '@/components/ui/Label';
-export { Textarea } from '@/components/ui/Textarea';
+export { Input } from '@/components/ui/input';
+export { Label } from '@/components/ui/label';
+export { Textarea } from '@/components/ui/textarea';
 export { cn } from '@/components/ui/utils';
 
 // Modern Toast System
