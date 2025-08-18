@@ -10,6 +10,8 @@ export interface SlackIntegration {
     lastUsersSyncAt?: string;
     lastChannelsSyncAt?: string;
     errorMsg?: string;
+    userCount?: number;
+    channelCount?: number;
   };
 }
 

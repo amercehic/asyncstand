@@ -8,13 +8,13 @@ import {
   CheckCircle2,
   AlertTriangle,
   Clock,
-  Users,
   ChevronRight,
   Activity,
   Zap,
-  Hash,
   Shield,
   Link2,
+  Users,
+  Hash,
 } from 'lucide-react';
 import { toast } from '@/components/ui';
 import { integrationsApi, type SlackIntegration } from '@/lib/api';
@@ -266,15 +266,6 @@ export const IntegrationsPage = React.memo(() => {
     );
   };
 
-  // Calculate sync counts
-  const getSyncCounts = (integration: SlackIntegration) => {
-    // These would ideally come from the backend
-    // For now, we'll use placeholder values
-    return {
-      channels: integration.syncState?.lastChannelsSyncAt ? '12' : '0',
-      users: integration.syncState?.lastUsersSyncAt ? '48' : '0',
-    };
-  };
 
   if (isLoading) {
     return (
@@ -469,7 +460,6 @@ export const IntegrationsPage = React.memo(() => {
             {integrations.map((integration, index) => {
               const status = getIntegrationStatus(integration);
               const healthIndicator = getHealthIndicator(integration);
-              const syncCounts = getSyncCounts(integration);
               const lastSync =
                 integration.syncState?.lastUsersSyncAt || integration.syncState?.lastChannelsSyncAt;
 
@@ -553,7 +543,7 @@ export const IntegrationsPage = React.memo(() => {
                   </div>
 
                   {/* Health Metrics */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                     <div className="flex items-center gap-2">
                       <Activity className="w-4 h-4 text-muted-foreground" />
                       <div>
@@ -565,27 +555,31 @@ export const IntegrationsPage = React.memo(() => {
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <Hash className="w-4 h-4 text-muted-foreground" />
+                      <Zap className="w-4 h-4 text-muted-foreground" />
                       <div>
-                        <p className="text-xs text-muted-foreground">Channels</p>
-                        <p className="text-sm font-medium">{syncCounts.channels} synced</p>
+                        <p className="text-xs text-muted-foreground">Status</p>
+                        <p className="text-sm font-medium capitalize">
+                          {integration.tokenStatus === 'ok' ? 'Connected' : integration.tokenStatus}
+                        </p>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-2">
                       <Users className="w-4 h-4 text-muted-foreground" />
                       <div>
-                        <p className="text-xs text-muted-foreground">Users</p>
-                        <p className="text-sm font-medium">{syncCounts.users} synced</p>
+                        <p className="text-xs text-muted-foreground">Members</p>
+                        <p className="text-sm font-medium">
+                          {integration.syncState?.userCount ?? 0}
+                        </p>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <Zap className="w-4 h-4 text-muted-foreground" />
+                      <Hash className="w-4 h-4 text-muted-foreground" />
                       <div>
-                        <p className="text-xs text-muted-foreground">Status</p>
-                        <p className="text-sm font-medium capitalize">
-                          {integration.tokenStatus === 'ok' ? 'Connected' : integration.tokenStatus}
+                        <p className="text-xs text-muted-foreground">Channels</p>
+                        <p className="text-sm font-medium">
+                          {integration.syncState?.channelCount ?? 0}
                         </p>
                       </div>
                     </div>
