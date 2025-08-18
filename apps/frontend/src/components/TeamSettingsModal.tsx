@@ -1,8 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast, ModernButton } from '@/components/ui';
-import { Textarea } from '@/components/ui/Textarea';
-import { Label } from '@/components/ui/Label';
+import { Textarea, Label } from '@/components/ui';
 import { FormField } from '@/components/form';
 import { X, Settings, Hash, Building2, Trash2, AlertTriangle } from 'lucide-react';
 import { teamsApi } from '@/lib/api';
