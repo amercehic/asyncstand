@@ -532,11 +532,11 @@ describe('TeamManagementService', () => {
     it('should return available channels with assignment status', async () => {
       const mockChannels = [
         {
-          channelId: 'C1111111111',
+          id: 'C1111111111',
           name: 'general',
         },
         {
-          channelId: 'C2222222222',
+          id: 'C2222222222',
           name: 'development',
         },
       ];

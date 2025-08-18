@@ -396,11 +396,11 @@ export class TeamManagementService {
 
     return {
       channels: channels.map((channel) => {
-        const activeStandupConfig = channel.standupConfigs[0]; // Get first active config if any
+        const activeStandupConfig = channel.standupConfigs?.[0]; // Get first active config if any
         return {
           id: channel.id, // Return database channel ID for standup creation
           name: channel.name,
-          isAssigned: channel.standupConfigs.length > 0,
+          isAssigned: (channel.standupConfigs?.length ?? 0) > 0,
           assignedTeamName: activeStandupConfig?.team?.name,
         };
       }),

@@ -84,7 +84,21 @@ export class StandupConfigService {
       }
     }
 
-    // Allow multiple configs per team with same name - only check for time conflicts
+    // Check for existing config with same name
+    const existingConfig = await this.prisma.standupConfig.findFirst({
+      where: {
+        teamId,
+        name: data.name,
+      },
+    });
+
+    if (existingConfig) {
+      throw new ApiError(
+        ErrorCode.STANDUP_CONFIG_ALREADY_EXISTS,
+        `A standup configuration with name "${data.name}" already exists for this team`,
+        HttpStatus.CONFLICT,
+      );
+    }
 
     // Check for time conflicts with existing configs
     await this.validateTimeConflicts(teamId, data.weekdays, data.timeLocal, data.timezone);
