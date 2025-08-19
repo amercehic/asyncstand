@@ -93,6 +93,8 @@ export interface AvailableChannel {
   name: string;
   isAssigned: boolean;
   assignedTeamName?: string;
+  assignedTeamNames?: string[]; // All teams using this channel
+  configCount?: number; // Total number of standup configs using this channel
 }
 
 export interface AvailableChannelsResponse {

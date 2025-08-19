@@ -551,12 +551,16 @@ describe('TeamManagementService', () => {
         name: 'general',
         isAssigned: false,
         assignedTeamName: undefined,
+        assignedTeamNames: [],
+        configCount: 0,
       });
       expect(result.channels[1]).toEqual({
         id: 'C2222222222',
         name: 'development',
         isAssigned: false,
         assignedTeamName: undefined,
+        assignedTeamNames: [],
+        configCount: 0,
       });
     });
   });

@@ -396,12 +396,16 @@ export class TeamManagementService {
 
     return {
       channels: channels.map((channel) => {
-        const activeStandupConfig = channel.standupConfigs?.[0]; // Get first active config if any
+        const configs = channel.standupConfigs || [];
+        const teamsUsingChannel = [...new Set(configs.map(config => config.team?.name).filter(Boolean))];
+        
         return {
           id: channel.id, // Return database channel ID for standup creation
           name: channel.name,
-          isAssigned: (channel.standupConfigs?.length ?? 0) > 0,
-          assignedTeamName: activeStandupConfig?.team?.name,
+          isAssigned: configs.length > 0,
+          assignedTeamName: teamsUsingChannel.length === 1 ? teamsUsingChannel[0] : undefined,
+          assignedTeamNames: teamsUsingChannel, // All teams using this channel
+          configCount: configs.length, // Total number of standup configs using this channel
         };
       }),
     };
