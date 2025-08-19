@@ -1,117 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
-// Mock types for test return values matching actual DTOs
-interface MockTeamListResponse {
-  teams: Array<{
-    id: string;
-    name: string;
-    memberCount: number;
-    standupConfigCount: number;
-    createdAt: Date;
-    createdBy: {
-      name: string;
-    };
-  }>;
-}
-
-interface MockTeamDetailsResponse {
-  id: string;
-  name: string;
-  description?: string;
-  timezone: string;
-  integration: {
-    teamName: string;
-  };
-  members: Array<{
-    id: string;
-    name: string;
-    platformUserId: string;
-    addedAt: Date;
-    addedBy: {
-      name: string;
-    } | null;
-  }>;
-  standupConfigs: Array<{
-    id: string;
-    name: string;
-    deliveryType: string;
-    targetChannel?: {
-      id: string;
-      name: string;
-      channelId: string;
-    };
-    isActive: boolean;
-    memberCount: number;
-  }>;
-  createdAt: Date;
-  createdBy: {
-    name: string;
-  } | null;
-}
-
-interface MockChannelsResponse {
-  channels: Array<{
-    id: string;
-    name: string;
-    isAssigned: boolean;
-    assignedTeamName?: string;
-  }>;
-}
-
-interface MockMembersResponse {
-  members: Array<{
-    id: string;
-    name: string;
-    platformUserId: string;
-    inTeamCount: number;
-  }>;
-}
-
-interface MockTeamMember {
-  id: string;
-  name: string;
-  platformUserId: string;
-  addedAt: Date;
-  addedBy: {
-    name: string;
-  } | null;
-}
-
-interface MockChannelDetails {
-  id: string;
-  name: string;
-  topic?: string;
-  purpose?: string;
-  isPrivate: boolean;
-  isArchived: boolean;
-  memberCount?: number;
-  isAssigned: boolean;
-  assignedTeamName?: string;
-  lastSyncAt?: Date;
-}
-
-interface MockTeamChannelDetails {
-  id: string;
-  channelId: string;
-  name: string;
-  topic: string;
-  purpose: string;
-  isPrivate: boolean;
-  memberCount: number;
-}
-
-interface MockStandup {
-  id: string;
-  name: string;
-  deliveryType: StandupDeliveryType;
-  targetChannel: { id: string; name: string; channelId: string } | null;
-  isActive: boolean;
-  weekdays: number[];
-  timeLocal: string;
-  timezone: string;
-  memberCount: number;
-  createdAt: Date;
-}
 import { TeamsController } from '@/teams/teams.controller';
 import { TeamManagementService } from '@/teams/team-management.service';
 import { AuditLogService } from '@/common/audit/audit-log.service';
@@ -228,13 +116,18 @@ describe('TeamsController', () => {
             createdBy: { name: 'Admin User' },
           },
         ],
+        pagination: { page: 1, limit: 20, total: 2 },
       };
-      mockTeamManagementService.listTeams.mockResolvedValue(mockTeams as MockTeamListResponse);
+      mockTeamManagementService.listTeams.mockResolvedValue(mockTeams);
 
       const result = await controller.listTeams(mockOrgId);
 
       expect(result).toEqual(mockTeams);
-      expect(mockTeamManagementService.listTeams).toHaveBeenCalledWith(mockOrgId);
+      expect(mockTeamManagementService.listTeams).toHaveBeenCalledWith(
+        mockOrgId,
+        undefined,
+        undefined,
+      );
     });
   });
 
@@ -274,9 +167,7 @@ describe('TeamsController', () => {
         createdAt: new Date(),
         createdBy: { name: 'Admin User' },
       };
-      mockTeamManagementService.getTeamDetails.mockResolvedValue(
-        mockDetails as MockTeamDetailsResponse,
-      );
+      mockTeamManagementService.getTeamDetails.mockResolvedValue(mockDetails);
 
       const result = await controller.getTeamDetails(mockTeamId, mockOrgId);
 
@@ -335,15 +226,18 @@ describe('TeamsController', () => {
           { id: 'channel1', name: 'Channel 1', isAssigned: false },
           { id: 'channel2', name: 'Channel 2', isAssigned: true, assignedTeamName: 'Other Team' },
         ],
+        pagination: { page: 1, limit: 50, total: 2 },
       };
-      mockTeamManagementService.getAvailableChannels.mockResolvedValue(
-        mockChannels as MockChannelsResponse,
-      );
+      mockTeamManagementService.getAvailableChannels.mockResolvedValue(mockChannels);
 
       const result = await controller.getAvailableChannels(mockOrgId);
 
       expect(result).toEqual(mockChannels);
-      expect(mockTeamManagementService.getAvailableChannels).toHaveBeenCalledWith(mockOrgId);
+      expect(mockTeamManagementService.getAvailableChannels).toHaveBeenCalledWith(
+        mockOrgId,
+        undefined,
+        undefined,
+      );
     });
   });
 
@@ -354,15 +248,18 @@ describe('TeamsController', () => {
           { id: 'member1', name: 'Member 1', platformUserId: 'slack-user-1', inTeamCount: 2 },
           { id: 'member2', name: 'Member 2', platformUserId: 'slack-user-2', inTeamCount: 1 },
         ],
+        pagination: { page: 1, limit: 50, total: 2 },
       };
-      mockTeamManagementService.getAvailableMembers.mockResolvedValue(
-        mockMembers as MockMembersResponse,
-      );
+      mockTeamManagementService.getAvailableMembers.mockResolvedValue(mockMembers);
 
       const result = await controller.getAvailableMembers(mockOrgId);
 
       expect(result).toEqual(mockMembers);
-      expect(mockTeamManagementService.getAvailableMembers).toHaveBeenCalledWith(mockOrgId);
+      expect(mockTeamManagementService.getAvailableMembers).toHaveBeenCalledWith(
+        mockOrgId,
+        undefined,
+        undefined,
+      );
     });
   });
 
@@ -384,7 +281,7 @@ describe('TeamsController', () => {
           addedBy: null,
         },
       ];
-      mockTeamManagementService.getTeamMembers.mockResolvedValue(mockMembers as MockTeamMember[]);
+      mockTeamManagementService.getTeamMembers.mockResolvedValue(mockMembers);
 
       const result = await controller.getTeamMembers(mockTeamId);
 
@@ -460,9 +357,7 @@ describe('TeamsController', () => {
           },
         ],
       };
-      mockTeamManagementService.getChannelsList.mockResolvedValue(
-        mockChannels as { channels: MockChannelDetails[] },
-      );
+      mockTeamManagementService.getChannelsList.mockResolvedValue(mockChannels);
 
       const result = await controller.getChannelsList(mockOrgId);
 
@@ -573,9 +468,7 @@ describe('TeamsController', () => {
           },
         ],
       };
-      mockTeamManagementService.getTeamAvailableChannels.mockResolvedValue(
-        mockChannels as { channels: MockTeamChannelDetails[] },
-      );
+      mockTeamManagementService.getTeamAvailableChannels.mockResolvedValue(mockChannels);
 
       const result = await controller.getTeamAvailableChannels(mockTeamId, mockOrgId);
 
@@ -621,9 +514,7 @@ describe('TeamsController', () => {
           },
         ],
       };
-      mockTeamManagementService.getTeamStandups.mockResolvedValue(
-        mockStandups as { standups: MockStandup[] },
-      );
+      mockTeamManagementService.getTeamStandups.mockResolvedValue(mockStandups);
 
       const result = await controller.getTeamStandups(mockTeamId, mockOrgId);
 

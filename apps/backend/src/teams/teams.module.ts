@@ -5,12 +5,14 @@ import { TeamMemberMappingService } from '@/teams/services/team-member-mapping.s
 import { PrismaModule } from '@/prisma/prisma.module';
 import { SlackModule } from '@/integrations/slack/slack.module';
 import { AuditModule } from '@/common/audit/audit.module';
+import { CacheModule } from '@/common/cache/cache.module';
+import { ErrorRecoveryService } from '@/common/services/error-recovery.service';
 import { LoggerService } from '@/common/logger.service';
 
 @Module({
-  imports: [PrismaModule, SlackModule, AuditModule],
+  imports: [PrismaModule, SlackModule, AuditModule, CacheModule],
   controllers: [TeamsController],
-  providers: [TeamManagementService, TeamMemberMappingService, LoggerService],
+  providers: [TeamManagementService, TeamMemberMappingService, ErrorRecoveryService, LoggerService],
   exports: [TeamManagementService, TeamMemberMappingService],
 })
 export class TeamsModule {}

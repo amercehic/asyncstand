@@ -6,12 +6,17 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   UseGuards,
+  UseInterceptors,
   ValidationPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '@/auth/guards/roles.guard';
+import { RequestSizeGuard, RequestSizeLimit } from '@/common/guards/request-size.guard';
+import { QueryTimeoutInterceptor } from '@/common/interceptors/query-timeout.interceptor';
+import { QueryTimeout } from '@/common/decorators/query-timeout.decorator';
 import { CurrentOrg } from '@/auth/decorators/current-org.decorator';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 import { TeamManagementService } from '@/teams/team-management.service';
@@ -49,7 +54,8 @@ interface AuthenticatedUser {
 
 @ApiTags('Team Management')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, RequestSizeGuard)
+@UseInterceptors(QueryTimeoutInterceptor)
 @Controller('teams')
 export class TeamsController {
   constructor(
@@ -59,6 +65,8 @@ export class TeamsController {
 
   @Post()
   @Roles(OrgRole.admin, OrgRole.owner)
+  @QueryTimeout(10000) // 10 seconds for team creation
+  @RequestSizeLimit(1024 * 100) // 100KB limit for team data
   @SwaggerCreateTeam()
   async createTeam(
     @Body(ValidationPipe) createTeamDto: CreateTeamDto,
@@ -94,9 +102,14 @@ export class TeamsController {
 
   @Get()
   @Roles(OrgRole.admin, OrgRole.owner, OrgRole.member)
+  @QueryTimeout(15000) // 15 seconds for team listing with pagination
   @SwaggerListTeams()
-  async listTeams(@CurrentOrg() orgId: string): Promise<TeamListResponse> {
-    return this.teamManagementService.listTeams(orgId);
+  async listTeams(
+    @CurrentOrg() orgId: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ): Promise<TeamListResponse & { pagination: { page: number; limit: number; total: number } }> {
+    return this.teamManagementService.listTeams(orgId, page, limit);
   }
 
   @Get(':id')
@@ -181,16 +194,30 @@ export class TeamsController {
 
   @Get('slack/channels')
   @Roles(OrgRole.admin, OrgRole.owner)
+  @QueryTimeout(20000) // 20 seconds for Slack API calls
   @SwaggerGetAvailableChannels()
-  async getAvailableChannels(@CurrentOrg() orgId: string): Promise<AvailableChannelsResponse> {
-    return this.teamManagementService.getAvailableChannels(orgId);
+  async getAvailableChannels(
+    @CurrentOrg() orgId: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ): Promise<
+    AvailableChannelsResponse & { pagination: { page: number; limit: number; total: number } }
+  > {
+    return this.teamManagementService.getAvailableChannels(orgId, page, limit);
   }
 
   @Get('slack/members')
   @Roles(OrgRole.admin, OrgRole.owner)
+  @QueryTimeout(30000) // 30 seconds for member fetching (can be very slow)
   @SwaggerGetAvailableMembers()
-  async getAvailableMembers(@CurrentOrg() orgId: string): Promise<AvailableMembersResponse> {
-    return this.teamManagementService.getAvailableMembers(orgId);
+  async getAvailableMembers(
+    @CurrentOrg() orgId: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ): Promise<
+    AvailableMembersResponse & { pagination: { page: number; limit: number; total: number } }
+  > {
+    return this.teamManagementService.getAvailableMembers(orgId, page, limit);
   }
 
   @Get(':id/members')

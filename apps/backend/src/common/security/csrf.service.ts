@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { randomBytes, createHash } from 'crypto';
 import { CacheService } from '@/common/cache/cache.service';
+import { DistributedLockService } from '@/common/services/distributed-lock.service';
 import { LoggerService } from '@/common/logger.service';
 
 interface CsrfTokenInfo {
@@ -19,64 +20,73 @@ export class CsrfService {
 
   constructor(
     private readonly cacheService: CacheService,
+    private readonly distributedLockService: DistributedLockService,
     private readonly logger: LoggerService,
   ) {
     this.logger.setContext(CsrfService.name);
   }
 
   /**
-   * Generate a new CSRF token for a session
+   * Generate a new CSRF token for a session with distributed locking
    */
   async generateToken(sessionId: string, userId?: string): Promise<string> {
-    const tokenData = randomBytes(this.TOKEN_LENGTH).toString('hex');
-    const tokenHash = this.hashToken(tokenData);
-    const expiresAt = new Date(Date.now() + this.DEFAULT_EXPIRY * 1000);
+    const lockKey = `csrf-session-${sessionId}`;
 
-    const tokenInfo: CsrfTokenInfo = {
-      token: tokenData,
-      sessionId,
-      createdAt: new Date(),
-      expiresAt,
-      used: false,
-    };
+    return this.distributedLockService.withLock(
+      lockKey,
+      async () => {
+        const tokenData = randomBytes(this.TOKEN_LENGTH).toString('hex');
+        const tokenHash = this.hashToken(tokenData);
+        const expiresAt = new Date(Date.now() + this.DEFAULT_EXPIRY * 1000);
 
-    const cacheKey = this.buildTokenKey(tokenHash);
-    const sessionKey = this.buildSessionKey(sessionId);
+        const tokenInfo: CsrfTokenInfo = {
+          token: tokenData,
+          sessionId,
+          createdAt: new Date(),
+          expiresAt,
+          used: false,
+        };
 
-    try {
-      // Store token info
-      await this.cacheService.set(cacheKey, tokenInfo, this.DEFAULT_EXPIRY);
+        const cacheKey = this.buildTokenKey(tokenHash);
+        const sessionKey = this.buildSessionKey(sessionId);
 
-      // Track tokens per session to prevent abuse
-      const sessionTokens = (await this.cacheService.get<string[]>(sessionKey)) || [];
-      sessionTokens.push(tokenHash);
+        try {
+          // Store token info
+          await this.cacheService.set(cacheKey, tokenInfo, this.DEFAULT_EXPIRY);
 
-      // Limit number of tokens per session
-      if (sessionTokens.length > this.MAX_TOKENS_PER_SESSION) {
-        const oldestTokenHash = sessionTokens.shift();
-        if (oldestTokenHash) {
-          await this.cacheService.del(this.buildTokenKey(oldestTokenHash));
+          // Track tokens per session to prevent abuse (atomic operation)
+          const sessionTokens = (await this.cacheService.get<string[]>(sessionKey)) || [];
+          sessionTokens.push(tokenHash);
+
+          // Limit number of tokens per session
+          if (sessionTokens.length > this.MAX_TOKENS_PER_SESSION) {
+            const oldestTokenHash = sessionTokens.shift();
+            if (oldestTokenHash) {
+              await this.cacheService.del(this.buildTokenKey(oldestTokenHash));
+            }
+          }
+
+          await this.cacheService.set(sessionKey, sessionTokens, this.DEFAULT_EXPIRY);
+
+          this.logger.debug('CSRF token generated', {
+            sessionId,
+            userId,
+            tokenHash: tokenHash.substring(0, 8) + '...',
+            expiresAt,
+          });
+
+          return tokenData;
+        } catch (error) {
+          this.logger.error('Error generating CSRF token', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            sessionId,
+            userId,
+          });
+          throw new Error('Failed to generate CSRF token');
         }
-      }
-
-      await this.cacheService.set(sessionKey, sessionTokens, this.DEFAULT_EXPIRY);
-
-      this.logger.debug('CSRF token generated', {
-        sessionId,
-        userId,
-        tokenHash: tokenHash.substring(0, 8) + '...',
-        expiresAt,
-      });
-
-      return tokenData;
-    } catch (error) {
-      this.logger.error('Error generating CSRF token', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        sessionId,
-        userId,
-      });
-      throw new Error('Failed to generate CSRF token');
-    }
+      },
+      10, // 10 second lock TTL
+    );
   }
 
   /**

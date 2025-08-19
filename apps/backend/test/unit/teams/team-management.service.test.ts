@@ -5,6 +5,7 @@ import { SlackApiService } from '@/integrations/slack/slack-api.service';
 import { AuditLogService } from '@/common/audit/audit-log.service';
 import { LoggerService } from '@/common/logger.service';
 import { CacheService } from '@/common/cache/cache.service';
+import { ErrorRecoveryService } from '@/common/services/error-recovery.service';
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
 import { TeamFactory, IntegrationFactory } from '@/test/utils/factories';
@@ -63,6 +64,16 @@ describe('TeamManagementService', () => {
       del: jest.fn(),
     };
 
+    const mockErrorRecoveryServiceMethods = {
+      withRetry: jest.fn().mockImplementation((operation) => operation()),
+      withCircuitBreaker: jest.fn().mockImplementation((_key, operation) => operation()),
+      executeAllSettled: jest.fn(),
+      safeCacheInvalidation: jest.fn().mockResolvedValue(undefined),
+      getCircuitBreakerStatus: jest.fn(),
+      getAllCircuitBreakers: jest.fn(),
+      resetCircuitBreaker: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TeamManagementService,
@@ -85,6 +96,10 @@ describe('TeamManagementService', () => {
         {
           provide: CacheService,
           useValue: mockCacheServiceMethods,
+        },
+        {
+          provide: ErrorRecoveryService,
+          useValue: mockErrorRecoveryServiceMethods,
         },
       ],
     }).compile();

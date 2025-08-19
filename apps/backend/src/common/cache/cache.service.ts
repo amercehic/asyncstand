@@ -148,6 +148,37 @@ export class CacheService {
     }
   }
 
+  /**
+   * Set a value only if the key doesn't exist (atomic operation)
+   */
+  async setIfNotExists(
+    key: string,
+    value: unknown,
+    ttl: number = this.defaultTTL,
+  ): Promise<boolean> {
+    try {
+      const serialized = JSON.stringify(value);
+      const result = await this.redis.setNX(key, serialized, ttl);
+      this.logger.debug(`Cache setNX for key: ${key}, success: ${result}`);
+      return result;
+    } catch (error) {
+      this.logger.error(`Cache setNX error for key ${key}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Execute a Redis Lua script
+   */
+  async executeScript(script: string, keys: string[], args: string[]): Promise<unknown> {
+    try {
+      return await this.redis.eval(script, keys, args);
+    } catch (error) {
+      this.logger.error('Cache script execution error:', error);
+      throw error;
+    }
+  }
+
   private parseMemoryInfo(info: string): string {
     const memoryMatch = info.match(/used_memory_human:([^\r\n]+)/);
     return memoryMatch ? memoryMatch[1] : 'unknown';

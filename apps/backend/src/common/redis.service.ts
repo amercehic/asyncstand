@@ -87,6 +87,21 @@ export class RedisService implements OnModuleDestroy {
     return orgId;
   }
 
+  /**
+   * Set if not exists with TTL (atomic operation)
+   */
+  async setNX(key: string, value: string, ttlSeconds: number): Promise<boolean> {
+    const result = await this.client.set(key, value, 'EX', ttlSeconds, 'NX');
+    return result === 'OK';
+  }
+
+  /**
+   * Execute Lua script
+   */
+  async eval(script: string, keys: string[], args: string[]): Promise<unknown> {
+    return await this.client.eval(script, keys.length, ...keys, ...args);
+  }
+
   onModuleDestroy() {
     this.client.disconnect();
   }
