@@ -54,15 +54,42 @@ export class AuthController {
   @CsrfTokenEndpoint()
   async getCsrfToken(@Req() req: RequestWithSession) {
     // Extract session ID using the same approach as CSRF guard
-    const sessionHeader = req.headers['x-session-id'];
-    const sessionId =
-      req.session?.id ||
-      (typeof sessionHeader === 'string' ? sessionHeader : sessionHeader?.[0]) ||
-      req.user?.id ||
-      'anonymous';
-
+    const sessionId = this.extractSessionId(req);
     const token = await this.csrfService.generateToken(sessionId);
     return { csrfToken: token };
+  }
+
+  /**
+   * Extract session ID using the same logic as CSRF guard
+   */
+  private extractSessionId(request: RequestWithSession): string {
+    // Express session
+    if (request.session?.id) {
+      return request.session.id;
+    }
+
+    // Custom session header
+    if (request.headers['x-session-id']) {
+      return request.headers['x-session-id'] as string;
+    }
+
+    // User ID as fallback (for JWT-based auth without sessions)
+    const user = request.user;
+    if (user?.id) {
+      return `user-session:${user.id}`;
+    }
+
+    // Request fingerprint as last resort
+    const fingerprint = this.generateRequestFingerprint(request);
+    return `fingerprint:${fingerprint}`;
+  }
+
+  /**
+   * Generate a request fingerprint for session-less scenarios
+   */
+  private generateRequestFingerprint(request: RequestWithSession): string {
+    const components = [request.ip || 'unknown-ip', request.get('user-agent') || 'unknown-ua'];
+    return Buffer.from(components.join('|')).toString('base64');
   }
 
   @Post('signup')

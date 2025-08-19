@@ -6,7 +6,7 @@ import React, {
   useEffect,
   useMemo,
 } from 'react';
-import { authApi, setAuthToken } from '@/lib/api';
+import { authApi, setAuthToken, clearCsrfToken } from '@/lib/api';
 import type { User, AuthTokens, SignUpRequest } from '@/types';
 
 // Storage keys
@@ -261,8 +261,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.warn('Logout API call failed:', error);
     }
 
-    // Clear API token
+    // Clear API token and CSRF token
     setAuthToken(null);
+    clearCsrfToken();
 
     // Clear all auth data using helper function
     clearAuthData();

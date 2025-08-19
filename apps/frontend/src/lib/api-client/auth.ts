@@ -8,15 +8,8 @@ export const authApi = {
   },
 
   async login(data: LoginRequest): Promise<AuthResponse> {
-    // Get CSRF token first
-    const csrfToken = await this.getCsrfToken();
-
-    // Include CSRF token in the login request
-    const response = await api.post<AuthResponse>('/auth/login', data, {
-      headers: {
-        'X-CSRF-Token': csrfToken,
-      },
-    });
+    // CSRF token will be automatically added by the request interceptor
+    const response = await api.post<AuthResponse>('/auth/login', data);
     return response.data;
   },
 

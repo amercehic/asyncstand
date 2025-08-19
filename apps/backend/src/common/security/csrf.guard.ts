@@ -103,7 +103,7 @@ export class CsrfGuard implements CanActivate {
 
     // Validate the CSRF token
     try {
-      const isValid = await this.csrfService.validateToken(sessionId, csrfToken, true);
+      const isValid = await this.csrfService.validateToken(sessionId, csrfToken, false);
 
       if (!isValid) {
         this.logger.warn('CSRF validation failed', {
