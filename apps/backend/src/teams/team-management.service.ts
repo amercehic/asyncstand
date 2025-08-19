@@ -397,8 +397,10 @@ export class TeamManagementService {
     return {
       channels: channels.map((channel) => {
         const configs = channel.standupConfigs || [];
-        const teamsUsingChannel = [...new Set(configs.map(config => config.team?.name).filter(Boolean))];
-        
+        const teamsUsingChannel = [
+          ...new Set(configs.map((config) => config.team?.name).filter(Boolean)),
+        ];
+
         return {
           id: channel.id, // Return database channel ID for standup creation
           name: channel.name,
