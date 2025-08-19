@@ -4,6 +4,7 @@ import { Request, Response } from 'express';
 import { AuthController } from '@/auth/controllers/auth.controller';
 import { AuthService } from '@/auth/services/auth.service';
 import { PasswordResetService } from '@/auth/services/password-reset.service';
+import { CsrfService } from '@/common/security/csrf.service';
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
 import { AuthFactory } from '@/test/utils/factories';
@@ -13,6 +14,7 @@ describe('AuthController', () => {
   let controller: AuthController;
   let mockAuthService: ReturnType<typeof createMockAuthService>;
   let mockPasswordResetService: jest.Mocked<PasswordResetService>;
+  let mockCsrfService: jest.Mocked<CsrfService>;
   let mockRequest: Partial<Request>;
   let mockResponse: Partial<Response>;
 
@@ -22,6 +24,11 @@ describe('AuthController', () => {
       createPasswordResetToken: jest.fn(),
       resetPassword: jest.fn(),
     } as unknown as jest.Mocked<PasswordResetService>;
+
+    mockCsrfService = {
+      getToken: jest.fn().mockReturnValue('mock-csrf-token'),
+      validateToken: jest.fn().mockReturnValue(true),
+    } as unknown as jest.Mocked<CsrfService>;
 
     mockRequest = AuthFactory.buildMockRequest() as Partial<Request>;
     mockResponse = {
@@ -36,6 +43,7 @@ describe('AuthController', () => {
       providers: [
         { provide: AuthService, useValue: mockAuthService },
         { provide: PasswordResetService, useValue: mockPasswordResetService },
+        { provide: CsrfService, useValue: mockCsrfService },
       ],
       imports: [
         ThrottlerModule.forRoot([

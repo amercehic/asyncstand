@@ -1,5 +1,5 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@/test/utils';
+import { render, screen, fireEvent, waitFor, act } from '@/test/utils';
 import { toast } from '@/components/ui';
 import React from 'react';
 
@@ -95,10 +95,12 @@ describe('TeamMemberAssignmentModal', () => {
     vi.clearAllMocks();
   });
 
-  it('renders modal when open', () => {
+  it('renders modal when open', async () => {
     vi.mocked(teamsApi.getAvailableMembers).mockResolvedValue({ members: [] });
 
-    render(<TeamMemberAssignmentModal {...mockProps} />);
+    await act(async () => {
+      render(<TeamMemberAssignmentModal {...mockProps} />);
+    });
 
     expect(screen.getByText('Manage Team Members')).toBeInTheDocument();
     expect(screen.getByText('Assign workspace members to Engineering Team')).toBeInTheDocument();

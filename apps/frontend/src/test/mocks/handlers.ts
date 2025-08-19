@@ -48,6 +48,11 @@ export const handlers = [
     return HttpResponse.json({ success: true });
   }),
 
+  // Auth: CSRF token
+  http.get('*/auth/csrf-token', () => {
+    return HttpResponse.json({ csrfToken: 'mock-csrf-token' });
+  }),
+
   // Teams
   http.get('*/teams', () => {
     return HttpResponse.json([]);
