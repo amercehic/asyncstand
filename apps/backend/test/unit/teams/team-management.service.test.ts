@@ -4,6 +4,7 @@ import { PrismaService } from '@/prisma/prisma.service';
 import { SlackApiService } from '@/integrations/slack/slack-api.service';
 import { AuditLogService } from '@/common/audit/audit-log.service';
 import { LoggerService } from '@/common/logger.service';
+import { CacheService } from '@/common/cache/cache.service';
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
 import { TeamFactory, IntegrationFactory } from '@/test/utils/factories';
@@ -47,6 +48,19 @@ describe('TeamManagementService', () => {
       info: jest.fn(),
       warn: jest.fn(),
       error: jest.fn(),
+      debug: jest.fn(),
+    };
+
+    const mockCacheServiceMethods = {
+      buildKey: jest.fn().mockImplementation((...parts) => parts.join(':')),
+      getOrSet: jest.fn().mockImplementation((_key, factory) => {
+        // Mock always calls the factory function
+        return factory();
+      }),
+      invalidate: jest.fn().mockResolvedValue(undefined),
+      get: jest.fn(),
+      set: jest.fn(),
+      del: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -67,6 +81,10 @@ describe('TeamManagementService', () => {
         {
           provide: LoggerService,
           useValue: mockLoggerServiceMethods,
+        },
+        {
+          provide: CacheService,
+          useValue: mockCacheServiceMethods,
         },
       ],
     }).compile();

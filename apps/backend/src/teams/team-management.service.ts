@@ -3,6 +3,8 @@ import { PrismaService } from '@/prisma/prisma.service';
 import { SlackApiService } from '@/integrations/slack/slack-api.service';
 import { AuditLogService } from '@/common/audit/audit-log.service';
 import { LoggerService } from '@/common/logger.service';
+import { CacheService } from '@/common/cache/cache.service';
+import { Cacheable } from '@/common/cache/decorators/cacheable.decorator';
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
 import {
@@ -27,6 +29,7 @@ export class TeamManagementService {
     private readonly slackApiService: SlackApiService,
     private readonly auditLogService: AuditLogService,
     private readonly logger: LoggerService,
+    private readonly cacheService: CacheService,
   ) {
     this.logger.setContext(TeamManagementService.name);
   }
@@ -103,6 +106,9 @@ export class TeamManagementService {
           },
         ],
       });
+
+      // Invalidate team-related caches
+      await this.invalidateTeamCaches(orgId);
 
       this.logger.info('Team created successfully', { teamId: team.id, orgId });
 
@@ -220,6 +226,9 @@ export class TeamManagementService {
         });
       });
 
+      // Invalidate team-related caches
+      await this.invalidateTeamCaches(orgId);
+
       this.logger.info('Team deleted successfully', { teamId, orgId });
     } catch (error) {
       this.logger.error('Failed to delete team', {
@@ -231,35 +240,43 @@ export class TeamManagementService {
     }
   }
 
+  @Cacheable('teams-list', 300) // 5 minutes
   async listTeams(orgId: string): Promise<TeamListResponse> {
     this.logger.info('Listing teams', { orgId });
 
-    const teams = await this.prisma.team.findMany({
-      where: { orgId },
-      include: {
-        _count: {
-          select: {
-            members: true,
-            configs: true,
+    const cacheKey = this.cacheService.buildKey('teams-list', orgId);
+    return this.cacheService.getOrSet(
+      cacheKey,
+      async () => {
+        const teams = await this.prisma.team.findMany({
+          where: { orgId },
+          include: {
+            _count: {
+              select: {
+                members: true,
+                configs: true,
+              },
+            },
+            createdBy: {
+              select: { name: true },
+            },
           },
-        },
-        createdBy: {
-          select: { name: true },
-        },
+          orderBy: { createdAt: 'desc' },
+        });
+
+        const teamList = teams.map((team) => ({
+          id: team.id,
+          name: team.name,
+          memberCount: team._count.members,
+          standupConfigCount: team._count.configs,
+          createdAt: team.createdAt,
+          createdBy: team.createdBy || { name: 'System' },
+        }));
+
+        return { teams: teamList };
       },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    const teamList = teams.map((team) => ({
-      id: team.id,
-      name: team.name,
-      memberCount: team._count.members,
-      standupConfigCount: team._count.configs,
-      createdAt: team.createdAt,
-      createdBy: team.createdBy || { name: 'System' },
-    }));
-
-    return { teams: teamList };
+      300, // 5 minutes
+    );
   }
 
   async getTeamDetails(teamId: string, orgId: string): Promise<TeamDetailsResponse> {
@@ -366,51 +383,59 @@ export class TeamManagementService {
     }
   }
 
+  @Cacheable('available-channels', 600) // 10 minutes
   async getAvailableChannels(orgId: string): Promise<AvailableChannelsResponse> {
     this.logger.info('Getting available channels', { orgId });
 
-    // Get all channels from database that belong to organization's integrations
-    const channels = await this.prisma.channel.findMany({
-      where: {
-        integration: {
-          orgId,
-          platform: 'slack',
-          tokenStatus: 'ok',
-        },
-        isArchived: false, // Only show non-archived channels
-      },
-      include: {
-        standupConfigs: {
+    const cacheKey = this.cacheService.buildKey('available-channels', orgId);
+    return this.cacheService.getOrSet(
+      cacheKey,
+      async () => {
+        // Get all channels from database that belong to organization's integrations
+        const channels = await this.prisma.channel.findMany({
           where: {
-            isActive: true, // Only check active standup configs
+            integration: {
+              orgId,
+              platform: 'slack',
+              tokenStatus: 'ok',
+            },
+            isArchived: false, // Only show non-archived channels
           },
           include: {
-            team: {
-              select: { name: true },
+            standupConfigs: {
+              where: {
+                isActive: true, // Only check active standup configs
+              },
+              include: {
+                team: {
+                  select: { name: true },
+                },
+              },
             },
           },
-        },
-      },
-      orderBy: { name: 'asc' },
-    });
-
-    return {
-      channels: channels.map((channel) => {
-        const configs = channel.standupConfigs || [];
-        const teamsUsingChannel = [
-          ...new Set(configs.map((config) => config.team?.name).filter(Boolean)),
-        ];
+          orderBy: { name: 'asc' },
+        });
 
         return {
-          id: channel.id, // Return database channel ID for standup creation
-          name: channel.name,
-          isAssigned: configs.length > 0,
-          assignedTeamName: teamsUsingChannel.length === 1 ? teamsUsingChannel[0] : undefined,
-          assignedTeamNames: teamsUsingChannel, // All teams using this channel
-          configCount: configs.length, // Total number of standup configs using this channel
+          channels: channels.map((channel) => {
+            const configs = channel.standupConfigs || [];
+            const teamsUsingChannel = [
+              ...new Set(configs.map((config) => config.team?.name).filter(Boolean)),
+            ];
+
+            return {
+              id: channel.id, // Return database channel ID for standup creation
+              name: channel.name,
+              isAssigned: configs.length > 0,
+              assignedTeamName: teamsUsingChannel.length === 1 ? teamsUsingChannel[0] : undefined,
+              assignedTeamNames: teamsUsingChannel, // All teams using this channel
+              configCount: configs.length, // Total number of standup configs using this channel
+            };
+          }),
         };
-      }),
-    };
+      },
+      600, // 10 minutes
+    );
   }
 
   async addTeamMember(teamId: string, slackUserId: string, addedByUserId: string): Promise<void> {
@@ -906,5 +931,17 @@ export class TeamManagementService {
         createdAt: config.createdAt,
       })),
     };
+  }
+
+  /**
+   * Invalidate team-related caches for an organization
+   */
+  private async invalidateTeamCaches(orgId: string) {
+    await Promise.all([
+      this.cacheService.invalidate(`teams-list:${orgId}:*`),
+      this.cacheService.invalidate(`available-channels:${orgId}:*`),
+      this.cacheService.invalidate(`team-details:*`),
+    ]);
+    this.logger.debug(`Invalidated team caches for organization ${orgId}`);
   }
 }
