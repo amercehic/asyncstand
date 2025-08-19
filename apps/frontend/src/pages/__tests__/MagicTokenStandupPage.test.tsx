@@ -3,11 +3,11 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { MagicTokenStandupPage } from '@/pages/MagicTokenStandupPage';
-import { magicTokenApiClient } from '@/lib/api-client/magic-token';
+import { magicTokenApiClient } from '@/lib/api-client/magicToken';
 import { toast } from '@/components/ui';
 
 // Mock the API client
-vi.mock('@/lib/api-client/magic-token', () => ({
+vi.mock('@/lib/api-client/magicToken', () => ({
   magicTokenApiClient: {
     validateTokenAndGetInfo: vi.fn(),
     submitWithMagicToken: vi.fn(),

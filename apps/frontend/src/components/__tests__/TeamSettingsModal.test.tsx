@@ -15,30 +15,23 @@ vi.mock('@/lib/api', () => ({
   },
 }));
 
-vi.mock('sonner', () => ({
+vi.mock('@/components/ui/Toast', () => ({
   toast: {
+    loading: vi.fn(),
     success: vi.fn(),
     error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+    dismiss: vi.fn(),
+    dismissAll: vi.fn(),
+    update: vi.fn(),
     custom: vi.fn(),
   },
   Toaster: () => null,
-}));
-
-vi.mock('@/components/ui/modern-toast', () => ({
-  modernToast: {
-    loading: vi.fn(),
-    success: vi.fn(),
-    error: vi.fn(),
-    warning: vi.fn(),
-    info: vi.fn(),
-  },
-  toast: {
-    loading: vi.fn(),
-    success: vi.fn(),
-    error: vi.fn(),
-    warning: vi.fn(),
-    info: vi.fn(),
-  },
+  ModernToaster: () => null,
+  ToastManager: () => null,
+  useToast: vi.fn(),
+  useToastManager: vi.fn(),
 }));
 
 describe('TeamSettingsModal', () => {
@@ -224,9 +217,6 @@ describe('TeamSettingsModal', () => {
     const descriptionInput = screen.getByDisplayValue('A test team for testing purposes');
     fireEvent.change(descriptionInput, { target: { value: 'Updated description' } });
 
-    const timezoneSelect = screen.getByDisplayValue('UTC');
-    fireEvent.change(timezoneSelect, { target: { value: 'America/New_York' } });
-
     // Submit the form
     const saveButton = screen.getByText('Save Changes');
     fireEvent.click(saveButton);
@@ -235,7 +225,6 @@ describe('TeamSettingsModal', () => {
       expect(teamsApi.updateTeam).toHaveBeenCalledWith('team-1', {
         name: 'Updated Team Name',
         description: 'Updated description',
-        timezone: 'America/New_York',
       });
     });
 

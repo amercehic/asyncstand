@@ -35,6 +35,8 @@ interface SlackIntegrationListResponse {
     lastUsersSyncAt?: string;
     lastChannelsSyncAt?: string;
     errorMsg?: string;
+    userCount?: number;
+    channelCount?: number;
   };
 }
 
@@ -75,6 +77,17 @@ export class SlackIntegrationController {
       },
       include: {
         syncState: true,
+        channels: {
+          where: {
+            isArchived: false,
+          },
+        },
+        integrationUsers: {
+          where: {
+            isDeleted: false,
+            isBot: false,
+          },
+        },
       },
       orderBy: [{ id: 'desc' }],
     });
@@ -90,8 +103,13 @@ export class SlackIntegrationController {
             lastUsersSyncAt: integration.syncState.lastUsersSyncAt?.toISOString(),
             lastChannelsSyncAt: integration.syncState.lastChannelsSyncAt?.toISOString(),
             errorMsg: integration.syncState.errorMsg,
+            userCount: integration.integrationUsers.length,
+            channelCount: integration.channels.length,
           }
-        : undefined,
+        : {
+            userCount: integration.integrationUsers.length,
+            channelCount: integration.channels.length,
+          },
     }));
   }
 

@@ -43,24 +43,20 @@ export const StandupDetailsPage = React.memo(() => {
 
       setIsLoading(true);
       try {
-        // Note: This endpoint might need to be implemented in the backend
-        await standupsApi.getInstance(standupId);
+        // Fetch the standup configuration
+        const standupConfig = await standupsApi.getStandup(standupId);
 
-        // For now, we'll use mock data structure
+        // For now, we'll use mock data structure with real standup config
         const mockStandup: StandupDetails = {
           id: standupId || 'mock-standup-id',
-          teamId: 'team-1',
-          teamName: 'Engineering Team',
-          targetDate: '2024-01-15',
+          teamId: standupConfig.teamId,
+          teamName: 'Engineering Team', // TODO: Get from team data
+          targetDate: new Date().toISOString().split('T')[0], // Today's date
           state: 'collecting',
-          totalMembers: 5,
-          respondedMembers: 3,
+          totalMembers: 5, // TODO: Get actual team member count
+          respondedMembers: 3, // TODO: Get actual response count
           responseRate: 60,
-          questions: [
-            'What did you work on yesterday?',
-            'What will you work on today?',
-            'Any blockers or challenges?',
-          ],
+          questions: standupConfig.questions,
           timezone: 'UTC',
           timeLocal: '09:00',
           createdAt: '2024-01-15T00:00:00Z',

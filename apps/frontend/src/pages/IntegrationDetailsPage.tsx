@@ -344,20 +344,27 @@ export const IntegrationDetailsPage = React.memo(() => {
                         <Hash className="w-5 h-5 text-muted-foreground" />
                         <div>
                           <p className="font-medium">#{channel.name}</p>
-                          {channel.assignedTeamName && (
-                            <p className="text-xs text-muted-foreground">
-                              Assigned to: {channel.assignedTeamName}
-                            </p>
+                          {channel.assignedTeamNames && channel.assignedTeamNames.length > 0 && (
+                            <div className="text-xs text-muted-foreground">
+                              {channel.assignedTeamNames.length === 1 ? (
+                                <p>Used by: {channel.assignedTeamNames[0]}</p>
+                              ) : (
+                                <p>Used by: {channel.assignedTeamNames.join(', ')}</p>
+                              )}
+                              {(channel.configCount ?? 0) > 1 && (
+                                <p>{channel.configCount} standup configs</p>
+                              )}
+                            </div>
                           )}
                         </div>
                       </div>
                       <div>
                         {channel.isAssigned ? (
-                          <span className="text-xs bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300 px-2 py-1 rounded">
+                          <span className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-white bg-green-600 hover:bg-green-700 rounded-full shadow-sm">
                             In Use
                           </span>
                         ) : (
-                          <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-2 py-1 rounded">
+                          <span className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-full shadow-sm">
                             Available
                           </span>
                         )}

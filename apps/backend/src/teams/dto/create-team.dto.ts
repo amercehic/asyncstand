@@ -19,12 +19,13 @@ export class CreateTeamDto {
   @IsUUID()
   integrationId: string;
 
-  @ApiProperty({
-    description: 'Slack channel ID where standups will be posted',
+  @ApiPropertyOptional({
+    description: 'Slack channel ID (optional - teams no longer require a channel)',
     example: 'C1234567890',
   })
+  @IsOptional()
   @IsString()
-  channelId: string;
+  channelId?: string;
 
   @ApiProperty({
     description: 'Timezone for standup scheduling',

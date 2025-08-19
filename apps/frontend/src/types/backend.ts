@@ -16,10 +16,15 @@ export interface StandupConfigResponse {
   reminderMinutesBefore: number;
   responseTimeoutHours: number;
   isActive: boolean;
+  targetChannelId?: string;
+  targetChannel?: {
+    id: string;
+    channelId: string;
+    name: string;
+  };
   team: {
     id: string;
     name: string;
-    channelName: string;
   };
   createdAt: string;
   updatedAt: string;
@@ -28,13 +33,8 @@ export interface StandupConfigResponse {
 export interface TeamListItem {
   id: string;
   name: string;
-  channelName: string;
-  channel: {
-    id: string;
-    name: string;
-  } | null;
   memberCount: number;
-  hasStandupConfig: boolean;
+  standupConfigCount: number;
   createdAt: string;
   createdBy: {
     name: string;
@@ -63,18 +63,25 @@ export interface TeamDetailsResponse {
   integration: {
     teamName: string;
   };
-  channel?: {
+  members: TeamMemberDetails[];
+  standupConfigs: Array<{
     id: string;
     name: string;
-  };
-  members: TeamMemberDetails[];
-  standupConfig?: {
-    id: string;
+    deliveryType: StandupDeliveryType;
     questions: string[];
     weekdays: number[];
     timeLocal: string;
+    timezone: string;
     reminderMinutesBefore: number;
-  };
+    responseTimeoutHours: number;
+    isActive: boolean;
+    targetChannelId?: string;
+    targetChannel?: {
+      id: string;
+      channelId: string;
+      name: string;
+    };
+  }>;
   createdAt: string;
   createdBy: {
     name: string;
@@ -86,6 +93,8 @@ export interface AvailableChannel {
   name: string;
   isAssigned: boolean;
   assignedTeamName?: string;
+  assignedTeamNames?: string[]; // All teams using this channel
+  configCount?: number; // Total number of standup configs using this channel
 }
 
 export interface AvailableChannelsResponse {

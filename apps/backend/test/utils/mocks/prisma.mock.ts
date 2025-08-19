@@ -273,7 +273,6 @@ export const createMockPrismaService = (): MockPrismaService => {
         name: 'Test Team',
         integrationId: TestHelpers.generateRandomString(),
         channelId: TestHelpers.generateRandomString(),
-        slackChannelId: 'C123456789',
         timezone: 'America/New_York',
         createdByUserId: mockUser.id,
         createdAt: new Date(),

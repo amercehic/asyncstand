@@ -4,19 +4,26 @@ import { motion } from 'framer-motion';
 import { ModernButton, Tooltip } from '@/components/ui';
 import {
   Settings,
-  Trash2,
   RefreshCw,
   CheckCircle2,
-  XCircle,
   AlertTriangle,
   Clock,
+  ChevronRight,
+  Activity,
+  Zap,
+  Shield,
+  Link2,
   Users,
-  MessageSquare,
+  Hash,
 } from 'lucide-react';
 import { toast } from '@/components/ui';
 import { integrationsApi, type SlackIntegration } from '@/lib/api';
 import { useAuth, useIntegrations } from '@/contexts';
-import { SlackIcon, TeamsIcon, DiscordIcon } from '@/components/icons/IntegrationIcons';
+import {
+  SlackIcon,
+  TeamsOutlineIcon,
+  DiscordOutlineIcon,
+} from '@/components/icons/IntegrationIcons';
 import { DeleteIntegrationModal } from '@/components/DeleteIntegrationModal';
 import { IntegrationSuccessDialog } from '@/components/IntegrationSuccessDialog';
 
@@ -42,6 +49,7 @@ export const IntegrationsPage = React.memo(() => {
     workspaceName?: string;
     id?: string;
   } | null>(null);
+  const [expandedScopes, setExpandedScopes] = useState<{ [key: string]: boolean }>({});
 
   // Handle OAuth callback from URL parameters
   useEffect(() => {
@@ -152,29 +160,54 @@ export const IntegrationsPage = React.memo(() => {
     navigate(`/integrations/${integration.id}`);
   };
 
-  const getStatusIcon = (status: SlackIntegration['tokenStatus']) => {
+  const toggleScopeExpansion = (integrationId: string) => {
+    setExpandedScopes(prev => ({
+      ...prev,
+      [integrationId]: !prev[integrationId],
+    }));
+  };
+
+  const getIntegrationStatus = (integration: SlackIntegration) => {
+    if (isIntegrationSyncing(integration.id)) {
+      return 'syncing';
+    }
+    if (integration.tokenStatus !== 'ok') {
+      return 'error';
+    }
+    if (integration.syncState?.errorMsg) {
+      return 'warning';
+    }
+    return 'active';
+  };
+
+  const getStatusDot = (status: string) => {
     switch (status) {
-      case 'ok':
-        return <CheckCircle2 className="w-5 h-5 text-green-500" />;
-      case 'expired':
-        return <Clock className="w-5 h-5 text-yellow-500" />;
-      case 'revoked':
-        return <XCircle className="w-5 h-5 text-red-500" />;
+      case 'active':
+        return <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />;
+      case 'syncing':
+        return <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />;
+      case 'warning':
+        return <div className="w-2 h-2 bg-orange-500 rounded-full" />;
+      case 'error':
+        return <div className="w-2 h-2 bg-red-500 rounded-full" />;
       default:
-        return <AlertTriangle className="w-5 h-5 text-orange-500" />;
+        return <div className="w-2 h-2 bg-gray-500 rounded-full" />;
     }
   };
 
-  const getStatusText = (status: SlackIntegration['tokenStatus']) => {
+  const getHealthIndicator = (integration: SlackIntegration) => {
+    const status = getIntegrationStatus(integration);
     switch (status) {
-      case 'ok':
-        return 'Connected';
-      case 'expired':
-        return 'Token Expired';
-      case 'revoked':
-        return 'Access Revoked';
+      case 'active':
+        return { text: 'Healthy', color: 'text-green-600 dark:text-green-400' };
+      case 'syncing':
+        return { text: 'Syncing', color: 'text-yellow-600 dark:text-yellow-400' };
+      case 'warning':
+        return { text: 'Warning', color: 'text-orange-600 dark:text-orange-400' };
+      case 'error':
+        return { text: 'Error', color: 'text-red-600 dark:text-red-400' };
       default:
-        return 'Error';
+        return { text: 'Unknown', color: 'text-gray-600 dark:text-gray-400' };
     }
   };
 
@@ -187,6 +220,50 @@ export const IntegrationsPage = React.memo(() => {
       minute: '2-digit',
       hour12: false,
     });
+  };
+
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} min${diffMins > 1 ? 's' : ''} ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+  };
+
+  const renderScopes = (scopes: string[], integrationId: string) => {
+    const isExpanded = expandedScopes[integrationId];
+    const scopesToShow = isExpanded ? scopes : scopes.slice(0, 10);
+    const remaining = scopes.length - 10;
+
+    return (
+      <div className="flex flex-wrap gap-1 items-center">
+        {scopesToShow.map((scope, index) => (
+          <span
+            key={index}
+            className="px-2 py-0.5 bg-muted/50 text-xs rounded-md text-muted-foreground"
+          >
+            {scope}
+          </span>
+        ))}
+        {scopes.length > 10 && (
+          <button
+            onClick={e => {
+              e.stopPropagation();
+              toggleScopeExpansion(integrationId);
+            }}
+            className="text-xs text-primary hover:underline cursor-pointer"
+          >
+            {isExpanded ? 'Show less' : `+${remaining} more`}
+          </button>
+        )}
+      </div>
+    );
   };
 
   if (isLoading) {
@@ -269,69 +346,95 @@ export const IntegrationsPage = React.memo(() => {
           </div>
         </motion.div>
 
-        {/* Connection Buttons */}
+        {/* Available Platforms Section */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.1 }}
           className="bg-card rounded-2xl p-6 sm:p-8 border border-border mb-8"
         >
-          <h2 className="text-lg sm:text-xl font-semibold mb-4">Available Platforms</h2>
-          <p className="text-muted-foreground mb-6">
-            Connect your workspace tools to get started with async standups.
+          <h2 className="text-lg sm:text-xl font-semibold mb-2">Available Platforms</h2>
+          <p className="text-muted-foreground mb-6 text-sm">
+            Workspace tools you can connect to AsyncStand.
           </p>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
-            {integrations.length > 0 ? (
-              <ModernButton
-                variant="secondary"
-                size="lg"
-                className="border-2 border-green-500 bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-300 cursor-default"
-                disabled
-              >
-                <SlackIcon className="mr-3" size={20} />
-                Slack Already Connected
-              </ModernButton>
-            ) : (
-              <ModernButton
-                variant="primary"
-                size="lg"
-                className="bg-gradient-to-r from-[#4A154B] to-[#350d36] hover:from-[#4A154B]/90 hover:to-[#350d36]/90 text-white border-0"
-                onClick={() => handleConnectIntegration('slack')}
-              >
-                <SlackIcon className="mr-3" size={20} />
-                Connect Slack Workspace
-              </ModernButton>
-            )}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Slack Card */}
+            <motion.div
+              whileHover={{ y: -2 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+              className={`bg-card rounded-xl border border-border p-4 relative overflow-hidden transition-all ${
+                integrations.length > 0 ? '' : 'hover:bg-accent/5 cursor-pointer'
+              }`}
+              onClick={() =>
+                integrations.length === 0 ? handleConnectIntegration('slack') : undefined
+              }
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-[#4A154B] rounded-lg flex items-center justify-center">
+                    <SlackIcon className="text-white" size={20} />
+                  </div>
+                  <div>
+                    <p className="font-medium text-foreground">Slack</p>
+                    <p className="text-xs text-muted-foreground">Team messaging</p>
+                  </div>
+                </div>
+                {integrations.length > 0 && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {integrations.length > 0 ? 'Connected workspace' : 'Available to connect'}
+              </div>
+            </motion.div>
 
+            {/* Microsoft Teams Card */}
             <Tooltip content="Microsoft Teams integration coming soon!" position="top">
-              <ModernButton
-                variant="secondary"
-                size="lg"
-                className="border-2 border-dashed border-gray-300 dark:border-gray-600 text-muted-foreground cursor-not-allowed opacity-60"
-                onClick={() => handleConnectIntegration('teams')}
-                disabled
+              <motion.div
+                whileHover={{ y: -2 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                className="bg-card rounded-xl border border-border p-4 relative overflow-hidden opacity-60 cursor-not-allowed"
               >
-                <TeamsIcon className="mr-3" size={20} />
-                Microsoft Teams
-              </ModernButton>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gray-200 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+                      <TeamsOutlineIcon className="text-gray-400" size={20} />
+                    </div>
+                    <div>
+                      <p className="font-medium text-muted-foreground">Microsoft Teams</p>
+                      <p className="text-xs text-muted-foreground">Coming soon</p>
+                    </div>
+                  </div>
+                  <Clock className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <div className="text-xs text-muted-foreground">Not available yet</div>
+              </motion.div>
             </Tooltip>
 
+            {/* Discord Card */}
             <Tooltip content="Discord integration coming soon!" position="top">
-              <ModernButton
-                variant="secondary"
-                size="lg"
-                className="border-2 border-dashed border-gray-300 dark:border-gray-600 text-muted-foreground cursor-not-allowed opacity-60"
-                onClick={() => handleConnectIntegration('discord')}
-                disabled
+              <motion.div
+                whileHover={{ y: -2 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                className="bg-card rounded-xl border border-border p-4 relative overflow-hidden opacity-60 cursor-not-allowed"
               >
-                <DiscordIcon className="mr-3" size={20} />
-                Discord
-              </ModernButton>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gray-200 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+                      <DiscordOutlineIcon className="text-gray-400" size={20} />
+                    </div>
+                    <div>
+                      <p className="font-medium text-muted-foreground">Discord</p>
+                      <p className="text-xs text-muted-foreground">Coming soon</p>
+                    </div>
+                  </div>
+                  <Clock className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <div className="text-xs text-muted-foreground">Not available yet</div>
+              </motion.div>
             </Tooltip>
           </div>
         </motion.div>
 
-        {/* Integrations List */}
+        {/* Connected Integrations Section */}
         {integrations.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -339,105 +442,184 @@ export const IntegrationsPage = React.memo(() => {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="space-y-6"
           >
-            {integrations.map((integration, index) => (
-              <motion.div
-                key={integration.id}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.4, delay: 0.2 + index * 0.1 }}
-                className="bg-card rounded-2xl p-6 border border-border hover:shadow-lg transition-all duration-300 cursor-pointer"
-                onClick={() => handleViewIntegration(integration)}
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-gradient-to-r from-[#4A154B] to-[#350d36] rounded-xl flex items-center justify-center">
-                      <SlackIcon className="text-white" size={24} />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-lg font-semibold">{integration.externalTeamId}</h3>
-                        {getStatusIcon(integration.tokenStatus)}
-                        <span className="text-sm font-medium text-muted-foreground">
-                          {getStatusText(integration.tokenStatus)}
-                        </span>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-lg sm:text-xl font-semibold mb-1">Connected Integrations</h2>
+                <p className="text-sm text-muted-foreground">
+                  Manage your active workspace connections
+                </p>
+              </div>
+              <div className="px-4 py-1.5 bg-green-50 border border-green-200 rounded-full">
+                <span className="text-sm font-semibold text-green-700">
+                  {integrations.length} Active
+                </span>
+              </div>
+            </div>
+
+            {integrations.map((integration, index) => {
+              const status = getIntegrationStatus(integration);
+              const healthIndicator = getHealthIndicator(integration);
+              const lastSync =
+                integration.syncState?.lastUsersSyncAt || integration.syncState?.lastChannelsSyncAt;
+
+              return (
+                <motion.div
+                  key={integration.id}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.4, delay: 0.2 + index * 0.1 }}
+                  className="bg-card rounded-2xl p-6 border border-border hover:shadow-lg transition-all duration-300"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-gradient-to-r from-[#4A154B] to-[#350d36] rounded-xl flex items-center justify-center">
+                        <SlackIcon className="text-white" size={24} />
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        Connected {formatDate(integration.installedAt)}
-                      </p>
+                      <div>
+                        <div className="flex items-center gap-3 mb-1">
+                          <h3 className="text-lg font-semibold">{integration.externalTeamId}</h3>
+                          <div className="flex items-center gap-2">
+                            {getStatusDot(status)}
+                            <span className={`text-sm font-medium ${healthIndicator.color}`}>
+                              {healthIndicator.text}
+                            </span>
+                          </div>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Connected {formatDate(integration.installedAt)}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Quick Actions */}
+                    <div className="flex items-center gap-2">
+                      <Tooltip content="Sync Now" position="bottom">
+                        <ModernButton
+                          variant="ghost"
+                          size="sm"
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleSync(integration.id);
+                          }}
+                          disabled={
+                            isIntegrationSyncing(integration.id) || integration.tokenStatus !== 'ok'
+                          }
+                          data-testid={`sync-${integration.id}`}
+                        >
+                          <RefreshCw
+                            className={`w-4 h-4 ${isIntegrationSyncing(integration.id) ? 'animate-spin' : ''}`}
+                          />
+                        </ModernButton>
+                      </Tooltip>
+
+                      <Tooltip content="Settings" position="bottom">
+                        <ModernButton
+                          variant="ghost"
+                          size="sm"
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleViewIntegration(integration);
+                          }}
+                        >
+                          <Settings className="w-4 h-4" />
+                        </ModernButton>
+                      </Tooltip>
+
+                      <Tooltip content="Disconnect" position="bottom">
+                        <ModernButton
+                          variant="ghost"
+                          size="sm"
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleDisconnectClick(integration);
+                          }}
+                          data-testid={`disconnect-${integration.id}`}
+                        >
+                          <Link2 className="w-4 h-4 text-red-500" />
+                        </ModernButton>
+                      </Tooltip>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <ModernButton
-                      variant="ghost"
-                      size="sm"
-                      onClick={e => {
-                        e.stopPropagation();
-                        handleSync(integration.id);
-                      }}
-                      disabled={
-                        isIntegrationSyncing(integration.id) || integration.tokenStatus !== 'ok'
-                      }
-                      data-testid={`sync-${integration.id}`}
-                    >
-                      <RefreshCw
-                        className={`w-4 h-4 mr-2 ${isIntegrationSyncing(integration.id) ? 'animate-spin' : ''}`}
-                      />
-                      Sync
-                    </ModernButton>
-                    <ModernButton
-                      variant="ghost"
-                      size="sm"
-                      onClick={e => {
-                        e.stopPropagation();
-                        handleDisconnectClick(integration);
-                      }}
-                      data-testid={`disconnect-${integration.id}`}
-                    >
-                      <Trash2 className="w-4 h-4 text-red-500" />
-                    </ModernButton>
-                  </div>
-                </div>
+                  {/* Health Metrics */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                    <div className="flex items-center gap-2">
+                      <Activity className="w-4 h-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Last Sync</p>
+                        <p className="text-sm font-medium">
+                          {lastSync ? formatTimeAgo(lastSync) : 'Never'}
+                        </p>
+                      </div>
+                    </div>
 
-                {/* Integration Details */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                  <div className="flex items-center gap-2">
-                    <Settings className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">
-                      Scopes: {integration.scopes.join(', ')}
-                    </span>
-                  </div>
-                  {integration.syncState?.lastUsersSyncAt && (
+                    <div className="flex items-center gap-2">
+                      <Zap className="w-4 h-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Status</p>
+                        <p className="text-sm font-medium capitalize">
+                          {integration.tokenStatus === 'ok' ? 'Connected' : integration.tokenStatus}
+                        </p>
+                      </div>
+                    </div>
+
                     <div className="flex items-center gap-2">
                       <Users className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">
-                        Users synced: {formatDate(integration.syncState.lastUsersSyncAt)}
-                      </span>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Members</p>
+                        <p className="text-sm font-medium">
+                          {integration.syncState?.userCount ?? 0}
+                        </p>
+                      </div>
                     </div>
-                  )}
-                  {integration.syncState?.lastChannelsSyncAt && (
-                    <div className="flex items-center gap-2">
-                      <MessageSquare className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">
-                        Channels synced: {formatDate(integration.syncState.lastChannelsSyncAt)}
-                      </span>
-                    </div>
-                  )}
-                </div>
 
-                {/* Error Message */}
-                {integration.syncState?.errorMsg && (
-                  <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
                     <div className="flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4 text-red-500" />
-                      <span className="text-sm text-red-700 dark:text-red-300">
-                        {integration.syncState.errorMsg}
-                      </span>
+                      <Hash className="w-4 h-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Channels</p>
+                        <p className="text-sm font-medium">
+                          {integration.syncState?.channelCount ?? 0}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                )}
-              </motion.div>
-            ))}
+
+                  {/* Permissions/Scopes */}
+                  <div className="border-t border-border pt-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Shield className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">Permissions</span>
+                    </div>
+                    {renderScopes(integration.scopes, integration.id)}
+                  </div>
+
+                  {/* Error Message */}
+                  {integration.syncState?.errorMsg && (
+                    <div className="mt-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 text-red-500" />
+                        <span className="text-sm text-red-700 dark:text-red-300">
+                          {integration.syncState.errorMsg}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* View Details Button */}
+                  <div className="mt-4 flex justify-end">
+                    <ModernButton
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleViewIntegration(integration)}
+                      className="gap-2"
+                    >
+                      View Details
+                      <ChevronRight className="w-4 h-4" />
+                    </ModernButton>
+                  </div>
+                </motion.div>
+              );
+            })}
           </motion.div>
         )}
 

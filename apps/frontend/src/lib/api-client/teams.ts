@@ -14,12 +14,7 @@ function mapListItemToTeam(item: TeamListResponse['teams'][0]): Team {
     name: String(item.name),
     description: undefined,
     members: [],
-    channel: item.channel
-      ? {
-          id: String(item.channel.id),
-          name: String(item.channel.name),
-        }
-      : undefined,
+    memberCount: item.memberCount,
     createdAt: new Date(item.createdAt).toISOString(),
     updatedAt: new Date(item.createdAt).toISOString(),
   };
@@ -40,12 +35,22 @@ function mapDetailsToTeam(details: TeamDetailsResponse): Team {
           updatedAt: new Date(details.createdAt).toISOString(),
         }))
       : [],
-    channel: details.channel
-      ? {
-          id: String(details.channel.id),
-          name: String(details.channel.name),
-        }
-      : undefined,
+    standupConfigs: Array.isArray(details.standupConfigs)
+      ? details.standupConfigs.map(config => ({
+          id: String(config.id),
+          name: String(config.name),
+          deliveryType: config.deliveryType,
+          questions: config.questions,
+          weekdays: config.weekdays,
+          timeLocal: config.timeLocal,
+          timezone: config.timezone,
+          reminderMinutesBefore: config.reminderMinutesBefore,
+          responseTimeoutHours: config.responseTimeoutHours,
+          isActive: config.isActive,
+          targetChannelId: config.targetChannelId,
+          targetChannel: config.targetChannel,
+        }))
+      : [],
     createdAt: new Date(details.createdAt).toISOString(),
     updatedAt: new Date(details.createdAt).toISOString(),
   };
@@ -120,5 +125,10 @@ export const teamsApi = {
       api.delete(`/teams/${teamId}/members/${teamMemberId}`)
     );
     await Promise.all(removePromises);
+  },
+
+  async syncTeamMembers(teamId: string): Promise<{ success: boolean; syncedCount: number }> {
+    const response = await api.post(`/teams/${teamId}/sync-members`);
+    return response.data;
   },
 };

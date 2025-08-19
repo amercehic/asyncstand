@@ -408,7 +408,7 @@ describe('Teams (e2e)', () => {
       // Verify team was created in database
       const team = await prisma.team.findUnique({
         where: { id: response.body.id },
-        include: { channel: true },
+        include: {},
       });
 
       expect(team).toBeDefined();
@@ -416,7 +416,6 @@ describe('Teams (e2e)', () => {
       expect(team!.timezone).toBe('America/New_York');
       expect(team!.orgId).toBe(testData.orgId);
       expect(team!.integrationId).toBe(testData.integrationId);
-      expect(team!.slackChannelId).toBe('C1234567890');
       expect(team!.createdByUserId).toBe(testData.adminUserId);
     });
 
@@ -497,7 +496,7 @@ describe('Teams (e2e)', () => {
         .post('/teams')
         .set('Authorization', `Bearer ${testData.adminToken}`)
         .send(createTeamDto)
-        .expect(404); // Changed from 400 to 404 because channel validation is disabled
+        .expect(201); // Teams no longer require channels, so creation succeeds
     });
 
     it('should validate required fields', async () => {
@@ -531,8 +530,6 @@ describe('Teams (e2e)', () => {
           orgId: testData.orgId,
           name: 'Team 1',
           integrationId: testData.integrationId,
-          channelId: testData.channelId,
-          slackChannelId: 'C1234567890',
           timezone: 'America/New_York',
           createdByUserId: testData.adminUserId,
         },
@@ -543,8 +540,6 @@ describe('Teams (e2e)', () => {
           orgId: testData.orgId,
           name: 'Team 2',
           integrationId: testData.integrationId,
-          channelId: testData.channelId,
-          slackChannelId: 'C2345678901',
           timezone: 'America/Los_Angeles',
           createdByUserId: testData.adminUserId,
         },
@@ -584,9 +579,8 @@ describe('Teams (e2e)', () => {
       const team = response.body.teams[0];
       expect(team).toHaveProperty('id');
       expect(team).toHaveProperty('name');
-      expect(team).toHaveProperty('channelName');
       expect(team).toHaveProperty('memberCount');
-      expect(team).toHaveProperty('hasStandupConfig');
+      expect(team).toHaveProperty('standupConfigCount');
       expect(team).toHaveProperty('createdAt');
       expect(team).toHaveProperty('createdBy');
     });
@@ -637,8 +631,6 @@ describe('Teams (e2e)', () => {
           orgId: testData.orgId,
           name: 'Detailed Team',
           integrationId: testData.integrationId,
-          channelId: testData.channelId,
-          slackChannelId: 'C1234567890',
           timezone: 'America/New_York',
           createdByUserId: testData.adminUserId,
         },
@@ -667,7 +659,6 @@ describe('Teams (e2e)', () => {
       expect(response.body).toHaveProperty('name', 'Detailed Team');
       expect(response.body).toHaveProperty('timezone', 'America/New_York');
       expect(response.body).toHaveProperty('integration');
-      expect(response.body).toHaveProperty('channel');
       expect(response.body).toHaveProperty('members');
       expect(response.body).toHaveProperty('createdAt');
       expect(response.body).toHaveProperty('createdBy');
@@ -698,8 +689,6 @@ describe('Teams (e2e)', () => {
           orgId: testData.orgId,
           name: 'Original Team Name',
           integrationId: testData.integrationId,
-          channelId: testData.channelId,
-          slackChannelId: 'C1234567890',
           timezone: 'America/New_York',
           createdByUserId: testData.adminUserId,
         },
@@ -749,8 +738,6 @@ describe('Teams (e2e)', () => {
           orgId: testData.orgId,
           name: 'Existing Team',
           integrationId: testData.integrationId,
-          channelId: testData.channelId,
-          slackChannelId: 'C2345678901',
           timezone: 'America/New_York',
           createdByUserId: testData.adminUserId,
         },
@@ -789,8 +776,6 @@ describe('Teams (e2e)', () => {
           orgId: testData.orgId,
           name: 'Team to Delete',
           integrationId: testData.integrationId,
-          channelId: testData.channelId,
-          slackChannelId: 'C1234567890',
           timezone: 'America/New_York',
           createdByUserId: testData.adminUserId,
         },
@@ -911,8 +896,6 @@ describe('Teams (e2e)', () => {
           orgId: testData.orgId,
           name: 'Member Test Team',
           integrationId: testData.integrationId,
-          channelId: testData.channelId,
-          slackChannelId: 'C1234567890',
           timezone: 'America/New_York',
           createdByUserId: testData.adminUserId,
         },
@@ -1001,8 +984,6 @@ describe('Teams (e2e)', () => {
           orgId: testData.orgId,
           name: 'Member Remove Test Team',
           integrationId: testData.integrationId,
-          channelId: testData.channelId,
-          slackChannelId: 'C1234567890',
           timezone: 'America/New_York',
           createdByUserId: testData.adminUserId,
         },
@@ -1098,21 +1079,11 @@ describe('Teams (e2e)', () => {
         },
       });
 
-      const otherChannel = await prisma.channel.create({
-        data: {
-          integrationId: otherIntegration.id,
-          channelId: 'C_OTHER',
-          name: 'other-channel',
-        },
-      });
-
       const otherTeam = await prisma.team.create({
         data: {
           orgId: otherOrg.id,
           name: 'Other Team',
           integrationId: otherIntegration.id,
-          channelId: otherChannel.id,
-          slackChannelId: 'C_OTHER',
           timezone: 'America/New_York',
           createdByUserId: otherAdmin.id,
         },

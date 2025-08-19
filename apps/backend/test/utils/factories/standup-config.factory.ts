@@ -7,7 +7,7 @@ export class StandupConfigFactory {
       id: faker.string.uuid(),
       teamId: faker.string.uuid(),
       name: 'Daily Standup',
-      deliveryType: StandupDeliveryType.channel,
+      deliveryType: StandupDeliveryType.direct_message,
       questions: [
         'What did you accomplish yesterday?',
         'What will you work on today?',
@@ -40,7 +40,7 @@ export class StandupConfigFactory {
   static createMockCreateStandupConfigDto(overrides: Partial<Record<string, unknown>> = {}) {
     return {
       name: 'Daily Standup',
-      deliveryType: StandupDeliveryType.channel,
+      deliveryType: StandupDeliveryType.direct_message,
       questions: [
         'What did you accomplish yesterday?',
         'What will you work on today?',
@@ -115,7 +115,6 @@ export class StandupConfigFactory {
       team: {
         id: config.teamId,
         name: faker.company.name(),
-        channelName: faker.lorem.word(),
       },
       memberParticipation,
     };

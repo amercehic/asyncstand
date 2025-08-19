@@ -10,7 +10,7 @@ export function Layout() {
       <PageErrorBoundary>
         <Outlet />
       </PageErrorBoundary>
-      <Toaster position="top-center" richColors closeButton />
+      <Toaster position="top-right" maxToasts={5} gap={12} offset={16} />
 
       {/* Fixed theme toggle in bottom-right corner */}
       <div className="fixed bottom-6 right-6 z-50">

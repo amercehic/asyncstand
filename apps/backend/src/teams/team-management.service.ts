@@ -67,64 +67,15 @@ export class TeamManagementService {
       );
     }
 
-    // Check if channel is already assigned to another team
-    const existingChannelAssignment = await this.prisma.team.findFirst({
-      where: {
-        integrationId: data.integrationId,
-        slackChannelId: data.channelId,
-      },
-    });
-
-    if (existingChannelAssignment) {
-      throw new ApiError(
-        ErrorCode.CONFLICT,
-        'Channel is already assigned to another team',
-        HttpStatus.CONFLICT,
-      );
-    }
-
-    // Find the channel record in our database
-    const channel = await this.prisma.channel.findUnique({
-      where: {
-        integrationId_channelId: {
-          integrationId: data.integrationId,
-          channelId: data.channelId,
-        },
-      },
-    });
-
-    if (!channel) {
-      throw new ApiError(
-        ErrorCode.NOT_FOUND,
-        'Channel not found. Please sync the workspace first.',
-        HttpStatus.NOT_FOUND,
-      );
-    }
-
-    // Validate channel access - skip in test environment unless explicitly enabled
-    const skipChannelValidation =
-      process.env.NODE_ENV === 'test' && process.env.ENABLE_CHANNEL_VALIDATION !== 'true';
-    if (!skipChannelValidation) {
-      const channelValidation = await this.validateChannelAccess(
-        data.channelId,
-        data.integrationId,
-      );
-      if (!channelValidation.valid) {
-        throw new ApiError(
-          ErrorCode.EXTERNAL_SERVICE_ERROR,
-          channelValidation.error || 'Channel access validation failed',
-          HttpStatus.BAD_REQUEST,
-        );
-      }
-    }
+    // Channel is now optional for teams
+    // Teams can exist without a channel and have multiple standup configs
+    // Each standup config can target a specific channel if needed
 
     try {
       const team = await this.prisma.team.create({
         data: {
           orgId,
           integrationId: data.integrationId,
-          channelId: channel.id,
-          slackChannelId: data.channelId,
           name: data.name,
           timezone: data.timezone,
           createdByUserId,
@@ -155,39 +106,7 @@ export class TeamManagementService {
 
       this.logger.info('Team created successfully', { teamId: team.id, orgId });
 
-      // Attempt to automatically join the channel with the bot
-      this.logger.info('Attempting automatic channel join for team', {
-        teamId: team.id,
-        teamName: team.name,
-        channelId: data.channelId,
-        integrationId: data.integrationId,
-      });
-
-      try {
-        const joinResult = await this.slackApiService.joinChannel(
-          data.integrationId,
-          data.channelId,
-        );
-        if (joinResult.success) {
-          this.logger.info('Bot successfully joined channel', {
-            teamId: team.id,
-            channelId: data.channelId,
-          });
-        } else {
-          this.logger.warn('Bot could not join channel automatically', {
-            teamId: team.id,
-            channelId: data.channelId,
-            error: joinResult.error,
-          });
-        }
-      } catch (error) {
-        // Don't fail team creation if bot joining fails
-        this.logger.warn('Failed to join channel during team creation', {
-          teamId: team.id,
-          channelId: data.channelId,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
-      }
+      // Channel joining is now handled at standup config level, not team level
 
       return { id: team.id };
     } catch (error) {
@@ -230,110 +149,14 @@ export class TeamManagementService {
       }
     }
 
-    // If channel is being updated, validate it
-    if (data.channelId && data.channelId !== team.slackChannelId) {
-      const existingChannelAssignment = await this.prisma.team.findFirst({
-        where: {
-          integrationId: data.integrationId || team.integrationId,
-          slackChannelId: data.channelId,
-          id: { not: teamId },
-        },
-      });
-
-      if (existingChannelAssignment) {
-        throw new ApiError(
-          ErrorCode.CONFLICT,
-          'Channel is already assigned to another team',
-          HttpStatus.CONFLICT,
-        );
-      }
-
-      // Find the new channel record
-      const newChannel = await this.prisma.channel.findUnique({
-        where: {
-          integrationId_channelId: {
-            integrationId: data.integrationId || team.integrationId,
-            channelId: data.channelId,
-          },
-        },
-      });
-
-      if (!newChannel) {
-        throw new ApiError(
-          ErrorCode.NOT_FOUND,
-          'Channel not found. Please sync the workspace first.',
-          HttpStatus.NOT_FOUND,
-        );
-      }
-
-      // Validate channel access - skip in test environment
-      if (process.env.NODE_ENV !== 'test') {
-        const channelValidation = await this.validateChannelAccess(
-          data.channelId,
-          data.integrationId || team.integrationId,
-        );
-        if (!channelValidation.valid) {
-          throw new ApiError(
-            ErrorCode.EXTERNAL_SERVICE_ERROR,
-            channelValidation.error || 'Channel access validation failed',
-            HttpStatus.BAD_REQUEST,
-          );
-        }
-      }
-
-      // Update with new channel reference
-      const updateData = {
-        ...data,
-        channelId: newChannel.id,
-        slackChannelId: data.channelId,
-      };
-      delete updateData.channelId; // Remove the Slack channel ID from update data
-
-      await this.prisma.team.update({
-        where: { id: teamId },
-        data: {
-          ...updateData,
-          channelId: newChannel.id,
-          slackChannelId: data.channelId,
-        },
-      });
-
-      // Attempt to automatically join the new channel with the bot
-      try {
-        const joinResult = await this.slackApiService.joinChannel(
-          data.integrationId || team.integrationId,
-          data.channelId,
-        );
-        if (joinResult.success) {
-          this.logger.info('Bot successfully joined new channel', {
-            teamId,
-            channelId: data.channelId,
-          });
-        } else {
-          this.logger.warn('Bot could not join new channel automatically', {
-            teamId,
-            channelId: data.channelId,
-            error: joinResult.error,
-          });
-        }
-      } catch (error) {
-        // Don't fail team update if bot joining fails
-        this.logger.warn('Failed to join new channel during team update', {
-          teamId,
-          channelId: data.channelId,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
-      }
-    } else {
-      await this.prisma.team.update({
-        where: { id: teamId },
-        data: {
-          name: data.name,
-          timezone: data.timezone,
-          // Don't update channel-related fields if channel isn't changing
-        },
-      });
-    }
+    // Channel assignment removed - teams no longer have channels directly
+    await this.prisma.team.update({
+      where: { id: teamId },
+      data: {
+        name: data.name,
+        timezone: data.timezone,
+      },
+    });
 
     this.logger.info('Team updated successfully', { teamId, orgId });
   }
@@ -415,11 +238,10 @@ export class TeamManagementService {
       where: { orgId },
       include: {
         _count: {
-          select: { members: true },
-        },
-        configs: {
-          select: { id: true },
-          take: 1,
+          select: {
+            members: true,
+            configs: true,
+          },
         },
         createdBy: {
           select: { name: true },
@@ -428,52 +250,16 @@ export class TeamManagementService {
       orderBy: { createdAt: 'desc' },
     });
 
-    // Get channel information from database
-    const teamsWithChannelNames = await Promise.all(
-      teams.map(async (team) => {
-        let channelName = team.channelId;
-        let channelObject = null;
+    const teamList = teams.map((team) => ({
+      id: team.id,
+      name: team.name,
+      memberCount: team._count.members,
+      standupConfigCount: team._count.configs,
+      createdAt: team.createdAt,
+      createdBy: team.createdBy || { name: 'System' },
+    }));
 
-        if (team.channelId) {
-          try {
-            // Get channel information from the database
-            const channel = await this.prisma.channel.findUnique({
-              where: { id: team.channelId },
-              select: { id: true, name: true },
-            });
-
-            if (channel) {
-              channelName = channel.name;
-              channelObject = {
-                id: channel.id,
-                name: channel.name,
-              };
-            }
-          } catch (error) {
-            this.logger.warn('Failed to get channel information', {
-              teamId: team.id,
-              channelId: team.channelId,
-              error: error instanceof Error ? error.message : 'Unknown error',
-            });
-          }
-        }
-
-        return {
-          id: team.id,
-          name: team.name,
-          channelName,
-          channel: channelObject,
-          memberCount: team._count.members,
-          hasStandupConfig: team.configs.length > 0,
-          createdAt: team.createdAt,
-          createdBy: {
-            name: team.createdBy?.name || 'System',
-          },
-        };
-      }),
-    );
-
-    return { teams: teamsWithChannelNames };
+    return { teams: teamList };
   }
 
   async getTeamDetails(teamId: string, orgId: string): Promise<TeamDetailsResponse> {
@@ -494,14 +280,18 @@ export class TeamManagementService {
           orderBy: { addedAt: 'desc' },
         },
         configs: {
-          select: {
-            id: true,
-            questions: true,
-            weekdays: true,
-            timeLocal: true,
-            reminderMinutesBefore: true,
+          include: {
+            targetChannel: {
+              select: {
+                id: true,
+                name: true,
+                channelId: true,
+              },
+            },
+            configMembers: {
+              where: { include: true },
+            },
           },
-          take: 1,
         },
         createdBy: {
           select: { name: true },
@@ -513,26 +303,12 @@ export class TeamManagementService {
       throw new ApiError(ErrorCode.NOT_FOUND, 'Team not found', HttpStatus.NOT_FOUND);
     }
 
-    // Get channel name from channel table based on channel id
-    let channelName: string | null = null;
-    if (team.channelId) {
-      const channel = await this.prisma.channel.findUnique({
-        where: { id: team.channelId },
-        select: { name: true },
-      });
-      channelName = channel?.name || team.channelId;
-    }
-
     return {
       id: team.id,
       name: team.name,
       timezone: team.timezone,
       integration: {
         teamName: team.integration.externalTeamId,
-      },
-      channel: {
-        id: team.channelId,
-        name: channelName,
       },
       members: team.members.map((member) => ({
         id: member.id,
@@ -541,9 +317,22 @@ export class TeamManagementService {
         addedAt: member.addedAt,
         addedBy: member.addedBy ? { name: member.addedBy.name } : null,
       })),
-      standupConfig: team.configs[0] || undefined,
+      standupConfigs: team.configs.map((config) => ({
+        id: config.id,
+        name: config.name,
+        deliveryType: config.deliveryType,
+        targetChannel: config.targetChannel
+          ? {
+              id: config.targetChannel.id,
+              name: config.targetChannel.name,
+              channelId: config.targetChannel.channelId,
+            }
+          : undefined,
+        isActive: config.isActive,
+        memberCount: config.configMembers.length,
+      })),
       createdAt: team.createdAt,
-      createdBy: team.createdBy ? { name: team.createdBy.name } : null,
+      createdBy: team.createdBy ? { name: team.createdBy.name } : { name: 'System' },
     };
   }
 
@@ -591,23 +380,36 @@ export class TeamManagementService {
         isArchived: false, // Only show non-archived channels
       },
       include: {
-        teams: {
-          select: {
-            name: true,
+        standupConfigs: {
+          where: {
+            isActive: true, // Only check active standup configs
           },
-          take: 1,
+          include: {
+            team: {
+              select: { name: true },
+            },
+          },
         },
       },
       orderBy: { name: 'asc' },
     });
 
     return {
-      channels: channels.map((channel) => ({
-        id: channel.channelId, // Return Slack channel ID for team creation
-        name: channel.name,
-        isAssigned: channel.teams.length > 0,
-        assignedTeamName: channel.teams[0]?.name,
-      })),
+      channels: channels.map((channel) => {
+        const configs = channel.standupConfigs || [];
+        const teamsUsingChannel = [
+          ...new Set(configs.map((config) => config.team?.name).filter(Boolean)),
+        ];
+
+        return {
+          id: channel.id, // Return database channel ID for standup creation
+          name: channel.name,
+          isAssigned: configs.length > 0,
+          assignedTeamName: teamsUsingChannel.length === 1 ? teamsUsingChannel[0] : undefined,
+          assignedTeamNames: teamsUsingChannel, // All teams using this channel
+          configCount: configs.length, // Total number of standup configs using this channel
+        };
+      }),
     };
   }
 
@@ -917,14 +719,6 @@ export class TeamManagementService {
           platform: 'slack',
         },
       },
-      include: {
-        teams: {
-          select: {
-            name: true,
-          },
-          take: 1,
-        },
-      },
       orderBy: [{ isArchived: 'asc' }, { name: 'asc' }],
     });
 
@@ -937,9 +731,179 @@ export class TeamManagementService {
         isPrivate: channel.isPrivate,
         isArchived: channel.isArchived,
         memberCount: channel.memberCount,
-        isAssigned: channel.teams.length > 0,
-        assignedTeamName: channel.teams[0]?.name,
+        isAssigned: false, // Teams no longer directly tied to channels
+        assignedTeamName: undefined,
         lastSyncAt: channel.lastSyncAt,
+      })),
+    };
+  }
+
+  async syncTeamMembers(
+    teamId: string,
+    orgId: string,
+  ): Promise<{ success: boolean; syncedCount: number }> {
+    this.logger.info('Syncing team members from integration', { teamId, orgId });
+
+    const team = await this.prisma.team.findUnique({
+      where: { id: teamId },
+      include: {
+        integration: {
+          include: {
+            integrationUsers: {
+              where: {
+                isDeleted: false,
+                isBot: false,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!team || team.orgId !== orgId) {
+      throw new ApiError(ErrorCode.NOT_FOUND, 'Team not found', HttpStatus.NOT_FOUND);
+    }
+
+    let syncedCount = 0;
+
+    for (const integrationUser of team.integration.integrationUsers) {
+      const existingMember = await this.prisma.teamMember.findFirst({
+        where: {
+          teamId,
+          integrationUserId: integrationUser.id,
+        },
+      });
+
+      if (!existingMember) {
+        await this.prisma.teamMember.create({
+          data: {
+            teamId,
+            integrationUserId: integrationUser.id,
+            platformUserId: integrationUser.externalUserId,
+            name: integrationUser.displayName || integrationUser.name,
+            active: false, // Start as inactive, admin can activate
+          },
+        });
+        syncedCount++;
+      }
+    }
+
+    this.logger.info('Team members synced successfully', { teamId, syncedCount });
+    return { success: true, syncedCount };
+  }
+
+  async updateMemberStatus(
+    teamId: string,
+    memberId: string,
+    orgId: string,
+    active: boolean,
+  ): Promise<void> {
+    this.logger.info('Updating team member status', { teamId, memberId, active });
+
+    const team = await this.prisma.team.findUnique({
+      where: { id: teamId },
+    });
+
+    if (!team || team.orgId !== orgId) {
+      throw new ApiError(ErrorCode.NOT_FOUND, 'Team not found', HttpStatus.NOT_FOUND);
+    }
+
+    const member = await this.prisma.teamMember.findFirst({
+      where: {
+        id: memberId,
+        teamId,
+      },
+    });
+
+    if (!member) {
+      throw new ApiError(ErrorCode.NOT_FOUND, 'Team member not found', HttpStatus.NOT_FOUND);
+    }
+
+    await this.prisma.teamMember.update({
+      where: { id: memberId },
+      data: { active },
+    });
+
+    this.logger.info('Team member status updated successfully', { teamId, memberId, active });
+  }
+
+  async getTeamAvailableChannels(teamId: string, orgId: string) {
+    this.logger.info('Getting available channels for team', { teamId, orgId });
+
+    const team = await this.prisma.team.findUnique({
+      where: { id: teamId },
+      include: {
+        integration: {
+          include: {
+            channels: {
+              where: {
+                isArchived: false,
+              },
+              orderBy: { name: 'asc' },
+            },
+          },
+        },
+      },
+    });
+
+    if (!team || team.orgId !== orgId) {
+      throw new ApiError(ErrorCode.NOT_FOUND, 'Team not found', HttpStatus.NOT_FOUND);
+    }
+
+    return {
+      channels: team.integration.channels.map((channel) => ({
+        id: channel.id,
+        channelId: channel.channelId,
+        name: channel.name,
+        topic: channel.topic,
+        purpose: channel.purpose,
+        isPrivate: channel.isPrivate,
+        memberCount: channel.memberCount,
+      })),
+    };
+  }
+
+  async getTeamStandups(teamId: string, orgId: string) {
+    this.logger.info('Getting standups for team', { teamId, orgId });
+
+    const team = await this.prisma.team.findUnique({
+      where: { id: teamId },
+      include: {
+        configs: {
+          include: {
+            targetChannel: true,
+            configMembers: {
+              include: {
+                teamMember: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!team || team.orgId !== orgId) {
+      throw new ApiError(ErrorCode.NOT_FOUND, 'Team not found', HttpStatus.NOT_FOUND);
+    }
+
+    return {
+      standups: team.configs.map((config) => ({
+        id: config.id,
+        name: config.name,
+        deliveryType: config.deliveryType,
+        targetChannel: config.targetChannel
+          ? {
+              id: config.targetChannel.id,
+              name: config.targetChannel.name,
+              channelId: config.targetChannel.channelId,
+            }
+          : null,
+        isActive: config.isActive,
+        weekdays: config.weekdays,
+        timeLocal: config.timeLocal,
+        timezone: config.timezone,
+        memberCount: config.configMembers.filter((m) => m.include).length,
+        createdAt: config.createdAt,
       })),
     };
   }

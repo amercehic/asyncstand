@@ -50,7 +50,6 @@ export class StandupConfigService {
             integrationUser: true,
           },
         },
-        channel: true,
       },
     });
 
@@ -62,23 +61,38 @@ export class StandupConfigService {
       );
     }
 
-    if (!team.channel) {
-      throw new ApiError(
-        ErrorCode.CONFIGURATION_ERROR,
-        'Team must have a Slack channel assigned before configuring standups',
-        HttpStatus.BAD_REQUEST,
-      );
+    // Validate channel if delivery type is channel
+    if (data.deliveryType === 'channel') {
+      if (!data.targetChannelId) {
+        throw new ApiError(
+          ErrorCode.CONFIGURATION_ERROR,
+          'Target channel is required for channel-based standups',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const targetChannel = await this.prisma.channel.findUnique({
+        where: { id: data.targetChannelId },
+      });
+
+      if (!targetChannel || targetChannel.integrationId !== team.integrationId) {
+        throw new ApiError(
+          ErrorCode.NOT_FOUND,
+          'Target channel not found or does not belong to team integration',
+          HttpStatus.NOT_FOUND,
+        );
+      }
     }
 
-    // Check for name conflicts
-    const existingConfigByName = await this.prisma.standupConfig.findFirst({
+    // Check for existing config with same name
+    const existingConfig = await this.prisma.standupConfig.findFirst({
       where: {
         teamId,
         name: data.name,
       },
     });
 
-    if (existingConfigByName) {
+    if (existingConfig) {
       throw new ApiError(
         ErrorCode.STANDUP_CONFIG_ALREADY_EXISTS,
         `A standup configuration with name "${data.name}" already exists for this team`,
@@ -101,6 +115,7 @@ export class StandupConfigService {
           teamId,
           name: data.name,
           deliveryType: data.deliveryType,
+          targetChannelId: data.targetChannelId,
           questions: data.questions,
           weekdays: data.weekdays,
           timeLocal: data.timeLocal,
@@ -163,6 +178,8 @@ export class StandupConfigService {
     return { id: result.id };
   }
 
+  // DEPRECATED: Use updateStandupConfigById instead
+  // This method was used when there was only one config per team
   async updateStandupConfig(
     teamId: string,
     orgId: string,
@@ -212,23 +229,7 @@ export class StandupConfigService {
       );
     }
 
-    // Check for name conflicts if name is being updated
-    if (data.name && data.name !== config.name) {
-      const existingConfigByName = await this.prisma.standupConfig.findFirst({
-        where: {
-          teamId: config.teamId,
-          name: data.name,
-        },
-      });
-
-      if (existingConfigByName) {
-        throw new ApiError(
-          ErrorCode.STANDUP_CONFIG_ALREADY_EXISTS,
-          `A standup configuration with name "${data.name}" already exists for this team`,
-          HttpStatus.CONFLICT,
-        );
-      }
-    }
+    // Allow multiple configs per team with same name - only validate time conflicts when schedule changes
 
     // Update the config
     await this.prisma.standupConfig.update({
@@ -253,6 +254,75 @@ export class StandupConfigService {
     this.logger.info('Standup configuration updated successfully', { teamId, configId: config.id });
   }
 
+  async getStandupConfigById(configId: string, orgId: string): Promise<StandupConfigResponse> {
+    this.logger.info('Getting standup configuration by ID', { configId, orgId });
+
+    const config = await this.prisma.standupConfig.findFirst({
+      where: {
+        id: configId,
+        team: { orgId },
+      },
+      include: {
+        team: true,
+        configMembers: {
+          include: {
+            teamMember: {
+              include: {
+                user: true,
+                integrationUser: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!config) {
+      throw new ApiError(
+        ErrorCode.STANDUP_CONFIG_NOT_FOUND,
+        'Standup configuration not found',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    const memberParticipation: MemberParticipationResponse[] = config.configMembers.map((cm) => ({
+      teamMember: {
+        id: cm.teamMember.id,
+        name:
+          cm.teamMember.user?.name ||
+          cm.teamMember.integrationUser?.name ||
+          cm.teamMember.name ||
+          'Unknown',
+        platformUserId:
+          cm.teamMember.platformUserId || cm.teamMember.integrationUser?.externalUserId || '',
+      },
+      include: cm.include,
+      role: cm.role,
+    }));
+
+    return {
+      id: config.id,
+      teamId: config.teamId,
+      name: config.name,
+      deliveryType: config.deliveryType,
+      targetChannelId: config.targetChannelId || undefined,
+      questions: config.questions,
+      weekdays: config.weekdays,
+      timeLocal: config.timeLocal,
+      timezone: config.timezone,
+      reminderMinutesBefore: config.reminderMinutesBefore,
+      responseTimeoutHours: config.responseTimeoutHours,
+      isActive: config.isActive,
+      team: {
+        id: config.team.id,
+        name: config.team.name,
+      },
+      memberParticipation,
+      createdAt: config.createdAt,
+      updatedAt: config.updatedAt,
+    };
+  }
+
   async getStandupConfig(teamId: string, orgId: string): Promise<StandupConfigResponse> {
     this.logger.info('Getting standup configuration', { teamId, orgId });
 
@@ -263,11 +333,7 @@ export class StandupConfigService {
         team: { orgId },
       },
       include: {
-        team: {
-          include: {
-            channel: true,
-          },
-        },
+        team: true,
         configMembers: {
           include: {
             teamMember: {
@@ -313,6 +379,7 @@ export class StandupConfigService {
       teamId: config.teamId,
       name: config.name,
       deliveryType: config.deliveryType,
+      targetChannelId: config.targetChannelId || undefined,
       questions: config.questions,
       weekdays: config.weekdays,
       timeLocal: config.timeLocal,
@@ -323,7 +390,6 @@ export class StandupConfigService {
       team: {
         id: config.team.id,
         name: config.team.name,
-        channelName: config.team.channel?.name || 'Unknown Channel',
       },
       memberParticipation,
       createdAt: config.createdAt,
@@ -409,23 +475,7 @@ export class StandupConfigService {
       );
     }
 
-    // Check for name conflicts if name is being updated
-    if (data.name && data.name !== config.name) {
-      const existingConfigByName = await this.prisma.standupConfig.findFirst({
-        where: {
-          teamId: config.teamId,
-          name: data.name,
-        },
-      });
-
-      if (existingConfigByName) {
-        throw new ApiError(
-          ErrorCode.STANDUP_CONFIG_ALREADY_EXISTS,
-          `A standup configuration with name "${data.name}" already exists for this team`,
-          HttpStatus.CONFLICT,
-        );
-      }
-    }
+    // Allow multiple configs per team with same name - only validate time conflicts when schedule changes
 
     // Update the config
     await this.prisma.standupConfig.update({
@@ -769,11 +819,7 @@ export class StandupConfigService {
         team: { orgId },
       },
       include: {
-        team: {
-          include: {
-            channel: true,
-          },
-        },
+        team: true,
         configMembers: {
           include: {
             teamMember: {
@@ -809,6 +855,7 @@ export class StandupConfigService {
         teamId: config.teamId,
         name: config.name,
         deliveryType: config.deliveryType,
+        targetChannelId: config.targetChannelId || undefined,
         questions: config.questions,
         weekdays: config.weekdays,
         timeLocal: config.timeLocal,
@@ -819,7 +866,6 @@ export class StandupConfigService {
         team: {
           id: config.team.id,
           name: config.team.name,
-          channelName: config.team.channel?.name || 'Unknown Channel',
         },
         memberParticipation,
         createdAt: config.createdAt,

@@ -17,32 +17,23 @@ vi.mock('@/lib/api', () => ({
   },
 }));
 
-vi.mock('sonner', () => ({
+vi.mock('@/components/ui/Toast', () => ({
   toast: {
+    loading: vi.fn(),
     success: vi.fn(),
     error: vi.fn(),
+    warning: vi.fn(),
     info: vi.fn(),
-    loading: vi.fn(),
+    dismiss: vi.fn(),
+    dismissAll: vi.fn(),
+    update: vi.fn(),
     custom: vi.fn(),
   },
   Toaster: () => null,
-}));
-
-vi.mock('@/components/ui/modern-toast', () => ({
-  modernToast: {
-    loading: vi.fn(),
-    success: vi.fn(),
-    error: vi.fn(),
-    warning: vi.fn(),
-    info: vi.fn(),
-  },
-  toast: {
-    loading: vi.fn(),
-    success: vi.fn(),
-    error: vi.fn(),
-    warning: vi.fn(),
-    info: vi.fn(),
-  },
+  ModernToaster: () => null,
+  ToastManager: () => null,
+  useToast: vi.fn(),
+  useToastManager: vi.fn(),
 }));
 
 const mockNavigate = vi.fn();
@@ -71,7 +62,7 @@ describe('ActiveStandupsList', () => {
         days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
         timezone: 'UTC',
       },
-      slackChannelId: 'channel-1',
+      targetChannelId: 'channel-1',
       isActive: true,
       createdAt: '2023-01-01T00:00:00.000Z',
       updatedAt: '2023-01-02T00:00:00.000Z',
@@ -87,7 +78,7 @@ describe('ActiveStandupsList', () => {
         days: ['friday'],
         timezone: 'UTC',
       },
-      slackChannelId: 'channel-2',
+      targetChannelId: 'channel-2',
       isActive: false,
       createdAt: '2023-01-01T00:00:00.000Z',
       updatedAt: '2023-01-01T00:00:00.000Z',
@@ -157,14 +148,14 @@ describe('ActiveStandupsList', () => {
       expect(screen.getByText('Daily Standup')).toBeInTheDocument();
       expect(screen.getByText('Weekdays at 09:00')).toBeInTheDocument();
       expect(screen.getByText('3 questions')).toBeInTheDocument();
-      expect(screen.getByText('Active')).toBeInTheDocument();
+      expect(screen.getAllByText('Active')).toHaveLength(2); // Filter button + status badge
       expect(screen.getByText('Weekdays')).toBeInTheDocument();
 
       // Check inactive standup details
       expect(screen.getByText('Weekly Review')).toBeInTheDocument();
       expect(screen.getByText('Fridays at 15:00')).toBeInTheDocument();
       expect(screen.getByText('1 questions')).toBeInTheDocument();
-      expect(screen.getByText('Paused')).toBeInTheDocument();
+      expect(screen.getAllByText('Paused')).toHaveLength(2); // Filter button + status badge
 
       // Both standups should have UTC timezone
       expect(screen.getAllByText('UTC')).toHaveLength(2);
@@ -197,7 +188,7 @@ describe('ActiveStandupsList', () => {
     });
 
     fireEvent.click(screen.getByText('New Standup'));
-    expect(mockNavigate).toHaveBeenCalledWith('/teams/team-1/standups/create');
+    expect(mockNavigate).toHaveBeenCalledWith('/teams/team-1/standups/wizard');
   });
 
   it('handles create standup button click from empty state', async () => {
@@ -210,7 +201,7 @@ describe('ActiveStandupsList', () => {
     });
 
     fireEvent.click(screen.getByText('Create Your First Standup'));
-    expect(mockNavigate).toHaveBeenCalledWith('/teams/team-1/standups/create');
+    expect(mockNavigate).toHaveBeenCalledWith('/teams/team-1/standups/wizard');
   });
 
   it('displays questions preview correctly', async () => {

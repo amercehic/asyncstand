@@ -101,7 +101,6 @@ describe('StandupConfigService', () => {
               integrationUser: true,
             },
           },
-          channel: true,
         },
       });
 

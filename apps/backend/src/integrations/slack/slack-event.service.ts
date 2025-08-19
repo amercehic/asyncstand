@@ -342,7 +342,13 @@ export class SlackEventService {
           state: { in: ['pending', 'collecting'] },
           team: {
             integration: { externalTeamId: teamId },
-            slackChannelId: channelId,
+            configs: {
+              some: {
+                targetChannel: {
+                  channelId: channelId,
+                },
+              },
+            },
           },
         },
         include: {

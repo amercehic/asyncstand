@@ -36,6 +36,11 @@ const TeamDetailPage = React.lazy(() =>
     default: module.TeamDetailPage,
   }))
 );
+const StandupsPage = React.lazy(() =>
+  import(/* webpackChunkName: "standups" */ '@/pages/StandupsPage').then(module => ({
+    default: module.StandupsPage,
+  }))
+);
 const StandupConfigPage = React.lazy(() =>
   import(/* webpackChunkName: "standups" */ '@/pages/StandupConfigPage').then(module => ({
     default: module.StandupConfigPage,
@@ -44,6 +49,11 @@ const StandupConfigPage = React.lazy(() =>
 const StandupResponsePage = React.lazy(() =>
   import(/* webpackChunkName: "standups" */ '@/pages/StandupResponsePage').then(module => ({
     default: module.StandupResponsePage,
+  }))
+);
+const StandupWizardPage = React.lazy(() =>
+  import(/* webpackChunkName: "standups" */ '@/pages/StandupWizardPage').then(module => ({
+    default: module.StandupWizardPage,
   }))
 );
 const IntegrationsPage = React.lazy(() =>
@@ -172,11 +182,33 @@ const router = createBrowserRouter([
         errorElement: <ErrorPage />,
       },
       {
+        path: 'standups',
+        element: (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <StandupsPage />
+            </Suspense>
+          </ProtectedRoute>
+        ),
+        errorElement: <ErrorPage />,
+      },
+      {
         path: 'teams/:teamId/standups/create',
         element: (
           <ProtectedRoute>
             <Suspense fallback={<PageLoader />}>
               <StandupConfigPage />
+            </Suspense>
+          </ProtectedRoute>
+        ),
+        errorElement: <ErrorPage />,
+      },
+      {
+        path: 'teams/:teamId/standups/wizard',
+        element: (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <StandupWizardPage />
             </Suspense>
           </ProtectedRoute>
         ),
@@ -221,6 +253,17 @@ const router = createBrowserRouter([
           <ProtectedRoute>
             <Suspense fallback={<PageLoader />}>
               <StandupDetailsPage />
+            </Suspense>
+          </ProtectedRoute>
+        ),
+        errorElement: <ErrorPage />,
+      },
+      {
+        path: 'standups/:standupId/edit',
+        element: (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <StandupConfigPage />
             </Suspense>
           </ProtectedRoute>
         ),

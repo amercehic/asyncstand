@@ -8,7 +8,7 @@ import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
 import { IntegrationFactory } from '@/test/utils/factories';
 import { createMockPrismaService, MockPrismaService } from '@/test/utils/mocks/prisma.mock';
-import { Integration, IntegrationSyncState, IntegrationUser, Channel, Team } from '@prisma/client';
+import { Integration, IntegrationSyncState, IntegrationUser, Channel } from '@prisma/client';
 
 // Mock fetch globally
 global.fetch = jest.fn() as jest.MockedFunction<typeof fetch>;
@@ -568,117 +568,6 @@ describe('SlackApiService', () => {
           'Failed to fetch channels: Slack API error: some_other_error',
         ],
       });
-    });
-  });
-
-  describe('channel sync with team updates', () => {
-    beforeEach(() => {
-      const mockIntegration = IntegrationFactory.createMockIntegration({
-        id: mockIntegrationId,
-        orgId: mockOrgId,
-      });
-      mockPrisma.integration.findUnique.mockResolvedValue(mockIntegration as Integration);
-      mockPrisma.integrationSyncState.upsert.mockResolvedValue({} as IntegrationSyncState);
-      mockAuditLogService.log.mockResolvedValue(undefined);
-    });
-
-    it('should update teams when channel is synced', async () => {
-      const mockChannelsResponse = IntegrationFactory.createMockSlackChannelsListResponse({
-        channels: [
-          {
-            id: 'C1234567890',
-            name: 'development',
-            is_channel: true,
-            is_archived: false,
-            is_private: false,
-            topic: { value: 'Development discussion' },
-            purpose: { value: 'Team development chat' },
-            num_members: 5,
-          },
-        ],
-        response_metadata: { next_cursor: '' },
-      });
-
-      mockSlackOauthService.getDecryptedToken.mockResolvedValue(mockBotToken);
-      (global.fetch as jest.Mock)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve({ ok: true, members: [], response_metadata: {} }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve(mockChannelsResponse),
-        });
-
-      const newChannelRecord = { id: 'channel-db-id' };
-      mockPrisma.channel.findUnique.mockResolvedValue(null);
-      mockPrisma.channel.create.mockResolvedValue(newChannelRecord as Channel);
-
-      const assignedTeams = [
-        { id: 'team1', slackChannelId: 'C1234567890' },
-        { id: 'team2', slackChannelId: 'C1234567890' },
-      ];
-      mockPrisma.team.findMany.mockResolvedValue(assignedTeams as Team[]);
-      mockPrisma.team.update.mockResolvedValue({} as Team);
-
-      await service.syncWorkspaceData(mockIntegrationId);
-
-      expect(mockPrisma.team.findMany).toHaveBeenCalledWith({
-        where: {
-          integrationId: mockIntegrationId,
-          slackChannelId: 'C1234567890',
-        },
-      });
-
-      expect(mockPrisma.team.update).toHaveBeenCalledTimes(2);
-      expect(mockPrisma.team.update).toHaveBeenCalledWith({
-        where: { id: 'team1' },
-        data: { channelId: 'channel-db-id' },
-      });
-      expect(mockPrisma.team.update).toHaveBeenCalledWith({
-        where: { id: 'team2' },
-        data: { channelId: 'channel-db-id' },
-      });
-    });
-
-    it('should skip archived channels', async () => {
-      const mockChannelsResponse = IntegrationFactory.createMockSlackChannelsListResponse({
-        channels: [
-          {
-            id: 'C1111111111',
-            name: 'archived-channel',
-            is_channel: true,
-            is_archived: true,
-            is_private: false,
-          },
-          {
-            id: 'C2222222222',
-            name: 'non-channel',
-            is_channel: false,
-            is_archived: false,
-            is_private: false,
-          },
-        ],
-        response_metadata: { next_cursor: '' },
-      });
-
-      mockSlackOauthService.getDecryptedToken.mockResolvedValue(mockBotToken);
-      (global.fetch as jest.Mock)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve({ ok: true, members: [], response_metadata: {} }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve(mockChannelsResponse),
-        });
-
-      const result = await service.syncWorkspaceData(mockIntegrationId);
-
-      expect(result.channelsAdded).toBe(0);
-      expect(result.channelsUpdated).toBe(0);
-      expect(mockPrisma.channel.create).not.toHaveBeenCalled();
-      expect(mockPrisma.channel.update).not.toHaveBeenCalled();
     });
   });
 

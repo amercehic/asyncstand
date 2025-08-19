@@ -5,6 +5,7 @@ import {
   IsBoolean,
   IsOptional,
   IsEnum,
+  IsUUID,
   Length,
   ArrayMinSize,
   ArrayMaxSize,
@@ -37,6 +38,15 @@ export class CreateStandupConfigDto {
     message: 'Delivery type must be either channel or direct_message',
   })
   deliveryType: StandupDeliveryType;
+
+  @ApiPropertyOptional({
+    description:
+      'Target channel ID for channel-based standups (required if deliveryType is channel)',
+    example: '746720d3-5908-4e5b-ad39-133677f57cee',
+  })
+  @IsOptional()
+  @IsUUID()
+  targetChannelId?: string;
 
   @ApiProperty({
     description: 'Standup questions (1-10 questions, each 10-200 characters)',

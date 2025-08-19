@@ -3,7 +3,6 @@ import { ApiOperation, ApiResponse, ApiParam, ApiBearerAuth, ApiBody } from '@ne
 import { CreateTeamDto } from '@/teams/dto/create-team.dto';
 import { UpdateTeamDto } from '@/teams/dto/update-team.dto';
 import { AddTeamMemberDto } from '@/teams/dto/add-team-member.dto';
-import { ValidateChannelDto } from '@/teams/dto/validate-channel.dto';
 
 export const SwaggerCreateTeam = () =>
   applyDecorators(
@@ -770,64 +769,5 @@ export const SwaggerGetChannelsList = () =>
     ApiResponse({
       status: 403,
       description: 'Forbidden - insufficient permissions',
-    }),
-  );
-
-export const SwaggerValidateChannelAccess = () =>
-  applyDecorators(
-    ApiOperation({
-      summary: 'Validate channel access for team assignment',
-      description:
-        'Validates that the bot has the necessary permissions to post messages in the specified Slack channel. This is used to ensure channel assignments will work for standup posting before creating or updating teams.',
-    }),
-    ApiBearerAuth('JWT-auth'),
-    ApiParam({
-      name: 'id',
-      description: 'Team ID for context (currently not used in validation)',
-      type: 'string',
-      example: '123e4567-e89b-12d3-a456-426614174000',
-    }),
-    ApiBody({ type: ValidateChannelDto }),
-    ApiResponse({
-      status: 200,
-      description: 'Channel validation completed',
-      schema: {
-        type: 'object',
-        properties: {
-          valid: {
-            type: 'boolean',
-            example: true,
-            description: 'Whether the channel is accessible by the bot',
-          },
-          channelName: {
-            type: 'string',
-            example: 'engineering',
-            description: 'Display name of the channel',
-            nullable: true,
-          },
-          error: {
-            type: 'string',
-            example: 'Bot does not have access to this channel',
-            description: 'Error message if validation failed',
-            nullable: true,
-          },
-        },
-      },
-    }),
-    ApiResponse({
-      status: 400,
-      description: 'Bad request - validation failed',
-    }),
-    ApiResponse({
-      status: 401,
-      description: 'Unauthorized - invalid or missing JWT token',
-    }),
-    ApiResponse({
-      status: 403,
-      description: 'Forbidden - insufficient permissions (requires admin or owner role)',
-    }),
-    ApiResponse({
-      status: 404,
-      description: 'Not found - team does not exist or access denied',
     }),
   );

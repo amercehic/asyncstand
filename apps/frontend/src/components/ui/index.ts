@@ -1,16 +1,24 @@
-export { FormField } from '@/components/ui/form-field';
-export { Input } from '@/components/ui/input';
-export { Label } from '@/components/ui/label';
-export { ModernButton } from '@/components/ui/modern-button';
-export { PageTransition } from '@/components/ui/page-transition';
-export { Toaster } from '@/components/ui/sonner';
-export { ThemeToggle } from '@/components/ui/theme-toggle';
+export { ModernButton } from '@/components/ui/ModernButton';
+export { PageTransition } from '@/components/ui/PageTransition';
+export { ThemeToggle } from '@/components/ui/ThemeToggle';
 export { Tooltip } from '@/components/ui/Tooltip';
 export { SkipLinks } from '@/components/ui/SkipLinks';
 export { Dropdown } from '@/components/ui/Dropdown';
 export { ConfirmationModal } from '@/components/ui/ConfirmationModal';
+export { Input } from '@/components/ui/input';
+export { Label } from '@/components/ui/label';
+export { Textarea } from '@/components/ui/textarea';
 export { cn } from '@/components/ui/utils';
-export { modernToast, toast } from '@/components/ui/modern-toast';
+
+// Modern Toast System
+export {
+  Toaster,
+  ModernToaster,
+  toast,
+  ToastManager,
+  useToast,
+  useToastManager,
+} from '@/components/ui/Toast';
 
 // Performance-optimized components
 export { LazyImage } from '@/components/ui/LazyImage';

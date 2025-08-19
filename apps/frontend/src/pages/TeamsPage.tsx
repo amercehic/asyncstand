@@ -76,9 +76,9 @@ const TeamCard = React.memo<TeamCardProps>(
     // Calculate team health score (0-100)
     const healthScore = useMemo(() => {
       let score = 50; // Base score
-      if (team.channel) score += 20; // Has integration
-      if (activeStandups.length > 0) score += 20; // Has active standups
-      score += Math.min(10, team.members.length * 2); // More members = better, capped at 10
+      if (activeStandups.length > 0) score += 30; // Has active standups
+      if (activeStandups.some(s => s.deliveryType === 'channel')) score += 10; // Has channel delivery
+      score += Math.min(10, (team.memberCount || team.members.length) * 2); // More members = better, capped at 10
       return Math.min(100, score);
     }, [team, activeStandups]);
 
@@ -156,25 +156,53 @@ const TeamCard = React.memo<TeamCardProps>(
             </div>
             <div className="flex items-center gap-2">
               <div className="flex -space-x-1">
-                {team.members.slice(0, 3).map(member => (
-                  <div
-                    key={member.id}
-                    className="w-6 h-6 bg-primary rounded-full border-2 border-card flex items-center justify-center"
-                  >
-                    <span className="text-white font-medium text-xs">
-                      {member.name.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                ))}
-                {team.members.length > 3 && (
+                {team.members.length > 0 ? (
+                  <>
+                    {team.members.slice(0, 3).map(member => (
+                      <div
+                        key={member.id}
+                        className="w-6 h-6 bg-primary rounded-full border-2 border-card flex items-center justify-center"
+                      >
+                        <span className="text-white font-medium text-xs">
+                          {member.name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    ))}
+                    {team.members.length > 3 && (
+                      <div className="w-6 h-6 bg-muted rounded-full border-2 border-card flex items-center justify-center">
+                        <span className="text-muted-foreground font-medium text-xs">
+                          +{team.members.length - 3}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                ) : team.memberCount && team.memberCount > 0 ? (
+                  <>
+                    {[...Array(Math.min(3, team.memberCount))].map((_, i) => (
+                      <div
+                        key={i}
+                        className="w-6 h-6 bg-primary rounded-full border-2 border-card flex items-center justify-center"
+                      >
+                        <Users className="w-3 h-3 text-white" />
+                      </div>
+                    ))}
+                    {team.memberCount > 3 && (
+                      <div className="w-6 h-6 bg-muted rounded-full border-2 border-card flex items-center justify-center">
+                        <span className="text-muted-foreground font-medium text-xs">
+                          +{team.memberCount - 3}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                ) : (
                   <div className="w-6 h-6 bg-muted rounded-full border-2 border-card flex items-center justify-center">
-                    <span className="text-muted-foreground font-medium text-xs">
-                      +{team.members.length - 3}
-                    </span>
+                    <Users className="w-3 h-3 text-muted-foreground" />
                   </div>
                 )}
               </div>
-              <span className="text-sm font-semibold">{team.members.length}</span>
+              <span className="text-sm font-semibold">
+                {team.memberCount || team.members.length}
+              </span>
             </div>
           </div>
 
@@ -213,19 +241,26 @@ const TeamCard = React.memo<TeamCardProps>(
         <div className="px-5 pb-3">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              {team.channel ? (
+              {activeStandups.some(s => s.deliveryType === 'channel') ? (
                 <>
                   <div className="w-6 h-6 bg-green-500 rounded flex items-center justify-center">
                     <Slack className="w-3.5 h-3.5 text-white" />
                   </div>
-                  <span className="text-xs font-medium text-green-600">#{team.channel.name}</span>
+                  <span className="text-xs font-medium text-green-600">Channel delivery</span>
+                </>
+              ) : activeStandups.some(s => s.deliveryType === 'direct_message') ? (
+                <>
+                  <div className="w-6 h-6 bg-blue-500 rounded flex items-center justify-center">
+                    <Inbox className="w-3.5 h-3.5 text-white" />
+                  </div>
+                  <span className="text-xs font-medium text-blue-600">Direct messages</span>
                 </>
               ) : (
                 <>
                   <div className="w-6 h-6 bg-muted border border-dashed border-muted-foreground/30 rounded flex items-center justify-center">
                     <Link2 className="w-3.5 h-3.5 text-muted-foreground" />
                   </div>
-                  <span className="text-xs text-muted-foreground">No integration</span>
+                  <span className="text-xs text-muted-foreground">No standups</span>
                 </>
               )}
             </div>
@@ -435,11 +470,15 @@ export const TeamsPage = React.memo(() => {
         break;
       }
       case 'integrated': {
-        filtered = filtered.filter(team => team.channel);
+        filtered = filtered.filter(team =>
+          (teamStandups[team.id] || []).some(s => s.deliveryType === 'channel')
+        );
         break;
       }
       case 'no-integration': {
-        filtered = filtered.filter(team => !team.channel);
+        filtered = filtered.filter(
+          team => !(teamStandups[team.id] || []).some(s => s.deliveryType === 'channel')
+        );
         break;
       }
       case 'favorites': {
@@ -460,7 +499,7 @@ export const TeamsPage = React.memo(() => {
         case 'name':
           return a.name.localeCompare(b.name);
         case 'members':
-          return b.members.length - a.members.length;
+          return (b.memberCount || b.members.length) - (a.memberCount || a.members.length);
         case 'activity': {
           // Sort by active standups count
           const aActive = (teamStandups[a.id] || []).filter(s => s.isActive).length;
@@ -481,8 +520,13 @@ export const TeamsPage = React.memo(() => {
   // Calculate statistics
   const stats = useMemo(() => {
     const totalTeams = teams.length;
-    const totalMembers = teams.reduce((acc, team) => acc + team.members.length, 0);
-    const teamsWithIntegrations = teams.filter(team => team.channel).length;
+    const totalMembers = teams.reduce(
+      (acc, team) => acc + (team.memberCount || team.members.length),
+      0
+    );
+    const teamsWithChannelStandups = teams.filter(team =>
+      (teamStandups[team.id] || []).some(s => s.deliveryType === 'channel')
+    ).length;
     const activeTeams = teams.filter(team =>
       (teamStandups[team.id] || []).some(s => s.isActive)
     ).length;
@@ -494,12 +538,13 @@ export const TeamsPage = React.memo(() => {
     return {
       totalTeams,
       totalMembers,
-      teamsWithIntegrations,
+      teamsWithChannelStandups,
       activeTeams,
       totalStandups,
       activeStandups,
       averageTeamSize: totalTeams > 0 ? Math.round(totalMembers / totalTeams) : 0,
-      integrationRate: totalTeams > 0 ? Math.round((teamsWithIntegrations / totalTeams) * 100) : 0,
+      channelStandupRate:
+        totalTeams > 0 ? Math.round((teamsWithChannelStandups / totalTeams) * 100) : 0,
     };
   }, [teams, teamStandups]);
 
@@ -721,8 +766,8 @@ export const TeamsPage = React.memo(() => {
               items={[
                 { label: 'All Teams', onClick: () => setFilterBy('all') },
                 { label: 'Active Standups', onClick: () => setFilterBy('active') },
-                { label: 'With Integration', onClick: () => setFilterBy('integrated') },
-                { label: 'No Integration', onClick: () => setFilterBy('no-integration') },
+                { label: 'Channel Standups', onClick: () => setFilterBy('integrated') },
+                { label: 'Direct Message Only', onClick: () => setFilterBy('no-integration') },
                 { label: 'Favorites', onClick: () => setFilterBy('favorites') },
               ]}
             />
@@ -790,18 +835,18 @@ export const TeamsPage = React.memo(() => {
                       </div>
                     </div>
 
-                    {/* Integration Progress */}
+                    {/* Channel Standup Progress */}
                     <div className="bg-muted/40 backdrop-blur-sm rounded-lg p-3 border border-muted-foreground/10">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-muted-foreground">Integration Rate</span>
+                        <span className="text-sm text-muted-foreground">Channel Standups</span>
                         <span className="text-sm font-bold text-primary">
-                          {stats.integrationRate}%
+                          {stats.channelStandupRate}%
                         </span>
                       </div>
                       <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
                         <motion.div
                           initial={{ width: 0 }}
-                          animate={{ width: `${stats.integrationRate}%` }}
+                          animate={{ width: `${stats.channelStandupRate}%` }}
                           transition={{ duration: 1 }}
                           className="h-full bg-gradient-to-r from-primary to-primary/80 rounded-full"
                         />
@@ -864,7 +909,7 @@ export const TeamsPage = React.memo(() => {
                         setSelectedTeamForSettings(team);
                         setIsSettingsModalOpen(true);
                       }}
-                      onCreateStandup={() => navigate(`/teams/${team.id}/standups/create`)}
+                      onCreateStandup={() => navigate(`/teams/${team.id}/standups/wizard`)}
                       index={index}
                     />
                   ))}
@@ -939,7 +984,7 @@ export const TeamsPage = React.memo(() => {
                           3
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          Set up daily standups with Slack integration
+                          Create multiple standup configs (daily, retro, etc.)
                         </p>
                       </div>
                     </div>

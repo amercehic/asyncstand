@@ -1,14 +1,26 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ModernButton } from '@/components/ui';
-import { LogOut, Users, Calendar, Settings, Zap } from 'lucide-react';
+import {
+  LogOut,
+  Users,
+  Calendar,
+  Settings,
+  Zap,
+  BarChart3,
+  ChevronDown,
+  Menu,
+  X,
+} from 'lucide-react';
 import { useAuth } from '@/contexts';
 import { toast } from '@/components/ui';
 
 export const Navbar = React.memo(() => {
   const { user, logout, isAuthenticated } = useAuth();
   const location = useLocation();
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
 
   // Don't show navbar on auth pages
   const isAuthPage = ['/login', '/signup', '/'].includes(location.pathname);
@@ -27,6 +39,21 @@ export const Navbar = React.memo(() => {
     }
   };
 
+  const handleMouseEnter = () => {
+    if (hoverTimeout) {
+      clearTimeout(hoverTimeout);
+      setHoverTimeout(null);
+    }
+    setIsUserMenuOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    const timeout = setTimeout(() => {
+      setIsUserMenuOpen(false);
+    }, 150); // Small delay to allow moving to dropdown
+    setHoverTimeout(timeout);
+  };
+
   const navItems = [
     {
       path: '/dashboard',
@@ -35,7 +62,20 @@ export const Navbar = React.memo(() => {
       roles: ['owner', 'admin', 'member'] as const,
     },
     { path: '/teams', label: 'Teams', icon: Users, roles: ['owner', 'admin'] as const },
+    {
+      path: '/standups',
+      label: 'Standups',
+      icon: Calendar,
+      roles: ['owner', 'admin', 'member'] as const,
+    },
     { path: '/integrations', label: 'Integrations', icon: Zap, roles: ['owner', 'admin'] as const },
+    {
+      path: '/reports',
+      label: 'Reports',
+      icon: BarChart3,
+      roles: ['owner', 'admin'] as const,
+      comingSoon: true,
+    },
   ] as const;
 
   const isActiveRoute = (path: string) => {
@@ -50,100 +90,226 @@ export const Navbar = React.memo(() => {
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="bg-card border-b border-border px-6 py-4 sticky top-0 z-40 backdrop-blur-sm bg-card/80"
+      className="bg-card border-b border-border sticky top-0 z-40 backdrop-blur-sm bg-card/80"
     >
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
-        <div className="flex items-center gap-6">
-          <Link to="/dashboard" className="text-2xl font-semibold gradient-text">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        {/* Main navbar */}
+        <div className="flex items-center justify-between h-16">
+          {/* Logo */}
+          <Link
+            to="/dashboard"
+            className="text-xl sm:text-2xl font-semibold gradient-text flex-shrink-0"
+          >
             AsyncStand
           </Link>
-          <nav className="hidden md:flex items-center gap-6">
+
+          {/* Desktop Navigation */}
+          <nav className="hidden lg:flex items-center gap-6">
             {navItems
               .filter(item => {
                 if (!user?.role) return false;
-                // TypeScript will narrow the type based on the actual roles array
                 return (item.roles as readonly string[]).includes(user.role);
               })
-              .map(item => (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
-                    isActiveRoute(item.path)
-                      ? 'text-primary bg-primary/10'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                  }`}
-                  data-testid={`nav-${item.label.toLowerCase()}`}
-                >
-                  <item.icon className="w-4 h-4" />
-                  <span>{item.label}</span>
-                </Link>
-              ))}
+              .map(item => {
+                const handleClick = (e: React.MouseEvent) => {
+                  if ('comingSoon' in item && item.comingSoon) {
+                    e.preventDefault();
+                    toast.info(`${item.label} - Coming soon!`);
+                  }
+                };
+
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={handleClick}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                      isActiveRoute(item.path)
+                        ? 'text-primary bg-primary/10'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                    } ${'comingSoon' in item && item.comingSoon ? 'opacity-70' : ''}`}
+                    data-testid={`nav-${item.label.toLowerCase()}`}
+                  >
+                    <item.icon className="w-4 h-4" />
+                    <span>{item.label}</span>
+                    {'comingSoon' in item && item.comingSoon && (
+                      <span className="text-xs bg-muted px-1.5 py-0.5 rounded">Soon</span>
+                    )}
+                  </Link>
+                );
+              })}
           </nav>
-        </div>
 
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-r from-primary to-primary/80 rounded-full flex items-center justify-center">
-              <span className="text-white font-medium text-sm">
-                {user?.name?.charAt(0)?.toUpperCase() || 'U'}
-              </span>
-            </div>
-            <div className="hidden sm:block">
-              <p className="text-sm font-medium">{user?.name}</p>
-              <p className="text-xs text-muted-foreground">{user?.email}</p>
-            </div>
-          </div>
-
+          {/* Right side - User menu and mobile menu button */}
           <div className="flex items-center gap-2">
-            <ModernButton
-              variant="ghost"
-              size="sm"
-              onClick={() => toast.info('Settings - Coming soon!')}
-              data-testid="nav-settings-button"
+            {/* Desktop User Menu */}
+            <div
+              className="hidden sm:block relative"
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
             >
-              <Settings className="w-4 h-4" />
-              <span className="hidden sm:inline ml-2">Settings</span>
-            </ModernButton>
+              <button className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                <div className="w-8 h-8 bg-gradient-to-r from-primary to-primary/80 rounded-full flex items-center justify-center">
+                  <span className="text-white font-medium text-sm">
+                    {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                  </span>
+                </div>
+                <div className="hidden md:block text-left">
+                  <p className="text-sm font-medium">{user?.name}</p>
+                  <p className="text-xs text-muted-foreground">{user?.email}</p>
+                </div>
+                <ChevronDown
+                  className={`w-4 h-4 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`}
+                />
+              </button>
 
-            <ModernButton
-              variant="ghost"
-              size="sm"
-              onClick={handleLogout}
-              data-testid="nav-logout-button"
+              {/* Desktop Dropdown Menu */}
+              {isUserMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                  className="absolute right-0 top-full mt-2 w-56 bg-card border border-border rounded-xl shadow-2xl backdrop-blur-md z-50"
+                >
+                  <div className="p-3 border-b border-border">
+                    <p className="font-medium text-sm">{user?.name}</p>
+                    <p className="text-xs text-muted-foreground">{user?.email}</p>
+                    <p className="text-xs text-muted-foreground mt-1 capitalize">
+                      {user?.role} Account
+                    </p>
+                  </div>
+
+                  <div className="p-2">
+                    <button
+                      onClick={() => {
+                        toast.info('Settings - Coming soon!');
+                        setIsUserMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted/50 transition-colors text-left"
+                      data-testid="nav-settings-button"
+                    >
+                      <Settings className="w-4 h-4" />
+                      <span className="text-sm">Settings</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        handleLogout();
+                        setIsUserMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted/50 transition-colors text-left text-red-600 hover:text-red-700"
+                      data-testid="nav-logout-button"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span className="text-sm">Logout</span>
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </div>
+
+            {/* Mobile User Avatar (Simple) */}
+            <div className="sm:hidden">
+              <div className="w-8 h-8 bg-gradient-to-r from-primary to-primary/80 rounded-full flex items-center justify-center">
+                <span className="text-white font-medium text-sm">
+                  {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                </span>
+              </div>
+            </div>
+
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="lg:hidden p-2 rounded-lg hover:bg-muted/50 transition-colors"
+              aria-label="Toggle mobile menu"
             >
-              <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline ml-2">Logout</span>
-            </ModernButton>
+              {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
           </div>
         </div>
-      </div>
 
-      {/* Mobile Navigation */}
-      <div className="md:hidden mt-4 pt-4 border-t border-border">
-        <nav className="flex items-center gap-2">
-          {navItems
-            .filter(item => {
-              if (!user?.role) return false;
-              // TypeScript will narrow the type based on the actual roles array
-              return (item.roles as readonly string[]).includes(user.role);
-            })
-            .map(item => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors flex-1 justify-center ${
-                  isActiveRoute(item.path)
-                    ? 'text-primary bg-primary/10'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                }`}
-                data-testid={`nav-mobile-${item.label.toLowerCase()}`}
+        {/* Mobile Navigation Menu */}
+        {isMobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="lg:hidden border-t border-border py-4"
+          >
+            <nav className="space-y-2">
+              {navItems
+                .filter(item => {
+                  if (!user?.role) return false;
+                  return (item.roles as readonly string[]).includes(user.role);
+                })
+                .map(item => {
+                  const handleMobileClick = (e: React.MouseEvent) => {
+                    if ('comingSoon' in item && item.comingSoon) {
+                      e.preventDefault();
+                      toast.info(`${item.label} - Coming soon!`);
+                    } else {
+                      setIsMobileMenuOpen(false);
+                    }
+                  };
+
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      onClick={handleMobileClick}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                        isActiveRoute(item.path)
+                          ? 'text-primary bg-primary/10'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                      } ${'comingSoon' in item && item.comingSoon ? 'opacity-70' : ''}`}
+                      data-testid={`nav-mobile-${item.label.toLowerCase()}`}
+                    >
+                      <item.icon className="w-5 h-5" />
+                      <span className="font-medium">{item.label}</span>
+                      {'comingSoon' in item && item.comingSoon && (
+                        <span className="text-xs bg-muted px-2 py-1 rounded ml-auto">Soon</span>
+                      )}
+                    </Link>
+                  );
+                })}
+            </nav>
+
+            {/* Mobile User Actions */}
+            <div className="mt-6 pt-4 border-t border-border space-y-2">
+              <div className="px-4 py-2">
+                <p className="font-medium text-sm">{user?.name}</p>
+                <p className="text-xs text-muted-foreground">{user?.email}</p>
+                <p className="text-xs text-muted-foreground capitalize">{user?.role} Account</p>
+              </div>
+
+              <button
+                onClick={() => {
+                  toast.info('Settings - Coming soon!');
+                  setIsMobileMenuOpen(false);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-muted/50 transition-colors text-left"
+                data-testid="nav-mobile-settings-button"
               >
-                <item.icon className="w-4 h-4" />
-                <span className="text-sm">{item.label}</span>
-              </Link>
-            ))}
-        </nav>
+                <Settings className="w-5 h-5" />
+                <span className="font-medium">Settings</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  handleLogout();
+                  setIsMobileMenuOpen(false);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-muted/50 transition-colors text-left text-red-600 hover:text-red-700"
+                data-testid="nav-mobile-logout-button"
+              >
+                <LogOut className="w-5 h-5" />
+                <span className="font-medium">Logout</span>
+              </button>
+            </div>
+          </motion.div>
+        )}
       </div>
     </motion.header>
   );

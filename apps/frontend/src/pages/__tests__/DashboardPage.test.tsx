@@ -15,31 +15,23 @@ vi.mock('@/lib/api', () => ({
   },
 }));
 
-vi.mock('sonner', () => ({
+vi.mock('@/components/ui/Toast', () => ({
   toast: {
+    loading: vi.fn(),
     success: vi.fn(),
     error: vi.fn(),
+    warning: vi.fn(),
     info: vi.fn(),
+    dismiss: vi.fn(),
+    dismissAll: vi.fn(),
+    update: vi.fn(),
     custom: vi.fn(),
   },
   Toaster: () => null,
-}));
-
-vi.mock('@/components/ui/modern-toast', () => ({
-  modernToast: {
-    loading: vi.fn(),
-    success: vi.fn(),
-    error: vi.fn(),
-    warning: vi.fn(),
-    info: vi.fn(),
-  },
-  toast: {
-    loading: vi.fn(),
-    success: vi.fn(),
-    error: vi.fn(),
-    warning: vi.fn(),
-    info: vi.fn(),
-  },
+  ModernToaster: () => null,
+  ToastManager: () => null,
+  useToast: vi.fn(),
+  useToastManager: vi.fn(),
 }));
 
 const mockNavigate = vi.fn();
@@ -198,7 +190,7 @@ describe('DashboardPage', () => {
           days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
           timezone: 'UTC',
         },
-        slackChannelId: 'channel-1',
+        targetChannelId: 'channel-1',
         isActive: true,
         createdAt: '2023-01-01T00:00:00.000Z',
         updatedAt: '2023-01-01T00:00:00.000Z',

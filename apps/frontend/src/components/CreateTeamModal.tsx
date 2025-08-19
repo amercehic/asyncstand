@@ -1,10 +1,9 @@
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from '@/components/ui';
-import { ModernButton, FormField } from '@/components/ui';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { X, Building2, Hash, Clock, Globe } from 'lucide-react';
+import { toast, ModernButton } from '@/components/ui';
+import { Textarea, Label } from '@/components/ui';
+import { FormField } from '@/components/form';
+import { X, Building2, Hash, Globe } from 'lucide-react';
 import { teamsApi, integrationsApi } from '@/lib/api';
 import { useTeams } from '@/contexts';
 import type { CreateTeamRequest } from '@/types';
@@ -19,28 +18,12 @@ interface CreateTeamFormData {
   name: string;
   description: string;
   integrationId: string;
-  channelId: string;
-  timezone: string;
+  channelId?: string;
 }
 
 interface FormFieldError {
   [key: string]: string;
 }
-
-const TIMEZONES = [
-  'America/New_York',
-  'America/Chicago',
-  'America/Denver',
-  'America/Los_Angeles',
-  'America/Toronto',
-  'Europe/London',
-  'Europe/Berlin',
-  'Europe/Paris',
-  'Asia/Tokyo',
-  'Asia/Shanghai',
-  'Australia/Sydney',
-  'UTC',
-];
 
 export const CreateTeamModal = React.memo<CreateTeamModalProps>(
   ({ isOpen, onClose, onSuccess }) => {
@@ -50,7 +33,6 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
       description: '',
       integrationId: '',
       channelId: '',
-      timezone: 'America/New_York',
     });
     const [errors, setErrors] = useState<FormFieldError>({});
     const [availableChannels, setAvailableChannels] = useState<
@@ -117,13 +99,7 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
         newErrors.integrationId = 'Integration is required';
       }
 
-      if (!formData.channelId) {
-        newErrors.channelId = 'Channel is required';
-      }
-
-      if (!formData.timezone) {
-        newErrors.timezone = 'Timezone is required';
-      }
+      // Channel is now optional since teams are not tied to channels
 
       setErrors(newErrors);
       return Object.keys(newErrors).length === 0;
@@ -131,12 +107,7 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
 
     // Check if form is valid for button enabling
     const isFormValid = React.useMemo(() => {
-      return (
-        formData.name.trim().length >= 2 &&
-        formData.integrationId &&
-        formData.channelId &&
-        formData.timezone
-      );
+      return formData.name.trim().length >= 2 && formData.integrationId;
     }, [formData]);
 
     const handleClose = useCallback(() => {
@@ -146,7 +117,6 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
         description: '',
         integrationId: '',
         channelId: '',
-        timezone: 'America/New_York',
       });
       setErrors({});
       setDataLoaded(false);
@@ -166,8 +136,7 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
           const createTeamData: CreateTeamRequest = {
             name: formData.name.trim(),
             integrationId: formData.integrationId,
-            channelId: formData.channelId,
-            timezone: formData.timezone,
+            channelId: formData.channelId || undefined,
             description: formData.description.trim() || undefined,
           };
 
@@ -275,7 +244,9 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
                   id="description"
                   placeholder="Brief description of your team's purpose..."
                   value={formData.description}
-                  onChange={e => handleInputChange('description', e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                    handleInputChange('description', e.target.value)
+                  }
                   className="min-h-20 resize-none border-border"
                   data-testid="team-description-input"
                 />
@@ -317,18 +288,17 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
                 )}
               </div>
 
-              {/* Slack Channel */}
+              {/* Slack Channel (Optional) */}
               <div className="space-y-2">
                 <Label htmlFor="channelId">
                   <Hash className="w-4 h-4 inline mr-2" />
-                  Channel
+                  Default Channel (Optional)
                 </Label>
                 <select
                   id="channelId"
-                  value={formData.channelId}
+                  value={formData.channelId || ''}
                   onChange={e => handleInputChange('channelId', e.target.value)}
                   className="w-full h-12 px-3 rounded-lg border border-border bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                  required
                   data-testid="channel-select"
                   disabled={
                     !formData.integrationId ||
@@ -336,7 +306,7 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
                     (dataLoaded && availableChannels.filter(c => !c.isAssigned).length === 0)
                   }
                 >
-                  <option value="">Select channel...</option>
+                  <option value="">No default channel</option>
                   {availableChannels
                     .filter(channel => !channel.isAssigned)
                     .map(channel => (
@@ -345,38 +315,10 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
                       </option>
                     ))}
                 </select>
-                {dataLoaded &&
-                  formData.integrationId &&
-                  availableChannels.filter(c => !c.isAssigned).length === 0 && (
-                    <p className="text-sm text-muted-foreground">
-                      No available channels found or all channels are already assigned to teams.
-                      Please pick a different workspace or free up a channel.
-                    </p>
-                  )}
+                <p className="text-xs text-muted-foreground">
+                  You can configure specific channels for each standup later.
+                </p>
                 {errors.channelId && <p className="text-sm text-destructive">{errors.channelId}</p>}
-              </div>
-
-              {/* Timezone */}
-              <div className="space-y-2">
-                <Label htmlFor="timezone">
-                  <Clock className="w-4 h-4 inline mr-2" />
-                  Timezone
-                </Label>
-                <select
-                  id="timezone"
-                  value={formData.timezone}
-                  onChange={e => handleInputChange('timezone', e.target.value)}
-                  className="w-full h-12 px-3 rounded-lg border border-border bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                  required
-                  data-testid="timezone-select"
-                >
-                  {TIMEZONES.map(tz => (
-                    <option key={tz} value={tz}>
-                      {tz}
-                    </option>
-                  ))}
-                </select>
-                {errors.timezone && <p className="text-sm text-destructive">{errors.timezone}</p>}
               </div>
 
               {/* Actions */}
@@ -396,10 +338,7 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
                   variant="primary"
                   isLoading={isCreating}
                   disabled={
-                    isCreating ||
-                    !isFormValid ||
-                    (dataLoaded && availableIntegrations.length === 0) ||
-                    (dataLoaded && availableChannels.filter(c => !c.isAssigned).length === 0)
+                    isCreating || !isFormValid || (dataLoaded && availableIntegrations.length === 0)
                   }
                   className="flex-1"
                   data-testid="create-team-submit-button"

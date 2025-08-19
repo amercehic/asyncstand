@@ -139,15 +139,12 @@ export class DatabaseHelpers {
     prisma: PrismaService,
     orgId: string,
     integrationId: string,
-    channelId: string,
     createdByUserId: string,
   ) {
     return prisma.team.create({
       data: {
         orgId,
         integrationId,
-        channelId,
-        slackChannelId: 'C1234567890',
         name: 'Test Team',
         timezone: 'America/New_York',
         createdByUserId,
@@ -232,7 +229,7 @@ export class DatabaseHelpers {
     const integration = await this.createTestIntegration(prisma, org.id, user.id);
     const channel = await this.createTestChannel(prisma, integration.id);
     const integrationUser = await this.createTestIntegrationUser(prisma, integration.id);
-    const team = await this.createTestTeam(prisma, org.id, integration.id, channel.id, user.id);
+    const team = await this.createTestTeam(prisma, org.id, integration.id, user.id);
     const teamMember = await this.createTestTeamMember(
       prisma,
       team.id,

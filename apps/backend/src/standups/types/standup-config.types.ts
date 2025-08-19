@@ -5,6 +5,7 @@ export interface StandupConfigResponse {
   teamId: string;
   name: string;
   deliveryType: StandupDeliveryType;
+  targetChannelId?: string;
   questions: string[];
   weekdays: number[];
   timeLocal: string;
@@ -15,7 +16,6 @@ export interface StandupConfigResponse {
   team: {
     id: string;
     name: string;
-    channelName: string;
   };
   memberParticipation: MemberParticipationResponse[];
   createdAt: Date;

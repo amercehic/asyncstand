@@ -14,7 +14,6 @@ export const standupsApi = {
       }
     } catch {
       // Fall back to single standup endpoint for backward compatibility
-      console.log('Using fallback single standup endpoint');
     }
 
     try {
@@ -58,7 +57,8 @@ export const standupsApi = {
           : [],
         timezone: String(data.timezone || 'UTC'),
       },
-      slackChannelId: data.team?.channelName ? String(data.team.channelName) : undefined,
+      targetChannelId: data.targetChannelId,
+      targetChannel: data.targetChannel,
       isActive: Boolean(data.isActive ?? true),
       createdAt: new Date(data.createdAt || Date.now()).toISOString(),
       updatedAt: new Date(data.updatedAt || Date.now()).toISOString(),
@@ -70,8 +70,21 @@ export const standupsApi = {
   },
 
   async getStandup(standupId: string): Promise<Standup> {
-    const response = await api.get<Standup>(`/standups/${standupId}`);
+    const response = await api.get<Standup>(`/standups/instances/${standupId}`);
     return response.data;
+  },
+
+  async getStandupConfig(configId: string): Promise<Standup> {
+    const response = await api.get(`/standups/config/${configId}`);
+    const configData = response.data as StandupConfigResponse;
+    // Map the response to match frontend Standup type
+    return this.mapStandupConfigsToStandups([configData], configData.teamId)[0];
+  },
+
+  async getAllTeamStandupConfigs(teamId: string): Promise<Standup[]> {
+    const response = await api.get(`/standups/config/teams/${teamId}/standups`);
+    const configs = response.data as StandupConfigResponse[];
+    return this.mapStandupConfigsToStandups(configs, teamId);
   },
 
   async createStandup(teamId: string, data: Partial<Standup>): Promise<Standup> {
@@ -79,7 +92,7 @@ export const standupsApi = {
     const createData = {
       teamId,
       name: data.name || 'Daily Standup',
-      deliveryType: data.deliveryType || StandupDeliveryType.channel,
+      deliveryType: data.deliveryType || StandupDeliveryType.direct_message,
       questions: data.questions || [],
       timeLocal: data.schedule?.time || '09:00',
       timezone: data.schedule?.timezone || 'UTC',
@@ -96,6 +109,7 @@ export const standupsApi = {
           };
           return dayMap[day as keyof typeof dayMap];
         }) || [],
+      targetChannelId: data.targetChannelId,
       reminderMinutesBefore: 10,
       responseTimeoutHours: 2,
       isActive: true,
@@ -130,6 +144,7 @@ export const standupsApi = {
           return dayMap[day as keyof typeof dayMap];
         }),
       }),
+      ...(data.targetChannelId !== undefined && { targetChannelId: data.targetChannelId }),
       ...(data.isActive !== undefined && { isActive: data.isActive }),
     };
 
@@ -165,7 +180,7 @@ export const standupsApi = {
   },
 
   async getInstance(instanceId: string): Promise<StandupInstance> {
-    const response = await api.get<StandupInstance>(`/instances/${instanceId}`);
+    const response = await api.get<StandupInstance>(`/standups/instances/${instanceId}`);
     return response.data;
   },
 

@@ -332,12 +332,16 @@ export class SlackMessagingService {
             select: {
               name: true,
               orgId: true,
-              slackChannelId: true,
               integrationId: true,
               configs: {
                 where: { isActive: true },
                 select: {
                   deliveryType: true,
+                  targetChannel: {
+                    select: {
+                      channelId: true,
+                    },
+                  },
                   configMembers: {
                     where: { include: true },
                     include: {
@@ -366,22 +370,25 @@ export class SlackMessagingService {
         throw new Error('Team does not have a Slack integration configured');
       }
 
-      if (!instance.team.slackChannelId) {
-        throw new Error('Team does not have a Slack channel configured');
+      const activeConfig = instance.team.configs[0];
+      if (!activeConfig || !activeConfig.targetChannel?.channelId) {
+        throw new Error('Team does not have an active standup config with a target channel');
       }
+
+      const targetChannelId = activeConfig.targetChannel.channelId;
 
       // Validate channel access before attempting to send
       const channelValidation = await this.validateChannelAccess(
         instance.team.integrationId,
-        instance.team.slackChannelId,
+        targetChannelId,
       );
 
       if (!channelValidation.isValid) {
-        const errorMsg = `Channel validation failed: ${channelValidation.error}. Channel ID: ${instance.team.slackChannelId}`;
+        const errorMsg = `Channel validation failed: ${channelValidation.error}. Channel ID: ${targetChannelId}`;
         this.logger.error('Channel validation failed for standup reminder', {
           instanceId,
           teamId: instance.teamId,
-          channelId: instance.team.slackChannelId,
+          channelId: targetChannelId,
           integrationId: instance.team.integrationId,
           validationError: channelValidation.error,
         });
@@ -463,13 +470,13 @@ export class SlackMessagingService {
           instanceId,
           teamId: instance.teamId,
           teamName: instance.team.name,
-          channelId: instance.team.slackChannelId,
+          channelId: targetChannelId,
           integrationId: instance.team.integrationId,
         });
 
         result = await this.sendChannelMessage(
           instance.team.integrationId,
-          instance.team.slackChannelId,
+          targetChannelId,
           text,
           blocks,
         );
@@ -646,8 +653,18 @@ export class SlackMessagingService {
           team: {
             select: {
               name: true,
-              slackChannelId: true,
               integrationId: true,
+              configs: {
+                where: { isActive: true },
+                select: {
+                  targetChannel: {
+                    select: {
+                      channelId: true,
+                    },
+                  },
+                },
+                take: 1,
+              },
             },
           },
           answers: {
@@ -732,9 +749,14 @@ export class SlackMessagingService {
         teamName,
       );
 
+      const targetChannelId = instance.team.configs[0]?.targetChannel?.channelId;
+      if (!targetChannelId) {
+        throw new Error('No target channel found for standup summary');
+      }
+
       const result = await this.sendChannelMessage(
         instance.team.integrationId,
-        instance.team.slackChannelId,
+        targetChannelId,
         text,
         blocks,
       );
@@ -774,7 +796,17 @@ export class SlackMessagingService {
               name: true,
               orgId: true,
               integrationId: true,
-              slackChannelId: true,
+              configs: {
+                where: { isActive: true },
+                select: {
+                  targetChannel: {
+                    select: {
+                      channelId: true,
+                    },
+                  },
+                },
+                take: 1,
+              },
             },
           },
         },
@@ -826,9 +858,14 @@ export class SlackMessagingService {
       );
 
       // Send to channel
+      const targetChannelId = instance.team.configs[0]?.targetChannel?.channelId;
+      if (!targetChannelId) {
+        throw new Error('No target channel found for followup reminder');
+      }
+
       const channelResult = await this.sendChannelMessage(
         instance.team.integrationId,
-        instance.team.slackChannelId,
+        targetChannelId,
         text,
         blocks,
       );

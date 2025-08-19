@@ -1,0 +1,243 @@
+/* ===== CUSTOM TOAST SYSTEM - MATCHES APP THEME ===== */
+
+/* Toaster container positioning and spacing */
+[data-sonner-toaster] {
+  --gap: 12px;
+  --offset: 16px;
+}
+
+[data-sonner-toaster][data-y-position='top-right'] {
+  top: 16px !important;
+  right: 16px !important;
+}
+
+/* Clean list styling */
+[data-sonner-toaster] ol {
+  gap: 12px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  list-style: none !important;
+}
+
+[data-sonner-toaster] ol li {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* ===== MAIN TOAST STYLING ===== */
+[data-sonner-toaster] [data-sonner-toast] {
+  /* Layout */
+  display: flex !important;
+  align-items: flex-start !important;
+  padding: 16px 20px !important;
+  min-height: 64px !important;
+  box-sizing: border-box !important;
+
+  /* Theme colors - matches your app */
+  background: hsl(var(--card)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  color: hsl(var(--card-foreground)) !important;
+
+  /* Modern design */
+  border-radius: 12px !important;
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.1),
+    0 2px 4px rgba(0, 0, 0, 0.06) !important;
+
+  /* Reset any conflicting styles */
+  position: relative !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
+  margin: 0 !important;
+}
+
+/* Success toasts - green accent */
+[data-sonner-toaster] [data-sonner-toast][data-type='success'] {
+  border-left: 4px solid hsl(var(--success, 142 76% 36%)) !important;
+}
+
+/* Error toasts - red accent */
+[data-sonner-toaster] [data-sonner-toast][data-type='error'] {
+  border-left: 4px solid hsl(var(--destructive, 0 84% 60%)) !important;
+}
+
+/* Warning toasts - orange accent */
+[data-sonner-toaster] [data-sonner-toast][data-type='warning'] {
+  border-left: 4px solid hsl(25 95% 53%) !important;
+}
+
+/* Info toasts - blue accent */
+[data-sonner-toaster] [data-sonner-toast][data-type='info'] {
+  border-left: 4px solid hsl(var(--primary, 221 83% 53%)) !important;
+}
+
+/* ===== ICON STYLING ===== */
+[data-sonner-toaster] [data-sonner-toast] [data-icon] {
+  margin-right: 12px !important;
+  margin-top: 2px !important;
+  flex-shrink: 0 !important;
+}
+
+/* Success icon */
+[data-sonner-toaster] [data-sonner-toast][data-type='success'] [data-icon] {
+  color: hsl(var(--success, 142 76% 36%)) !important;
+}
+
+/* Error icon */
+[data-sonner-toaster] [data-sonner-toast][data-type='error'] [data-icon] {
+  color: hsl(var(--destructive, 0 84% 60%)) !important;
+}
+
+/* Warning icon */
+[data-sonner-toaster] [data-sonner-toast][data-type='warning'] [data-icon] {
+  color: hsl(25 95% 53%) !important;
+}
+
+/* Info icon */
+[data-sonner-toaster] [data-sonner-toast][data-type='info'] [data-icon] {
+  color: hsl(var(--primary, 221 83% 53%)) !important;
+}
+
+/* ===== TEXT CONTENT ===== */
+[data-sonner-toaster] [data-sonner-toast] [data-content] {
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+}
+
+/* Title styling */
+[data-sonner-toaster] [data-sonner-toast] [data-title] {
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  line-height: 1.4 !important;
+  color: hsl(var(--card-foreground)) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Description styling */
+[data-sonner-toaster] [data-sonner-toast] [data-description] {
+  font-size: 13px !important;
+  line-height: 1.4 !important;
+  color: hsl(var(--muted-foreground)) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* ===== CLOSE BUTTON ===== */
+[data-sonner-toaster] [data-sonner-toast] [data-close-button] {
+  /* Position */
+  position: absolute !important;
+  top: 8px !important;
+  right: 8px !important;
+
+  /* Size */
+  width: 20px !important;
+  height: 20px !important;
+
+  /* Styling */
+  background: hsl(var(--muted)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: 6px !important;
+  color: hsl(var(--muted-foreground)) !important;
+
+  /* Layout */
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  /* Interaction */
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  z-index: 10 !important;
+}
+
+[data-sonner-toaster] [data-sonner-toast] [data-close-button]:hover {
+  background: hsl(var(--muted-foreground)) !important;
+  color: hsl(var(--muted)) !important;
+}
+
+/* Hide default close button icon, use custom */
+[data-sonner-toaster] [data-sonner-toast] [data-close-button] svg {
+  display: none !important;
+}
+
+[data-sonner-toaster] [data-sonner-toast] [data-close-button]::before {
+  content: '×' !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes toast-slide-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes toast-slide-out {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-mounted='true'] {
+  animation: toast-slide-in 0.2s ease-out !important;
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-removed='true'] {
+  animation: toast-slide-out 0.2s ease-in !important;
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+@media (max-width: 640px) {
+  [data-sonner-toaster] {
+    left: 8px !important;
+    right: 8px !important;
+    top: 8px !important;
+  }
+
+  [data-sonner-toaster] [data-sonner-toast] {
+    padding: 14px 16px !important;
+    min-height: 56px !important;
+  }
+
+  [data-sonner-toaster] [data-sonner-toast] [data-icon] {
+    margin-right: 10px !important;
+  }
+}
+
+/* ===== DARK MODE SUPPORT ===== */
+[data-theme='dark'] [data-sonner-toaster] [data-sonner-toast] {
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    0 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* ===== MODERN TOAST ENHANCEMENTS ===== */
+.shadow-3xl {
+  box-shadow:
+    0 25px 50px -12px rgba(0, 0, 0, 0.25),
+    0 10px 25px -5px rgba(0, 0, 0, 0.1),
+    0 4px 10px -2px rgba(0, 0, 0, 0.05);
+}
+
+.dark .shadow-3xl {
+  box-shadow:
+    0 25px 50px -12px rgba(0, 0, 0, 0.5),
+    0 10px 25px -5px rgba(0, 0, 0, 0.2),
+    0 4px 10px -2px rgba(0, 0, 0, 0.1);
+}
