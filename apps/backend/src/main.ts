@@ -5,6 +5,8 @@ import { ConfigService } from '@nestjs/config';
 import { AllExceptionsFilter } from '@/common/http-exception.filter';
 import { ValidationPipe, INestApplication, Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { CorrelationIdMiddleware } from '@/common/middleware/correlation-id.middleware';
+import { LoggingInterceptor } from '@/common/interceptors/logging.interceptor';
 import * as express from 'express';
 
 function setupSwagger(app: INestApplication) {
@@ -73,6 +75,9 @@ async function bootstrap() {
     express.urlencoded({ extended: true })(req, res, next);
   });
 
+  // Apply correlation ID middleware first (before any other middleware)
+  app.use(new CorrelationIdMiddleware().use.bind(new CorrelationIdMiddleware()));
+
   // Configure validation pipe for DTO validation
   app.useGlobalPipes(
     new ValidationPipe({
@@ -84,6 +89,9 @@ async function bootstrap() {
       },
     }),
   );
+
+  // Apply global interceptors
+  app.useGlobalInterceptors(new LoggingInterceptor());
 
   app.useGlobalFilters(new AllExceptionsFilter());
 
@@ -144,6 +152,9 @@ async function bootstrap() {
         'Authorization',
         'X-Requested-With',
         'ngrok-skip-browser-warning',
+        'X-Session-Id',
+        'X-CSRF-Token',
+        'X-XSRF-TOKEN',
       ],
     });
   }

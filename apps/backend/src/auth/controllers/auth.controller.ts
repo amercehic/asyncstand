@@ -1,5 +1,16 @@
-import { Controller, Post, Body, Req, Res, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Req,
+  Res,
+  HttpCode,
+  HttpStatus,
+  UseGuards,
+  Get,
+} from '@nestjs/common';
 import { ThrottlerGuard } from '@nestjs/throttler';
+import { CsrfProtected, CsrfTokenEndpoint } from '@/common/decorators/csrf-protected.decorator';
 import { AuthService } from '@/auth/services/auth.service';
 import { PasswordResetService } from '@/auth/services/password-reset.service';
 import { SignupDto } from '@/auth/dto/signup.dto';
@@ -7,6 +18,11 @@ import { LoginDto } from '@/auth/dto/login.dto';
 import { ForgotPasswordDto } from '@/auth/dto/forgot-password.dto';
 import { ResetPasswordDto } from '@/auth/dto/reset-password.dto';
 import { Request, Response } from 'express';
+
+interface RequestWithSession extends Request {
+  session?: { id: string };
+  user?: { id: string };
+}
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
 import { ApiTags } from '@nestjs/swagger';
@@ -19,6 +35,7 @@ import {
 } from '@/swagger/auth.swagger';
 import { AuditCategory, AuditSeverity } from '@/common/audit/types';
 import { AuditableController, AuditLog } from '@/common/audit/decorators';
+import { CsrfService } from '@/common/security/csrf.service';
 
 @ApiTags('Authentication')
 @AuditableController({
@@ -30,7 +47,23 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly passwordResetService: PasswordResetService,
+    private readonly csrfService: CsrfService,
   ) {}
+
+  @Get('csrf-token')
+  @CsrfTokenEndpoint()
+  async getCsrfToken(@Req() req: RequestWithSession) {
+    // Extract session ID using the same approach as CSRF guard
+    const sessionHeader = req.headers['x-session-id'];
+    const sessionId =
+      req.session?.id ||
+      (typeof sessionHeader === 'string' ? sessionHeader : sessionHeader?.[0]) ||
+      req.user?.id ||
+      'anonymous';
+
+    const token = await this.csrfService.generateToken(sessionId);
+    return { csrfToken: token };
+  }
 
   @Post('signup')
   @SwaggerSignup()
@@ -49,6 +82,7 @@ export class AuthController {
 
   @HttpCode(200)
   @Post('login')
+  @CsrfProtected()
   @SwaggerLogin()
   @AuditLog({
     action: 'user.login',

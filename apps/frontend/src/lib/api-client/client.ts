@@ -15,6 +15,10 @@ export const api = axios.create({
 // Token management
 let authToken: string | null = null;
 
+// Generate a unique session ID for CSRF token consistency
+const sessionId = `session-${Date.now()}-${Math.random().toString(36).substring(2)}`;
+api.defaults.headers.common['X-Session-Id'] = sessionId;
+
 export const setAuthToken = (token: string | null) => {
   authToken = token;
   if (token) {
