@@ -116,6 +116,7 @@ Make sure you have the following installed:
 Follow these steps to get AsyncStand running locally:
 
 #### **Step 1: Clone & Install**
+
 ```bash
 # Clone the repository
 git clone https://github.com/yourusername/asyncstand.git
@@ -126,6 +127,7 @@ pnpm install
 ```
 
 #### **Step 2: Environment Setup**
+
 ```bash
 # Set up environment files automatically
 pnpm env:setup
@@ -134,6 +136,7 @@ pnpm env:setup
 ```
 
 #### **Step 3: Database Configuration**
+
 Edit your database configuration in `apps/backend/.env`:
 
 ```bash
@@ -146,6 +149,7 @@ JWT_SECRET=your-super-secret-development-key
 ```
 
 #### **Step 4: Database Migration**
+
 ```bash
 # Navigate to backend and run migrations
 cd apps/backend
@@ -156,6 +160,7 @@ cd ../..
 ```
 
 #### **Step 5: Start Development**
+
 ```bash
 # Start all development servers in parallel
 pnpm dev
@@ -165,11 +170,11 @@ pnpm dev
 
 Once running, you can access:
 
-| Service | URL | Description |
-|---------|-----|-------------|
-| 🖥️ **Frontend** | [http://localhost:3000](http://localhost:3000) | React web application |
-| 🔗 **Backend API** | [http://localhost:3001](http://localhost:3001) | NestJS REST API |
-| 📚 **API Docs** | [http://localhost:3001/api](http://localhost:3001/api) | Interactive Swagger documentation |
+| Service            | URL                                                    | Description                       |
+| ------------------ | ------------------------------------------------------ | --------------------------------- |
+| 🖥️ **Frontend**    | [http://localhost:3000](http://localhost:3000)         | React web application             |
+| 🔗 **Backend API** | [http://localhost:3001](http://localhost:3001)         | NestJS REST API                   |
+| 📚 **API Docs**    | [http://localhost:3001/api](http://localhost:3001/api) | Interactive Swagger documentation |
 
 > 🎉 **Success!** Your AsyncStand development environment is now running!
 
@@ -177,14 +182,14 @@ Once running, you can access:
 
 ### 🏠 Root Level Commands
 
-| Command | Description | Icon |
-|---------|-------------|------|
-| `pnpm dev` | Start all apps in development mode | 🚀 |
-| `pnpm build` | Build all applications for production | 🏗️ |
-| `pnpm test` | Run all test suites across the monorepo | 🧪 |
-| `pnpm lint` | Lint all packages and fix issues | ✨ |
-| `pnpm format` | Format code with Prettier | 💄 |
-| `pnpm env:setup` | Set up environment files for all apps | ⚙️ |
+| Command          | Description                             | Icon |
+| ---------------- | --------------------------------------- | ---- |
+| `pnpm dev`       | Start all apps in development mode      | 🚀   |
+| `pnpm build`     | Build all applications for production   | 🏗️   |
+| `pnpm test`      | Run all test suites across the monorepo | 🧪   |
+| `pnpm lint`      | Lint all packages and fix issues        | ✨   |
+| `pnpm format`    | Format code with Prettier               | 💄   |
+| `pnpm env:setup` | Set up environment files for all apps   | ⚙️   |
 
 ### 🔗 Backend Commands (`apps/backend/`)
 
@@ -196,6 +201,7 @@ pnpm dev              # 🚀 Start development server with hot reload
 pnpm build            # 🏗️ Build for production
 pnpm start:prod       # ▶️ Start production server
 ```
+
 </details>
 
 <details>
@@ -208,6 +214,7 @@ pnpm test:integration # 🔗 Run integration tests only
 pnpm test:e2e         # 🌐 Run end-to-end tests only
 pnpm test:coverage    # 📊 Run tests with coverage report
 ```
+
 </details>
 
 <details>
@@ -220,16 +227,17 @@ pnpm db:generate      # 🔧 Generate Prisma client
 pnpm db:reset         # 🗑️ Reset database (development only)
 pnpm db:seed          # 🌱 Seed database with test data
 ```
+
 </details>
 
 ### 🎨 Frontend Commands (`apps/frontend/`)
 
-| Command | Description | Icon |
-|---------|-------------|------|
-| `pnpm dev` | Start Vite development server | ⚡ |
-| `pnpm build` | Build for production | 📦 |
-| `pnpm preview` | Preview production build | 👁️ |
-| `pnpm test` | Run frontend tests | 🧪 |
+| Command        | Description                   | Icon |
+| -------------- | ----------------------------- | ---- |
+| `pnpm dev`     | Start Vite development server | ⚡   |
+| `pnpm build`   | Build for production          | 📦   |
+| `pnpm preview` | Preview production build      | 👁️   |
+| `pnpm test`    | Run frontend tests            | 🧪   |
 
 ## 📁 Project Structure
 
@@ -325,7 +333,7 @@ Complete documentation is available in the `docs/` folder:
 
 ## 🤝 Contributing
 
-We welcome contributions from developers of all skill levels! 
+We welcome contributions from developers of all skill levels!
 
 ### 🚀 Quick Contribution Guide
 
@@ -341,6 +349,7 @@ We welcome contributions from developers of all skill levels!
 ### 📚 Documentation
 
 For detailed contribution guidelines, please see:
+
 - **[Contributing Guidelines](docs/contributing/guidelines.md)** - Code standards and process
 - **[Backend Development](docs/development/backend.md)** - Backend-specific development guide
 - **[Testing Guide](docs/development/testing.md)** - Testing requirements and best practices
@@ -359,6 +368,7 @@ For detailed contribution guidelines, please see:
 <summary><strong>🔧 Common Development Tasks</strong></summary>
 
 ### Resetting Your Development Environment
+
 ```bash
 # Stop all services
 pnpm dev:stop  # If available, or Ctrl+C
@@ -376,6 +386,7 @@ pnpm dev
 ```
 
 ### Database Management
+
 ```bash
 # View your database in a GUI
 cd apps/backend && pnpm db:studio
@@ -388,6 +399,7 @@ cd apps/backend && npx prisma migrate status
 ```
 
 ### Troubleshooting
+
 - **Port conflicts**: Check if ports 3000/3001 are already in use
 - **Database issues**: Ensure PostgreSQL is running and accessible
 - **Redis issues**: Ensure Redis is running on default port 6379
@@ -399,12 +411,14 @@ cd apps/backend && npx prisma migrate status
 <summary><strong>🚀 Performance Tips</strong></summary>
 
 ### Development Performance
+
 - Use `pnpm` instead of `npm` or `yarn` for faster installs
 - Keep your PostgreSQL and Redis instances local for development
 - Use `pnpm dev` to run all services in parallel
 - Enable file watching in your IDE for hot reloading
 
 ### Production Readiness
+
 - Always run `pnpm build` to check for build errors
 - Run the full test suite with `pnpm test` before deploying
 - Use `pnpm test:coverage` to ensure adequate test coverage
@@ -415,20 +429,25 @@ cd apps/backend && npx prisma migrate status
 ## 📞 Support & Community
 
 ### 🐛 Found a Bug?
+
 Please [open an issue](https://github.com/yourusername/asyncstand/issues/new/choose) with:
+
 - Clear bug description
 - Steps to reproduce
 - Expected vs actual behavior
 - Environment details (OS, Node version, etc.)
 
 ### 💬 Need Help?
+
 - 📖 Check our [documentation](docs/) first
 - 🔍 Search [existing issues](https://github.com/yourusername/asyncstand/issues)
 - 💡 Start a [discussion](https://github.com/yourusername/asyncstand/discussions) for questions
 - 📧 Email us at: support@asyncstand.dev
 
 ### 🌟 Show Your Support
+
 If this project helps you, please consider:
+
 - ⭐ Starring the repository
 - 🐦 Sharing on social media
 - 💝 Contributing code or documentation
