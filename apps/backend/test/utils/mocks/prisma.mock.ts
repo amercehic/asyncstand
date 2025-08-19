@@ -106,6 +106,7 @@ export type MockPrismaService = {
     findFirst: jest.Mock;
     findUnique: jest.Mock;
     findMany: jest.Mock;
+    count: jest.Mock;
     update: jest.Mock;
     delete: jest.Mock;
     deleteMany: jest.Mock;
@@ -363,6 +364,7 @@ export const createMockPrismaService = (): MockPrismaService => {
       findFirst: jest.fn().mockResolvedValue(null),
       findUnique: jest.fn().mockResolvedValue(null),
       findMany: jest.fn().mockResolvedValue([]),
+      count: jest.fn().mockResolvedValue(0),
       update: jest.fn().mockResolvedValue({}),
       delete: jest.fn().mockResolvedValue({}),
       deleteMany: jest.fn().mockResolvedValue({ count: 1 }),

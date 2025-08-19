@@ -139,10 +139,14 @@ export const createMockRedisService = () => ({
   keys: jest.fn().mockResolvedValue([]),
   incr: jest.fn().mockResolvedValue(1),
   expire: jest.fn().mockResolvedValue(1),
-  exists: jest.fn().mockResolvedValue(0),
+  exists: jest.fn().mockResolvedValue(false),
   dbsize: jest.fn().mockResolvedValue(100),
   info: jest.fn().mockResolvedValue('used_memory_human:10MB'),
   flushdb: jest.fn().mockResolvedValue('OK'),
+  generateStateToken: jest.fn().mockResolvedValue('mock-state-token'),
+  validateStateToken: jest.fn().mockResolvedValue('mock-org-id'),
+  setNX: jest.fn().mockResolvedValue(true),
+  eval: jest.fn().mockResolvedValue(null),
 });
 
 // Mock SecurityMonitorService

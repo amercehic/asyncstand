@@ -156,9 +156,6 @@ describe('TeamManagementService', () => {
       expect(mockPrisma.integration.findUnique).toHaveBeenCalledWith({
         where: { id: mockIntegrationId },
       });
-      expect(mockPrisma.team.findFirst).toHaveBeenCalledWith({
-        where: { orgId: mockOrgId, name: createTeamDto.name },
-      });
       expect(mockPrisma.team.create).toHaveBeenCalledWith({
         data: {
           orgId: mockOrgId,
@@ -203,8 +200,10 @@ describe('TeamManagementService', () => {
     });
 
     it('should throw error when team name already exists', async () => {
-      const existingTeam = { id: 'existing-team-id', name: createTeamDto.name };
-      mockPrisma.team.findFirst.mockResolvedValue(existingTeam as Team);
+      const uniqueConstraintError = new Error(
+        'Unique constraint failed on the constraint: `team_orgId_name_key`',
+      );
+      mockPrisma.team.create.mockRejectedValue(uniqueConstraintError);
 
       await expect(service.createTeam(mockOrgId, mockUserId, createTeamDto)).rejects.toThrow(
         new ApiError(ErrorCode.CONFLICT, 'Team name already exists in organization', 409),

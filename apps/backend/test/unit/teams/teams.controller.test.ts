@@ -3,12 +3,15 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { TeamsController } from '@/teams/teams.controller';
 import { TeamManagementService } from '@/teams/team-management.service';
 import { AuditLogService } from '@/common/audit/audit-log.service';
+import { LoggerService } from '@/common/logger.service';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/auth/guards/roles.guard';
+import { RequestSizeGuard } from '@/common/guards/request-size.guard';
 import { CreateTeamDto } from '@/teams/dto/create-team.dto';
 import { UpdateTeamDto } from '@/teams/dto/update-team.dto';
 import { AddTeamMemberDto } from '@/teams/dto/add-team-member.dto';
 import { StandupDeliveryType } from '@prisma/client';
+import { createMockLoggerService } from '@/test/utils/mocks/services.mock';
 
 describe('TeamsController', () => {
   let controller: TeamsController;
@@ -49,11 +52,14 @@ describe('TeamsController', () => {
       providers: [
         { provide: TeamManagementService, useValue: mockTeamManagementService },
         { provide: AuditLogService, useValue: mockAuditLogService },
+        { provide: LoggerService, useValue: createMockLoggerService() },
       ],
     })
       .overrideGuard(JwtAuthGuard)
       .useValue({ canActivate: jest.fn(() => true) })
       .overrideGuard(RolesGuard)
+      .useValue({ canActivate: jest.fn(() => true) })
+      .overrideGuard(RequestSizeGuard)
       .useValue({ canActivate: jest.fn(() => true) })
       .compile();
 

@@ -285,6 +285,7 @@ model Team {
   configs        StandupConfig[]
   instances      StandupInstance[]
 
+  @@unique([orgId, name])
   @@index([integrationId])
   @@index([orgId, createdAt])
 }
