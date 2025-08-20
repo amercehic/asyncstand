@@ -6,3 +6,5 @@ export * from '@/hooks/usePerformance';
 export * from '@/hooks/useIntersectionObserver';
 export * from '@/hooks/useImageOptimization';
 export * from '@/hooks/useAccessibility';
+export * from '@/hooks/useOptimizedMotion';
+export * from '@/hooks/useOptimizedQuery';
