@@ -39,7 +39,9 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset --force",
-    "db:status": "prisma migrate status"
+    "db:status": "prisma migrate status",
+    "db:seed": "ts-node src/scripts/seed.ts",
+    "db:reset-and-seed": "prisma migrate reset --force && ts-node src/scripts/seed.ts"
   },
   "keywords": [
     "nestjs",

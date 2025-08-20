@@ -117,8 +117,8 @@ export const ToastComponent: React.FC<ToastProps> = ({ toast, onRemove }) => {
   return (
     <div
       className={cn(
-        'toast-item group relative flex w-full min-w-80 max-w-md items-start gap-4 rounded-xl border border-border/50 p-5 shadow-2xl backdrop-blur-md transition-all duration-300 ease-out hover:shadow-3xl hover:scale-[1.02]',
-        'bg-gradient-to-br from-card/95 to-card/80 dark:from-card/90 dark:to-card/70',
+        'toast-item group relative flex w-full min-w-80 max-w-md items-start gap-4 rounded-xl border border-border/50 p-5 shadow-2xl transition-all duration-300 ease-out hover:shadow-3xl hover:scale-[1.02]',
+        'bg-card',
         styles.border,
         isVisible && !isExiting
           ? 'translate-x-0 opacity-100 scale-100'
@@ -164,7 +164,7 @@ export const ToastComponent: React.FC<ToastProps> = ({ toast, onRemove }) => {
       {/* Content */}
       <div className="flex-1 space-y-1">
         {toast.title && (
-          <h4 className="font-semibold text-sm text-card-foreground">{toast.title}</h4>
+          <h4 className="font-bold text-base text-card-foreground tracking-tight">{toast.title}</h4>
         )}
 
         {toast.richContent ? (
@@ -176,7 +176,7 @@ export const ToastComponent: React.FC<ToastProps> = ({ toast, onRemove }) => {
                 </div>
               )}
               <div className="flex-1">
-                <p className="font-medium text-sm text-card-foreground">
+                <p className="font-bold text-base text-card-foreground tracking-tight">
                   {toast.richContent.title}
                 </p>
                 {toast.richContent.description && (
@@ -191,7 +191,9 @@ export const ToastComponent: React.FC<ToastProps> = ({ toast, onRemove }) => {
           </div>
         ) : (
           <>
-            <p className="text-sm text-card-foreground leading-relaxed">{toast.message}</p>
+            <p className="font-semibold text-base text-card-foreground leading-relaxed tracking-tight">
+              {toast.message}
+            </p>
             {toast.description && (
               <p className="text-sm text-muted-foreground leading-relaxed">{toast.description}</p>
             )}

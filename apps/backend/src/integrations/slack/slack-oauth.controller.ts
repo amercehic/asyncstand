@@ -12,6 +12,9 @@ import {
   SwaggerSlackOAuthStart,
   SwaggerSlackOAuthCallback,
 } from '@/swagger/slack-integration.swagger';
+import { Audit } from '@/common/audit/audit.decorator';
+import { getClientIp } from '@/common/http/ip.util';
+import { AuditCategory, AuditSeverity } from '@/common/audit/types';
 
 @ApiTags('Slack OAuth')
 @Controller('slack/oauth')
@@ -67,12 +70,17 @@ export class SlackOauthController {
 
   @Get('callback')
   @SwaggerSlackOAuthCallback()
+  @Audit({
+    action: 'integration.slack.oauth_callback',
+    category: AuditCategory.INTEGRATION,
+    severity: AuditSeverity.MEDIUM,
+  })
   async callback(
     @Query() query: SlackOauthCallbackDto,
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    const ipAddress = req.ip || req.socket.remoteAddress || 'unknown';
+    const ipAddress = getClientIp(req);
 
     try {
       // Handle OAuth error from Slack

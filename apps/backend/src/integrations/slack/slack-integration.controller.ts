@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Delete, Param, UseGuards, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Param,
+  UseGuards,
+  HttpStatus,
+  ParseUUIDPipe,
+  HttpCode,
+} from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '@/auth/guards/roles.guard';
@@ -10,8 +20,8 @@ import { SlackMessagingService } from '@/integrations/slack/slack-messaging.serv
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
 import { LoggerService } from '@/common/logger.service';
-import { AuditLogService } from '@/common/audit/audit-log.service';
-import { AuditActorType, AuditCategory, AuditSeverity, ResourceAction } from '@/common/audit/types';
+import { Audit } from '@/common/audit/audit.decorator';
+import { AuditCategory, AuditSeverity } from '@/common/audit/types';
 import { OrgRole } from '@prisma/client';
 import {
   SwaggerListSlackIntegrations,
@@ -59,7 +69,6 @@ export class SlackIntegrationController {
     private readonly slackApiService: SlackApiService,
     private readonly slackMessaging: SlackMessagingService,
     private readonly logger: LoggerService,
-    private readonly auditLogService: AuditLogService,
   ) {
     this.logger.setContext(SlackIntegrationController.name);
   }
@@ -116,8 +125,14 @@ export class SlackIntegrationController {
   @Post(':id/sync')
   @Roles(OrgRole.admin, OrgRole.owner)
   @SwaggerTriggerSlackSync()
+  @Audit({
+    action: 'integration.slack.manual_sync_triggered',
+    resourcesFromRequest: (req) => [{ type: 'integration', id: req.params.id, action: 'UPDATED' }],
+    category: AuditCategory.SYSTEM,
+    severity: AuditSeverity.MEDIUM,
+  })
   async triggerSync(
-    @Param('id') integrationId: string,
+    @Param('id', ParseUUIDPipe) integrationId: string,
     @CurrentOrg() orgId: string,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<SlackSyncResponse> {
@@ -155,67 +170,26 @@ export class SlackIntegrationController {
       );
     }
 
-    try {
-      const result = await this.slackApiService.syncWorkspaceData(integrationId);
+    const result = await this.slackApiService.syncWorkspaceData(integrationId);
 
-      await this.auditLogService.log({
-        action: 'integration.slack.manual_sync_triggered',
-        orgId,
-        actorType: AuditActorType.USER,
-        actorUserId: user.userId,
-        category: AuditCategory.SYSTEM,
-        severity: AuditSeverity.MEDIUM,
-        requestData: {
-          method: 'POST',
-          path: `/slack/integrations/${integrationId}/sync`,
-          ipAddress: '127.0.0.1',
-          body: { integrationId },
-        },
-        resources: [
-          {
-            type: 'integration',
-            id: integrationId,
-            action: ResourceAction.UPDATED,
-          },
-        ],
-      });
-
-      return {
-        success: true,
-        ...result,
-      };
-    } catch (error) {
-      await this.auditLogService.log({
-        action: 'integration.slack.manual_sync_failed',
-        orgId,
-        actorType: AuditActorType.USER,
-        actorUserId: user.userId,
-        category: AuditCategory.SYSTEM,
-        severity: AuditSeverity.HIGH,
-        requestData: {
-          method: 'POST',
-          path: `/slack/integrations/${integrationId}/sync`,
-          ipAddress: '127.0.0.1',
-          body: { integrationId, error: error instanceof Error ? error.message : 'Unknown error' },
-        },
-        resources: [
-          {
-            type: 'integration',
-            id: integrationId,
-            action: ResourceAction.UPDATED,
-          },
-        ],
-      });
-
-      throw error;
-    }
+    return {
+      success: true,
+      ...result,
+    };
   }
 
   @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @Roles(OrgRole.admin, OrgRole.owner)
   @SwaggerRemoveSlackIntegration()
+  @Audit({
+    action: 'integration.slack.removed',
+    resourcesFromRequest: (req) => [{ type: 'integration', id: req.params.id, action: 'DELETED' }],
+    category: AuditCategory.SYSTEM,
+    severity: AuditSeverity.HIGH,
+  })
   async removeIntegration(
-    @Param('id') integrationId: string,
+    @Param('id', ParseUUIDPipe) integrationId: string,
     @CurrentOrg() orgId: string,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<{ success: boolean }> {
@@ -255,117 +229,63 @@ export class SlackIntegrationController {
       );
     }
 
-    try {
-      await this.prisma.$transaction(async (tx) => {
-        if (integration.syncState) {
-          await tx.integrationSyncState.delete({
-            where: { integrationId },
+    await this.prisma.$transaction(async (tx) => {
+      if (integration.syncState) {
+        await tx.integrationSyncState.delete({
+          where: { integrationId },
+        });
+      }
+
+      for (const team of integration.teams) {
+        for (const instance of team.instances) {
+          await tx.answer.deleteMany({
+            where: { standupInstanceId: instance.id },
+          });
+
+          await tx.participationSnapshot.deleteMany({
+            where: { standupInstanceId: instance.id },
+          });
+
+          await tx.standupDigestPost.deleteMany({
+            where: { standupInstanceId: instance.id },
           });
         }
 
-        for (const team of integration.teams) {
-          for (const instance of team.instances) {
-            await tx.answer.deleteMany({
-              where: { standupInstanceId: instance.id },
-            });
+        await tx.standupInstance.deleteMany({
+          where: { teamId: team.id },
+        });
 
-            await tx.participationSnapshot.deleteMany({
-              where: { standupInstanceId: instance.id },
-            });
-
-            await tx.standupDigestPost.deleteMany({
-              where: { standupInstanceId: instance.id },
-            });
-          }
-
-          await tx.standupInstance.deleteMany({
-            where: { teamId: team.id },
-          });
-
-          for (const config of team.configs) {
-            await tx.standupConfigMember.deleteMany({
-              where: { standupConfigId: config.id },
-            });
-          }
-
-          await tx.standupConfig.deleteMany({
-            where: { teamId: team.id },
-          });
-
-          await tx.teamMember.deleteMany({
-            where: { teamId: team.id },
+        for (const config of team.configs) {
+          await tx.standupConfigMember.deleteMany({
+            where: { standupConfigId: config.id },
           });
         }
 
-        await tx.team.deleteMany({
-          where: { integrationId },
+        await tx.standupConfig.deleteMany({
+          where: { teamId: team.id },
         });
 
-        await tx.tokenRefreshJob.deleteMany({
-          where: { integrationId },
+        await tx.teamMember.deleteMany({
+          where: { teamId: team.id },
         });
+      }
 
-        await tx.integration.delete({
-          where: { id: integrationId },
-        });
+      await tx.team.deleteMany({
+        where: { integrationId },
       });
 
-      await this.auditLogService.log({
-        action: 'integration.slack.removed',
-        orgId,
-        actorType: AuditActorType.USER,
-        actorUserId: user.userId,
-        category: AuditCategory.SYSTEM,
-        severity: AuditSeverity.HIGH,
-        requestData: {
-          method: 'DELETE',
-          path: `/slack/integrations/${integrationId}`,
-          ipAddress: '127.0.0.1',
-          body: { integrationId },
-        },
-        resources: [
-          {
-            type: 'integration',
-            id: integrationId,
-            action: ResourceAction.DELETED,
-          },
-        ],
+      await tx.tokenRefreshJob.deleteMany({
+        where: { integrationId },
       });
 
-      this.logger.info('Slack integration removed successfully', { integrationId, orgId });
-
-      return { success: true };
-    } catch (error) {
-      await this.auditLogService.log({
-        action: 'integration.slack.remove_failed',
-        orgId,
-        actorType: AuditActorType.USER,
-        actorUserId: user.userId,
-        category: AuditCategory.SYSTEM,
-        severity: AuditSeverity.HIGH,
-        requestData: {
-          method: 'DELETE',
-          path: `/slack/integrations/${integrationId}`,
-          ipAddress: '127.0.0.1',
-          body: { integrationId, error: error instanceof Error ? error.message : 'Unknown error' },
-        },
-        resources: [
-          {
-            type: 'integration',
-            id: integrationId,
-            action: ResourceAction.DELETED,
-          },
-        ],
+      await tx.integration.delete({
+        where: { id: integrationId },
       });
+    });
 
-      this.logger.error('Failed to remove Slack integration', {
-        integrationId,
-        orgId,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
+    this.logger.info('Slack integration removed successfully', { integrationId, orgId });
 
-      throw error;
-    }
+    return { success: true };
   }
 
   @Post(':id/test-dm')

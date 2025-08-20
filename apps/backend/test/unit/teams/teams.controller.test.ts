@@ -91,13 +91,7 @@ describe('TeamsController', () => {
         mockUserId,
         createDto,
       );
-      expect(mockAuditLogService.log).toHaveBeenCalledWith(
-        expect.objectContaining({
-          action: 'team.created',
-          orgId: mockOrgId,
-          actorUserId: mockUserId,
-        }),
-      );
+      expect(mockAuditLogService.log).not.toHaveBeenCalled();
     });
   });
 
@@ -188,7 +182,7 @@ describe('TeamsController', () => {
       mockTeamManagementService.updateTeam.mockResolvedValue(undefined);
       mockAuditLogService.log.mockResolvedValue(undefined);
 
-      const result = await controller.updateTeam(mockTeamId, updateDto, mockOrgId, mockUser);
+      const result = await controller.updateTeam(mockTeamId, updateDto, mockOrgId);
 
       expect(result).toEqual({ success: true });
       expect(mockTeamManagementService.updateTeam).toHaveBeenCalledWith(
@@ -196,13 +190,7 @@ describe('TeamsController', () => {
         mockOrgId,
         updateDto,
       );
-      expect(mockAuditLogService.log).toHaveBeenCalledWith(
-        expect.objectContaining({
-          action: 'team.updated',
-          orgId: mockOrgId,
-          actorUserId: mockUserId,
-        }),
-      );
+      expect(mockAuditLogService.log).not.toHaveBeenCalled();
     });
   });
 
@@ -211,17 +199,11 @@ describe('TeamsController', () => {
       mockTeamManagementService.deleteTeam.mockResolvedValue(undefined);
       mockAuditLogService.log.mockResolvedValue(undefined);
 
-      const result = await controller.deleteTeam(mockTeamId, mockOrgId, mockUser);
+      const result = await controller.deleteTeam(mockTeamId, mockOrgId);
 
       expect(result).toEqual({ success: true });
       expect(mockTeamManagementService.deleteTeam).toHaveBeenCalledWith(mockTeamId, mockOrgId);
-      expect(mockAuditLogService.log).toHaveBeenCalledWith(
-        expect.objectContaining({
-          action: 'team.deleted',
-          orgId: mockOrgId,
-          actorUserId: mockUserId,
-        }),
-      );
+      expect(mockAuditLogService.log).not.toHaveBeenCalled();
     });
   });
 
@@ -310,13 +292,7 @@ describe('TeamsController', () => {
         'slack-user-123',
         mockUserId,
       );
-      expect(mockAuditLogService.log).toHaveBeenCalledWith(
-        expect.objectContaining({
-          action: 'team.member_added',
-          orgId: mockOrgId,
-          actorUserId: mockUserId,
-        }),
-      );
+      expect(mockAuditLogService.log).not.toHaveBeenCalled();
     });
   });
 
@@ -325,20 +301,14 @@ describe('TeamsController', () => {
       mockTeamManagementService.removeTeamMember.mockResolvedValue(undefined);
       mockAuditLogService.log.mockResolvedValue(undefined);
 
-      const result = await controller.removeTeamMember(mockTeamId, mockMemberId, mockUser);
+      const result = await controller.removeTeamMember(mockTeamId, mockMemberId);
 
       expect(result).toEqual({ success: true });
       expect(mockTeamManagementService.removeTeamMember).toHaveBeenCalledWith(
         mockTeamId,
         mockMemberId,
       );
-      expect(mockAuditLogService.log).toHaveBeenCalledWith(
-        expect.objectContaining({
-          action: 'team.member_removed',
-          orgId: mockOrgId,
-          actorUserId: mockUserId,
-        }),
-      );
+      expect(mockAuditLogService.log).not.toHaveBeenCalled();
     });
   });
 
@@ -378,17 +348,11 @@ describe('TeamsController', () => {
       mockTeamManagementService.syncTeamMembers.mockResolvedValue(mockResult);
       mockAuditLogService.log.mockResolvedValue(undefined);
 
-      const result = await controller.syncTeamMembers(mockTeamId, mockOrgId, mockUser);
+      const result = await controller.syncTeamMembers(mockTeamId, mockOrgId);
 
       expect(result).toEqual(mockResult);
       expect(mockTeamManagementService.syncTeamMembers).toHaveBeenCalledWith(mockTeamId, mockOrgId);
-      expect(mockAuditLogService.log).toHaveBeenCalledWith(
-        expect.objectContaining({
-          action: 'team.members_synced',
-          orgId: mockOrgId,
-          actorUserId: mockUserId,
-        }),
-      );
+      expect(mockAuditLogService.log).not.toHaveBeenCalled();
     });
   });
 
@@ -397,12 +361,7 @@ describe('TeamsController', () => {
       mockTeamManagementService.updateMemberStatus.mockResolvedValue(undefined);
       mockAuditLogService.log.mockResolvedValue(undefined);
 
-      const result = await controller.activateTeamMember(
-        mockTeamId,
-        mockMemberId,
-        mockOrgId,
-        mockUser,
-      );
+      const result = await controller.activateTeamMember(mockTeamId, mockMemberId, mockOrgId);
 
       expect(result).toEqual({ success: true });
       expect(mockTeamManagementService.updateMemberStatus).toHaveBeenCalledWith(
@@ -411,13 +370,7 @@ describe('TeamsController', () => {
         mockOrgId,
         true,
       );
-      expect(mockAuditLogService.log).toHaveBeenCalledWith(
-        expect.objectContaining({
-          action: 'team.member_activated',
-          orgId: mockOrgId,
-          actorUserId: mockUserId,
-        }),
-      );
+      expect(mockAuditLogService.log).not.toHaveBeenCalled();
     });
   });
 
@@ -426,12 +379,7 @@ describe('TeamsController', () => {
       mockTeamManagementService.updateMemberStatus.mockResolvedValue(undefined);
       mockAuditLogService.log.mockResolvedValue(undefined);
 
-      const result = await controller.deactivateTeamMember(
-        mockTeamId,
-        mockMemberId,
-        mockOrgId,
-        mockUser,
-      );
+      const result = await controller.deactivateTeamMember(mockTeamId, mockMemberId, mockOrgId);
 
       expect(result).toEqual({ success: true });
       expect(mockTeamManagementService.updateMemberStatus).toHaveBeenCalledWith(
@@ -440,13 +388,7 @@ describe('TeamsController', () => {
         mockOrgId,
         false,
       );
-      expect(mockAuditLogService.log).toHaveBeenCalledWith(
-        expect.objectContaining({
-          action: 'team.member_deactivated',
-          orgId: mockOrgId,
-          actorUserId: mockUserId,
-        }),
-      );
+      expect(mockAuditLogService.log).not.toHaveBeenCalled();
     });
   });
 

@@ -567,7 +567,7 @@ export const TeamsPage = React.memo(() => {
 
   const handleSettingsSuccess = async () => {
     await refreshTeams();
-    toast.success('Team settings updated');
+    // Toast already shown by TeamsContext.updateTeam
   };
 
   const handleJoinTeam = () => {

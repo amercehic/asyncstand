@@ -10,6 +10,9 @@ import {
   UseGuards,
   UseInterceptors,
   ValidationPipe,
+  ParseUUIDPipe,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
@@ -30,8 +33,8 @@ import {
   AvailableMembersResponse,
 } from '@/teams/types/team-management.types';
 import { OrgRole } from '@prisma/client';
-import { AuditLogService } from '@/common/audit/audit-log.service';
-import { AuditActorType, AuditCategory, AuditSeverity, ResourceAction } from '@/common/audit/types';
+import { Audit } from '@/common/audit/audit.decorator';
+import { AuditCategory, AuditSeverity } from '@/common/audit/types';
 import {
   SwaggerCreateTeam,
   SwaggerListTeams,
@@ -58,46 +61,26 @@ interface AuthenticatedUser {
 @UseInterceptors(QueryTimeoutInterceptor)
 @Controller('teams')
 export class TeamsController {
-  constructor(
-    private readonly teamManagementService: TeamManagementService,
-    private readonly auditLogService: AuditLogService,
-  ) {}
+  constructor(private readonly teamManagementService: TeamManagementService) {}
 
   @Post()
+  @HttpCode(HttpStatus.CREATED)
   @Roles(OrgRole.admin, OrgRole.owner)
   @QueryTimeout(10000) // 10 seconds for team creation
   @RequestSizeLimit(1024 * 100) // 100KB limit for team data
   @SwaggerCreateTeam()
+  @Audit({
+    action: 'team.created',
+    resourcesFromResult: (result) => [{ type: 'team', id: result?.id, action: 'CREATED' }],
+    category: AuditCategory.DATA_MODIFICATION,
+    severity: AuditSeverity.MEDIUM,
+  })
   async createTeam(
     @Body(ValidationPipe) createTeamDto: CreateTeamDto,
     @CurrentOrg() orgId: string,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<{ id: string }> {
-    const result = await this.teamManagementService.createTeam(orgId, user.userId, createTeamDto);
-
-    await this.auditLogService.log({
-      action: 'team.created',
-      orgId,
-      actorType: AuditActorType.USER,
-      actorUserId: user.userId,
-      category: AuditCategory.DATA_MODIFICATION,
-      severity: AuditSeverity.MEDIUM,
-      requestData: {
-        method: 'POST',
-        path: '/teams',
-        ipAddress: '127.0.0.1',
-        body: createTeamDto,
-      },
-      resources: [
-        {
-          type: 'team',
-          id: result.id,
-          action: ResourceAction.CREATED,
-        },
-      ],
-    });
-
-    return result;
+    return this.teamManagementService.createTeam(orgId, user.userId, createTeamDto);
   }
 
   @Get()
@@ -116,7 +99,7 @@ export class TeamsController {
   @Roles(OrgRole.admin, OrgRole.owner, OrgRole.member)
   @SwaggerGetTeamDetails()
   async getTeamDetails(
-    @Param('id') teamId: string,
+    @Param('id', ParseUUIDPipe) teamId: string,
     @CurrentOrg() orgId: string,
   ): Promise<TeamDetailsResponse> {
     return this.teamManagementService.getTeamDetails(teamId, orgId);
@@ -125,70 +108,36 @@ export class TeamsController {
   @Put(':id')
   @Roles(OrgRole.admin, OrgRole.owner)
   @SwaggerUpdateTeam()
+  @Audit({
+    action: 'team.updated',
+    resourcesFromRequest: (req) => [{ type: 'team', id: req.params.id, action: 'UPDATED' }],
+    category: AuditCategory.DATA_MODIFICATION,
+    severity: AuditSeverity.MEDIUM,
+  })
   async updateTeam(
-    @Param('id') teamId: string,
+    @Param('id', ParseUUIDPipe) teamId: string,
     @Body(ValidationPipe) updateTeamDto: UpdateTeamDto,
     @CurrentOrg() orgId: string,
-    @CurrentUser() user: AuthenticatedUser,
   ): Promise<{ success: boolean }> {
     await this.teamManagementService.updateTeam(teamId, orgId, updateTeamDto);
-
-    await this.auditLogService.log({
-      action: 'team.updated',
-      orgId,
-      actorType: AuditActorType.USER,
-      actorUserId: user.userId,
-      category: AuditCategory.DATA_MODIFICATION,
-      severity: AuditSeverity.MEDIUM,
-      requestData: {
-        method: 'PUT',
-        path: `/teams/${teamId}`,
-        ipAddress: '127.0.0.1',
-        body: updateTeamDto,
-      },
-      resources: [
-        {
-          type: 'team',
-          id: teamId,
-          action: ResourceAction.UPDATED,
-        },
-      ],
-    });
-
     return { success: true };
   }
 
   @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @Roles(OrgRole.admin, OrgRole.owner)
   @SwaggerDeleteTeam()
+  @Audit({
+    action: 'team.deleted',
+    resourcesFromRequest: (req) => [{ type: 'team', id: req.params.id, action: 'DELETED' }],
+    category: AuditCategory.DATA_MODIFICATION,
+    severity: AuditSeverity.HIGH,
+  })
   async deleteTeam(
-    @Param('id') teamId: string,
+    @Param('id', ParseUUIDPipe) teamId: string,
     @CurrentOrg() orgId: string,
-    @CurrentUser() user: AuthenticatedUser,
   ): Promise<{ success: boolean }> {
     await this.teamManagementService.deleteTeam(teamId, orgId);
-
-    await this.auditLogService.log({
-      action: 'team.deleted',
-      orgId,
-      actorType: AuditActorType.USER,
-      actorUserId: user.userId,
-      category: AuditCategory.DATA_MODIFICATION,
-      severity: AuditSeverity.HIGH,
-      requestData: {
-        method: 'DELETE',
-        path: `/teams/${teamId}`,
-        ipAddress: '127.0.0.1',
-      },
-      resources: [
-        {
-          type: 'team',
-          id: teamId,
-          action: ResourceAction.DELETED,
-        },
-      ],
-    });
-
     return { success: true };
   }
 
@@ -223,86 +172,50 @@ export class TeamsController {
   @Get(':id/members')
   @Roles(OrgRole.admin, OrgRole.owner, OrgRole.member)
   @SwaggerGetTeamMembers()
-  async getTeamMembers(@Param('id') teamId: string) {
+  async getTeamMembers(@Param('id', ParseUUIDPipe) teamId: string) {
     return this.teamManagementService.getTeamMembers(teamId);
   }
 
   @Post(':id/members')
+  @HttpCode(HttpStatus.CREATED)
   @Roles(OrgRole.admin, OrgRole.owner)
   @SwaggerAddTeamMember()
+  @Audit({
+    action: 'team.member_added',
+    resourcesFromRequest: (req) => [
+      { type: 'team', id: req.params.id, action: 'UPDATED' },
+      { type: 'team_member', id: req.body?.slackUserId, action: 'CREATED' },
+    ],
+    category: AuditCategory.DATA_MODIFICATION,
+    severity: AuditSeverity.MEDIUM,
+  })
   async addTeamMember(
-    @Param('id') teamId: string,
+    @Param('id', ParseUUIDPipe) teamId: string,
     @Body(ValidationPipe) addMemberDto: AddTeamMemberDto,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<{ success: boolean }> {
     await this.teamManagementService.addTeamMember(teamId, addMemberDto.slackUserId, user.userId);
-
-    await this.auditLogService.log({
-      action: 'team.member_added',
-      orgId: user.orgId,
-      actorType: AuditActorType.USER,
-      actorUserId: user.userId,
-      category: AuditCategory.DATA_MODIFICATION,
-      severity: AuditSeverity.MEDIUM,
-      requestData: {
-        method: 'POST',
-        path: `/teams/${teamId}/members`,
-        ipAddress: '127.0.0.1',
-        body: addMemberDto,
-      },
-      resources: [
-        {
-          type: 'team',
-          id: teamId,
-          action: ResourceAction.UPDATED,
-        },
-        {
-          type: 'team_member',
-          id: addMemberDto.slackUserId,
-          action: ResourceAction.CREATED,
-        },
-      ],
-    });
-
     return { success: true };
   }
 
   @Delete(':id/members/:memberId')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @Roles(OrgRole.admin, OrgRole.owner)
   @SwaggerRemoveTeamMember()
+  @Audit({
+    action: 'team.member_removed',
+    resourcesFromRequest: (req) => [
+      { type: 'team', id: req.params.id, action: 'UPDATED' },
+      { type: 'team_member', id: req.params.memberId, action: 'DELETED' },
+    ],
+    category: AuditCategory.DATA_MODIFICATION,
+    severity: AuditSeverity.MEDIUM,
+  })
   async removeTeamMember(
-    @Param('id') teamId: string,
+    @Param('id', ParseUUIDPipe) teamId: string,
     @Param('memberId') memberId: string,
-    @CurrentUser() user: AuthenticatedUser,
   ): Promise<{ success: boolean }> {
     await this.teamManagementService.removeTeamMember(teamId, memberId);
-
-    await this.auditLogService.log({
-      action: 'team.member_removed',
-      orgId: user.orgId,
-      actorType: AuditActorType.USER,
-      actorUserId: user.userId,
-      category: AuditCategory.DATA_MODIFICATION,
-      severity: AuditSeverity.MEDIUM,
-      requestData: {
-        method: 'DELETE',
-        path: `/teams/${teamId}/members/${memberId}`,
-        ipAddress: '127.0.0.1',
-      },
-      resources: [
-        {
-          type: 'team',
-          id: teamId,
-          action: ResourceAction.UPDATED,
-        },
-        {
-          type: 'team_member',
-          id: memberId,
-          action: ResourceAction.DELETED,
-        },
-      ],
-    });
-
     return { success: true };
   }
 
@@ -315,114 +228,69 @@ export class TeamsController {
 
   @Post(':id/sync-members')
   @Roles(OrgRole.admin, OrgRole.owner)
+  @Audit({
+    action: 'team.members_synced',
+    resourcesFromRequest: (req) => [{ type: 'team', id: req.params.id, action: 'UPDATED' }],
+    category: AuditCategory.DATA_MODIFICATION,
+    severity: AuditSeverity.LOW,
+  })
   async syncTeamMembers(
-    @Param('id') teamId: string,
+    @Param('id', ParseUUIDPipe) teamId: string,
     @CurrentOrg() orgId: string,
-    @CurrentUser() user: AuthenticatedUser,
   ): Promise<{ success: boolean; syncedCount: number }> {
-    const result = await this.teamManagementService.syncTeamMembers(teamId, orgId);
-
-    await this.auditLogService.log({
-      action: 'team.members_synced',
-      orgId,
-      actorType: AuditActorType.USER,
-      actorUserId: user.userId,
-      category: AuditCategory.DATA_MODIFICATION,
-      severity: AuditSeverity.LOW,
-      requestData: {
-        method: 'POST',
-        path: `/teams/${teamId}/sync-members`,
-        ipAddress: '127.0.0.1',
-      },
-      resources: [
-        {
-          type: 'team',
-          id: teamId,
-          action: ResourceAction.UPDATED,
-        },
-      ],
-    });
-
-    return result;
+    return this.teamManagementService.syncTeamMembers(teamId, orgId);
   }
 
   @Put(':id/members/:memberId/activate')
   @Roles(OrgRole.admin, OrgRole.owner)
+  @Audit({
+    action: 'team.member_activated',
+    resourcesFromRequest: (req) => [
+      { type: 'team_member', id: req.params.memberId, action: 'UPDATED' },
+    ],
+    category: AuditCategory.DATA_MODIFICATION,
+    severity: AuditSeverity.LOW,
+  })
   async activateTeamMember(
-    @Param('id') teamId: string,
+    @Param('id', ParseUUIDPipe) teamId: string,
     @Param('memberId') memberId: string,
     @CurrentOrg() orgId: string,
-    @CurrentUser() user: AuthenticatedUser,
   ): Promise<{ success: boolean }> {
     await this.teamManagementService.updateMemberStatus(teamId, memberId, orgId, true);
-
-    await this.auditLogService.log({
-      action: 'team.member_activated',
-      orgId,
-      actorType: AuditActorType.USER,
-      actorUserId: user.userId,
-      category: AuditCategory.DATA_MODIFICATION,
-      severity: AuditSeverity.LOW,
-      requestData: {
-        method: 'PUT',
-        path: `/teams/${teamId}/members/${memberId}/activate`,
-        ipAddress: '127.0.0.1',
-      },
-      resources: [
-        {
-          type: 'team_member',
-          id: memberId,
-          action: ResourceAction.UPDATED,
-        },
-      ],
-    });
-
     return { success: true };
   }
 
   @Put(':id/members/:memberId/deactivate')
   @Roles(OrgRole.admin, OrgRole.owner)
+  @Audit({
+    action: 'team.member_deactivated',
+    resourcesFromRequest: (req) => [
+      { type: 'team_member', id: req.params.memberId, action: 'UPDATED' },
+    ],
+    category: AuditCategory.DATA_MODIFICATION,
+    severity: AuditSeverity.LOW,
+  })
   async deactivateTeamMember(
-    @Param('id') teamId: string,
+    @Param('id', ParseUUIDPipe) teamId: string,
     @Param('memberId') memberId: string,
     @CurrentOrg() orgId: string,
-    @CurrentUser() user: AuthenticatedUser,
   ): Promise<{ success: boolean }> {
     await this.teamManagementService.updateMemberStatus(teamId, memberId, orgId, false);
-
-    await this.auditLogService.log({
-      action: 'team.member_deactivated',
-      orgId,
-      actorType: AuditActorType.USER,
-      actorUserId: user.userId,
-      category: AuditCategory.DATA_MODIFICATION,
-      severity: AuditSeverity.LOW,
-      requestData: {
-        method: 'PUT',
-        path: `/teams/${teamId}/members/${memberId}/deactivate`,
-        ipAddress: '127.0.0.1',
-      },
-      resources: [
-        {
-          type: 'team_member',
-          id: memberId,
-          action: ResourceAction.UPDATED,
-        },
-      ],
-    });
-
     return { success: true };
   }
 
   @Get(':id/available-channels')
   @Roles(OrgRole.admin, OrgRole.owner, OrgRole.member)
-  async getTeamAvailableChannels(@Param('id') teamId: string, @CurrentOrg() orgId: string) {
+  async getTeamAvailableChannels(
+    @Param('id', ParseUUIDPipe) teamId: string,
+    @CurrentOrg() orgId: string,
+  ) {
     return this.teamManagementService.getTeamAvailableChannels(teamId, orgId);
   }
 
   @Get(':id/standups')
   @Roles(OrgRole.admin, OrgRole.owner, OrgRole.member)
-  async getTeamStandups(@Param('id') teamId: string, @CurrentOrg() orgId: string) {
+  async getTeamStandups(@Param('id', ParseUUIDPipe) teamId: string, @CurrentOrg() orgId: string) {
     return this.teamManagementService.getTeamStandups(teamId, orgId);
   }
 }

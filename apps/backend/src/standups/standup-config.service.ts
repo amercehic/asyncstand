@@ -1,10 +1,8 @@
 import { Injectable, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
-import { AuditLogService } from '@/common/audit/audit-log.service';
 import { LoggerService } from '@/common/logger.service';
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
-import { AuditActorType, AuditCategory, AuditSeverity } from '@/common/audit/types';
 import { CreateStandupConfigDto } from '@/standups/dto/create-standup-config.dto';
 import { UpdateStandupConfigDto } from '@/standups/dto/update-standup-config.dto';
 import { UpdateMemberParticipationDto } from '@/standups/dto/update-member-participation.dto';
@@ -22,7 +20,6 @@ import { ValidationUtils } from '@/standups/utils/validation.utils';
 export class StandupConfigService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly auditLogService: AuditLogService,
     private readonly logger: LoggerService,
   ) {
     this.logger.setContext(StandupConfigService.name);
@@ -144,30 +141,7 @@ export class StandupConfigService {
       return config;
     });
 
-    // Audit log
-    await this.auditLogService.log({
-      action: 'standup_config.created',
-      orgId,
-      actorUserId: createdByUserId,
-      actorType: AuditActorType.USER,
-      category: AuditCategory.STANDUP_CONFIG,
-      severity: AuditSeverity.INFO,
-      requestData: {
-        method: 'POST',
-        path: `/teams/${teamId}/standup-config`,
-        ipAddress: '127.0.0.1', // Service call, no real IP
-        body: data,
-      },
-      payload: {
-        teamId,
-        teamName: team.name,
-        configId: result.id,
-        questions: data.questions.length,
-        weekdays: data.weekdays,
-        timeLocal: data.timeLocal,
-        timezone: data.timezone,
-      },
-    });
+    // Audit logging is now handled by the @Audit decorator in StandupConfigController
 
     this.logger.info('Standup configuration created successfully', {
       configId: result.id,

@@ -177,7 +177,6 @@ describe('AnswerCollectionController', () => {
       const result = await controller.deleteMemberResponses(
         mockInstanceId,
         mockMemberId,
-        mockUserId,
         mockOrgId,
       );
 
@@ -186,7 +185,6 @@ describe('AnswerCollectionController', () => {
         mockInstanceId,
         mockMemberId,
         mockOrgId,
-        mockUserId,
       );
     });
   });

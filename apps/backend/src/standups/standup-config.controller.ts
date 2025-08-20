@@ -8,6 +8,9 @@ import {
   Param,
   UseGuards,
   ValidationPipe,
+  ParseUUIDPipe,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
@@ -26,6 +29,8 @@ import {
   PreviewResponse,
   QuestionTemplate,
 } from '@/standups/types/standup-config.types';
+import { Audit } from '@/common/audit/audit.decorator';
+import { AuditCategory, AuditSeverity } from '@/common/audit/types';
 import {
   SwaggerCreateStandupConfig,
   SwaggerGetStandupConfig,
@@ -50,9 +55,18 @@ export class StandupConfigController {
   // Configuration CRUD endpoints
 
   @Post()
+  @HttpCode(HttpStatus.CREATED)
   @SwaggerCreateStandupConfig()
   @UseGuards(RolesGuard)
   @Roles(OrgRole.owner, OrgRole.admin)
+  @Audit({
+    action: 'standup_config.created',
+    category: AuditCategory.STANDUP_CONFIG,
+    severity: AuditSeverity.MEDIUM,
+    resourcesFromResult: (result) => [
+      { type: 'standup_config', id: result?.id, action: 'CREATED' },
+    ],
+  })
   async createStandupConfigFromBody(
     @CurrentOrg() orgId: string,
     @CurrentUser('userId') userId: string,
@@ -92,8 +106,16 @@ export class StandupConfigController {
   @SwaggerBulkUpdateParticipation()
   @UseGuards(RolesGuard)
   @Roles(OrgRole.owner, OrgRole.admin)
+  @Audit({
+    action: 'standup_config.participation_bulk_updated',
+    category: AuditCategory.STANDUP_CONFIG,
+    severity: AuditSeverity.LOW,
+    resourcesFromRequest: (req) => [
+      { type: 'standup_config', id: req.params.id, action: 'UPDATED' },
+    ],
+  })
   async bulkUpdateParticipationById(
-    @Param('id') configId: string,
+    @Param('id', ParseUUIDPipe) configId: string,
     @CurrentOrg() orgId: string,
     @Body(ValidationPipe) data: BulkUpdateParticipationDto,
   ): Promise<{ success: boolean; updated: number }> {
@@ -105,8 +127,16 @@ export class StandupConfigController {
   @SwaggerUpdateStandupConfig()
   @UseGuards(RolesGuard)
   @Roles(OrgRole.owner, OrgRole.admin)
+  @Audit({
+    action: 'standup_config.updated',
+    category: AuditCategory.STANDUP_CONFIG,
+    severity: AuditSeverity.MEDIUM,
+    resourcesFromRequest: (req) => [
+      { type: 'standup_config', id: req.params.id, action: 'UPDATED' },
+    ],
+  })
   async updateStandupConfigById(
-    @Param('id') configId: string,
+    @Param('id', ParseUUIDPipe) configId: string,
     @CurrentOrg() orgId: string,
     @Body(ValidationPipe) data: UpdateStandupConfigDto,
   ): Promise<{ success: boolean }> {
@@ -115,11 +145,20 @@ export class StandupConfigController {
   }
 
   @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @SwaggerDeleteStandupConfig()
   @UseGuards(RolesGuard)
   @Roles(OrgRole.owner, OrgRole.admin)
+  @Audit({
+    action: 'standup_config.deleted',
+    category: AuditCategory.STANDUP_CONFIG,
+    severity: AuditSeverity.HIGH,
+    resourcesFromRequest: (req) => [
+      { type: 'standup_config', id: req.params.id, action: 'DELETED' },
+    ],
+  })
   async deleteStandupConfigById(
-    @Param('id') configId: string,
+    @Param('id', ParseUUIDPipe) configId: string,
     @CurrentOrg() orgId: string,
   ): Promise<{ success: boolean }> {
     await this.standupConfigService.deleteStandupConfigById(configId, orgId);
@@ -147,8 +186,16 @@ export class StandupConfigController {
 
   @Put('teams/:teamId/standup-config/members/:memberId')
   @SwaggerUpdateMemberParticipation()
+  @Audit({
+    action: 'standup_config.member_participation_updated',
+    category: AuditCategory.STANDUP_CONFIG,
+    severity: AuditSeverity.LOW,
+    resourcesFromRequest: (req) => [
+      { type: 'team_member', id: req.params.memberId, action: 'UPDATED' },
+    ],
+  })
   async updateMemberParticipation(
-    @Param('teamId') teamId: string,
+    @Param('teamId', ParseUUIDPipe) teamId: string,
     @Param('memberId') memberId: string,
     @Body(ValidationPipe) data: UpdateMemberParticipationDto,
   ): Promise<{ message: string }> {

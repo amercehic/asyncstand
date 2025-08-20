@@ -8,6 +8,8 @@ import {
   Body,
   UseGuards,
   HttpStatus,
+  ParseUUIDPipe,
+  HttpCode,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
@@ -25,6 +27,8 @@ import { SubmitAnswersDto } from '@/standups/dto/submit-answers.dto';
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
 import { PrismaService } from '@/prisma/prisma.service';
+import { Audit } from '@/common/audit/audit.decorator';
+import { AuditCategory, AuditSeverity } from '@/common/audit/types';
 
 @ApiTags('Standup Instances')
 @Controller('standups/instances')
@@ -77,6 +81,14 @@ export class StandupInstanceController {
   @Put(':id/state')
   @UseGuards(RolesGuard)
   @Roles('admin')
+  @Audit({
+    action: 'standup_instance.state_updated',
+    category: AuditCategory.STANDUP,
+    severity: AuditSeverity.MEDIUM,
+    resourcesFromRequest: (req) => [
+      { type: 'standup_instance', id: req.params.id, action: 'UPDATED' },
+    ],
+  })
   @ApiOperation({ summary: 'Update standup instance state (admin only)' })
   @ApiResponse({
     status: 200,
@@ -95,7 +107,7 @@ export class StandupInstanceController {
     description: 'Standup instance not found',
   })
   async updateInstanceState(
-    @Param('id') instanceId: string,
+    @Param('id', ParseUUIDPipe) instanceId: string,
     @Body() updateStateDto: UpdateInstanceStateDto,
     @CurrentUser('userId') userId: string,
     @CurrentOrg() orgId: string,
@@ -111,6 +123,15 @@ export class StandupInstanceController {
   }
 
   @Post(':id/answers')
+  @HttpCode(HttpStatus.CREATED)
+  @Audit({
+    action: 'standup_instance.answers_submitted',
+    category: AuditCategory.STANDUP,
+    severity: AuditSeverity.LOW,
+    resourcesFromRequest: (req) => [
+      { type: 'standup_instance', id: req.params.id, action: 'UPDATED' },
+    ],
+  })
   @ApiOperation({ summary: 'Submit answers for a standup instance' })
   @ApiResponse({
     status: 201,
@@ -129,7 +150,7 @@ export class StandupInstanceController {
     description: 'Standup instance not found',
   })
   async submitAnswers(
-    @Param('id') instanceId: string,
+    @Param('id', ParseUUIDPipe) instanceId: string,
     @Body() submitAnswersDto: SubmitAnswersDto,
     @CurrentOrg() orgId: string,
   ): Promise<{ success: boolean; answersSubmitted: number }> {
@@ -223,8 +244,14 @@ export class StandupInstanceController {
   }
 
   @Post('create-for-date')
+  @HttpCode(HttpStatus.CREATED)
   @UseGuards(RolesGuard)
   @Roles('owner', 'admin')
+  @Audit({
+    action: 'standup_instance.created_for_date',
+    category: AuditCategory.STANDUP,
+    severity: AuditSeverity.MEDIUM,
+  })
   @ApiOperation({
     summary: 'Manually create standup instances for a specific date (admin/owner only)',
   })
@@ -253,8 +280,14 @@ export class StandupInstanceController {
   }
 
   @Post('create-and-trigger')
+  @HttpCode(HttpStatus.CREATED)
   @UseGuards(RolesGuard)
   @Roles('owner', 'admin')
+  @Audit({
+    action: 'standup_instance.created_and_triggered',
+    category: AuditCategory.STANDUP,
+    severity: AuditSeverity.MEDIUM,
+  })
   @ApiOperation({
     summary:
       'Manually create standup instances and immediately send Slack messages (admin/owner only)',
@@ -315,6 +348,14 @@ export class StandupInstanceController {
   @Post(':id/trigger-reminder')
   @UseGuards(RolesGuard)
   @Roles('owner', 'admin')
+  @Audit({
+    action: 'standup_instance.reminder_triggered',
+    category: AuditCategory.STANDUP,
+    severity: AuditSeverity.LOW,
+    resourcesFromRequest: (req) => [
+      { type: 'standup_instance', id: req.params.id, action: 'UPDATED' },
+    ],
+  })
   @ApiOperation({
     summary: 'Manually trigger Slack reminder for an existing standup instance (admin/owner only)',
   })
@@ -331,7 +372,7 @@ export class StandupInstanceController {
     description: 'Standup instance not found',
   })
   async triggerReminder(
-    @Param('id') instanceId: string,
+    @Param('id', ParseUUIDPipe) instanceId: string,
     @CurrentOrg() orgId: string,
   ): Promise<{ success: boolean; messageTs?: string; error?: string }> {
     // Verify the instance exists and belongs to the org

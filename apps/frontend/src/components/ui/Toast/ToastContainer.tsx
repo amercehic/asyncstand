@@ -38,7 +38,7 @@ export const ToastContainer: React.FC<ToastContainerProps> = ({
 
   const container = (
     <div
-      className={cn('fixed z-50 flex flex-col pointer-events-none', positionStyles[position])}
+      className={cn('fixed z-[9999] flex flex-col pointer-events-none', positionStyles[position])}
       style={{
         gap: `${gap}px`,
         padding: `${offset}px`,

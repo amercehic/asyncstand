@@ -1,7 +1,6 @@
 import { Injectable, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 import { SlackApiService } from '@/integrations/slack/slack-api.service';
-import { AuditLogService } from '@/common/audit/audit-log.service';
 import { LoggerService } from '@/common/logger.service';
 import { CacheService } from '@/common/cache/cache.service';
 import { ErrorRecoveryService } from '@/common/services/error-recovery.service';
@@ -12,7 +11,6 @@ import {
   SlackConversationInfo,
   SlackUserInfo,
 } from '@/integrations/slack/interfaces/slack-api.interface';
-import { AuditActorType, AuditCategory, AuditSeverity, ResourceAction } from '@/common/audit/types';
 import { CreateTeamDto } from '@/teams/dto/create-team.dto';
 import { UpdateTeamDto } from '@/teams/dto/update-team.dto';
 import {
@@ -28,7 +26,6 @@ export class TeamManagementService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly slackApiService: SlackApiService,
-    private readonly auditLogService: AuditLogService,
     private readonly logger: LoggerService,
     private readonly cacheService: CacheService,
     private readonly errorRecoveryService: ErrorRecoveryService,
@@ -68,27 +65,7 @@ export class TeamManagementService {
         },
       });
 
-      await this.auditLogService.log({
-        action: 'team.created',
-        orgId,
-        actorType: AuditActorType.USER,
-        actorUserId: createdByUserId,
-        category: AuditCategory.DATA_MODIFICATION,
-        severity: AuditSeverity.MEDIUM,
-        requestData: {
-          method: 'POST',
-          path: '/teams',
-          ipAddress: '127.0.0.1',
-          body: data,
-        },
-        resources: [
-          {
-            type: 'team',
-            id: team.id,
-            action: ResourceAction.CREATED,
-          },
-        ],
-      });
+      // Audit logging is now handled by the @Audit decorator in TeamsController
 
       // Invalidate team-related caches
       await this.invalidateTeamCaches(orgId);

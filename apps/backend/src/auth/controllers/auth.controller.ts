@@ -33,15 +33,12 @@ import {
   SwaggerForgotPassword,
   SwaggerResetPassword,
 } from '@/swagger/auth.swagger';
+import { Audit } from '@/common/audit/audit.decorator';
+import { getClientIp } from '@/common/http/ip.util';
 import { AuditCategory, AuditSeverity } from '@/common/audit/types';
-import { AuditableController, AuditLog } from '@/common/audit/decorators';
 import { CsrfService } from '@/common/security/csrf.service';
 
 @ApiTags('Authentication')
-@AuditableController({
-  defaultCategory: AuditCategory.AUTH,
-  defaultSeverity: AuditSeverity.MEDIUM,
-})
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -94,12 +91,12 @@ export class AuthController {
 
   @Post('signup')
   @SwaggerSignup()
-  @AuditLog({
+  @Audit({
     action: 'user.signup',
     category: AuditCategory.AUTH,
     severity: AuditSeverity.MEDIUM,
-    sanitizeFields: ['password'],
-    resources: [{ type: 'user', idFrom: 'result.id' }],
+    redactRequestBodyPaths: ['password'],
+    resourcesFromResult: (result) => [{ type: 'user', id: result?.id, action: 'CREATED' }],
   })
   async signup(@Body() dto: SignupDto) {
     const user = await this.authService.signup(dto.email, dto.password, dto.name, dto.orgId);
@@ -111,12 +108,12 @@ export class AuthController {
   @Post('login')
   @CsrfProtected()
   @SwaggerLogin()
-  @AuditLog({
+  @Audit({
     action: 'user.login',
     category: AuditCategory.AUTH,
     severity: AuditSeverity.MEDIUM,
-    sanitizeFields: ['password'],
-    resources: [{ type: 'user', idFrom: 'result.user.id' }],
+    redactRequestBodyPaths: ['password'],
+    resourcesFromResult: (result) => [{ type: 'user', id: result?.user?.id, action: 'ACCESSED' }],
   })
   async login(
     @Body() dto: LoginDto,
@@ -140,7 +137,7 @@ export class AuthController {
   @HttpCode(200)
   @Post('logout')
   @SwaggerLogout()
-  @AuditLog({
+  @Audit({
     action: 'user.logout',
     category: AuditCategory.AUTH,
     severity: AuditSeverity.LOW,
@@ -160,7 +157,7 @@ export class AuthController {
       );
     }
 
-    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const ip = getClientIp(req);
     const result = await this.authService.logout(token, ip);
 
     res.clearCookie('refreshToken');
@@ -171,13 +168,13 @@ export class AuthController {
   @Post('forgot-password')
   @UseGuards(ThrottlerGuard)
   @SwaggerForgotPassword()
-  @AuditLog({
+  @Audit({
     action: 'password.reset.requested',
     category: AuditCategory.AUTH,
     severity: AuditSeverity.MEDIUM,
   })
   async forgotPassword(@Body() dto: ForgotPasswordDto, @Req() req: Request) {
-    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const ip = getClientIp(req);
     await this.passwordResetService.createPasswordResetToken(dto.email, ip);
 
     return {
@@ -188,14 +185,14 @@ export class AuthController {
 
   @Post('reset-password')
   @SwaggerResetPassword()
-  @AuditLog({
+  @Audit({
     action: 'password.reset.completed',
     category: AuditCategory.AUTH,
     severity: AuditSeverity.HIGH,
-    sanitizeFields: ['password'],
+    redactRequestBodyPaths: ['password'],
   })
   async resetPassword(@Body() dto: ResetPasswordDto, @Req() req: Request) {
-    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const ip = getClientIp(req);
     await this.passwordResetService.resetPassword(dto.token, dto.password, dto.email, ip);
 
     return {

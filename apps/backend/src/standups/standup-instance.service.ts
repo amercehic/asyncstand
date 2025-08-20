@@ -142,7 +142,7 @@ export class StandupInstanceService {
       requestData: {
         method: 'POST',
         path: '/standups/instances',
-        ipAddress: '127.0.0.1',
+        ipAddress: null, // Background job - no real IP available
         body: {
           teamId,
           targetDate: targetDate.toISOString(),
@@ -208,7 +208,7 @@ export class StandupInstanceService {
       requestData: {
         method: 'PUT',
         path: `/standups/instances/${instanceId}/state`,
-        ipAddress: '127.0.0.1',
+        ipAddress: null, // Background job - no real IP available
         body: {
           newState,
           oldState,

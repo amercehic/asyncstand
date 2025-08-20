@@ -130,7 +130,7 @@ export interface CreateTeamRequest {
   name: string;
   integrationId: string;
   channelId?: string;
-  timezone?: string;
+  timezone: string;
   description?: string;
 }
 

@@ -15,19 +15,23 @@ import {
   AuditableControllerMetadata,
   extractValueFromPath,
 } from '@/common/audit/decorators';
+import { AUDIT_META_KEY, AuditMeta } from '@/common/audit/audit.decorator';
 import {
   AuditLogEntry,
   AuditActorType,
   AuditSeverity,
   ResourceAction,
   AuditRequestData,
+  AuditCategory,
 } from '@/common/audit/types';
+import { getClientIp } from '@/common/http/ip.util';
 import { AuditConfig } from '@/common/audit/config';
 
 interface AuthenticatedRequest extends Request {
   user?: {
-    sub: string;
+    userId: string;
     orgId: string;
+    role: string;
   };
 }
 
@@ -60,7 +64,7 @@ export class AuditInterceptor implements NestInterceptor {
     }
 
     // Extract user and org information
-    const actorUserId = request.user?.sub;
+    const actorUserId = request.user?.userId;
     const orgId = request.user?.orgId || this.extractOrgIdFromRequest(request);
 
     if (!orgId) {
@@ -72,16 +76,20 @@ export class AuditInterceptor implements NestInterceptor {
       return next.handle();
     }
 
+    // Determine if this is the new simplified metadata
+    const isSimplifiedMeta =
+      'resourcesFromResult' in auditMetadata || 'resourcesFromRequest' in auditMetadata;
+
     // Create base audit entry
     const auditEntry: Partial<AuditLogEntry> = {
       orgId,
       actorUserId,
       actorType: actorUserId ? AuditActorType.USER : AuditActorType.SYSTEM,
       action: auditMetadata.action,
-      category: auditMetadata.category,
-      severity: auditMetadata.severity,
+      category: auditMetadata.category || AuditCategory.DATA_MODIFICATION,
+      severity: auditMetadata.severity || AuditSeverity.MEDIUM,
       correlationId,
-      tags: auditMetadata.tags,
+      tags: (auditMetadata as AuditLogMetadata).tags,
       requestData: this.captureRequestData(request, auditMetadata),
     };
 
@@ -99,7 +107,34 @@ export class AuditInterceptor implements NestInterceptor {
         }
 
         // Extract and track resources
-        auditEntry.resources = this.extractResources(context, auditMetadata, request, result);
+        if (isSimplifiedMeta) {
+          const simplifiedMeta = auditMetadata as AuditMeta;
+          let resources: Array<{ type: string; id?: string; action?: string }> | undefined;
+
+          if (simplifiedMeta.resourcesFromResult) {
+            resources = simplifiedMeta.resourcesFromResult(result);
+          } else if (simplifiedMeta.resourcesFromRequest) {
+            resources = simplifiedMeta.resourcesFromRequest(request);
+          } else if (simplifiedMeta.resources) {
+            resources = simplifiedMeta.resources;
+          }
+
+          // Convert simplified resources to full AuditResourceData format
+          if (resources) {
+            auditEntry.resources = resources.map((r) => ({
+              type: r.type,
+              id: r.id || '',
+              action: (r.action as ResourceAction) || ResourceAction.ACCESSED,
+            }));
+          }
+        } else {
+          auditEntry.resources = this.extractResources(
+            context,
+            auditMetadata as AuditLogMetadata,
+            request,
+            result,
+          );
+        }
 
         auditEntry.executionTime = executionTime;
 
@@ -137,8 +172,15 @@ export class AuditInterceptor implements NestInterceptor {
     );
   }
 
-  private getAuditMetadata(context: ExecutionContext): AuditLogMetadata | null {
-    // Check for method-level metadata first
+  private getAuditMetadata(context: ExecutionContext): AuditLogMetadata | AuditMeta | null {
+    // Check for new simplified decorator first
+    const simplifiedMeta = this.reflector.get<AuditMeta>(AUDIT_META_KEY, context.getHandler());
+
+    if (simplifiedMeta) {
+      return simplifiedMeta;
+    }
+
+    // Check for method-level metadata (old decorator)
     const methodMetadata = this.reflector.get<AuditLogMetadata>(
       AUDIT_LOG_KEY,
       context.getHandler(),
@@ -175,15 +217,27 @@ export class AuditInterceptor implements NestInterceptor {
     return null;
   }
 
-  private captureRequestData(request: AuthenticatedRequest, metadata: AuditLogMetadata) {
+  private captureRequestData(
+    request: AuthenticatedRequest,
+    metadata: AuditLogMetadata | AuditMeta,
+  ) {
     const requestData = {
       method: request.method,
-      path: request.path,
-      ipAddress: this.getClientIp(request),
+      path: request.originalUrl || request.path,
+      ipAddress: getClientIp(request),
     };
 
-    if (metadata.captureRequest !== false && this.config.capture.requests) {
-      const sanitizedBody = this.sanitizer.sanitizeObject(request.body);
+    const shouldCaptureRequest = metadata.captureRequest !== false && this.config.capture.requests;
+
+    if (shouldCaptureRequest) {
+      let body = request.body;
+
+      // Handle redaction for simplified decorator
+      if ('redactRequestBodyPaths' in metadata && metadata.redactRequestBodyPaths) {
+        body = this.redactPaths(body, metadata.redactRequestBodyPaths);
+      }
+
+      const sanitizedBody = this.sanitizer.sanitizeObject(body);
       const sanitizedQuery = this.sanitizer.sanitizeObject(request.query);
 
       return {
@@ -196,6 +250,28 @@ export class AuditInterceptor implements NestInterceptor {
     }
 
     return requestData;
+  }
+
+  private redactPaths(body: unknown, paths: string[]): unknown {
+    if (!body || !paths?.length) return body;
+
+    const clone = JSON.parse(JSON.stringify(body));
+    for (const path of paths) {
+      try {
+        const segments = path.split('.');
+        let current = clone;
+        for (let i = 0; i < segments.length - 1; i++) {
+          current = current?.[segments[i]];
+        }
+        const leaf = segments[segments.length - 1];
+        if (current && leaf in current) {
+          current[leaf] = '[REDACTED]';
+        }
+      } catch {
+        // Ignore errors in path resolution
+      }
+    }
+    return clone;
   }
 
   private extractResources(
@@ -257,15 +333,6 @@ export class AuditInterceptor implements NestInterceptor {
       default:
         return ResourceAction.ACCESSED;
     }
-  }
-
-  private getClientIp(request: Request): string {
-    return (
-      (request.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
-      request.ip ||
-      request.socket.remoteAddress ||
-      'unknown'
-    );
   }
 
   private getSelectedHeaders(request: Request): Record<string, string> {

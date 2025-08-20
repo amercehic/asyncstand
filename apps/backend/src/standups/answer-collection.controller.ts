@@ -8,6 +8,8 @@ import {
   Body,
   UseGuards,
   HttpStatus,
+  ParseUUIDPipe,
+  HttpCode,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
@@ -20,6 +22,8 @@ import { SubmitAnswerDto } from '@/standups/dto/submit-answer.dto';
 import { SubmitAnswersDto } from '@/standups/dto/submit-answers.dto';
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
+import { Audit } from '@/common/audit/audit.decorator';
+import { AuditCategory, AuditSeverity } from '@/common/audit/types';
 
 @ApiTags('Standup Answers')
 @Controller('standups/answers')
@@ -29,6 +33,12 @@ export class AnswerCollectionController {
   constructor(private readonly answerCollectionService: AnswerCollectionService) {}
 
   @Post()
+  @HttpCode(HttpStatus.CREATED)
+  @Audit({
+    action: 'standup_answer.submitted',
+    category: AuditCategory.STANDUP,
+    severity: AuditSeverity.LOW,
+  })
   @ApiOperation({ summary: 'Submit a single answer' })
   @ApiResponse({
     status: 201,
@@ -59,6 +69,12 @@ export class AnswerCollectionController {
   }
 
   @Post('bulk')
+  @HttpCode(HttpStatus.CREATED)
+  @Audit({
+    action: 'standup_answers.bulk_submitted',
+    category: AuditCategory.STANDUP,
+    severity: AuditSeverity.LOW,
+  })
   @ApiOperation({ summary: 'Submit multiple answers at once' })
   @ApiResponse({
     status: 201,
@@ -172,8 +188,17 @@ export class AnswerCollectionController {
   }
 
   @Delete(':instanceId/:memberId')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(RolesGuard)
   @Roles('admin')
+  @Audit({
+    action: 'standup_answers.deleted',
+    category: AuditCategory.STANDUP,
+    severity: AuditSeverity.MEDIUM,
+    resourcesFromRequest: (req) => [
+      { type: 'standup_instance', id: req.params.instanceId, action: 'UPDATED' },
+    ],
+  })
   @ApiOperation({ summary: 'Delete member responses from an instance (admin only)' })
   @ApiResponse({
     status: 200,
@@ -188,16 +213,14 @@ export class AnswerCollectionController {
     description: 'Standup instance not found',
   })
   async deleteMemberResponses(
-    @Param('instanceId') instanceId: string,
+    @Param('instanceId', ParseUUIDPipe) instanceId: string,
     @Param('memberId') memberId: string,
-    @CurrentUser('userId') userId: string,
     @CurrentOrg() orgId: string,
   ): Promise<{ success: boolean; deleted: number }> {
     const result = await this.answerCollectionService.deleteMemberResponses(
       instanceId,
       memberId,
       orgId,
-      userId,
     );
 
     return {
@@ -207,8 +230,17 @@ export class AnswerCollectionController {
   }
 
   @Post(':instanceId/snapshot')
+  @HttpCode(HttpStatus.CREATED)
   @UseGuards(RolesGuard)
   @Roles('admin')
+  @Audit({
+    action: 'standup_participation_snapshot.created',
+    category: AuditCategory.STANDUP,
+    severity: AuditSeverity.LOW,
+    resourcesFromRequest: (req) => [
+      { type: 'standup_instance', id: req.params.instanceId, action: 'UPDATED' },
+    ],
+  })
   @ApiOperation({ summary: 'Generate participation snapshot for metrics (admin only)' })
   @ApiResponse({
     status: 201,
@@ -223,7 +255,7 @@ export class AnswerCollectionController {
     description: 'Standup instance not found',
   })
   async generateParticipationSnapshot(
-    @Param('instanceId') instanceId: string,
+    @Param('instanceId', ParseUUIDPipe) instanceId: string,
   ): Promise<{ success: boolean; snapshotId: string }> {
     const result = await this.answerCollectionService.generateParticipationSnapshot(instanceId);
 

@@ -11,6 +11,7 @@ import { UserUtilsService } from '@/auth/services/user-utils.service';
 import { TokenService } from '@/auth/services/token.service';
 import { UserService } from '@/auth/services/user.service';
 import { OrgRole, OrgMemberStatus } from '@prisma/client';
+import { getClientIp } from '@/common/http/ip.util';
 
 @Injectable()
 export class AuthService {
@@ -87,7 +88,7 @@ export class AuthService {
       return a.org.name.localeCompare(b.org.name);
     });
 
-    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const ip = getClientIp(req);
 
     // Generate tokens using TokenService
     const tokens = await this.tokenService.generateTokens(user.id, primaryOrg.id, ip);

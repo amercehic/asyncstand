@@ -1,10 +1,8 @@
 import { Injectable, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
-import { AuditLogService } from '@/common/audit/audit-log.service';
 import { LoggerService } from '@/common/logger.service';
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
-import { AuditActorType, AuditCategory, AuditSeverity, ResourceAction } from '@/common/audit/types';
 import { Prisma } from '@prisma/client';
 import { StandupInstanceState as PrismaStandupInstanceState } from '@prisma/client';
 import { SubmitAnswerDto } from '@/standups/dto/submit-answer.dto';
@@ -53,7 +51,6 @@ interface CompletionStats {
 export class AnswerCollectionService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly auditLogService: AuditLogService,
     private readonly logger: LoggerService,
     private readonly magicTokenService: MagicTokenService,
   ) {
@@ -130,38 +127,7 @@ export class AnswerCollectionService {
       },
     });
 
-    // Get team member to check if they have an associated user ID
-    const teamMemberForAudit = await this.prisma.teamMember.findUnique({
-      where: { id: memberId },
-      select: { userId: true },
-    });
-
-    // Audit log
-    await this.auditLogService.log({
-      actorType: AuditActorType.USER,
-      actorUserId: teamMemberForAudit?.userId || null, // Use actual user ID or null for Slack-only users
-      orgId,
-      category: AuditCategory.STANDUP,
-      severity: AuditSeverity.INFO,
-      action: 'standup_answer_submitted',
-      requestData: {
-        method: 'POST',
-        path: '/standups/answers',
-        ipAddress: '127.0.0.1',
-        body: {
-          instanceId: data.standupInstanceId,
-          questionIndex: data.questionIndex,
-          answerLength: data.text.length,
-        },
-      },
-      resources: [
-        {
-          type: 'standup_instance',
-          id: data.standupInstanceId,
-          action: ResourceAction.UPDATED,
-        },
-      ],
-    });
+    // Audit logging is now handled by the @Audit decorator in AnswerCollectionController
 
     this.logger.info('Answer submitted successfully', {
       instanceId: data.standupInstanceId,
@@ -287,38 +253,7 @@ export class AnswerCollectionService {
       return data.answers.length;
     });
 
-    // Get team member to check if they have an associated user ID
-    const teamMemberWithUserId = await this.prisma.teamMember.findUnique({
-      where: { id: memberId },
-      select: { userId: true },
-    });
-
-    // Audit log
-    await this.auditLogService.log({
-      actorType: AuditActorType.USER,
-      actorUserId: teamMemberWithUserId?.userId || null, // Use actual user ID or null for Slack-only users
-      orgId,
-      category: AuditCategory.STANDUP,
-      severity: AuditSeverity.INFO,
-      action: 'standup_full_response_submitted',
-      requestData: {
-        method: 'POST',
-        path: '/standups/answers/bulk',
-        ipAddress: '127.0.0.1',
-        body: {
-          instanceId: data.standupInstanceId,
-          answersSubmitted: result,
-          totalAnswerLength: data.answers.reduce((sum, a) => sum + a.text.length, 0),
-        },
-      },
-      resources: [
-        {
-          type: 'standup_instance',
-          id: data.standupInstanceId,
-          action: ResourceAction.UPDATED,
-        },
-      ],
-    });
+    // Audit logging is now handled by the @Audit decorator in AnswerCollectionController
 
     this.logger.info('Full response submitted successfully', {
       instanceId: data.standupInstanceId,
@@ -709,7 +644,6 @@ export class AnswerCollectionService {
     instanceId: string,
     memberId: string,
     orgId: string,
-    actorUserId: string,
   ): Promise<{ deleted: number }> {
     this.logger.info('Deleting member responses', { instanceId, memberId });
 
@@ -734,31 +668,7 @@ export class AnswerCollectionService {
       },
     });
 
-    // Audit log (actorUserId is already a proper user ID from the controller)
-    await this.auditLogService.log({
-      actorType: AuditActorType.USER,
-      actorUserId: actorUserId,
-      orgId,
-      category: AuditCategory.STANDUP,
-      severity: AuditSeverity.MEDIUM,
-      action: 'standup_member_responses_deleted',
-      requestData: {
-        method: 'DELETE',
-        path: `/standups/answers/${instanceId}/${memberId}`,
-        ipAddress: '127.0.0.1',
-        body: {
-          deletedMemberId: memberId,
-          deletedAnswers: result.count,
-        },
-      },
-      resources: [
-        {
-          type: 'standup_instance',
-          id: instanceId,
-          action: ResourceAction.UPDATED,
-        },
-      ],
-    });
+    // Audit logging is now handled by the @Audit decorator in AnswerCollectionController
 
     this.logger.info('Member responses deleted successfully', {
       instanceId,
@@ -869,39 +779,7 @@ export class AnswerCollectionService {
       return data.answers.length;
     });
 
-    // Get team member to check if they have an associated user ID
-    const teamMemberForMagicAudit = await this.prisma.teamMember.findUnique({
-      where: { id: tokenPayload.teamMemberId },
-      select: { userId: true },
-    });
-
-    // Audit log
-    await this.auditLogService.log({
-      actorType: AuditActorType.USER,
-      actorUserId: teamMemberForMagicAudit?.userId || null, // Use actual user ID or null for Slack-only users
-      orgId: tokenPayload.orgId,
-      category: AuditCategory.STANDUP,
-      severity: AuditSeverity.INFO,
-      action: 'standup_magic_token_response_submitted',
-      requestData: {
-        method: 'POST',
-        path: '/standups/submit-magic',
-        ipAddress: '127.0.0.1',
-        body: {
-          instanceId: tokenPayload.standupInstanceId,
-          answersSubmitted: result,
-          totalAnswerLength: data.answers.reduce((sum, a) => sum + a.text.length, 0),
-          authMethod: 'magic_token',
-        },
-      },
-      resources: [
-        {
-          type: 'standup_instance',
-          id: tokenPayload.standupInstanceId,
-          action: ResourceAction.UPDATED,
-        },
-      ],
-    });
+    // Audit logging is now handled by the @Audit decorator in MagicTokenController
 
     this.logger.info('Magic token response submitted successfully', {
       instanceId: tokenPayload.standupInstanceId,
