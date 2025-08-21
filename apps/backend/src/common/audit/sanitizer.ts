@@ -103,8 +103,12 @@ export class AuditSanitizer {
    * Truncate large payloads to prevent storage issues
    */
   truncatePayload(payload: unknown, maxSize: number): unknown {
+    if (payload === undefined || payload === null) {
+      return payload;
+    }
+
     const serialized = JSON.stringify(payload);
-    if (serialized.length <= maxSize) {
+    if (!serialized || serialized.length <= maxSize) {
       return payload;
     }
 

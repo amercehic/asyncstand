@@ -233,16 +233,16 @@ export const TeamDetailPage = React.memo(() => {
           </button>
 
           {/* Team header */}
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 mb-6">
+            <div className="flex items-start gap-4 min-w-0 flex-1">
               <motion.div
                 whileHover={{ scale: 1.05 }}
-                className="w-16 h-16 bg-gradient-to-br from-primary to-primary/80 rounded-xl flex items-center justify-center shadow-lg shadow-primary/20"
+                className="w-16 h-16 bg-gradient-to-br from-primary to-primary/80 rounded-xl flex items-center justify-center shadow-lg shadow-primary/20 flex-shrink-0"
               >
                 <Building2 className="w-8 h-8 text-white" />
               </motion.div>
-              <div>
-                <h1 className="text-3xl font-bold mb-1 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+              <div className="min-w-0 flex-1">
+                <h1 className="text-3xl font-bold mb-1 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent break-words">
                   {team.name}
                 </h1>
                 {team.description && (
@@ -262,27 +262,29 @@ export const TeamDetailPage = React.memo(() => {
             </div>
 
             {/* Action menu */}
-            <Dropdown
-              trigger={
-                <ModernButton variant="outline" className="gap-2">
-                  <MoreVertical className="w-4 h-4" />
-                  Actions
-                </ModernButton>
-              }
-              items={[
-                {
-                  label: 'Edit Team',
-                  icon: Edit,
-                  onClick: () => setIsTeamSettingsOpen(true),
-                },
-                {
-                  label: 'Archive Team',
-                  icon: Archive,
-                  onClick: () => toast.info('Archive team coming soon!'),
-                  className: 'text-orange-600',
-                },
-              ]}
-            />
+            <div className="flex-shrink-0">
+              <Dropdown
+                trigger={
+                  <ModernButton variant="outline" className="gap-2">
+                    <MoreVertical className="w-4 h-4" />
+                    Actions
+                  </ModernButton>
+                }
+                items={[
+                  {
+                    label: 'Edit Team',
+                    icon: Edit,
+                    onClick: () => setIsTeamSettingsOpen(true),
+                  },
+                  {
+                    label: 'Archive Team',
+                    icon: Archive,
+                    onClick: () => toast.info('Archive team coming soon!'),
+                    className: 'text-orange-600',
+                  },
+                ]}
+              />
+            </div>
           </div>
 
           {/* Tab navigation */}

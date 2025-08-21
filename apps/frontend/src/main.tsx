@@ -11,7 +11,19 @@ import '@/styles/accessibility.css';
 optimizeCriticalPath();
 setupRoutePreloading();
 
-createRoot(document.getElementById('root')!).render(
+// Remove initial loader when React takes over
+const removeInitialLoader = () => {
+  const loader = document.querySelector('.app-loader') as HTMLElement;
+  if (loader) {
+    loader.style.opacity = '0';
+    setTimeout(() => loader.remove(), 150);
+  }
+};
+
+// Create root and render with loading state removal
+const root = createRoot(document.getElementById('root')!);
+
+root.render(
   <ErrorBoundary>
     <AccessibilityProvider>
       <AppProviders>
@@ -20,3 +32,6 @@ createRoot(document.getElementById('root')!).render(
     </AccessibilityProvider>
   </ErrorBoundary>
 );
+
+// Remove loader after initial render
+setTimeout(removeInitialLoader, 100);

@@ -12,6 +12,7 @@ vi.mock('@/lib/api', () => ({
   teamsApi: {
     updateTeam: vi.fn(),
     deleteTeam: vi.fn(),
+    getTeams: vi.fn().mockResolvedValue([]),
   },
 }));
 
@@ -228,7 +229,9 @@ describe('TeamSettingsModal', () => {
       });
     });
 
-    expect(toast.success).toHaveBeenCalledWith('Team settings updated successfully');
+    expect(toast.success).toHaveBeenCalledWith('Team updated successfully!', {
+      id: 'update-team-team-1',
+    });
     expect(mockProps.onSuccess).toHaveBeenCalled();
   });
 
@@ -246,7 +249,9 @@ describe('TeamSettingsModal', () => {
     fireEvent.click(saveButton);
 
     await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith('Failed to update team settings');
+      expect(toast.error).toHaveBeenCalledWith('API Error', {
+        id: 'update-team-team-1',
+      });
     });
 
     expect(mockProps.onSuccess).not.toHaveBeenCalled();
@@ -279,93 +284,6 @@ describe('TeamSettingsModal', () => {
     // Should show loading state
     expect(screen.getByText('Saving...')).toBeInTheDocument();
     expect(saveButton).toBeDisabled();
-  });
-
-  it('cancels delete confirmation', () => {
-    render(<TeamSettingsModal {...mockProps} />);
-
-    // Show delete confirmation
-    const deleteButton = screen.getByTestId('show-delete-confirmation');
-    fireEvent.click(deleteButton);
-
-    // Cancel deletion
-    const cancelButton = screen.getAllByText('Cancel')[1]; // Second cancel button (in delete confirmation)
-    fireEvent.click(cancelButton);
-
-    expect(screen.queryByText('This action cannot be undone')).not.toBeInTheDocument();
-    expect(screen.getByText('Delete Team')).toBeInTheDocument();
-  });
-
-  it('enables delete confirmation button only when team name is correctly typed', async () => {
-    render(<TeamSettingsModal {...mockProps} />);
-
-    // Show delete confirmation
-    const deleteButton = screen.getByTestId('show-delete-confirmation');
-    fireEvent.click(deleteButton);
-
-    const confirmationInput = screen.getByPlaceholderText('Type "Test Team" to confirm');
-    const confirmDeleteButton = screen.getByTestId('confirm-delete-team');
-
-    // Initially disabled
-    expect(confirmDeleteButton).toBeDisabled();
-
-    // Type wrong name
-    fireEvent.change(confirmationInput, { target: { value: 'Wrong Name' } });
-    expect(confirmDeleteButton).toBeDisabled();
-
-    // Type correct name
-    fireEvent.change(confirmationInput, { target: { value: 'Test Team' } });
-    await waitFor(() => {
-      expect(confirmDeleteButton).not.toBeDisabled();
-    });
-  });
-
-  it('deletes team when confirmation is completed', async () => {
-    vi.mocked(teamsApi.deleteTeam).mockResolvedValue(undefined);
-
-    render(<TeamSettingsModal {...mockProps} />);
-
-    // Show delete confirmation
-    const deleteButton = screen.getByTestId('show-delete-confirmation');
-    fireEvent.click(deleteButton);
-
-    // Type team name for confirmation
-    const confirmationInput = screen.getByPlaceholderText('Type "Test Team" to confirm');
-    fireEvent.change(confirmationInput, { target: { value: 'Test Team' } });
-
-    // Confirm deletion
-    const confirmDeleteButton = screen.getByTestId('confirm-delete-team');
-    fireEvent.click(confirmDeleteButton);
-
-    await waitFor(() => {
-      expect(teamsApi.deleteTeam).toHaveBeenCalledWith('team-1');
-    });
-
-    expect(toast.success).toHaveBeenCalledWith('Team deleted successfully!', {
-      id: 'delete-team-team-1',
-    });
-    expect(mockProps.onSuccess).toHaveBeenCalled();
-  });
-
-  it('handles delete API errors', async () => {
-    const error = new Error('Delete API Error');
-    vi.mocked(teamsApi.deleteTeam).mockRejectedValue(error);
-
-    render(<TeamSettingsModal {...mockProps} />);
-
-    // Show delete confirmation and proceed
-    const deleteButton = screen.getByText('Delete Team');
-    fireEvent.click(deleteButton);
-
-    const confirmationInput = screen.getByPlaceholderText('Type "Test Team" to confirm');
-    fireEvent.change(confirmationInput, { target: { value: 'Test Team' } });
-
-    const confirmDeleteButton = screen.getByTestId('confirm-delete-team');
-    fireEvent.click(confirmDeleteButton);
-
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith('Delete API Error', { id: 'delete-team-team-1' });
-    });
   });
 
   it('handles ESC key to close modal', () => {

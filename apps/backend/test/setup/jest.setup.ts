@@ -155,7 +155,13 @@ jest.mock('ioredis', () => {
     setex: jest.fn().mockResolvedValue('OK'),
     get: jest.fn().mockResolvedValue(null),
     del: jest.fn().mockResolvedValue(1),
+    keys: jest.fn().mockResolvedValue([]),
     exists: jest.fn().mockResolvedValue(0),
+    incr: jest.fn().mockResolvedValue(1),
+    expire: jest.fn().mockResolvedValue(1),
+    dbsize: jest.fn().mockResolvedValue(0),
+    info: jest.fn().mockResolvedValue('used_memory_human:10MB'),
+    eval: jest.fn().mockResolvedValue(null),
     disconnect: jest.fn(),
   };
 

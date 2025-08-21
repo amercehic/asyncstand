@@ -1,8 +1,8 @@
 export { LandingPage } from '@/pages/LandingPage';
 export { LoginPage } from '@/pages/LoginPage';
 export { SignUpPage } from '@/pages/SignUpPage';
-export { DashboardPage } from '@/pages/DashboardPage';
-export { TeamsPage } from '@/pages/TeamsPage';
+export { OptimizedDashboardPage as DashboardPage } from '@/pages/OptimizedDashboardPage';
+export { OptimizedTeamsPage as TeamsPage } from '@/pages/OptimizedTeamsPage';
 export { TeamDetailPage } from '@/pages/TeamDetailPage';
 export { StandupsPage } from '@/pages/StandupsPage';
 export { StandupConfigPage } from '@/pages/StandupConfigPage';

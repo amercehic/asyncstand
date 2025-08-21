@@ -1,15 +1,16 @@
 import { Injectable, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 import { SlackApiService } from '@/integrations/slack/slack-api.service';
-import { AuditLogService } from '@/common/audit/audit-log.service';
 import { LoggerService } from '@/common/logger.service';
+import { CacheService } from '@/common/cache/cache.service';
+import { ErrorRecoveryService } from '@/common/services/error-recovery.service';
+import { Cacheable } from '@/common/cache/decorators/cacheable.decorator';
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
 import {
   SlackConversationInfo,
   SlackUserInfo,
 } from '@/integrations/slack/interfaces/slack-api.interface';
-import { AuditActorType, AuditCategory, AuditSeverity, ResourceAction } from '@/common/audit/types';
 import { CreateTeamDto } from '@/teams/dto/create-team.dto';
 import { UpdateTeamDto } from '@/teams/dto/update-team.dto';
 import {
@@ -25,8 +26,9 @@ export class TeamManagementService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly slackApiService: SlackApiService,
-    private readonly auditLogService: AuditLogService,
     private readonly logger: LoggerService,
+    private readonly cacheService: CacheService,
+    private readonly errorRecoveryService: ErrorRecoveryService,
   ) {
     this.logger.setContext(TeamManagementService.name);
   }
@@ -51,26 +53,7 @@ export class TeamManagementService {
       );
     }
 
-    // Check if team name already exists in organization
-    const existingTeam = await this.prisma.team.findFirst({
-      where: {
-        orgId,
-        name: data.name,
-      },
-    });
-
-    if (existingTeam) {
-      throw new ApiError(
-        ErrorCode.CONFLICT,
-        'Team name already exists in organization',
-        HttpStatus.CONFLICT,
-      );
-    }
-
-    // Channel is now optional for teams
-    // Teams can exist without a channel and have multiple standup configs
-    // Each standup config can target a specific channel if needed
-
+    // Use database transaction with unique constraint to prevent race conditions
     try {
       const team = await this.prisma.team.create({
         data: {
@@ -82,27 +65,10 @@ export class TeamManagementService {
         },
       });
 
-      await this.auditLogService.log({
-        action: 'team.created',
-        orgId,
-        actorType: AuditActorType.USER,
-        actorUserId: createdByUserId,
-        category: AuditCategory.DATA_MODIFICATION,
-        severity: AuditSeverity.MEDIUM,
-        requestData: {
-          method: 'POST',
-          path: '/teams',
-          ipAddress: '127.0.0.1',
-          body: data,
-        },
-        resources: [
-          {
-            type: 'team',
-            id: team.id,
-            action: ResourceAction.CREATED,
-          },
-        ],
-      });
+      // Audit logging is now handled by the @Audit decorator in TeamsController
+
+      // Invalidate team-related caches
+      await this.invalidateTeamCaches(orgId);
 
       this.logger.info('Team created successfully', { teamId: team.id, orgId });
 
@@ -110,6 +76,21 @@ export class TeamManagementService {
 
       return { id: team.id };
     } catch (error) {
+      // Handle database constraint violations (race conditions)
+      if (error instanceof Error) {
+        // Check for unique constraint violation (Prisma error codes)
+        if (
+          error.message.includes('Unique constraint') ||
+          error.message.includes('duplicate key')
+        ) {
+          throw new ApiError(
+            ErrorCode.CONFLICT,
+            'Team name already exists in organization',
+            HttpStatus.CONFLICT,
+          );
+        }
+      }
+
       this.logger.error('Failed to create team', {
         error: error instanceof Error ? error.message : 'Unknown error',
         orgId,
@@ -220,6 +201,9 @@ export class TeamManagementService {
         });
       });
 
+      // Invalidate team-related caches
+      await this.invalidateTeamCaches(orgId);
+
       this.logger.info('Team deleted successfully', { teamId, orgId });
     } catch (error) {
       this.logger.error('Failed to delete team', {
@@ -231,35 +215,69 @@ export class TeamManagementService {
     }
   }
 
-  async listTeams(orgId: string): Promise<TeamListResponse> {
-    this.logger.info('Listing teams', { orgId });
+  @Cacheable('teams-list', 300) // 5 minutes
+  async listTeams(
+    orgId: string,
+    page = 1,
+    limit = 20,
+  ): Promise<TeamListResponse & { pagination: { page: number; limit: number; total: number } }> {
+    this.logger.info('Listing teams', { orgId, page, limit });
 
-    const teams = await this.prisma.team.findMany({
-      where: { orgId },
-      include: {
-        _count: {
-          select: {
-            members: true,
-            configs: true,
+    // Validate pagination parameters
+    const validatedPage = Math.max(1, page);
+    const validatedLimit = Math.min(50, Math.max(1, limit)); // Cap at 50 teams per page
+    const offset = (validatedPage - 1) * validatedLimit;
+
+    const cacheKey = this.cacheService.buildKey('teams-list', orgId, validatedPage, validatedLimit);
+    return this.cacheService.getOrSet(
+      cacheKey,
+      async () => {
+        // Use Promise.all to run count and data queries in parallel
+        const [totalCount, teams] = await Promise.all([
+          this.prisma.team.count({ where: { orgId } }),
+          this.prisma.team.findMany({
+            where: { orgId },
+            select: {
+              id: true,
+              name: true,
+              createdAt: true,
+              createdBy: {
+                select: { name: true },
+              },
+              // Use separate queries for counts to optimize performance
+              _count: {
+                select: {
+                  members: { where: { active: true } }, // Only count active members
+                  configs: { where: { isActive: true } }, // Only count active configs
+                },
+              },
+            },
+            orderBy: { createdAt: 'desc' },
+            skip: offset,
+            take: validatedLimit,
+          }),
+        ]);
+
+        const teamList = teams.map((team) => ({
+          id: team.id,
+          name: team.name,
+          memberCount: team._count.members,
+          standupConfigCount: team._count.configs,
+          createdAt: team.createdAt,
+          createdBy: team.createdBy || { name: 'System' },
+        }));
+
+        return {
+          teams: teamList,
+          pagination: {
+            page: validatedPage,
+            limit: validatedLimit,
+            total: totalCount,
           },
-        },
-        createdBy: {
-          select: { name: true },
-        },
+        };
       },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    const teamList = teams.map((team) => ({
-      id: team.id,
-      name: team.name,
-      memberCount: team._count.members,
-      standupConfigCount: team._count.configs,
-      createdAt: team.createdAt,
-      createdBy: team.createdBy || { name: 'System' },
-    }));
-
-    return { teams: teamList };
+      300, // 5 minutes
+    );
   }
 
   async getTeamDetails(teamId: string, orgId: string): Promise<TeamDetailsResponse> {
@@ -366,51 +384,95 @@ export class TeamManagementService {
     }
   }
 
-  async getAvailableChannels(orgId: string): Promise<AvailableChannelsResponse> {
-    this.logger.info('Getting available channels', { orgId });
+  @Cacheable('available-channels', 600) // 10 minutes
+  async getAvailableChannels(
+    orgId: string,
+    page = 1,
+    limit = 50,
+  ): Promise<
+    AvailableChannelsResponse & { pagination: { page: number; limit: number; total: number } }
+  > {
+    this.logger.info('Getting available channels', { orgId, page, limit });
 
-    // Get all channels from database that belong to organization's integrations
-    const channels = await this.prisma.channel.findMany({
-      where: {
-        integration: {
-          orgId,
-          platform: 'slack',
-          tokenStatus: 'ok',
-        },
-        isArchived: false, // Only show non-archived channels
-      },
-      include: {
-        standupConfigs: {
+    // Validate pagination parameters
+    const validatedPage = Math.max(1, page);
+    const validatedLimit = Math.min(100, Math.max(1, limit)); // Cap at 100 to prevent abuse
+    const offset = (validatedPage - 1) * validatedLimit;
+
+    const cacheKey = this.cacheService.buildKey(
+      'available-channels',
+      orgId,
+      validatedPage,
+      validatedLimit,
+    );
+    return this.cacheService.getOrSet(
+      cacheKey,
+      async () => {
+        // First get the total count for pagination
+        const totalCount = await this.prisma.channel.count({
           where: {
-            isActive: true, // Only check active standup configs
+            integration: {
+              orgId,
+              platform: 'slack',
+              tokenStatus: 'ok',
+            },
+            isArchived: false,
           },
-          include: {
-            team: {
-              select: { name: true },
+        });
+
+        // Get paginated channels with optimized query
+        const channels = await this.prisma.channel.findMany({
+          where: {
+            integration: {
+              orgId,
+              platform: 'slack',
+              tokenStatus: 'ok',
+            },
+            isArchived: false,
+          },
+          select: {
+            id: true,
+            name: true,
+            standupConfigs: {
+              where: { isActive: true },
+              select: {
+                id: true,
+                team: {
+                  select: { name: true },
+                },
+              },
             },
           },
-        },
-      },
-      orderBy: { name: 'asc' },
-    });
-
-    return {
-      channels: channels.map((channel) => {
-        const configs = channel.standupConfigs || [];
-        const teamsUsingChannel = [
-          ...new Set(configs.map((config) => config.team?.name).filter(Boolean)),
-        ];
+          orderBy: { name: 'asc' },
+          skip: offset,
+          take: validatedLimit,
+        });
 
         return {
-          id: channel.id, // Return database channel ID for standup creation
-          name: channel.name,
-          isAssigned: configs.length > 0,
-          assignedTeamName: teamsUsingChannel.length === 1 ? teamsUsingChannel[0] : undefined,
-          assignedTeamNames: teamsUsingChannel, // All teams using this channel
-          configCount: configs.length, // Total number of standup configs using this channel
+          channels: channels.map((channel) => {
+            const configs = channel.standupConfigs || [];
+            const teamsUsingChannel = [
+              ...new Set(configs.map((config) => config.team?.name).filter(Boolean)),
+            ];
+
+            return {
+              id: channel.id,
+              name: channel.name,
+              isAssigned: configs.length > 0,
+              assignedTeamName: teamsUsingChannel.length === 1 ? teamsUsingChannel[0] : undefined,
+              assignedTeamNames: teamsUsingChannel,
+              configCount: configs.length,
+            };
+          }),
+          pagination: {
+            page: validatedPage,
+            limit: validatedLimit,
+            total: totalCount,
+          },
         };
-      }),
-    };
+      },
+      600, // 10 minutes
+    );
   }
 
   async addTeamMember(teamId: string, slackUserId: string, addedByUserId: string): Promise<void> {
@@ -514,7 +576,13 @@ export class TeamManagementService {
     }));
   }
 
-  async getAvailableMembers(orgId: string): Promise<AvailableMembersResponse> {
+  async getAvailableMembers(
+    orgId: string,
+    page = 1,
+    limit = 50,
+  ): Promise<
+    AvailableMembersResponse & { pagination: { page: number; limit: number; total: number } }
+  > {
     this.logger.info('Getting available members', { orgId });
 
     // Get all integrations for this organization (supports all platforms)
@@ -626,73 +694,170 @@ export class TeamManagementService {
     // If no stored users found, fall back to live API calls (backward compatibility)
     if (memberMap.size === 0) {
       this.logger.info('No stored users found, falling back to live API calls');
-      return this.getAvailableMembersFromAPI(orgId);
+      const fallbackResult = await this.getAvailableMembersFromAPI(orgId);
+      return {
+        ...fallbackResult,
+        pagination: { page, limit, total: fallbackResult.members.length },
+      };
     }
 
     const result = Array.from(memberMap.values());
-    this.logger.info('Returning available members from stored data', { count: result.length });
-    return { members: result };
+    const totalCount = result.length;
+
+    // Apply pagination to stored data
+    const validatedPage = Math.max(1, page);
+    const validatedLimit = Math.min(100, Math.max(1, limit));
+    const offset = (validatedPage - 1) * validatedLimit;
+    const paginatedResult = result.slice(offset, offset + validatedLimit);
+
+    this.logger.info('Returning available members from stored data', {
+      count: paginatedResult.length,
+      total: totalCount,
+      page: validatedPage,
+    });
+
+    return {
+      members: paginatedResult,
+      pagination: {
+        page: validatedPage,
+        limit: validatedLimit,
+        total: totalCount,
+      },
+    };
   }
 
-  // Fallback method for live API calls (backward compatibility)
-  private async getAvailableMembersFromAPI(orgId: string): Promise<AvailableMembersResponse> {
+  // Optimized fallback method for live API calls with batch processing
+  private async getAvailableMembersFromAPI(
+    orgId: string,
+    maxMembers = 500,
+  ): Promise<AvailableMembersResponse> {
     const integrations = await this.prisma.integration.findMany({
       where: {
         orgId,
-        platform: 'slack', // Only Slack for now
+        platform: 'slack',
         tokenStatus: 'ok',
       },
     });
 
+    if (integrations.length === 0) {
+      return { members: [] };
+    }
+
     const memberMap = new Map();
 
-    for (const integration of integrations) {
-      try {
-        const response = await this.slackApiService.callSlackApi<{
-          members: Array<{
-            id: string;
-            name: string;
-            deleted?: boolean;
-            is_bot?: boolean;
-            is_app_user?: boolean;
-            profile: {
-              display_name?: string;
-              real_name?: string;
-            };
-          }>;
-        }>(integration.id, 'users.list', { limit: 200 });
+    // Process integrations with circuit breaker and retry logic
+    const processIntegration = async (integration: { id: string }) => {
+      const circuitKey = `slack-api-${integration.id}`;
 
-        for (const user of response.members || []) {
-          if (user.deleted || user.is_bot || user.is_app_user) {
-            continue;
-          }
+      return this.errorRecoveryService
+        .withCircuitBreaker(
+          circuitKey,
+          () =>
+            this.errorRecoveryService.withRetry(
+              async () => {
+                this.logger.debug('Fetching users from Slack API', {
+                  integrationId: integration.id,
+                });
 
-          const key = user.id;
-          if (!memberMap.has(key)) {
-            const teamCount = await this.prisma.teamMember.count({
-              where: {
-                platformUserId: user.id,
-                team: { orgId },
+                const response = await this.slackApiService.callSlackApi<{
+                  members: Array<{
+                    id: string;
+                    name: string;
+                    deleted?: boolean;
+                    is_bot?: boolean;
+                    is_app_user?: boolean;
+                    profile: {
+                      display_name?: string;
+                      real_name?: string;
+                    };
+                  }>;
+                }>(integration.id, 'users.list', {
+                  limit: Math.min(200, maxMembers),
+                });
+
+                return (response.members || [])
+                  .filter((user) => !user.deleted && !user.is_bot && !user.is_app_user)
+                  .slice(0, maxMembers);
               },
-            });
+              {
+                maxAttempts: 3,
+                delayMs: 1000,
+                exponentialBackoff: true,
+                retryOn: (error: Error) => {
+                  // Retry on rate limits and network errors, but not on auth errors
+                  return (
+                    !error.message.includes('invalid_auth') &&
+                    !error.message.includes('not_authed') &&
+                    (error.message.includes('rate_limited') ||
+                      error.message.includes('timeout') ||
+                      error.message.includes('ECONNRESET'))
+                  );
+                },
+              },
+            ),
+          {
+            failureThreshold: 3,
+            timeout: 300000, // 5 minutes
+          },
+        )
+        .catch((error) => {
+          this.logger.error('Failed to get users from API after all retries', {
+            integrationId: integration.id,
+            error: error instanceof Error ? error.message : 'Unknown error',
+          });
+          return [];
+        });
+    };
 
-            memberMap.set(key, {
-              id: user.id,
-              name: user.profile.display_name || user.profile.real_name || user.name || 'Unknown',
-              platformUserId: user.id,
-              inTeamCount: teamCount,
-            });
-          }
-        }
-      } catch (error) {
-        this.logger.error('Failed to get users from API', {
-          integrationId: integration.id,
-          error: error instanceof Error ? error.message : 'Unknown error',
+    // Execute API calls with controlled concurrency
+    const userResults = await Promise.all(
+      integrations.slice(0, 5).map(processIntegration), // Limit to 5 integrations max
+    );
+
+    // Flatten and deduplicate users
+    const allUsers = userResults.flat();
+    const uniqueUserIds = [...new Set(allUsers.map((user) => user.id))];
+
+    // Batch query for team counts to eliminate N+1 problem
+    const teamCounts = await this.prisma.teamMember.groupBy({
+      by: ['platformUserId'],
+      where: {
+        platformUserId: { in: uniqueUserIds },
+        team: { orgId },
+        active: true,
+      },
+      _count: {
+        id: true,
+      },
+    });
+
+    // Create lookup map for O(1) team count access
+    const teamCountMap = new Map();
+    teamCounts.forEach((count) => {
+      teamCountMap.set(count.platformUserId, count._count.id);
+    });
+
+    // Build final member list with team counts
+    for (const user of allUsers) {
+      const key = user.id;
+      if (!memberMap.has(key) && memberMap.size < maxMembers) {
+        memberMap.set(key, {
+          id: user.id,
+          name: user.profile.display_name || user.profile.real_name || user.name || 'Unknown',
+          platformUserId: user.id,
+          inTeamCount: teamCountMap.get(user.id) || 0,
         });
       }
     }
 
-    return { members: Array.from(memberMap.values()) };
+    const result = Array.from(memberMap.values());
+    this.logger.info('Retrieved available members from API', {
+      count: result.length,
+      integrations: integrations.length,
+      uniqueUsers: uniqueUserIds.length,
+    });
+
+    return { members: result };
   }
 
   async getChannelsList(orgId: string): Promise<{
@@ -906,5 +1071,23 @@ export class TeamManagementService {
         createdAt: config.createdAt,
       })),
     };
+  }
+
+  /**
+   * Invalidate team-related caches for an organization with error recovery
+   */
+  private async invalidateTeamCaches(orgId: string): Promise<void> {
+    const cacheOperations = [
+      () => this.cacheService.invalidate(`teams-list:${orgId}:*`),
+      () => this.cacheService.invalidate(`available-channels:${orgId}:*`),
+      () => this.cacheService.invalidate(`team-details:*`),
+    ];
+
+    await this.errorRecoveryService.safeCacheInvalidation(cacheOperations, {
+      continueOnError: true,
+      maxParallel: 3,
+    });
+
+    this.logger.debug(`Invalidated team caches for organization ${orgId}`);
   }
 }

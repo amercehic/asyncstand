@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, UseGuards, HttpStatus, HttpException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  UseGuards,
+  HttpStatus,
+  HttpException,
+  HttpCode,
+} from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -12,6 +21,8 @@ import { MagicToken } from '@/standups/decorators/magic-token.decorator';
 import { MagicTokenService, MagicTokenPayload } from '@/standups/services/magic-token.service';
 import { AnswerCollectionService } from '@/standups/answer-collection.service';
 import { LoggerService } from '@/common/logger.service';
+import { Audit } from '@/common/audit/audit.decorator';
+import { AuditCategory, AuditSeverity } from '@/common/audit/types';
 
 interface StandupInfoResponse {
   instance: {
@@ -192,9 +203,15 @@ export class MagicTokenController {
   }
 
   @Post('submit')
+  @HttpCode(HttpStatus.CREATED)
   @UseGuards(MagicTokenGuard)
   @ApiBearerAuth()
   @ApiSecurity('magic-token')
+  @Audit({
+    action: 'standup_answers.magic_token_submitted',
+    category: AuditCategory.STANDUP,
+    severity: AuditSeverity.LOW,
+  })
   @ApiOperation({
     summary: 'Submit standup responses via magic token',
     description:

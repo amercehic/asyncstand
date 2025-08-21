@@ -427,7 +427,7 @@ describe('Standup Instances (e2e)', () => {
 
     it('should return 404 for non-existent instance', async () => {
       await request(app.getHttpServer())
-        .get('/standups/instances/non-existent-id')
+        .get('/standups/instances/00000000-0000-0000-0000-000000000000')
         .set('Authorization', `Bearer ${testData.adminToken}`)
         .expect(404);
     });
@@ -498,7 +498,7 @@ describe('Standup Instances (e2e)', () => {
       };
 
       await request(app.getHttpServer())
-        .put('/standups/instances/non-existent-id/state')
+        .put('/standups/instances/00000000-0000-0000-0000-000000000000/state')
         .set('Authorization', `Bearer ${testData.adminToken}`)
         .send(updateStateDto)
         .expect(404);
@@ -630,7 +630,7 @@ describe('Standup Instances (e2e)', () => {
       };
 
       await request(app.getHttpServer())
-        .post('/standups/instances/non-existent-id/answers')
+        .post('/standups/instances/00000000-0000-0000-0000-000000000000/answers')
         .set('Authorization', `Bearer ${testData.adminToken}`)
         .send(submitAnswersDto)
         .expect(404);
@@ -725,7 +725,7 @@ describe('Standup Instances (e2e)', () => {
 
     it('should return 404 for non-existent instance', async () => {
       await request(app.getHttpServer())
-        .get('/standups/instances/non-existent-id/status')
+        .get('/standups/instances/00000000-0000-0000-0000-000000000000/status')
         .set('Authorization', `Bearer ${testData.adminToken}`)
         .expect(404);
     });
@@ -778,7 +778,7 @@ describe('Standup Instances (e2e)', () => {
 
     it('should return 404 for non-existent instance', async () => {
       await request(app.getHttpServer())
-        .get('/standups/instances/non-existent-id/participating-members')
+        .get('/standups/instances/00000000-0000-0000-0000-000000000000/participating-members')
         .set('Authorization', `Bearer ${testData.adminToken}`)
         .expect(404);
     });
@@ -830,7 +830,7 @@ describe('Standup Instances (e2e)', () => {
 
     it('should return 404 for non-existent instance', async () => {
       await request(app.getHttpServer())
-        .get('/standups/instances/non-existent-id/completion-check')
+        .get('/standups/instances/00000000-0000-0000-0000-000000000000/completion-check')
         .set('Authorization', `Bearer ${testData.adminToken}`)
         .expect(404);
     });

@@ -1,4 +1,4 @@
-export { api, setAuthToken, getAuthToken } from '@/lib/api-client/client';
+export { api, setAuthToken, getAuthToken, clearCsrfToken } from '@/lib/api-client/client';
 export { authApi } from '@/lib/api-client/auth';
 export { teamsApi } from '@/lib/api-client/teams';
 export { standupsApi } from '@/lib/api-client/standups';

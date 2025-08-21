@@ -134,14 +134,18 @@ describe('CleanupExpiredInvitesJob', () => {
 
       // Mock console.error to avoid output during tests
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      // Mock Logger.error to prevent throwing
+      const loggerSpy = jest.spyOn(job['logger'], 'error').mockImplementation();
 
       await job.cleanupExpiredInvites();
 
       expect(mockPrisma.orgMember.findMany).toHaveBeenCalled();
       expect(mockPrisma.orgMember.deleteMany).not.toHaveBeenCalled();
       expect(mockAuditLog.log).not.toHaveBeenCalled();
+      expect(loggerSpy).toHaveBeenCalledWith('Error cleaning up expired invitations', dbError);
 
       consoleSpy.mockRestore();
+      loggerSpy.mockRestore();
     });
 
     it('should handle audit log errors without affecting cleanup', async () => {
@@ -161,11 +165,20 @@ describe('CleanupExpiredInvitesJob', () => {
       mockPrisma.orgMember.deleteMany.mockResolvedValue({ count: 1 });
       mockAuditLog.log.mockRejectedValue(new Error('Audit log service unavailable'));
 
+      // Mock Logger.error to prevent throwing
+      const loggerSpy = jest.spyOn(job['logger'], 'error').mockImplementation();
+
       await job.cleanupExpiredInvites();
 
       expect(mockPrisma.orgMember.findMany).toHaveBeenCalled();
       expect(mockPrisma.orgMember.deleteMany).toHaveBeenCalled();
       expect(mockAuditLog.log).toHaveBeenCalled();
+      expect(loggerSpy).toHaveBeenCalledWith(
+        'Error cleaning up expired invitations',
+        expect.any(Error),
+      );
+
+      loggerSpy.mockRestore();
     });
 
     it('should handle deleteMany operation errors', async () => {
@@ -185,14 +198,21 @@ describe('CleanupExpiredInvitesJob', () => {
       mockPrisma.orgMember.deleteMany.mockRejectedValue(new Error('Delete operation failed'));
 
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      // Mock Logger.error to prevent throwing
+      const loggerSpy = jest.spyOn(job['logger'], 'error').mockImplementation();
 
       await job.cleanupExpiredInvites();
 
       expect(mockPrisma.orgMember.findMany).toHaveBeenCalled();
       expect(mockPrisma.orgMember.deleteMany).toHaveBeenCalled();
       expect(mockAuditLog.log).not.toHaveBeenCalled();
+      expect(loggerSpy).toHaveBeenCalledWith(
+        'Error cleaning up expired invitations',
+        expect.any(Error),
+      );
 
       consoleSpy.mockRestore();
+      loggerSpy.mockRestore();
     });
 
     it('should filter invitations correctly by date and status', async () => {

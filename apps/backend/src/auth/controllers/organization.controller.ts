@@ -8,6 +8,8 @@ import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 import { OrgRole } from '@prisma/client';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { SwaggerGetOrganization, SwaggerUpdateOrganization } from '@/swagger/organization.swagger';
+import { Audit } from '@/common/audit/audit.decorator';
+import { AuditCategory, AuditSeverity } from '@/common/audit/types';
 
 @ApiTags('Organization')
 @ApiBearerAuth('JWT-auth')
@@ -26,6 +28,14 @@ export class OrganizationController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(OrgRole.owner)
   @SwaggerUpdateOrganization()
+  @Audit({
+    action: 'organization.updated',
+    category: AuditCategory.DATA_MODIFICATION,
+    severity: AuditSeverity.MEDIUM,
+    resourcesFromRequest: (req) => [
+      { type: 'organization', id: req.user?.orgId, action: 'UPDATED' },
+    ],
+  })
   async updateOrganization(
     @CurrentOrg() orgId: string,
     @CurrentUser('userId') userId: string,

@@ -36,13 +36,33 @@ export class RedisService implements OnModuleDestroy {
     return await this.client.get(key);
   }
 
-  async del(key: string): Promise<void> {
-    await this.client.del(key);
+  async del(...keys: string[]): Promise<number> {
+    return await this.client.del(...keys);
   }
 
   async exists(key: string): Promise<boolean> {
     const result = await this.client.exists(key);
     return result === 1;
+  }
+
+  async keys(pattern: string): Promise<string[]> {
+    return await this.client.keys(pattern);
+  }
+
+  async incr(key: string): Promise<number> {
+    return await this.client.incr(key);
+  }
+
+  async expire(key: string, seconds: number): Promise<number> {
+    return await this.client.expire(key, seconds);
+  }
+
+  async info(section?: string): Promise<string> {
+    return await this.client.info(section);
+  }
+
+  async dbsize(): Promise<number> {
+    return await this.client.dbsize();
   }
 
   async generateStateToken(orgId: string): Promise<string> {
@@ -65,6 +85,21 @@ export class RedisService implements OnModuleDestroy {
     }
 
     return orgId;
+  }
+
+  /**
+   * Set if not exists with TTL (atomic operation)
+   */
+  async setNX(key: string, value: string, ttlSeconds: number): Promise<boolean> {
+    const result = await this.client.set(key, value, 'EX', ttlSeconds, 'NX');
+    return result === 'OK';
+  }
+
+  /**
+   * Execute Lua script
+   */
+  async eval(script: string, keys: string[], args: string[]): Promise<unknown> {
+    return await this.client.eval(script, keys.length, ...keys, ...args);
   }
 
   onModuleDestroy() {

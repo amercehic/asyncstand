@@ -233,6 +233,7 @@ describe('CreateTeamModal', () => {
         integrationId: 'integration1',
         channelId: 'channel1',
         description: 'Test Description',
+        timezone: 'America/New_York',
       });
     });
 

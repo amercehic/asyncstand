@@ -48,6 +48,11 @@ export const handlers = [
     return HttpResponse.json({ success: true });
   }),
 
+  // Auth: CSRF token
+  http.get('*/auth/csrf-token', () => {
+    return HttpResponse.json({ csrfToken: 'mock-csrf-token' });
+  }),
+
   // Teams
   http.get('*/teams', () => {
     return HttpResponse.json([]);
@@ -169,6 +174,10 @@ export const handlers = [
 
   // Integrations
   http.get('*/integrations/slack', () => {
+    return HttpResponse.json([]);
+  }),
+
+  http.get('*/slack/integrations', () => {
     return HttpResponse.json([]);
   }),
 

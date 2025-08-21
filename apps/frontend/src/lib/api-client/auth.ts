@@ -2,7 +2,13 @@ import type { AuthResponse, LoginRequest, SignUpRequest } from '@/types';
 import { api } from '@/lib/api-client/client';
 
 export const authApi = {
+  async getCsrfToken(): Promise<string> {
+    const response = await api.get<{ csrfToken: string }>('/auth/csrf-token');
+    return response.data.csrfToken;
+  },
+
   async login(data: LoginRequest): Promise<AuthResponse> {
+    // CSRF token will be automatically added by the request interceptor
     const response = await api.post<AuthResponse>('/auth/login', data);
     return response.data;
   },

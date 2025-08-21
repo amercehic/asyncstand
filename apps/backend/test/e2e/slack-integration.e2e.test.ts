@@ -636,7 +636,7 @@ describe('Slack Integration (e2e)', () => {
 
       it('should return 404 for non-existent integration', async () => {
         await request(app.getHttpServer())
-          .post('/slack/integrations/non-existent-id/sync')
+          .post('/slack/integrations/00000000-0000-0000-0000-000000000000/sync')
           .set('Authorization', `Bearer ${adminAccessToken}`)
           .set('X-Organization-ID', testOrg.id)
           .expect(404);
@@ -722,9 +722,10 @@ describe('Slack Integration (e2e)', () => {
           .delete(`/slack/integrations/${integrationToDelete.id}`)
           .set('Authorization', `Bearer ${adminAccessToken}`)
           .set('X-Organization-ID', testOrg.id)
-          .expect(200);
+          .expect(204);
 
-        expect(response.body).toEqual({ success: true });
+        // 204 No Content doesn't return a body
+        expect(response.body).toEqual({});
 
         // Verify integration was deleted
         const deletedIntegration = await prisma.integration.findUnique({
@@ -750,7 +751,7 @@ describe('Slack Integration (e2e)', () => {
 
       it('should return 404 for non-existent integration', async () => {
         await request(app.getHttpServer())
-          .delete('/slack/integrations/non-existent-id')
+          .delete('/slack/integrations/00000000-0000-0000-0000-000000000000')
           .set('Authorization', `Bearer ${adminAccessToken}`)
           .set('X-Organization-ID', testOrg.id)
           .expect(404);
@@ -777,7 +778,7 @@ describe('Slack Integration (e2e)', () => {
           .delete(`/slack/integrations/${integrationToDelete.id}`)
           .set('Authorization', `Bearer ${adminAccessToken}`)
           .set('X-Organization-ID', testOrg.id)
-          .expect(200);
+          .expect(204);
 
         // Verify related data was also deleted
         const deletedChannel = await prisma.channel.findUnique({
@@ -796,7 +797,7 @@ describe('Slack Integration (e2e)', () => {
   describe('Error Handling', () => {
     it('should handle malformed requests gracefully', async () => {
       await request(app.getHttpServer())
-        .post('/slack/integrations/invalid-uuid/sync')
+        .post('/slack/integrations/00000000-0000-0000-0000-000000000000/sync')
         .set('Authorization', `Bearer ${adminAccessToken}`)
         .set('X-Organization-ID', testOrg.id)
         .expect(404);
@@ -819,7 +820,7 @@ describe('Slack Integration (e2e)', () => {
       const response = await request(app.getHttpServer())
         .get('/slack/integrations')
         .set('Authorization', `Bearer ${adminAccessToken}`)
-        .set('X-Organization-ID', 'invalid-org-id')
+        .set('X-Organization-ID', '00000000-0000-0000-0000-000000000000')
         .expect(200);
 
       expect(Array.isArray(response.body)).toBe(true);

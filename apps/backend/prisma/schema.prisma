@@ -30,6 +30,10 @@ model User {
   createdTeams               Team[]           @relation("TeamCreatedBy")
   addedTeamMembers           TeamMember[]     @relation("TeamMemberAddedBy")
   createdStandupConfigs      StandupConfig[]  @relation("StandupConfigCreatedBy")
+
+  // Performance indexes
+  @@index([email, createdAt])
+  @@index([createdAt])
 }
 
 model PasswordResetToken {
@@ -48,6 +52,9 @@ model Session {
   issuedAt    DateTime @default(now())
   lastSeenIp  String?
   revokedAt   DateTime?
+
+  @@index([userId, issuedAt])
+  @@index([revokedAt])
 }
 
 /// Refresh tokens for rotation, anomaly detection, and per-device session control
@@ -189,6 +196,9 @@ model Integration {
 
   @@unique([orgId, platform, externalTeamId])
   @@index([tokenStatus])
+  @@index([orgId, platform])
+  @@index([orgId, tokenStatus])
+  @@index([expiresAt])
 }
 
 model IntegrationSyncState {
@@ -275,6 +285,7 @@ model Team {
   configs        StandupConfig[]
   instances      StandupInstance[]
 
+  @@unique([orgId, name])
   @@index([integrationId])
   @@index([orgId, createdAt])
 }
@@ -331,6 +342,10 @@ model StandupConfig {
   configMembers          StandupConfigMember[]
 
   @@index([targetChannelId])
+  @@index([teamId, isActive])
+  @@index([deliveryType, isActive])
+  @@index([timezone, isActive])
+  @@index([teamId, createdAt])
 }
 
 model StandupConfigMember {
@@ -375,6 +390,9 @@ model StandupInstance {
   participationSnapshots ParticipationSnapshot[]
 
   @@index([teamId, targetDate])
+  @@index([state, targetDate])
+  @@index([teamId, state])
+  @@index([targetDate, state])
 }
 
 model StandupDigestPost {
@@ -399,6 +417,8 @@ model Answer {
 
   @@id([standupInstanceId, teamMemberId, questionIndex])
   @@index([teamMemberId])
+  @@index([standupInstanceId, submittedAt])
+  @@index([teamMemberId, submittedAt])
 }
 
 model ParticipationSnapshot {

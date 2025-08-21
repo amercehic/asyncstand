@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { MagicTokenStandupPage } from '@/pages/MagicTokenStandupPage';
@@ -59,12 +59,19 @@ describe('MagicTokenStandupPage', () => {
     mockSearchParams.set('token', 'test-magic-token');
   });
 
-  it('should render loading state initially', () => {
-    render(
-      <MemoryRouter>
-        <MagicTokenStandupPage />
-      </MemoryRouter>
+  it('should render loading state initially', async () => {
+    // Setup a mock that never resolves to keep component in loading state
+    vi.mocked(magicTokenApiClient.validateTokenAndGetInfo).mockImplementation(
+      () => new Promise(() => {}) // Never resolves
     );
+
+    await act(async () => {
+      render(
+        <MemoryRouter>
+          <MagicTokenStandupPage />
+        </MemoryRouter>
+      );
+    });
 
     expect(screen.getByText('Loading standup...')).toBeInTheDocument();
   });
@@ -72,11 +79,13 @@ describe('MagicTokenStandupPage', () => {
   it('should validate token and display standup form', async () => {
     vi.mocked(magicTokenApiClient.validateTokenAndGetInfo).mockResolvedValue(mockStandupInfo);
 
-    render(
-      <MemoryRouter>
-        <MagicTokenStandupPage />
-      </MemoryRouter>
-    );
+    await act(async () => {
+      render(
+        <MemoryRouter>
+          <MagicTokenStandupPage />
+        </MemoryRouter>
+      );
+    });
 
     await waitFor(() => {
       expect(screen.getByText('Daily Standup')).toBeInTheDocument();
@@ -101,11 +110,13 @@ describe('MagicTokenStandupPage', () => {
     };
     vi.mocked(magicTokenApiClient.validateTokenAndGetInfo).mockRejectedValue(error);
 
-    render(
-      <MemoryRouter>
-        <MagicTokenStandupPage />
-      </MemoryRouter>
-    );
+    await act(async () => {
+      render(
+        <MemoryRouter>
+          <MagicTokenStandupPage />
+        </MemoryRouter>
+      );
+    });
 
     await waitFor(() => {
       expect(screen.getByText('Unable to Load Standup')).toBeInTheDocument();
@@ -117,11 +128,13 @@ describe('MagicTokenStandupPage', () => {
   it('should handle missing token', async () => {
     mockSearchParams.delete('token');
 
-    render(
-      <MemoryRouter>
-        <MagicTokenStandupPage />
-      </MemoryRouter>
-    );
+    await act(async () => {
+      render(
+        <MemoryRouter>
+          <MagicTokenStandupPage />
+        </MemoryRouter>
+      );
+    });
 
     await waitFor(() => {
       expect(screen.getByText('Unable to Load Standup')).toBeInTheDocument();
@@ -133,11 +146,13 @@ describe('MagicTokenStandupPage', () => {
   it('should validate all questions are answered before submission', async () => {
     vi.mocked(magicTokenApiClient.validateTokenAndGetInfo).mockResolvedValue(mockStandupInfo);
 
-    render(
-      <MemoryRouter>
-        <MagicTokenStandupPage />
-      </MemoryRouter>
-    );
+    await act(async () => {
+      render(
+        <MemoryRouter>
+          <MagicTokenStandupPage />
+        </MemoryRouter>
+      );
+    });
 
     await waitFor(() => {
       expect(screen.getByText('Daily Standup')).toBeInTheDocument();
@@ -175,11 +190,13 @@ describe('MagicTokenStandupPage', () => {
       answersSubmitted: 3,
     });
 
-    render(
-      <MemoryRouter>
-        <MagicTokenStandupPage />
-      </MemoryRouter>
-    );
+    await act(async () => {
+      render(
+        <MemoryRouter>
+          <MagicTokenStandupPage />
+        </MemoryRouter>
+      );
+    });
 
     await waitFor(() => {
       expect(screen.getByText('Daily Standup')).toBeInTheDocument();
@@ -224,11 +241,13 @@ describe('MagicTokenStandupPage', () => {
     };
     vi.mocked(magicTokenApiClient.submitWithMagicToken).mockRejectedValue(error);
 
-    render(
-      <MemoryRouter>
-        <MagicTokenStandupPage />
-      </MemoryRouter>
-    );
+    await act(async () => {
+      render(
+        <MemoryRouter>
+          <MagicTokenStandupPage />
+        </MemoryRouter>
+      );
+    });
 
     await waitFor(() => {
       expect(screen.getByText('Daily Standup')).toBeInTheDocument();
@@ -254,11 +273,13 @@ describe('MagicTokenStandupPage', () => {
   it('should display security notice', async () => {
     vi.mocked(magicTokenApiClient.validateTokenAndGetInfo).mockResolvedValue(mockStandupInfo);
 
-    render(
-      <MemoryRouter>
-        <MagicTokenStandupPage />
-      </MemoryRouter>
-    );
+    await act(async () => {
+      render(
+        <MemoryRouter>
+          <MagicTokenStandupPage />
+        </MemoryRouter>
+      );
+    });
 
     await waitFor(() => {
       expect(screen.getByText('🔒 Secure Submission')).toBeInTheDocument();
@@ -274,11 +295,13 @@ describe('MagicTokenStandupPage', () => {
   it('should display instructions', async () => {
     vi.mocked(magicTokenApiClient.validateTokenAndGetInfo).mockResolvedValue(mockStandupInfo);
 
-    render(
-      <MemoryRouter>
-        <MagicTokenStandupPage />
-      </MemoryRouter>
-    );
+    await act(async () => {
+      render(
+        <MemoryRouter>
+          <MagicTokenStandupPage />
+        </MemoryRouter>
+      );
+    });
 
     await waitFor(() => {
       expect(screen.getByText('Instructions')).toBeInTheDocument();
@@ -297,11 +320,13 @@ describe('MagicTokenStandupPage', () => {
       mockStandupInfoWithExistingResponses
     );
 
-    render(
-      <MemoryRouter>
-        <MagicTokenStandupPage />
-      </MemoryRouter>
-    );
+    await act(async () => {
+      render(
+        <MemoryRouter>
+          <MagicTokenStandupPage />
+        </MemoryRouter>
+      );
+    });
 
     await waitFor(() => {
       expect(screen.getByText('Already Submitted')).toBeInTheDocument();

@@ -10,6 +10,7 @@ import {
   HttpCode,
   HttpStatus,
   Req,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
@@ -30,6 +31,9 @@ import {
   SwaggerUpdateMember,
   SwaggerDeleteMember,
 } from '@/swagger/org-members.swagger';
+import { Audit } from '@/common/audit/audit.decorator';
+import { AuditCategory, AuditSeverity } from '@/common/audit/types';
+import { getClientIp } from '@/common/http/ip.util';
 
 @ApiTags('Organization Members')
 @ApiBearerAuth('JWT-auth')
@@ -51,6 +55,14 @@ export class OrgMembersController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(OrgRole.owner, OrgRole.admin)
   @SwaggerInviteMember()
+  @Audit({
+    action: 'org_member.invited',
+    category: AuditCategory.USER_MANAGEMENT,
+    severity: AuditSeverity.MEDIUM,
+    resourcesFromResult: (result) => [
+      { type: 'org_member', id: result?.inviteId, action: 'CREATED' },
+    ],
+  })
   async inviteMember(
     @CurrentOrg() orgId: string,
     @CurrentUser('userId') actorUserId: string,
@@ -63,8 +75,17 @@ export class OrgMembersController {
   @HttpCode(HttpStatus.OK)
   @UseGuards()
   @SwaggerAcceptInvite()
+  @Audit({
+    action: 'org_member.invite_accepted',
+    category: AuditCategory.USER_MANAGEMENT,
+    severity: AuditSeverity.MEDIUM,
+    redactRequestBodyPaths: ['password'],
+    resourcesFromResult: (result) => [
+      { type: 'org_member', id: result?.userId, action: 'CREATED' },
+    ],
+  })
   async acceptInvite(@Body() dto: AcceptInviteDto, @Req() req: Request) {
-    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const ip = getClientIp(req);
     return this.authService.acceptInvite(dto.token, dto.name, dto.password, ip);
   }
 
@@ -72,23 +93,36 @@ export class OrgMembersController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(OrgRole.owner, OrgRole.admin)
   @SwaggerUpdateMember()
+  @Audit({
+    action: 'org_member.updated',
+    category: AuditCategory.USER_MANAGEMENT,
+    severity: AuditSeverity.MEDIUM,
+    resourcesFromRequest: (req) => [{ type: 'org_member', id: req.params.id, action: 'UPDATED' }],
+  })
   async updateMember(
     @CurrentOrg() orgId: string,
     @CurrentUser('userId') actorUserId: string,
-    @Param('id') memberId: string,
+    @Param('id', ParseUUIDPipe) memberId: string,
     @Body() dto: UpdateMemberDto,
   ) {
     return this.orgMembersService.updateMember(orgId, actorUserId, memberId, dto);
   }
 
   @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(OrgRole.owner, OrgRole.admin)
   @SwaggerDeleteMember()
+  @Audit({
+    action: 'org_member.deleted',
+    category: AuditCategory.USER_MANAGEMENT,
+    severity: AuditSeverity.HIGH,
+    resourcesFromRequest: (req) => [{ type: 'org_member', id: req.params.id, action: 'DELETED' }],
+  })
   async deleteMember(
     @CurrentOrg() orgId: string,
     @CurrentUser('userId') actorUserId: string,
-    @Param('id') memberId: string,
+    @Param('id', ParseUUIDPipe) memberId: string,
   ) {
     return this.orgMembersService.deleteMember(orgId, actorUserId, memberId);
   }

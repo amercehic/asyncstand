@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast, ModernButton } from '@/components/ui';
 import { Textarea, Label } from '@/components/ui';
 import { FormField } from '@/components/form';
-import { X, Building2, Hash, Globe } from 'lucide-react';
+import { X, Building2, Hash, Globe, Clock } from 'lucide-react';
 import { teamsApi, integrationsApi } from '@/lib/api';
 import { useTeams } from '@/contexts';
 import type { CreateTeamRequest } from '@/types';
@@ -19,11 +19,26 @@ interface CreateTeamFormData {
   description: string;
   integrationId: string;
   channelId?: string;
+  timezone: string;
 }
 
 interface FormFieldError {
   [key: string]: string;
 }
+
+const SUPPORTED_TIMEZONES = [
+  { value: 'UTC', label: 'UTC' },
+  { value: 'America/New_York', label: 'America/New_York (EST/EDT)' },
+  { value: 'America/Chicago', label: 'America/Chicago (CST/CDT)' },
+  { value: 'America/Denver', label: 'America/Denver (MST/MDT)' },
+  { value: 'America/Los_Angeles', label: 'America/Los_Angeles (PST/PDT)' },
+  { value: 'Europe/London', label: 'Europe/London (GMT/BST)' },
+  { value: 'Europe/Paris', label: 'Europe/Paris (CET/CEST)' },
+  { value: 'Europe/Berlin', label: 'Europe/Berlin (CET/CEST)' },
+  { value: 'Asia/Tokyo', label: 'Asia/Tokyo (JST)' },
+  { value: 'Asia/Shanghai', label: 'Asia/Shanghai (CST)' },
+  { value: 'Australia/Sydney', label: 'Australia/Sydney (AEST/AEDT)' },
+] as const;
 
 export const CreateTeamModal = React.memo<CreateTeamModalProps>(
   ({ isOpen, onClose, onSuccess }) => {
@@ -33,6 +48,7 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
       description: '',
       integrationId: '',
       channelId: '',
+      timezone: 'America/New_York', // Default timezone
     });
     const [errors, setErrors] = useState<FormFieldError>({});
     const [availableChannels, setAvailableChannels] = useState<
@@ -99,6 +115,10 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
         newErrors.integrationId = 'Integration is required';
       }
 
+      if (!formData.timezone) {
+        newErrors.timezone = 'Timezone is required';
+      }
+
       // Channel is now optional since teams are not tied to channels
 
       setErrors(newErrors);
@@ -107,7 +127,7 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
 
     // Check if form is valid for button enabling
     const isFormValid = React.useMemo(() => {
-      return formData.name.trim().length >= 2 && formData.integrationId;
+      return formData.name.trim().length >= 2 && formData.integrationId && formData.timezone;
     }, [formData]);
 
     const handleClose = useCallback(() => {
@@ -117,6 +137,7 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
         description: '',
         integrationId: '',
         channelId: '',
+        timezone: 'America/New_York',
       });
       setErrors({});
       setDataLoaded(false);
@@ -137,6 +158,7 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
             name: formData.name.trim(),
             integrationId: formData.integrationId,
             channelId: formData.channelId || undefined,
+            timezone: formData.timezone,
             description: formData.description.trim() || undefined,
           };
 
@@ -319,6 +341,33 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
                   You can configure specific channels for each standup later.
                 </p>
                 {errors.channelId && <p className="text-sm text-destructive">{errors.channelId}</p>}
+              </div>
+
+              {/* Timezone */}
+              <div className="space-y-2">
+                <Label htmlFor="timezone">
+                  <Clock className="w-4 h-4 inline mr-2" />
+                  Timezone
+                </Label>
+                <select
+                  id="timezone"
+                  value={formData.timezone}
+                  onChange={e => handleInputChange('timezone', e.target.value)}
+                  className="w-full h-12 px-3 rounded-lg border border-border bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  required
+                  data-testid="timezone-select"
+                  disabled={isCreating}
+                >
+                  {SUPPORTED_TIMEZONES.map(tz => (
+                    <option key={tz.value} value={tz.value}>
+                      {tz.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  This timezone will be used for standup scheduling.
+                </p>
+                {errors.timezone && <p className="text-sm text-destructive">{errors.timezone}</p>}
               </div>
 
               {/* Actions */}

@@ -20,10 +20,14 @@ import { PasswordResetService } from '@/auth/services/password-reset.service';
 import { PrismaService } from '@/prisma/prisma.service';
 import { LoggerService } from '@/common/logger.service';
 import { AuditLogService } from '@/common/audit/audit-log.service';
+import { CacheModule } from '@/common/cache/cache.module';
+import { SecurityModule } from '@/common/security/security.module';
 
 @Module({
   imports: [
     PassportModule,
+    CacheModule,
+    SecurityModule,
     ThrottlerModule.forRoot([
       {
         ttl: 60000, // 1 minute for tests

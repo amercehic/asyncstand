@@ -4,6 +4,8 @@ import { PrismaService } from '@/prisma/prisma.service';
 import { SlackApiService } from '@/integrations/slack/slack-api.service';
 import { AuditLogService } from '@/common/audit/audit-log.service';
 import { LoggerService } from '@/common/logger.service';
+import { CacheService } from '@/common/cache/cache.service';
+import { ErrorRecoveryService } from '@/common/services/error-recovery.service';
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
 import { TeamFactory, IntegrationFactory } from '@/test/utils/factories';
@@ -47,6 +49,29 @@ describe('TeamManagementService', () => {
       info: jest.fn(),
       warn: jest.fn(),
       error: jest.fn(),
+      debug: jest.fn(),
+    };
+
+    const mockCacheServiceMethods = {
+      buildKey: jest.fn().mockImplementation((...parts) => parts.join(':')),
+      getOrSet: jest.fn().mockImplementation((_key, factory) => {
+        // Mock always calls the factory function
+        return factory();
+      }),
+      invalidate: jest.fn().mockResolvedValue(undefined),
+      get: jest.fn(),
+      set: jest.fn(),
+      del: jest.fn(),
+    };
+
+    const mockErrorRecoveryServiceMethods = {
+      withRetry: jest.fn().mockImplementation((operation) => operation()),
+      withCircuitBreaker: jest.fn().mockImplementation((_key, operation) => operation()),
+      executeAllSettled: jest.fn(),
+      safeCacheInvalidation: jest.fn().mockResolvedValue(undefined),
+      getCircuitBreakerStatus: jest.fn(),
+      getAllCircuitBreakers: jest.fn(),
+      resetCircuitBreaker: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -67,6 +92,14 @@ describe('TeamManagementService', () => {
         {
           provide: LoggerService,
           useValue: mockLoggerServiceMethods,
+        },
+        {
+          provide: CacheService,
+          useValue: mockCacheServiceMethods,
+        },
+        {
+          provide: ErrorRecoveryService,
+          useValue: mockErrorRecoveryServiceMethods,
         },
       ],
     }).compile();
@@ -123,9 +156,6 @@ describe('TeamManagementService', () => {
       expect(mockPrisma.integration.findUnique).toHaveBeenCalledWith({
         where: { id: mockIntegrationId },
       });
-      expect(mockPrisma.team.findFirst).toHaveBeenCalledWith({
-        where: { orgId: mockOrgId, name: createTeamDto.name },
-      });
       expect(mockPrisma.team.create).toHaveBeenCalledWith({
         data: {
           orgId: mockOrgId,
@@ -135,13 +165,8 @@ describe('TeamManagementService', () => {
           createdByUserId: mockUserId,
         },
       });
-      expect(mockAuditLogService.log).toHaveBeenCalledWith(
-        expect.objectContaining({
-          action: 'team.created',
-          orgId: mockOrgId,
-          actorUserId: mockUserId,
-        }),
-      );
+      // Audit logging is now handled by the @Audit decorator in TeamsController, not in the service
+      expect(mockAuditLogService.log).not.toHaveBeenCalled();
     });
 
     it('should throw error when integration not found', async () => {
@@ -170,8 +195,10 @@ describe('TeamManagementService', () => {
     });
 
     it('should throw error when team name already exists', async () => {
-      const existingTeam = { id: 'existing-team-id', name: createTeamDto.name };
-      mockPrisma.team.findFirst.mockResolvedValue(existingTeam as Team);
+      const uniqueConstraintError = new Error(
+        'Unique constraint failed on the constraint: `team_orgId_name_key`',
+      );
+      mockPrisma.team.create.mockRejectedValue(uniqueConstraintError);
 
       await expect(service.createTeam(mockOrgId, mockUserId, createTeamDto)).rejects.toThrow(
         new ApiError(ErrorCode.CONFLICT, 'Team name already exists in organization', 409),

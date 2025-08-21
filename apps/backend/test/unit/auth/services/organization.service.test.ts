@@ -5,6 +5,7 @@ import { OrganizationService } from '@/auth/services/organization.service';
 import { PrismaService } from '@/prisma/prisma.service';
 import { LoggerService } from '@/common/logger.service';
 import { AuditLogService } from '@/common/audit/audit-log.service';
+import { CacheService } from '@/common/cache/cache.service';
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
 import { OrgRole } from '@prisma/client';
@@ -12,6 +13,7 @@ import { createMockPrismaService, MockPrismaService } from '@/test/utils/mocks/p
 import {
   createMockLoggerService,
   createMockAuditLogService,
+  createMockCacheService,
 } from '@/test/utils/mocks/services.mock';
 
 describe('OrganizationService', () => {
@@ -19,6 +21,7 @@ describe('OrganizationService', () => {
   let mockPrisma: MockPrismaService;
   let mockLogger: ReturnType<typeof createMockLoggerService>;
   let mockAuditLog: ReturnType<typeof createMockAuditLogService>;
+  let mockCache: ReturnType<typeof createMockCacheService>;
 
   const mockOrgMember = {
     orgId: 'org-1',
@@ -43,6 +46,7 @@ describe('OrganizationService', () => {
     mockPrisma = createMockPrismaService();
     mockLogger = createMockLoggerService();
     mockAuditLog = createMockAuditLogService();
+    mockCache = createMockCacheService();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -50,6 +54,7 @@ describe('OrganizationService', () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: LoggerService, useValue: mockLogger },
         { provide: AuditLogService, useValue: mockAuditLog },
+        { provide: CacheService, useValue: mockCache },
       ],
     }).compile();
 
@@ -86,7 +91,13 @@ describe('OrganizationService', () => {
         },
         include: {
           org: true,
-          user: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
         },
       });
 
@@ -176,6 +187,13 @@ describe('OrganizationService', () => {
         },
         include: {
           org: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
         },
       });
     });

@@ -468,9 +468,10 @@ describe('Organization Members (e2e)', () => {
       const response = await request(app.getHttpServer())
         .delete(`/org/members/${testData.memberUserId}`)
         .set('Authorization', `Bearer ${testData.adminToken}`)
-        .expect(200);
+        .expect(204);
 
-      expect(response.body).toHaveProperty('message', 'Member deleted successfully');
+      // 204 No Content doesn't return a body
+      expect(response.body).toEqual({});
 
       // Verify the member was deleted
       const deletedMember = await prisma.orgMember.findUnique({

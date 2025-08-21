@@ -87,7 +87,7 @@ export class SlackApiService implements ISlackApiService {
         requestData: {
           method: 'POST',
           path: '/slack/sync',
-          ipAddress: '127.0.0.1',
+          ipAddress: null, // Background sync - no real IP available
           body: { integrationId, result },
         },
         resources: [
@@ -122,7 +122,7 @@ export class SlackApiService implements ISlackApiService {
         requestData: {
           method: 'POST',
           path: '/slack/sync',
-          ipAddress: '127.0.0.1',
+          ipAddress: null, // Background sync - no real IP available
           body: { integrationId, error: errorMessage },
         },
         resources: [

@@ -141,6 +141,7 @@ describe('AuthService', () => {
     const mockRequest = {
       ip: '192.168.1.1',
       socket: { remoteAddress: '192.168.1.1' },
+      headers: {},
     } as Request;
 
     it('should login user successfully', async () => {
@@ -663,7 +664,7 @@ describe('AuthService', () => {
         role: OrgRole.member,
         status: OrgMemberStatus.active,
       };
-      const mockRequest = { ip: '192.168.1.1' } as Request;
+      const mockRequest = { ip: '192.168.1.1', headers: {} } as Request;
 
       mockPrisma.user.findUnique.mockResolvedValue({
         ...mockUser,

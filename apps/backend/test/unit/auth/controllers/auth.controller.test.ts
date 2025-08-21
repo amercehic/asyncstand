@@ -1,9 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { Request, Response } from 'express';
+import { Socket } from 'net';
 import { AuthController } from '@/auth/controllers/auth.controller';
 import { AuthService } from '@/auth/services/auth.service';
 import { PasswordResetService } from '@/auth/services/password-reset.service';
+import { CsrfService } from '@/common/security/csrf.service';
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
 import { AuthFactory } from '@/test/utils/factories';
@@ -13,6 +15,7 @@ describe('AuthController', () => {
   let controller: AuthController;
   let mockAuthService: ReturnType<typeof createMockAuthService>;
   let mockPasswordResetService: jest.Mocked<PasswordResetService>;
+  let mockCsrfService: jest.Mocked<CsrfService>;
   let mockRequest: Partial<Request>;
   let mockResponse: Partial<Response>;
 
@@ -22,6 +25,11 @@ describe('AuthController', () => {
       createPasswordResetToken: jest.fn(),
       resetPassword: jest.fn(),
     } as unknown as jest.Mocked<PasswordResetService>;
+
+    mockCsrfService = {
+      getToken: jest.fn().mockReturnValue('mock-csrf-token'),
+      validateToken: jest.fn().mockReturnValue(true),
+    } as unknown as jest.Mocked<CsrfService>;
 
     mockRequest = AuthFactory.buildMockRequest() as Partial<Request>;
     mockResponse = {
@@ -36,6 +44,7 @@ describe('AuthController', () => {
       providers: [
         { provide: AuthService, useValue: mockAuthService },
         { provide: PasswordResetService, useValue: mockPasswordResetService },
+        { provide: CsrfService, useValue: mockCsrfService },
       ],
       imports: [
         ThrottlerModule.forRoot([
@@ -177,6 +186,8 @@ describe('AuthController', () => {
         ...mockRequest,
         cookies: { refreshToken: 'valid-refresh-token' },
         ip: '192.168.1.1',
+        socket: { remoteAddress: '192.168.1.1' } as unknown as Socket,
+        headers: {},
       };
       mockAuthService.logout.mockResolvedValue({ success: true });
 
@@ -196,6 +207,8 @@ describe('AuthController', () => {
         ...mockRequest,
         cookies: {},
         ip: '192.168.1.1',
+        socket: { remoteAddress: '192.168.1.1' } as unknown as Socket,
+        headers: {},
       };
       const bodyToken = 'valid-refresh-token';
       mockAuthService.logout.mockResolvedValue({ success: true });
@@ -229,6 +242,8 @@ describe('AuthController', () => {
       mockRequest = {
         ...mockRequest,
         ip: '192.168.1.1',
+        socket: { remoteAddress: '192.168.1.1' } as unknown as Socket,
+        headers: {},
       };
       mockPasswordResetService.createPasswordResetToken.mockResolvedValue(undefined);
 
@@ -250,6 +265,8 @@ describe('AuthController', () => {
       mockRequest = {
         ...mockRequest,
         ip: '192.168.1.1',
+        socket: { remoteAddress: '192.168.1.1' } as unknown as Socket,
+        headers: {},
       };
       const error = new Error('Email service unavailable');
       mockPasswordResetService.createPasswordResetToken.mockRejectedValue(error);
@@ -271,6 +288,8 @@ describe('AuthController', () => {
       mockRequest = {
         ...mockRequest,
         ip: '192.168.1.1',
+        socket: { remoteAddress: '192.168.1.1' } as unknown as Socket,
+        headers: {},
       };
       mockPasswordResetService.resetPassword.mockResolvedValue(undefined);
 
@@ -294,6 +313,8 @@ describe('AuthController', () => {
       mockRequest = {
         ...mockRequest,
         ip: '192.168.1.1',
+        socket: { remoteAddress: '192.168.1.1' } as unknown as Socket,
+        headers: {},
       };
       const error = new ApiError(ErrorCode.VALIDATION_FAILED, 'Invalid or expired reset token');
       mockPasswordResetService.resetPassword.mockRejectedValue(error);
