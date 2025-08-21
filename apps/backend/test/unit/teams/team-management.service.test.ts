@@ -165,13 +165,8 @@ describe('TeamManagementService', () => {
           createdByUserId: mockUserId,
         },
       });
-      expect(mockAuditLogService.log).toHaveBeenCalledWith(
-        expect.objectContaining({
-          action: 'team.created',
-          orgId: mockOrgId,
-          actorUserId: mockUserId,
-        }),
-      );
+      // Audit logging is now handled by the @Audit decorator in TeamsController, not in the service
+      expect(mockAuditLogService.log).not.toHaveBeenCalled();
     });
 
     it('should throw error when integration not found', async () => {

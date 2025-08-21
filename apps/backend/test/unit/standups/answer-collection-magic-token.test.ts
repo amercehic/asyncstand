@@ -195,32 +195,8 @@ describe('AnswerCollectionService - Magic Token Methods', () => {
         answersSubmitted: 2,
       });
 
-      expect(mockAuditLogService.log).toHaveBeenCalledWith({
-        actorType: 'user',
-        actorUserId: 'user-123',
-        orgId: mockOrgId,
-        category: 'standup',
-        severity: 'info',
-        action: 'standup_magic_token_response_submitted',
-        requestData: {
-          method: 'POST',
-          path: '/standups/submit-magic',
-          ipAddress: '127.0.0.1',
-          body: {
-            instanceId: mockInstanceId,
-            answersSubmitted: 2,
-            totalAnswerLength: expect.any(Number),
-            authMethod: 'magic_token',
-          },
-        },
-        resources: [
-          {
-            type: 'standup_instance',
-            id: mockInstanceId,
-            action: 'updated',
-          },
-        ],
-      });
+      // Audit logging is now handled by the @Audit decorator in the controller, not in the service
+      expect(mockAuditLogService.log).not.toHaveBeenCalled();
     });
 
     it('should throw error for invalid magic token', async () => {

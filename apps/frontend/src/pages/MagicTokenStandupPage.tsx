@@ -37,9 +37,11 @@ export const MagicTokenStandupPage = React.memo(() => {
 
         // Initialize empty answers
         const initialAnswers: Record<string, string> = {};
-        info.questions.forEach((_, index) => {
-          initialAnswers[index.toString()] = '';
-        });
+        if (info?.questions) {
+          info.questions.forEach((_, index) => {
+            initialAnswers[index.toString()] = '';
+          });
+        }
         setFormData({ answers: initialAnswers });
       } catch (error) {
         console.error('Error validating magic token:', error);

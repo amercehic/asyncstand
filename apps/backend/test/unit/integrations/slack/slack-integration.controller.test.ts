@@ -170,13 +170,8 @@ describe('SlackIntegrationController', () => {
         ...mockSyncResult,
       });
       expect(mockSlackApiService.syncWorkspaceData).toHaveBeenCalledWith(mockIntegrationId);
-      expect(mockAuditLogService.log).toHaveBeenCalledWith(
-        expect.objectContaining({
-          action: 'integration.slack.manual_sync_triggered',
-          orgId: mockOrgId,
-          actorUserId: mockUserId,
-        }),
-      );
+      // Audit logging is now handled by the @Audit decorator, not called directly in the controller
+      expect(mockAuditLogService.log).not.toHaveBeenCalled();
     });
 
     it('should throw error for invalid token status', async () => {
@@ -220,13 +215,8 @@ describe('SlackIntegrationController', () => {
 
       expect(result).toEqual({ success: true });
       expect(mockPrismaService.$transaction).toHaveBeenCalled();
-      expect(mockAuditLogService.log).toHaveBeenCalledWith(
-        expect.objectContaining({
-          action: 'integration.slack.removed',
-          orgId: mockOrgId,
-          actorUserId: mockUserId,
-        }),
-      );
+      // Audit logging is now handled by the @Audit decorator, not called directly in the controller
+      expect(mockAuditLogService.log).not.toHaveBeenCalled();
     });
 
     it('should throw error for non-existent integration', async () => {

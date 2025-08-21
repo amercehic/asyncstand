@@ -670,7 +670,7 @@ describe('Teams (e2e)', () => {
 
     it('should return 404 for non-existent team', async () => {
       await request(app.getHttpServer())
-        .get('/teams/non-existent-id')
+        .get('/teams/00000000-0000-0000-0000-000000000000')
         .set('Authorization', `Bearer ${testData.adminToken}`)
         .expect(404);
     });
@@ -760,7 +760,7 @@ describe('Teams (e2e)', () => {
       };
 
       await request(app.getHttpServer())
-        .put('/teams/non-existent-id')
+        .put('/teams/00000000-0000-0000-0000-000000000000')
         .set('Authorization', `Bearer ${testData.adminToken}`)
         .send(updateData)
         .expect(404);
@@ -824,7 +824,7 @@ describe('Teams (e2e)', () => {
 
     it('should return 404 for non-existent team', async () => {
       await request(app.getHttpServer())
-        .delete('/teams/non-existent-id')
+        .delete('/teams/00000000-0000-0000-0000-000000000000')
         .set('Authorization', `Bearer ${testData.adminToken}`)
         .expect(404);
     });
@@ -967,7 +967,7 @@ describe('Teams (e2e)', () => {
       };
 
       await request(app.getHttpServer())
-        .post('/teams/non-existent-id/members')
+        .post('/teams/00000000-0000-0000-0000-000000000000/members')
         .set('Authorization', `Bearer ${testData.adminToken}`)
         .send(addMemberDto)
         .expect(404);
@@ -1026,7 +1026,7 @@ describe('Teams (e2e)', () => {
 
     it('should return 404 for non-existent member', async () => {
       await request(app.getHttpServer())
-        .delete(`/teams/${teamId}/members/non-existent-id`)
+        .delete(`/teams/${teamId}/members/00000000-0000-0000-0000-000000000000`)
         .set('Authorization', `Bearer ${testData.adminToken}`)
         .expect(404);
     });

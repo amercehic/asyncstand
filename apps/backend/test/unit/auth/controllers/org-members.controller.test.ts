@@ -110,7 +110,11 @@ describe('OrgMembersController', () => {
         name: 'Test User',
         password: 'password123',
       };
-      const mockReq = { ip: '127.0.0.1', socket: { remoteAddress: '127.0.0.1' } } as Request;
+      const mockReq = {
+        ip: '127.0.0.1',
+        socket: { remoteAddress: '127.0.0.1' },
+        headers: {},
+      } as Request;
       const expectedResult = {
         accessToken: 'jwt-token',
         expiresIn: 3600,

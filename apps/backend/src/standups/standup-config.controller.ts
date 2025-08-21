@@ -145,7 +145,7 @@ export class StandupConfigController {
   }
 
   @Delete(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.OK)
   @SwaggerDeleteStandupConfig()
   @UseGuards(RolesGuard)
   @Roles(OrgRole.owner, OrgRole.admin)

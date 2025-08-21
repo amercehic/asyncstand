@@ -45,6 +45,7 @@ describe('SlackOauthController', () => {
     mockRequest = {
       ip: '127.0.0.1',
       socket: { remoteAddress: '127.0.0.1' },
+      headers: {},
     } as unknown as jest.Mocked<Request>;
 
     const module: TestingModule = await Test.createTestingModule({

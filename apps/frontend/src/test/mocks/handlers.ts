@@ -177,6 +177,10 @@ export const handlers = [
     return HttpResponse.json([]);
   }),
 
+  http.get('*/slack/integrations', () => {
+    return HttpResponse.json([]);
+  }),
+
   http.post('*/integrations/slack/connect', async () => {
     return HttpResponse.json(
       {

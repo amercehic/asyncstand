@@ -124,7 +124,7 @@ export class TeamsController {
   }
 
   @Delete(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.OK)
   @Roles(OrgRole.admin, OrgRole.owner)
   @SwaggerDeleteTeam()
   @Audit({
@@ -199,7 +199,7 @@ export class TeamsController {
   }
 
   @Delete(':id/members/:memberId')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.OK)
   @Roles(OrgRole.admin, OrgRole.owner)
   @SwaggerRemoveTeamMember()
   @Audit({

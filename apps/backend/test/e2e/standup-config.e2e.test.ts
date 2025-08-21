@@ -578,7 +578,7 @@ describe('Standup Configuration (e2e)', () => {
       };
 
       await request(app.getHttpServer())
-        .put('/standups/config/non-existent-id')
+        .put('/standups/config/00000000-0000-0000-0000-000000000000')
         .set('Authorization', `Bearer ${testData.adminToken}`)
         .send(updateData)
         .expect(404);
@@ -688,7 +688,7 @@ describe('Standup Configuration (e2e)', () => {
 
     it('should return 404 for non-existent configuration', async () => {
       await request(app.getHttpServer())
-        .delete('/standups/config/non-existent-id')
+        .delete('/standups/config/00000000-0000-0000-0000-000000000000')
         .set('Authorization', `Bearer ${testData.adminToken}`)
         .expect(404);
     });
@@ -798,7 +798,7 @@ describe('Standup Configuration (e2e)', () => {
       };
 
       await request(app.getHttpServer())
-        .post('/standups/config/non-existent-id/members/bulk')
+        .post('/standups/config/00000000-0000-0000-0000-000000000000/members/bulk')
         .set('Authorization', `Bearer ${testData.adminToken}`)
         .send(bulkUpdateDto)
         .expect(404);
@@ -808,7 +808,7 @@ describe('Standup Configuration (e2e)', () => {
       const invalidData = {
         members: [
           {
-            teamMemberId: 'invalid-member-id',
+            teamMemberId: '00000000-0000-0000-0000-000000000000',
             include: 'not-boolean', // Invalid type
             role: 'invalid-role', // Invalid role
           },
