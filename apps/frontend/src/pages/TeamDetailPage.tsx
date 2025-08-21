@@ -318,129 +318,242 @@ export const TeamDetailPage = React.memo(() => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
+              className="space-y-8"
             >
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                {/* Team stats cards */}
-                <div className="bg-card border border-border rounded-xl p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
-                      <Users className="w-5 h-5 text-blue-600" />
+              {/* Team Statistics - Modern Glass Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <motion.div
+                  whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                  className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500/10 via-blue-600/5 to-transparent backdrop-blur-xl border border-blue-500/20 p-6"
+                >
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl" />
+                  <div className="relative">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25">
+                        <Users className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground font-medium">Team Members</p>
+                        <p className="text-3xl font-bold bg-gradient-to-r from-blue-500 to-blue-600 bg-clip-text text-transparent">
+                          {teamStats.totalMembers}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-semibold">Team Members</h3>
-                      <p className="text-2xl font-bold text-blue-600">{teamStats.totalMembers}</p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                      Active members
                     </div>
                   </div>
-                  <p className="text-sm text-muted-foreground">Active team members</p>
-                </div>
+                </motion.div>
 
-                <div className="bg-card border border-border rounded-xl p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
-                      <Calendar className="w-5 h-5 text-green-600" />
+                <motion.div
+                  whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                  className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500/10 via-emerald-600/5 to-transparent backdrop-blur-xl border border-emerald-500/20 p-6"
+                >
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl" />
+                  <div className="relative">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/25">
+                        <Calendar className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground font-medium">Active Standups</p>
+                        <p className="text-3xl font-bold bg-gradient-to-r from-emerald-500 to-emerald-600 bg-clip-text text-transparent">
+                          {teamStats.activeCount}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-semibold">Active Standups</h3>
-                      <p className="text-2xl font-bold text-green-600">{teamStats.activeCount}</p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                      Running now
                     </div>
                   </div>
-                  <p className="text-sm text-muted-foreground">Running standups</p>
-                </div>
+                </motion.div>
 
-                <div className="bg-card border border-border rounded-xl p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center">
-                      <Activity className="w-5 h-5 text-purple-600" />
+                <motion.div
+                  whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                  className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-500/10 via-purple-600/5 to-transparent backdrop-blur-xl border border-purple-500/20 p-6"
+                >
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl" />
+                  <div className="relative">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/25">
+                        <Activity className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground font-medium">Completion Rate</p>
+                        <p className="text-3xl font-bold bg-gradient-to-r from-purple-500 to-purple-600 bg-clip-text text-transparent">
+                          {teamStats.completionRate}%
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-semibold">Completion Rate</h3>
-                      <p className="text-2xl font-bold text-purple-600">
-                        {teamStats.completionRate}%
-                      </p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
+                      Last 30 days
                     </div>
                   </div>
-                  <p className="text-sm text-muted-foreground">Last 30 days</p>
-                </div>
+                </motion.div>
               </div>
 
-              {/* Quick actions */}
-              <div className="bg-card border border-border rounded-xl p-6 mb-8">
+              {/* Quick Actions - Modern Gradient Buttons */}
+              <div>
                 <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <ModernButton
-                    variant="outline"
-                    className="justify-start gap-3 h-auto p-4 group"
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={() => setIsMemberAssignmentOpen(true)}
+                    className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-500/10 to-blue-600/5 backdrop-blur-sm border border-border/50 p-4 text-left transition-all hover:border-blue-500/50"
                   >
-                    <UserPlus className="w-5 h-5" />
-                    <div className="text-left">
-                      <div className="font-medium">Manage Members</div>
-                      <div className="text-xs text-muted-foreground group-hover:text-white/80">
-                        Add people to your team
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 to-blue-600/0 group-hover:from-blue-500/10 group-hover:to-blue-600/10 transition-all duration-300" />
+                    <div className="relative flex items-center gap-3">
+                      <div className="w-10 h-10 bg-blue-500/10 group-hover:bg-blue-500/20 rounded-lg flex items-center justify-center transition-all">
+                        <UserPlus className="w-5 h-5 text-blue-500" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">Manage Members</p>
+                        <p className="text-xs text-muted-foreground">Add or remove team members</p>
                       </div>
                     </div>
-                  </ModernButton>
+                  </motion.button>
 
-                  <ModernButton
-                    variant="outline"
-                    className="justify-start gap-3 h-auto p-4 group"
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={() => toast.info('Create standup coming soon!')}
+                    className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 backdrop-blur-sm border border-border/50 p-4 text-left transition-all hover:border-emerald-500/50"
                   >
-                    <Plus className="w-5 h-5" />
-                    <div className="text-left">
-                      <div className="font-medium">Create Standup</div>
-                      <div className="text-xs text-muted-foreground group-hover:text-white/80">
-                        Start a new standup
+                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/0 to-emerald-600/0 group-hover:from-emerald-500/10 group-hover:to-emerald-600/10 transition-all duration-300" />
+                    <div className="relative flex items-center gap-3">
+                      <div className="w-10 h-10 bg-emerald-500/10 group-hover:bg-emerald-500/20 rounded-lg flex items-center justify-center transition-all">
+                        <Plus className="w-5 h-5 text-emerald-500" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">Create Standup</p>
+                        <p className="text-xs text-muted-foreground">Start a new standup routine</p>
                       </div>
                     </div>
-                  </ModernButton>
+                  </motion.button>
 
-                  <ModernButton
-                    variant="outline"
-                    className="justify-start gap-3 h-auto p-4 group"
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={() => handleTabChange('settings')}
+                    className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-purple-500/10 to-purple-600/5 backdrop-blur-sm border border-border/50 p-4 text-left transition-all hover:border-purple-500/50"
                   >
-                    <Settings className="w-5 h-5" />
-                    <div className="text-left">
-                      <div className="font-medium">Team Settings</div>
-                      <div className="text-xs text-muted-foreground group-hover:text-white/80">
-                        Configure team preferences
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/0 to-purple-600/0 group-hover:from-purple-500/10 group-hover:to-purple-600/10 transition-all duration-300" />
+                    <div className="relative flex items-center gap-3">
+                      <div className="w-10 h-10 bg-purple-500/10 group-hover:bg-purple-500/20 rounded-lg flex items-center justify-center transition-all">
+                        <Settings className="w-5 h-5 text-purple-500" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">Team Settings</p>
+                        <p className="text-xs text-muted-foreground">Configure team preferences</p>
                       </div>
                     </div>
-                  </ModernButton>
+                  </motion.button>
                 </div>
               </div>
 
-              {/* Recent activity */}
+              {/* Recent Activity - Modern Timeline */}
               {recentInstances.length > 0 && (
-                <div className="bg-card border border-border rounded-xl p-6">
-                  <h3 className="text-lg font-semibold mb-4">Recent Standup Activity</h3>
-                  <div className="space-y-3">
-                    {recentInstances.slice(0, 5).map(instance => {
-                      // Find the standup config for this instance
-                      const standupConfig = standups.find(s => s.id === instance.configId);
-                      return (
-                        <div
-                          key={instance.id}
-                          className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
-                        >
-                          <div className="flex items-center gap-3">
-                            {getStatusIcon(instance.status)}
-                            <div>
-                              <p className="font-medium">
-                                {standupConfig?.name || 'Daily Standup'}
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                {new Date(instance.createdAt).toLocaleDateString()}
-                              </p>
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
+                  <div className="relative">
+                    {/* Timeline line */}
+                    <div className="absolute left-6 top-8 bottom-0 w-px bg-gradient-to-b from-border via-border to-transparent" />
+
+                    <div className="space-y-4">
+                      {recentInstances.slice(0, 5).map((instance, index) => {
+                        const standupConfig = standups.find(s => s.id === instance.configId);
+                        const isCompleted = instance.status === 'completed';
+                        const isActive = instance.status === 'active';
+
+                        return (
+                          <motion.div
+                            key={instance.id}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: index * 0.1 }}
+                            className="relative flex items-center gap-4 group"
+                          >
+                            {/* Timeline node */}
+                            <div className="relative z-10">
+                              <div
+                                className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
+                                  isCompleted
+                                    ? 'bg-gradient-to-br from-green-500/20 to-green-600/10 group-hover:from-green-500/30 group-hover:to-green-600/20'
+                                    : isActive
+                                      ? 'bg-gradient-to-br from-blue-500/20 to-blue-600/10 group-hover:from-blue-500/30 group-hover:to-blue-600/20'
+                                      : 'bg-gradient-to-br from-yellow-500/20 to-yellow-600/10 group-hover:from-yellow-500/30 group-hover:to-yellow-600/20'
+                                }`}
+                              >
+                                {getStatusIcon(instance.status)}
+                              </div>
+                              {index === 0 && (
+                                <div className="absolute inset-0 rounded-xl animate-ping bg-primary/20" />
+                              )}
                             </div>
-                          </div>
-                          <div className="text-sm text-muted-foreground capitalize">
-                            {instance.status}
-                          </div>
-                        </div>
-                      );
-                    })}
+
+                            {/* Content card */}
+                            <div className="flex-1 bg-card/50 backdrop-blur-sm border border-border/50 rounded-xl p-4 transition-all group-hover:border-border group-hover:bg-card/80">
+                              <div className="flex items-start justify-between">
+                                <div>
+                                  <p className="font-medium text-sm flex items-center gap-2">
+                                    {standupConfig?.name || 'Daily Standup'}
+                                    {isActive && (
+                                      <span className="px-2 py-0.5 text-xs bg-blue-500/10 text-blue-500 rounded-full font-medium">
+                                        In Progress
+                                      </span>
+                                    )}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {new Date(instance.createdAt).toLocaleDateString('en-US', {
+                                      weekday: 'short',
+                                      month: 'short',
+                                      day: 'numeric',
+                                    })}{' '}
+                                    at{' '}
+                                    {new Date(instance.createdAt).toLocaleTimeString([], {
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                    })}
+                                  </p>
+                                </div>
+                                <div
+                                  className={`text-xs px-3 py-1 rounded-full font-medium ${
+                                    isCompleted
+                                      ? 'bg-green-500/10 text-green-500'
+                                      : isActive
+                                        ? 'bg-blue-500/10 text-blue-500'
+                                        : 'bg-yellow-500/10 text-yellow-500'
+                                  }`}
+                                >
+                                  {instance.status}
+                                </div>
+                              </div>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+
+                    {recentInstances.length > 5 && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.5 }}
+                        className="mt-6 text-center"
+                      >
+                        <button
+                          onClick={() => handleTabChange('standups')}
+                          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+                        >
+                          View all activity
+                          <ArrowLeft className="w-4 h-4 rotate-180" />
+                        </button>
+                      </motion.div>
+                    )}
                   </div>
                 </div>
               )}

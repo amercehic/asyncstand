@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ModernButton } from '@/components/ui';
 import { AlertTriangle, type LucideIcon } from 'lucide-react';
+import { useModal } from '@/contexts/ModalContext';
 
 export interface ConfirmationModalProps {
   isOpen: boolean;
@@ -30,6 +31,13 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   variant = 'danger',
   icon: Icon = AlertTriangle,
 }) => {
+  const { setModalOpen } = useModal();
+
+  // Track modal open/close state
+  useEffect(() => {
+    setModalOpen(isOpen);
+  }, [isOpen, setModalOpen]);
+
   // Prevent body scroll when modal is open
   useEffect(() => {
     if (!isOpen) return;

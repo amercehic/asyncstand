@@ -5,6 +5,7 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { IntegrationsProvider } from '@/contexts/IntegrationsContext';
 import { TeamsProvider } from '@/contexts/TeamsContext';
+import { ModalProvider } from '@/contexts/ModalContext';
 import { Toaster } from '@/components/ui';
 
 // Custom render function that includes providers
@@ -15,8 +16,10 @@ const AllTheProviders = ({ children }: { children: React.ReactNode }) => {
         <AuthProvider>
           <IntegrationsProvider>
             <TeamsProvider>
-              {children}
-              <Toaster position="top-center" richColors closeButton />
+              <ModalProvider>
+                {children}
+                <Toaster position="top-center" richColors closeButton />
+              </ModalProvider>
             </TeamsProvider>
           </IntegrationsProvider>
         </AuthProvider>

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { X, CheckCircle2, AlertCircle, AlertTriangle, Info, Loader2 } from 'lucide-react';
 import { cn } from '@/components/ui/utils';
 import { ToastData } from '@/components/ui/Toast/types';
+import { useModal } from '@/contexts/ModalContext';
 import '@/components/ui/Toast/toast.css';
 
 interface ToastProps {
@@ -61,6 +62,7 @@ export const ToastComponent: React.FC<ToastProps> = ({ toast, onRemove }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
   const [progress, setProgress] = useState(100);
+  const { isModalOpen } = useModal();
 
   const IconComponent = toast.icon ? null : typeIcons[toast.type];
   const styles = typeStyles[toast.type];
@@ -117,8 +119,10 @@ export const ToastComponent: React.FC<ToastProps> = ({ toast, onRemove }) => {
   return (
     <div
       className={cn(
-        'toast-item group relative flex w-full min-w-80 max-w-md items-start gap-4 rounded-xl border border-border/50 p-5 shadow-2xl transition-all duration-300 ease-out hover:shadow-3xl hover:scale-[1.02]',
-        'bg-card',
+        'toast-item group relative flex w-full min-w-80 max-w-md items-start gap-4 rounded-xl border border-border/50 p-5 shadow-2xl backdrop-blur-md transition-all duration-300 ease-out hover:shadow-3xl hover:scale-[1.02]',
+        isModalOpen
+          ? 'bg-white dark:bg-white'
+          : 'bg-gradient-to-br from-card/95 to-card/80 dark:from-card/90 dark:to-card/70',
         styles.border,
         isVisible && !isExiting
           ? 'translate-x-0 opacity-100 scale-100'
@@ -164,7 +168,14 @@ export const ToastComponent: React.FC<ToastProps> = ({ toast, onRemove }) => {
       {/* Content */}
       <div className="flex-1 space-y-1">
         {toast.title && (
-          <h4 className="font-bold text-base text-card-foreground tracking-tight">{toast.title}</h4>
+          <h4
+            className={cn(
+              'font-semibold text-sm',
+              isModalOpen ? 'text-gray-900' : 'text-card-foreground'
+            )}
+          >
+            {toast.title}
+          </h4>
         )}
 
         {toast.richContent ? (
@@ -176,14 +187,33 @@ export const ToastComponent: React.FC<ToastProps> = ({ toast, onRemove }) => {
                 </div>
               )}
               <div className="flex-1">
-                <p className="font-bold text-base text-card-foreground tracking-tight">
+                <p
+                  className={cn(
+                    'font-medium text-sm',
+                    isModalOpen ? 'text-gray-900' : 'text-card-foreground'
+                  )}
+                >
                   {toast.richContent.title}
                 </p>
                 {toast.richContent.description && (
-                  <p className="text-sm text-muted-foreground">{toast.richContent.description}</p>
+                  <p
+                    className={cn(
+                      'text-sm',
+                      isModalOpen ? 'text-gray-600' : 'text-muted-foreground'
+                    )}
+                  >
+                    {toast.richContent.description}
+                  </p>
                 )}
                 {toast.richContent.metadata && (
-                  <p className="text-xs text-muted-foreground mt-1">{toast.richContent.metadata}</p>
+                  <p
+                    className={cn(
+                      'text-xs mt-1',
+                      isModalOpen ? 'text-gray-500' : 'text-muted-foreground'
+                    )}
+                  >
+                    {toast.richContent.metadata}
+                  </p>
                 )}
               </div>
             </div>
@@ -191,11 +221,23 @@ export const ToastComponent: React.FC<ToastProps> = ({ toast, onRemove }) => {
           </div>
         ) : (
           <>
-            <p className="font-semibold text-base text-card-foreground leading-relaxed tracking-tight">
+            <p
+              className={cn(
+                'text-sm leading-relaxed',
+                isModalOpen ? 'text-gray-900' : 'text-card-foreground'
+              )}
+            >
               {toast.message}
             </p>
             {toast.description && (
-              <p className="text-sm text-muted-foreground leading-relaxed">{toast.description}</p>
+              <p
+                className={cn(
+                  'text-sm leading-relaxed',
+                  isModalOpen ? 'text-gray-600' : 'text-muted-foreground'
+                )}
+              >
+                {toast.description}
+              </p>
             )}
           </>
         )}
@@ -203,7 +245,12 @@ export const ToastComponent: React.FC<ToastProps> = ({ toast, onRemove }) => {
         {/* Progress indicator for specific progress */}
         {typeof toast.progress === 'number' && toast.progress >= 0 && (
           <div className="mt-2">
-            <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+            <div
+              className={cn(
+                'flex items-center justify-between text-xs mb-1',
+                isModalOpen ? 'text-gray-500' : 'text-muted-foreground'
+              )}
+            >
               <span>Progress</span>
               <span>{Math.round(toast.progress)}%</span>
             </div>

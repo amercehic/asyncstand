@@ -4,7 +4,7 @@ import { toast, ModernButton } from '@/components/ui';
 import { Textarea, Label } from '@/components/ui';
 import { FormField } from '@/components/form';
 import { X, Settings, Hash, Building2 } from 'lucide-react';
-import { useTeams } from '@/contexts';
+import { useTeams, useModal } from '@/contexts';
 import type { Team, UpdateTeamRequest } from '@/types';
 
 interface TeamSettingsModalProps {
@@ -26,6 +26,7 @@ interface FormFieldError {
 export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
   ({ isOpen, onClose, onSuccess, team }) => {
     const { updateTeam } = useTeams();
+    const { setModalOpen } = useModal();
     const [isUpdating, setIsUpdating] = useState(false);
     const [formData, setFormData] = useState<TeamSettingsFormData>({
       name: team.name,
@@ -40,6 +41,11 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
         description: team.description || '',
       });
     }, [team]);
+
+    // Track modal open/close state
+    useEffect(() => {
+      setModalOpen(isOpen);
+    }, [isOpen, setModalOpen]);
 
     // Prevent background scroll when modal is open
     useEffect(() => {
