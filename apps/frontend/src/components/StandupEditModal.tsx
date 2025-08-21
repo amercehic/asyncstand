@@ -4,6 +4,7 @@ import { ModernButton } from '@/components/ui';
 import { X, Plus, Trash2, Calendar, Clock, Users, Save, MessageSquare, Send } from 'lucide-react';
 import { toast } from '@/components/ui';
 import { standupsApi } from '@/lib/api';
+import { useModal } from '@/contexts/ModalContext';
 import type { StandupConfig } from '@/types';
 import { StandupDeliveryType } from '@/types/backend';
 
@@ -56,6 +57,7 @@ export const StandupEditModal: React.FC<StandupEditModalProps> = ({
   onSuccess,
   standup,
 }) => {
+  const { setModalOpen } = useModal();
   const [formData, setFormData] = useState<StandupFormData>({
     name: standup.name,
     deliveryType: standup.deliveryType,
@@ -139,6 +141,11 @@ export const StandupEditModal: React.FC<StandupEditModalProps> = ({
       document.body.style.paddingRight = originalPaddingRight;
     };
   }, [isOpen]);
+
+  // Track modal open/close state
+  useEffect(() => {
+    setModalOpen(isOpen);
+  }, [isOpen, setModalOpen]);
 
   // Handle ESC key to close modal
   useEffect(() => {

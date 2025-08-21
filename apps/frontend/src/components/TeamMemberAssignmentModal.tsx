@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { toast } from '@/components/ui';
 import { teamsApi } from '@/lib/api';
+import { useModal } from '@/contexts/ModalContext';
 import type { Team } from '@/types';
 import type { AvailableMemberDetails } from '@/types/backend';
 
@@ -36,6 +37,7 @@ export const TeamMemberAssignmentModal: React.FC<TeamMemberAssignmentModalProps>
   onSuccess,
   team,
 }) => {
+  const { setModalOpen } = useModal();
   const [platformMembers, setPlatformMembers] = useState<PlatformMember[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -242,6 +244,11 @@ export const TeamMemberAssignmentModal: React.FC<TeamMemberAssignmentModalProps>
       document.body.style.paddingRight = originalPaddingRight;
     };
   }, [isOpen]);
+
+  // Track modal open/close state
+  useEffect(() => {
+    setModalOpen(isOpen);
+  }, [isOpen, setModalOpen]);
 
   // Handle ESC key to close modal
   useEffect(() => {

@@ -8,6 +8,17 @@ export { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 export { Input } from '@/components/ui/input';
 export { Label } from '@/components/ui/label';
 export { Textarea } from '@/components/ui/textarea';
+export { Button } from '@/components/ui/button';
+export {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from '@/components/ui/dialog';
 export { cn } from '@/components/ui/utils';
 
 // Modern Toast System

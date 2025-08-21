@@ -1,11 +1,11 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast, ModernButton } from '@/components/ui';
 import { Textarea, Label } from '@/components/ui';
 import { FormField } from '@/components/form';
 import { X, Building2, Hash, Globe, Clock } from 'lucide-react';
 import { teamsApi, integrationsApi } from '@/lib/api';
-import { useTeams } from '@/contexts';
+import { useTeams, useModal } from '@/contexts';
 import type { CreateTeamRequest } from '@/types';
 
 interface CreateTeamModalProps {
@@ -43,6 +43,7 @@ const SUPPORTED_TIMEZONES = [
 export const CreateTeamModal = React.memo<CreateTeamModalProps>(
   ({ isOpen, onClose, onSuccess }) => {
     const { createTeam, isCreating } = useTeams();
+    const { setModalOpen } = useModal();
     const [formData, setFormData] = useState<CreateTeamFormData>({
       name: '',
       description: '',
@@ -101,6 +102,11 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
         document.body.style.paddingRight = originalPaddingRight;
       };
     }, [isOpen]);
+
+    // Track modal open/close state
+    useEffect(() => {
+      setModalOpen(isOpen);
+    }, [isOpen, setModalOpen]);
 
     const validateForm = useCallback((): boolean => {
       const newErrors: FormFieldError = {};
