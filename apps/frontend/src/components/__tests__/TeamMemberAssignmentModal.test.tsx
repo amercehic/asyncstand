@@ -371,8 +371,9 @@ describe('TeamMemberAssignmentModal', () => {
 
     render(<TeamMemberAssignmentModal {...mockProps} />);
 
+    // Wait for the loading to finish and members to be displayed
     await waitFor(() => {
-      expect(screen.getByText('Apply Changes')).toBeInTheDocument();
+      expect(screen.getByText('John Doe')).toBeInTheDocument();
     });
 
     // The Apply Changes button should be disabled when no members are selected

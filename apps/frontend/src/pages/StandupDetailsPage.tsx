@@ -60,6 +60,9 @@ export const StandupDetailsPage = React.memo(() => {
           timezone: 'UTC',
           timeLocal: '09:00',
           createdAt: '2024-01-15T00:00:00Z',
+          deliveryType: standupConfig.deliveryType,
+          members: [],
+          reminderHistory: [],
           answers: [
             {
               id: '1',
