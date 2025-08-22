@@ -71,6 +71,11 @@ const StandupDetailsPage = React.lazy(() =>
     default: module.StandupDetailsPage,
   }))
 );
+const StandupResponsesPage = React.lazy(() =>
+  import(/* webpackChunkName: "standups" */ '@/pages/StandupResponsesPage').then(module => ({
+    default: module.StandupResponsesPage,
+  }))
+);
 const MagicTokenStandupPage = React.lazy(() =>
   import(/* webpackChunkName: "magic-token" */ '@/pages/MagicTokenStandupPage').then(module => ({
     default: module.MagicTokenStandupPage,
@@ -220,6 +225,17 @@ const router = createBrowserRouter([
           <ProtectedRoute>
             <Suspense fallback={<PageLoader />}>
               <StandupResponsePage />
+            </Suspense>
+          </ProtectedRoute>
+        ),
+        errorElement: <ErrorPage />,
+      },
+      {
+        path: 'standups/:standupId/responses',
+        element: (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <StandupResponsesPage />
             </Suspense>
           </ProtectedRoute>
         ),

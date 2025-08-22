@@ -161,7 +161,8 @@ const TeamCard = React.memo<TeamCardProps>(
                     {team.members.slice(0, 3).map(member => (
                       <div
                         key={member.id}
-                        className="w-6 h-6 bg-primary rounded-full border-2 border-card flex items-center justify-center"
+                        title={member.name}
+                        className="w-6 h-6 bg-primary rounded-full border-2 border-card flex items-center justify-center cursor-help"
                       >
                         <span className="text-white font-medium text-xs">
                           {member.name.charAt(0).toUpperCase()}
@@ -169,7 +170,13 @@ const TeamCard = React.memo<TeamCardProps>(
                       </div>
                     ))}
                     {team.members.length > 3 && (
-                      <div className="w-6 h-6 bg-muted rounded-full border-2 border-card flex items-center justify-center">
+                      <div
+                        className="w-6 h-6 bg-muted rounded-full border-2 border-card flex items-center justify-center cursor-help"
+                        title={team.members
+                          .slice(3)
+                          .map(m => m.name)
+                          .join(', ')}
+                      >
                         <span className="text-muted-foreground font-medium text-xs">
                           +{team.members.length - 3}
                         </span>
@@ -181,13 +188,17 @@ const TeamCard = React.memo<TeamCardProps>(
                     {[...Array(Math.min(3, team.memberCount))].map((_, i) => (
                       <div
                         key={i}
-                        className="w-6 h-6 bg-primary rounded-full border-2 border-card flex items-center justify-center"
+                        title="Member details not loaded"
+                        className="w-6 h-6 bg-primary rounded-full border-2 border-card flex items-center justify-center cursor-help"
                       >
                         <Users className="w-3 h-3 text-white" />
                       </div>
                     ))}
                     {team.memberCount > 3 && (
-                      <div className="w-6 h-6 bg-muted rounded-full border-2 border-card flex items-center justify-center">
+                      <div
+                        className="w-6 h-6 bg-muted rounded-full border-2 border-card flex items-center justify-center cursor-help"
+                        title={`${team.memberCount - 3} more members`}
+                      >
                         <span className="text-muted-foreground font-medium text-xs">
                           +{team.memberCount - 3}
                         </span>
@@ -195,14 +206,9 @@ const TeamCard = React.memo<TeamCardProps>(
                     )}
                   </>
                 ) : (
-                  <div className="w-6 h-6 bg-muted rounded-full border-2 border-card flex items-center justify-center">
-                    <Users className="w-3 h-3 text-muted-foreground" />
-                  </div>
+                  <span className="text-xs text-muted-foreground italic">No members</span>
                 )}
               </div>
-              <span className="text-sm font-semibold">
-                {team.memberCount || team.members.length}
-              </span>
             </div>
           </div>
 
@@ -379,7 +385,7 @@ const SkeletonCard: React.FC = () => (
 );
 
 export const TeamsPage = React.memo(() => {
-  const { teams, isLoading, refreshTeams } = useTeams();
+  const { teams, isLoading, refreshTeams, getTeamById } = useTeams();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [selectedTeamForSettings, setSelectedTeamForSettings] = useState<Team | null>(null);
@@ -449,6 +455,34 @@ export const TeamsPage = React.memo(() => {
       setShowStats(false);
     }
   }, [teams.length]);
+
+  // Load member details for teams that don't have them
+  useEffect(() => {
+    const loadMemberDetails = async () => {
+      // Find teams that only have memberCount but no member details
+      const teamsNeedingDetails = teams.filter(
+        team => team.memberCount && team.memberCount > 0 && team.members.length === 0
+      );
+
+      if (teamsNeedingDetails.length === 0) return;
+
+      // Load details for teams in parallel (but limit concurrency to avoid overwhelming the API)
+      const BATCH_SIZE = 3;
+      for (let i = 0; i < teamsNeedingDetails.length; i += BATCH_SIZE) {
+        const batch = teamsNeedingDetails.slice(i, i + BATCH_SIZE);
+        const promises = batch.map(async team => {
+          try {
+            await getTeamById(team.id);
+          } catch (error) {
+            console.error(`Failed to load details for team ${team.id}:`, error);
+          }
+        });
+        await Promise.all(promises);
+      }
+    };
+
+    loadMemberDetails();
+  }, [teams, getTeamById]);
 
   // Filter and sort teams
   const filteredAndSortedTeams = useMemo(() => {

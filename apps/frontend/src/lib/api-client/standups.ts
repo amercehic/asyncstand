@@ -1,4 +1,13 @@
-import type { Standup, StandupInstance, StandupResponse, ActiveStandup } from '@/types';
+import type {
+  Standup,
+  StandupInstance,
+  StandupResponse,
+  ActiveStandup,
+  DetailedStandupResponse,
+  StandupMember,
+  SendReminderRequest,
+  StandupAnalytics,
+} from '@/types';
 import type { StandupConfigResponse, StandupInstanceResponse } from '@/types/backend';
 import { StandupDeliveryType } from '@/types/backend';
 import { api } from '@/lib/api-client/client';
@@ -279,5 +288,245 @@ export const standupsApi = {
         timeLocal: item.configSnapshot?.timeLocal || '09:00',
       })
     );
+  },
+
+  // Enhanced API methods for improved StandupsPage functionality
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+
+  async getInstanceMembers(instanceId: string): Promise<StandupMember[]> {
+    try {
+      const response = await api.get(`/standups/instances/${instanceId}/members`);
+      return response.data.map((member: any) => ({
+        id: member.id,
+        name: member.name,
+        platformUserId: member.platformUserId,
+        avatar: member.avatar,
+        status: member.status || 'not_started',
+        response: member.response,
+        lastReminderSent: member.lastReminderSent,
+        reminderCount: member.reminderCount || 0,
+        responseTime: member.responseTime,
+        isLate: member.isLate || false,
+      }));
+    } catch (error) {
+      console.error('Failed to fetch instance members:', error);
+      return [];
+    }
+  },
+
+  async getDetailedResponses(instanceId: string): Promise<DetailedStandupResponse[]> {
+    try {
+      const response = await api.get(`/standups/instances/${instanceId}/responses/detailed`);
+      return response.data.map((item: any) => ({
+        id: item.id,
+        instanceId: item.instanceId,
+        userId: item.userId,
+        answers: item.answers,
+        submittedAt: item.submittedAt,
+        user: {
+          id: item.user.id,
+          name: item.user.name,
+          avatar: item.user.avatar,
+        },
+        isLate: item.isLate || false,
+        responseTimeMinutes: item.responseTimeMinutes || 0,
+        lastUpdated: item.lastUpdated,
+      }));
+    } catch (error) {
+      console.error('Failed to fetch detailed responses:', error);
+      return [];
+    }
+  },
+
+  async sendIndividualReminder(request: SendReminderRequest): Promise<{
+    success: boolean;
+    sent: number;
+    failed: number;
+    errors?: string[];
+  }> {
+    try {
+      const response = await api.post('/standups/instances/reminders/individual', request);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to send individual reminder:', error);
+      throw error;
+    }
+  },
+
+  async updateMemberResponse(
+    instanceId: string,
+    userId: string,
+    answers: Record<string, string>
+  ): Promise<StandupResponse> {
+    try {
+      const response = await api.put(`/standups/instances/${instanceId}/responses/${userId}`, {
+        answers,
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Failed to update member response:', error);
+      throw error;
+    }
+  },
+
+  async getTeamAnalytics(
+    teamId: string,
+    dateRange: { start: string; end: string }
+  ): Promise<StandupAnalytics> {
+    try {
+      const response = await api.get(`/standups/analytics/team/${teamId}`, {
+        params: {
+          startDate: dateRange.start,
+          endDate: dateRange.end,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Failed to fetch team analytics:', error);
+      throw error;
+    }
+  },
+
+  async getReminderHistory(instanceId: string): Promise<any[]> {
+    try {
+      const response = await api.get(`/standups/instances/${instanceId}/reminders/history`);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to fetch reminder history:', error);
+      return [];
+    }
+  },
+
+  // New methods for StandupResponsesPage
+  async getStandupInstance(instanceId: string): Promise<ActiveStandup> {
+    try {
+      const response = await api.get(`/standups/instances/${instanceId}`);
+      const item = response.data;
+      return {
+        id: String(item.id),
+        teamId: String(item.teamId),
+        teamName: String(item.teamName),
+        targetDate: String(item.targetDate),
+        state: item.state as ActiveStandup['state'],
+        totalMembers: Number(item.totalMembers || 0),
+        respondedMembers: Number(item.respondedMembers || 0),
+        responseRate: Number(item.responseRate || 0),
+        createdAt: String(item.createdAt),
+        questions: item.configSnapshot?.questions || [],
+        timezone: item.configSnapshot?.timezone || 'UTC',
+        timeLocal: item.configSnapshot?.timeLocal || '09:00',
+        deliveryType: item.configSnapshot?.deliveryType || 'direct_message',
+        targetChannelId: item.configSnapshot?.targetChannelId,
+        targetChannel: item.configSnapshot?.targetChannel,
+        members: [], // Will be fetched separately if needed
+        reminderHistory: [],
+        avgResponseTime: item.avgResponseTime,
+        participationStreak: item.participationStreak,
+      };
+    } catch (error) {
+      console.error('Failed to fetch standup instance:', error);
+      throw error;
+    }
+  },
+
+  async getStandupMembers(instanceId: string): Promise<StandupMember[]> {
+    return this.getInstanceMembers(instanceId);
+  },
+
+  async getMemberResponse(
+    instanceId: string,
+    memberId: string
+  ): Promise<DetailedStandupResponse | null> {
+    try {
+      const response = await api.get(`/standups/instances/${instanceId}/responses/${memberId}`);
+      const item = response.data;
+      if (!item) return null;
+
+      return {
+        id: item.id,
+        instanceId: item.instanceId,
+        userId: item.userId,
+        answers: item.answers,
+        submittedAt: item.submittedAt,
+        user: {
+          id: item.user?.id || memberId,
+          name: item.user?.name || 'Unknown',
+          avatar: item.user?.avatar,
+        },
+        isLate: item.isLate || false,
+        responseTimeMinutes: item.responseTimeMinutes || 0,
+        lastUpdated: item.lastUpdated,
+      };
+    } catch (error) {
+      console.error('Failed to fetch member response:', error);
+      return null;
+    }
+  },
+
+  async sendReminders(
+    instanceId: string,
+    params: { memberIds: string[] }
+  ): Promise<{
+    success: boolean;
+    sent: number;
+    failed: number;
+  }> {
+    try {
+      const response = await api.post(`/standups/instances/${instanceId}/reminders`, params);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to send reminders:', error);
+      throw error;
+    }
+  },
+
+  // Enhanced getActiveStandups with full member details
+  async getActiveStandupsDetailed(params?: {
+    teamId?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<ActiveStandup[]> {
+    try {
+      const response = await api.get('/standups/instances/detailed', { params });
+      const data = response.data || [];
+
+      return data.map((item: any) => ({
+        id: String(item.id),
+        teamId: String(item.teamId),
+        teamName: String(item.teamName),
+        targetDate: String(item.targetDate),
+        state: item.state as ActiveStandup['state'],
+        totalMembers: Number(item.totalMembers || 0),
+        respondedMembers: Number(item.respondedMembers || 0),
+        responseRate: Number(item.responseRate || 0),
+        createdAt: String(item.createdAt),
+        questions: item.configSnapshot?.questions || [],
+        timezone: item.configSnapshot?.timezone || 'UTC',
+        timeLocal: item.configSnapshot?.timeLocal || '09:00',
+        deliveryType: item.configSnapshot?.deliveryType || 'direct_message',
+        targetChannelId: item.configSnapshot?.targetChannelId,
+        targetChannel: item.configSnapshot?.targetChannel,
+        members: (item.members || []).map((member: any) => ({
+          id: member.id,
+          name: member.name,
+          platformUserId: member.platformUserId,
+          avatar: member.avatar,
+          status: member.status || 'not_started',
+          response: member.response,
+          lastReminderSent: member.lastReminderSent,
+          reminderCount: member.reminderCount || 0,
+          responseTime: member.responseTime,
+          isLate: member.isLate || false,
+        })),
+        reminderHistory: item.reminderHistory || [],
+        responseTimeoutAt: item.responseTimeoutAt,
+        avgResponseTime: item.avgResponseTime,
+        participationStreak: item.participationStreak,
+      }));
+    } catch (error) {
+      console.error('Failed to fetch detailed active standups:', error);
+      // Fallback to basic version
+      return this.getActiveStandups(params);
+    }
   },
 };

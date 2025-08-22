@@ -99,6 +99,44 @@ export interface StandupResponse {
   submittedAt: string;
 }
 
+export interface StandupMember {
+  id: string;
+  name: string;
+  email?: string;
+  platformUserId: string;
+  avatar?: string;
+  status: 'not_started' | 'in_progress' | 'completed' | 'overdue';
+  response?: StandupResponse;
+  lastReminderSent?: string;
+  reminderCount: number;
+  responseTime?: number; // minutes taken to respond
+  isLate: boolean;
+  completionPercentage?: number; // percentage of questions answered
+}
+
+export interface ReminderHistory {
+  id: string;
+  instanceId: string;
+  userId: string;
+  type: 'broadcast' | 'individual' | 'escalation';
+  message: string;
+  sentAt: string;
+  deliveryMethod: 'channel_mention' | 'direct_message';
+  responded: boolean;
+  responseTime?: number; // minutes until response
+}
+
+export interface DetailedStandupResponse extends StandupResponse {
+  user: {
+    id: string;
+    name: string;
+    avatar?: string;
+  };
+  isLate: boolean;
+  responseTimeMinutes: number;
+  lastUpdated?: string;
+}
+
 export interface ActiveStandup {
   id: string;
   teamId: string;
@@ -112,6 +150,18 @@ export interface ActiveStandup {
   questions: string[];
   timezone: string;
   timeLocal: string;
+  deliveryType: StandupDeliveryType;
+  targetChannelId?: string;
+  targetChannel?: {
+    id: string;
+    channelId: string;
+    name: string;
+  };
+  members: StandupMember[];
+  reminderHistory: ReminderHistory[];
+  responseTimeoutAt?: string;
+  avgResponseTime?: number;
+  participationStreak?: number;
 }
 
 // API Request types
@@ -152,6 +202,42 @@ export interface CreateStandupConfigRequest {
   memberIds?: string[];
   reminderMinutesBefore?: number;
   responseTimeoutHours?: number;
+}
+
+export interface SendReminderRequest {
+  instanceId: string;
+  userIds?: string[]; // If not provided, send to all non-responders
+  message?: string; // Custom message, fallback to default
+  type: 'individual' | 'broadcast' | 'escalation';
+  deliveryMethod?: 'channel_mention' | 'direct_message'; // Auto-determined if not provided
+}
+
+export interface StandupAnalytics {
+  teamId: string;
+  dateRange: {
+    start: string;
+    end: string;
+  };
+  totalStandups: number;
+  avgResponseRate: number;
+  avgResponseTime: number; // in minutes
+  memberStats: Array<{
+    userId: string;
+    name: string;
+    participationRate: number;
+    avgResponseTime: number;
+    streak: number; // consecutive responses
+    lastResponseDate?: string;
+  }>;
+  trends: {
+    responseRateByDay: Array<{ date: string; rate: number }>;
+    responseTimeByDay: Array<{ date: string; avgTime: number }>;
+  };
+  topQuestions: Array<{
+    question: string;
+    avgLength: number;
+    engagementScore: number;
+  }>;
 }
 
 // API Response types
