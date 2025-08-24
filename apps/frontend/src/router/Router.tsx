@@ -91,6 +91,21 @@ const ResetPasswordPage = React.lazy(() =>
     default: module.ResetPasswordPage,
   }))
 );
+const FeaturesPage = React.lazy(() =>
+  import(/* webpackChunkName: "public" */ '@/pages/FeaturesPage').then(module => ({
+    default: module.FeaturesPage,
+  }))
+);
+const PricingPage = React.lazy(() =>
+  import(/* webpackChunkName: "public" */ '@/pages/PricingPage').then(module => ({
+    default: module.PricingPage,
+  }))
+);
+const IntegrationsListPage = React.lazy(() =>
+  import(/* webpackChunkName: "public" */ '@/pages/IntegrationsListPage').then(module => ({
+    default: module.IntegrationsListPage,
+  }))
+);
 
 // Loading component
 const PageLoader = () => (
@@ -149,6 +164,33 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<PageLoader />}>
             <ResetPasswordPage />
+          </Suspense>
+        ),
+        errorElement: <ErrorPage />,
+      },
+      {
+        path: 'features',
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <FeaturesPage />
+          </Suspense>
+        ),
+        errorElement: <ErrorPage />,
+      },
+      {
+        path: 'pricing',
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <PricingPage />
+          </Suspense>
+        ),
+        errorElement: <ErrorPage />,
+      },
+      {
+        path: 'integrations',
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <IntegrationsListPage />
           </Suspense>
         ),
         errorElement: <ErrorPage />,
@@ -242,7 +284,7 @@ const router = createBrowserRouter([
         errorElement: <ErrorPage />,
       },
       {
-        path: 'integrations',
+        path: 'settings/integrations',
         element: (
           <ProtectedRoute allowedRoles={['owner', 'admin']}>
             <Suspense fallback={<PageLoader />}>
@@ -253,7 +295,7 @@ const router = createBrowserRouter([
         errorElement: <ErrorPage />,
       },
       {
-        path: 'integrations/:integrationId',
+        path: 'settings/integrations/:integrationId',
         element: (
           <ProtectedRoute allowedRoles={['owner', 'admin']}>
             <Suspense fallback={<PageLoader />}>
