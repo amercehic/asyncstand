@@ -1,10 +1,13 @@
 # Nixpacks configuration for Railway deployment
 
 [phases.setup]
-nixPkgs = ["nodejs_20", "pnpm-10_x"]
+nixPkgs = ["nodejs_20"]
 
 [phases.install]
-cmds = ["corepack enable", "corepack prepare pnpm@10.15.0 --activate", "pnpm install --frozen-lockfile"]
+cmds = [
+  "npm install -g pnpm@10.15.0",
+  "pnpm install --frozen-lockfile"
+]
 
 [phases.build]
 cmds = ["pnpm build"]
@@ -14,3 +17,4 @@ cmd = "pnpm start:prod"
 
 [variables]
 NODE_ENV = "production"
+NPM_CONFIG_REGISTRY = "https://registry.npmjs.org/"
