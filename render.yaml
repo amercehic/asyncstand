@@ -38,6 +38,13 @@ services:
         generateValue: true # Render generates a secure random value
       - key: FRONTEND_URL
         value: https://asyncstand-frontend-prod.onrender.com
+      # Optional: Basic Auth Protection
+      - key: BASIC_AUTH_ENABLED
+        value: false # Set to true to enable
+      - key: BASIC_AUTH_USERNAME
+        sync: false # Set in Render dashboard
+      - key: BASIC_AUTH_PASSWORD
+        sync: false # Set in Render dashboard
 
   # Backend API Service (Staging)
   - type: web
@@ -78,6 +85,13 @@ services:
         generateValue: true # Render generates a secure random value
       - key: FRONTEND_URL
         value: https://asyncstand-frontend-staging.onrender.com
+      # Optional: Basic Auth Protection
+      - key: BASIC_AUTH_ENABLED
+        value: false # Set to true to enable
+      - key: BASIC_AUTH_USERNAME
+        sync: false # Set in Render dashboard
+      - key: BASIC_AUTH_PASSWORD
+        sync: false # Set in Render dashboard
 
   # Frontend Static Site (Production)
   - type: web
@@ -167,7 +181,7 @@ services:
 databases:
   - name: asyncstand-db-prod
     plan: free # 1GB free, or standard ($7/mo) for production
-    ipAllowList: [] # Allow all IPs, or specify for security
+    ipAllowList: [] # Keep empty to allow Render services, add specific IPs if needed
   - name: asyncstand-db-staging
     plan: free # 1GB free, or standard ($7/mo) for production
-    ipAllowList: [] # Allow all IPs, or specify for security
+    ipAllowList: [] # Keep empty to allow Render services, add specific IPs if needed

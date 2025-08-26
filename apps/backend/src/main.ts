@@ -6,6 +6,7 @@ import { AllExceptionsFilter } from '@/common/http-exception.filter';
 import { ValidationPipe, INestApplication, Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { CorrelationIdMiddleware } from '@/common/middleware/correlation-id.middleware';
+import { BasicAuthMiddleware } from '@/common/middleware/basic-auth.middleware';
 import { LoggingInterceptor } from '@/common/interceptors/logging.interceptor';
 import * as express from 'express';
 
@@ -77,6 +78,15 @@ async function bootstrap() {
 
   // Apply correlation ID middleware first (before any other middleware)
   app.use(new CorrelationIdMiddleware().use.bind(new CorrelationIdMiddleware()));
+  
+  // Get config service
+  const configService = app.get(ConfigService);
+  
+  // Apply basic auth middleware if enabled
+  if (configService.get<boolean>('BASIC_AUTH_ENABLED', false)) {
+    const basicAuthMiddleware = new BasicAuthMiddleware(configService);
+    app.use(basicAuthMiddleware.use.bind(basicAuthMiddleware));
+  }
 
   // Configure validation pipe for DTO validation
   app.useGlobalPipes(
@@ -94,8 +104,6 @@ async function bootstrap() {
   app.useGlobalInterceptors(new LoggingInterceptor());
 
   app.useGlobalFilters(new AllExceptionsFilter());
-
-  const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT', 3000);
   const nodeEnv = configService.get<string>('NODE_ENV', 'development');
 
