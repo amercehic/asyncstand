@@ -18,8 +18,8 @@ COPY apps/frontend/package.json ./apps/frontend/
 
 # Install dependencies
 FROM base AS deps
-RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile
+# Railway doesn't support cache mounts, so we install directly
+RUN pnpm install --frozen-lockfile
 
 # Build the application
 FROM base AS build
