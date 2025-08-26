@@ -107,7 +107,7 @@ services:
       # Build shared package
       pnpm --filter shared build
       # Build frontend with env vars
-      cd apps/frontend && VITE_API_URL=https://asyncstand-backend-prod.onrender.com pnpm build
+      cd apps/frontend && VITE_API_URL=https://asyncstand-backend-prod.onrender.com VITE_APP_PASSWORD=${VITE_APP_PASSWORD} pnpm build
     staticPublishPath: ./apps/frontend/dist
     pullRequestPreviewsEnabled: true # Optional: PR previews
     headers:
@@ -124,6 +124,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: VITE_APP_PASSWORD
+        sync: false # Set in Render dashboard for security
 
   # Frontend Static Site (Staging)
   - type: web
@@ -139,7 +141,7 @@ services:
       # Build shared package
       pnpm --filter shared build
       # Build frontend with env vars
-      cd apps/frontend && VITE_API_URL=https://asyncstand-backend-staging.onrender.com pnpm build
+      cd apps/frontend && VITE_API_URL=https://asyncstand-backend-staging.onrender.com VITE_APP_PASSWORD=${VITE_APP_PASSWORD} pnpm build
     staticPublishPath: ./apps/frontend/dist
     pullRequestPreviewsEnabled: true # Optional: PR previews
     headers:
@@ -156,6 +158,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: VITE_APP_PASSWORD
+        sync: false # Set in Render dashboard for security
 
   # Redis (Production)
   - type: redis
