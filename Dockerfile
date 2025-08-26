@@ -16,6 +16,9 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/backend/package.json ./apps/backend/
 COPY apps/frontend/package.json ./apps/frontend/
 
+# Copy TypeScript config files
+COPY tsconfig.base.json ./
+
 # Copy Prisma schema for postinstall script
 COPY apps/backend/prisma ./apps/backend/prisma
 
