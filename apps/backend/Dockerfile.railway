@@ -30,9 +30,6 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Set up NODE_PATH to include pnpm's nested node_modules
-ENV NODE_PATH=/app/node_modules/.pnpm/node_modules
-
 # Copy all node_modules from build stage to preserve pnpm structure
 COPY --from=build /app/node_modules ./node_modules
 
@@ -40,7 +37,14 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/apps/backend/dist ./dist
 COPY --from=build /app/apps/backend/prisma ./prisma
 COPY --from=build /app/apps/backend/package.json ./
-COPY --from=build /app/packages/shared/dist ./shared
+
+# Copy shared module to the correct location for imports
+COPY --from=build /app/packages/shared/dist ./node_modules/shared
+COPY --from=build /app/packages/shared/package.json ./node_modules/shared/package.json
+
+# Create symlinks for critical dependencies to make them accessible to Node.js
+# Exclude directories that might interfere with our modules
+RUN find /app/node_modules/.pnpm/node_modules -maxdepth 1 -type l -not -name shared | xargs -r -I {} ln -sf {} /app/node_modules/ 2>/dev/null || true
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \

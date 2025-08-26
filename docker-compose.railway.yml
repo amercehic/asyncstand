@@ -29,6 +29,8 @@ services:
       DATABASE_URL: postgresql://asyncstand:localpassword@postgres:5432/asyncstand_dev
       REDIS_URL: redis://redis:6379
       JWT_SECRET: local-development-secret
+      FRONTEND_URL: http://localhost:3000
+      CORS_ORIGIN: http://localhost:3000
     depends_on:
       - postgres
       - redis
@@ -40,8 +42,14 @@ services:
       dockerfile: apps/frontend/Dockerfile.railway
       args:
         VITE_API_URL: http://localhost:3001
+        VITE_APP_NAME: AsyncStand
+        VITE_NODE_ENV: development
     ports:
       - "3000:80"
+    environment:
+      VITE_API_URL: http://localhost:3001
+      VITE_APP_NAME: AsyncStand
+      VITE_NODE_ENV: development
     depends_on:
       - backend
 
