@@ -2,21 +2,19 @@
 
 [phases.setup]
 nixPkgs = ["nodejs_20"]
-cmds = [
-  "corepack enable",
-  "corepack prepare pnpm@10.15.0 --activate"
-]
 
 [phases.install]
 cmds = [
-  "pnpm install --frozen-lockfile"
+  "npm install -g pnpm@10.15.0",
+  "export PATH=\"$PATH:$(npm prefix -g)/bin\"",
+  "$(npm prefix -g)/bin/pnpm install --frozen-lockfile"
 ]
 
 [phases.build]
-cmds = ["pnpm build"]
+cmds = ["$(npm prefix -g)/bin/pnpm build"]
 
 [start]
-cmd = "pnpm start:prod"
+cmd = "$(npm prefix -g)/bin/pnpm start:prod"
 
 [variables]
 NODE_ENV = "production"
