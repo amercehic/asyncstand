@@ -16,7 +16,7 @@
   "packageManager": "pnpm@10.12.4",
   "dependencies": {
     "reflect-metadata": "^0.2.2",
-    "zod": "^4.0.17"
+    "zod": "^4.1.3"
   },
   "devDependencies": {
     "typescript": "^5.9.2"
