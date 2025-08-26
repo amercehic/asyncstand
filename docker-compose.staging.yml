@@ -1,0 +1,46 @@
+# Docker Compose for staging environment
+version: '3.8'
+
+services:
+  # Application (single container for staging)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.staging
+    container_name: asyncstand-staging
+    environment:
+      NODE_ENV: staging
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      FRONTEND_URL: ${FRONTEND_URL}
+      BACKEND_URL: ${BACKEND_URL}
+      PORT: ${PORT:-3000}
+      # Slack Integration
+      SLACK_CLIENT_ID: ${SLACK_CLIENT_ID}
+      SLACK_CLIENT_SECRET: ${SLACK_CLIENT_SECRET}
+      SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET}
+      # Email
+      EMAIL_HOST: ${EMAIL_HOST}
+      EMAIL_PORT: ${EMAIL_PORT}
+      EMAIL_USER: ${EMAIL_USER}
+      EMAIL_PASS: ${EMAIL_PASS}
+      EMAIL_FROM: ${EMAIL_FROM}
+      # Monitoring
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      SENTRY_DSN: ${SENTRY_DSN}
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
+    restart: unless-stopped
+    networks:
+      - staging-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${PORT:-3000}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  staging-network:
+    driver: bridge

@@ -1,0 +1,65 @@
+# Docker Compose for production environment
+version: '3.8'
+
+services:
+  # Production Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    container_name: asyncstand-production
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      FRONTEND_URL: ${FRONTEND_URL}
+      BACKEND_URL: ${BACKEND_URL}
+      PORT: ${PORT:-3000}
+      # Slack Integration
+      SLACK_CLIENT_ID: ${SLACK_CLIENT_ID}
+      SLACK_CLIENT_SECRET: ${SLACK_CLIENT_SECRET}
+      SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET}
+      # Email
+      EMAIL_HOST: ${EMAIL_HOST}
+      EMAIL_PORT: ${EMAIL_PORT}
+      EMAIL_USER: ${EMAIL_USER}
+      EMAIL_PASS: ${EMAIL_PASS}
+      EMAIL_FROM: ${EMAIL_FROM}
+      # Security
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-100}
+      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-900000}
+      # Monitoring
+      LOG_LEVEL: ${LOG_LEVEL:-error}
+      SENTRY_DSN: ${SENTRY_DSN}
+      NEW_RELIC_LICENSE_KEY: ${NEW_RELIC_LICENSE_KEY}
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
+    restart: always
+    networks:
+      - production-network
+    deploy:
+      replicas: ${REPLICAS:-2}
+      update_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:${PORT:-3000}/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1); })"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  production-network:
+    driver: bridge
