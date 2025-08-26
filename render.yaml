@@ -69,6 +69,12 @@ services:
       - key: NODE_ENV
         value: production
 
+  # Redis
+  - type: redis
+    name: asyncstand-redis
+    plan: free # 25MB free, or starter ($10/mo) for production
+    ipAllowList: []
+
   # Background Worker (if needed later)
   # - type: worker
   #   name: asyncstand-worker
@@ -82,10 +88,3 @@ databases:
   - name: asyncstand-db
     plan: free # 1GB free, or standard ($7/mo) for production
     ipAllowList: [] # Allow all IPs, or specify for security
-
-# Redis
-services:
-  - type: redis
-    name: asyncstand-redis
-    plan: free # 25MB free, or starter ($10/mo) for production
-    ipAllowList: []
