@@ -1,10 +1,8 @@
-# Use Node.js 20 as base image
-FROM node:20-slim AS base
+# Use Node.js 20 Alpine for smaller size and faster downloads
+FROM node:20-alpine AS base
 
-# Install dependencies for better container security
-RUN apt-get update && apt-get install -y \
-    openssl \
-    && rm -rf /var/lib/apt/lists/*
+# Install dependencies for Alpine Linux
+RUN apk add --no-cache openssl
 
 # Enable corepack for pnpm
 RUN corepack enable && corepack prepare pnpm@10.15.0 --activate
@@ -38,12 +36,10 @@ COPY . .
 RUN pnpm build
 
 # Production stage
-FROM node:20-slim AS production
+FROM node:20-alpine AS production
 
 # Install runtime dependencies
-RUN apt-get update && apt-get install -y \
-    openssl \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache openssl
 
 # Enable corepack for pnpm in production
 RUN corepack enable && corepack prepare pnpm@10.15.0 --activate
