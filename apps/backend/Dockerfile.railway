@@ -30,17 +30,26 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
+# Enable pnpm for production installs
+RUN corepack enable && corepack prepare pnpm@10.15.0 --activate
+
+# Copy workspace configuration
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY apps/backend/package.json ./apps/backend/
+COPY packages/shared/package.json ./packages/shared/
+
 # Copy built application
 COPY --from=build /app/apps/backend/dist ./dist
 COPY --from=build /app/apps/backend/prisma ./prisma
-COPY --from=build /app/apps/backend/package.json ./
 
-# Copy shared module to the correct location for imports
-COPY --from=build /app/packages/shared/dist ./node_modules/shared
-COPY --from=build /app/packages/shared/package.json ./node_modules/shared/package.json
+# Copy shared module build output
+COPY --from=build /app/packages/shared ./packages/shared
 
-# Copy entire node_modules from build stage to preserve pnpm structure
-COPY --from=build /app/node_modules ./node_modules
+# Install only production dependencies
+RUN pnpm install --frozen-lockfile --prod
+
+# Copy the backend package.json to root for proper module resolution
+COPY apps/backend/package.json ./
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
