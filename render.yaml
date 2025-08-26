@@ -3,7 +3,7 @@ services:
   - type: web
     name: asyncstand-backend
     runtime: node
-    repo: https://github.com/YOUR_GITHUB_USERNAME/asyncstand
+    repo: https://github.com/amercehic/asyncstand
     region: oregon # or frankfurt, singapore, ohio
     plan: free # or starter ($7/mo) for production
     buildCommand: |
@@ -42,7 +42,7 @@ services:
   - type: web
     name: asyncstand-frontend
     runtime: static
-    repo: https://github.com/YOUR_GITHUB_USERNAME/asyncstand
+    repo: https://github.com/amercehic/asyncstand
     buildCommand: |
       # Install pnpm
       npm install -g pnpm@10.13.1
