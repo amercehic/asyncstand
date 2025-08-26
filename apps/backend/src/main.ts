@@ -128,7 +128,10 @@ async function bootstrap() {
     // Explicitly allow Render frontend origins for prod/staging
     const renderProd = 'https://asyncstand-frontend-prod.onrender.com';
     const renderStaging = 'https://asyncstand-frontend-staging.onrender.com';
-    [renderProd, renderStaging].forEach((origin) => {
+    // Also allow backend origins for Swagger UI
+    const renderBackendProd = 'https://asyncstand-backend-prod.onrender.com';
+    const renderBackendStaging = 'https://asyncstand-backend-staging.onrender.com';
+    [renderProd, renderStaging, renderBackendProd, renderBackendStaging].forEach((origin) => {
       if (!allowedOrigins.includes(origin)) {
         allowedOrigins.push(origin);
       }
@@ -142,9 +145,10 @@ async function bootstrap() {
       }
     }
 
-    // Allow dynamic Render preview subdomains for the frontend by default
+    // Allow dynamic Render preview subdomains for frontend and backend by default
     const defaultOriginPatterns: RegExp[] = [
-      /^https:\/\/asyncstand-frontend[\w-]*\.onrender\.com$/, // prod, staging, and preview variants
+      /^https:\/\/asyncstand-frontend[\w-]*\.onrender\.com$/, // frontend: prod, staging, and preview variants
+      /^https:\/\/asyncstand-backend[\w-]*\.onrender\.com$/, // backend: prod, staging, and preview variants (for Swagger UI)
     ];
 
     // Allow additional exact origins from env (comma-separated)
