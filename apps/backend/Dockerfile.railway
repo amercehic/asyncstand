@@ -3,51 +3,49 @@ FROM node:20-alpine AS base
 RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
 
-# Enable pnpm with specific version from package.json
+# Enable pnpm
 RUN corepack enable && corepack prepare pnpm@10.15.0 --activate
 
-# Dependencies stage - copy only package files for better caching
+# Dependencies stage
 FROM base AS deps
+# Copy workspace files
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY apps/backend/package.json ./apps/backend/
 COPY packages/shared/package.json ./packages/shared/
+# Copy prisma schema for generation
 COPY apps/backend/prisma ./apps/backend/prisma
+# Install all dependencies
 RUN pnpm install --frozen-lockfile
 
-# Build stage - compile TypeScript and generate Prisma client
+# Build stage
 FROM deps AS build
+# Copy source files
 COPY tsconfig.base.json ./
 COPY packages/shared ./packages/shared
 COPY apps/backend ./apps/backend
+# Build shared package
 RUN pnpm --filter shared build
+# Generate Prisma client
+RUN cd apps/backend && npx prisma generate
+# Build backend
 RUN pnpm --filter backend build
-# Generate Prisma client after build
-RUN cd apps/backend && npx prisma generate --schema=./prisma/schema.prisma
 
-# Production stage - minimal image with only runtime dependencies
+# Production stage - use the build output with all dependencies
 FROM node:20-alpine AS runner
 RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Copy package.json files
-COPY --from=build /app/apps/backend/package.json ./package.json
+# Copy everything from build stage (simpler approach)
+COPY --from=build /app ./
 
-# Copy built application
-COPY --from=build /app/apps/backend/dist ./dist
-COPY --from=build /app/apps/backend/prisma ./prisma
-
-# Copy the entire node_modules from build stage (includes all dependencies and Prisma client)
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/apps/backend/node_modules ./apps/backend/node_modules
-
-# Copy shared module to the expected location
-COPY --from=build /app/packages/shared/dist ./node_modules/shared
+# Remove source files, keep only built files
+RUN rm -rf apps/backend/src packages/shared/src
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3001/health', (res) => res.statusCode === 200 ? process.exit(0) : process.exit(1))"
 
 EXPOSE 3001
-CMD ["node", "dist/src/main.js"]
+CMD ["node", "apps/backend/dist/src/main.js"]
