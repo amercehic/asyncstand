@@ -1,0 +1,50 @@
+# Multi-stage Docker build optimized for Railway
+FROM node:20-alpine AS base
+RUN apk add --no-cache libc6-compat openssl
+WORKDIR /app
+
+# Enable pnpm with specific version from package.json
+RUN corepack enable && corepack prepare pnpm@10.15.0 --activate
+
+# Dependencies stage - copy only package files for better caching
+FROM base AS deps
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY apps/backend/package.json ./apps/backend/
+COPY packages/shared/package.json ./packages/shared/
+COPY apps/backend/prisma ./apps/backend/prisma
+RUN pnpm install --frozen-lockfile
+
+# Build stage - compile TypeScript and generate Prisma client
+FROM deps AS build
+COPY tsconfig.base.json ./
+COPY packages/shared ./packages/shared
+COPY apps/backend ./apps/backend
+RUN pnpm --filter shared build
+RUN cd apps/backend && npx prisma generate
+RUN pnpm --filter backend build
+
+# Production stage - minimal image with only runtime dependencies
+FROM node:20-alpine AS runner
+RUN apk add --no-cache libc6-compat openssl
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+# Set up NODE_PATH to include pnpm's nested node_modules
+ENV NODE_PATH=/app/node_modules/.pnpm/node_modules
+
+# Copy all node_modules from build stage to preserve pnpm structure
+COPY --from=build /app/node_modules ./node_modules
+
+# Copy built application and other files
+COPY --from=build /app/apps/backend/dist ./dist
+COPY --from=build /app/apps/backend/prisma ./prisma
+COPY --from=build /app/apps/backend/package.json ./
+COPY --from=build /app/packages/shared/dist ./shared
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3001/health', (res) => res.statusCode === 200 ? process.exit(0) : process.exit(1))"
+
+EXPOSE 3001
+CMD ["node", "dist/src/main.js"]

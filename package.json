@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
     "preinstall": "npx only-allow pnpm",
     "build": "turbo run build --parallel",
     "build:backend": "pnpm --filter backend build",
@@ -15,7 +16,14 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "env:setup": "turbo run env:setup && ./scripts/setup-env.sh",
-    "env:setup:force": "./scripts/setup-env.sh"
+    "env:setup:force": "./scripts/setup-env.sh",
+    "railway:build": "pnpm install --frozen-lockfile && turbo run build --filter=backend --filter=shared",
+    "railway:start:backend": "cd apps/backend && node dist/src/main.js",
+    "railway:start:frontend": "npx serve -s apps/frontend/dist -l $PORT",
+    "railway:migrate": "cd apps/backend && npx prisma migrate deploy",
+    "docker:build:backend": "docker build -f apps/backend/Dockerfile.railway -t asyncstand-backend .",
+    "docker:build:frontend": "docker build -f apps/frontend/Dockerfile.railway -t asyncstand-frontend .",
+    "docker:test:backend": "docker run --rm -e NODE_ENV=test asyncstand-backend node dist/src/main.js"
   },
   "keywords": [],
   "author": "",
