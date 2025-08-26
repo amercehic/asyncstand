@@ -99,22 +99,40 @@ async function bootstrap() {
   const port = configService.get<number>('PORT', 3000);
   const nodeEnv = configService.get<string>('NODE_ENV', 'development');
 
-  // Enable CORS for development
-  if (nodeEnv === 'development') {
-    const frontendUrl = configService.get<string>('FRONTEND_URL');
+  // Enable CORS for all environments (with environment-specific origins)
+  {
+    // Read from both raw env and loaded config
+    const frontendUrl =
+      configService.get<string>('FRONTEND_URL') || configService.get<string>('frontendUrl');
     const ngrokUrl = configService.get<string>('NGROK_URL');
-    const allowedOrigins = [
-      'http://localhost:5173', // Local development
-      'http://localhost:3000', // Alternative local port
-      'http://localhost:5174', // Alternative Vite port
-      'http://127.0.0.1:5173', // IPv4 localhost
-      'http://127.0.0.1:3000', // IPv4 localhost alternative
-    ];
+
+    // Base allowed origins differ by environment
+    const allowedOrigins: string[] = nodeEnv === 'development'
+      ? [
+          'http://localhost:5173', // Local development
+          'http://localhost:3000', // Alternative local port
+          'http://localhost:5174', // Alternative Vite port
+          'http://127.0.0.1:5173', // IPv4 localhost
+          'http://127.0.0.1:3000', // IPv4 localhost alternative
+        ]
+      : [];
 
     // Add configured frontend URL if available
-    if (frontendUrl && !allowedOrigins.includes(frontendUrl)) {
-      allowedOrigins.push(frontendUrl);
+    if (frontendUrl) {
+      const normalized = frontendUrl.replace(/\/$/, '');
+      if (!allowedOrigins.includes(normalized)) {
+        allowedOrigins.push(normalized);
+      }
     }
+
+    // Explicitly allow Render frontend origins for prod/staging
+    const renderProd = 'https://asyncstand-frontend-prod.onrender.com';
+    const renderStaging = 'https://asyncstand-frontend-staging.onrender.com';
+    [renderProd, renderStaging].forEach((origin) => {
+      if (!allowedOrigins.includes(origin)) {
+        allowedOrigins.push(origin);
+      }
+    });
 
     // Add ngrok URL if available (without /api or other paths)
     if (ngrokUrl) {
@@ -124,7 +142,51 @@ async function bootstrap() {
       }
     }
 
-    logger.log(`🔒 CORS enabled for origins: ${allowedOrigins.join(', ')}`);
+    // Allow dynamic Render preview subdomains for the frontend by default
+    const defaultOriginPatterns: RegExp[] = [
+      /^https:\/\/asyncstand-frontend[\w-]*\.onrender\.com$/, // prod, staging, and preview variants
+    ];
+
+    // Allow additional exact origins from env (comma-separated)
+    const extraOrigins =
+      (configService.get<string>('CORS_ALLOWED_ORIGINS') || process.env.CORS_ALLOWED_ORIGINS || '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+    extraOrigins.forEach((o) => {
+      const normalized = o.replace(/\/$/, '');
+      if (!allowedOrigins.includes(normalized)) {
+        allowedOrigins.push(normalized);
+      }
+    });
+
+    // Allow additional regex patterns from env (comma-separated)
+    const patternEnv =
+      configService.get<string>('CORS_ALLOWED_ORIGIN_PATTERNS') ||
+      process.env.CORS_ALLOWED_ORIGIN_PATTERNS ||
+      '';
+    const originPatterns: RegExp[] = [
+      ...defaultOriginPatterns,
+      ...patternEnv
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((p) => {
+          try {
+            return new RegExp(p);
+          } catch {
+            logger.warn(`⚠️ Invalid CORS pattern skipped: ${p}`);
+            return null;
+          }
+        })
+        .filter((r): r is RegExp => r instanceof RegExp),
+    ];
+
+    logger.log(
+      `🔒 CORS enabled. Exact origins: ${
+        allowedOrigins.join(', ') || '(none)'
+      } | Pattern origins: ${originPatterns.map((r) => r.source).join(', ')}`,
+    );
 
     app.enableCors({
       origin: (origin, callback) => {
@@ -132,13 +194,15 @@ async function bootstrap() {
         if (!origin) return callback(null, true);
 
         // Check if origin is in allowed list or matches ngrok pattern
-        if (
-          allowedOrigins.includes(origin) ||
+        const inExactList = allowedOrigins.includes(origin);
+        const isNgrok =
           origin.includes('.ngrok-free.app') ||
           origin.includes('.ngrok.io') ||
           origin.includes('.ngrok.app') ||
-          origin.includes('.ngrok-free.com')
-        ) {
+          origin.includes('.ngrok-free.com');
+        const matchesPattern = originPatterns.some((re) => re.test(origin));
+
+        if (inExactList || isNgrok || matchesPattern) {
           return callback(null, true);
         }
 
