@@ -12,7 +12,10 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "env:setup": "turbo run env:setup && ./scripts/setup-env.sh",
-    "env:setup:force": "./scripts/setup-env.sh"
+    "env:setup:force": "./scripts/setup-env.sh",
+    "render:build": "pnpm install --frozen-lockfile && pnpm build",
+    "render:start:backend": "cd apps/backend && node dist/src/main.js",
+    "render:migrate": "cd apps/backend && npx prisma migrate deploy"
   },
   "keywords": [],
   "author": "",
