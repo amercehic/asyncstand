@@ -22,7 +22,7 @@ export const PasswordProtection: React.FC<PasswordProtectionProps> = ({ children
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Check password against environment variable
     if (password === import.meta.env.VITE_APP_PASSWORD) {
       localStorage.setItem(STORAGE_KEY, password);
@@ -53,14 +53,12 @@ export const PasswordProtection: React.FC<PasswordProtectionProps> = ({ children
           <input
             type="password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={e => setPassword(e.target.value)}
             placeholder="Enter password"
             className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             autoFocus
           />
-          {error && (
-            <p className="mt-2 text-sm text-red-600">{error}</p>
-          )}
+          {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
           <button
             type="submit"
             className="mt-4 w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition"

@@ -41,6 +41,28 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       host: true,
       allowedHosts: ['localhost', '.ngrok-free.app', '.ngrok.io', '.ngrok.app'],
+      // Proxy API requests to backend in development
+      proxy:
+        mode === 'development'
+          ? {
+              '/api': {
+                target: env.VITE_API_URL || 'http://localhost:3001',
+                changeOrigin: true,
+                secure: false,
+                rewrite: path => path.replace(/^\/api/, ''),
+              },
+              '/auth': {
+                target: env.VITE_API_URL || 'http://localhost:3001',
+                changeOrigin: true,
+                secure: false,
+              },
+              '/health': {
+                target: env.VITE_API_URL || 'http://localhost:3001',
+                changeOrigin: true,
+                secure: false,
+              },
+            }
+          : undefined,
     },
     build: {
       // Performance optimizations
