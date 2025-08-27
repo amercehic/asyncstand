@@ -8,6 +8,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 import { CsrfService } from '@/common/security/csrf.service';
+import { ConfigService } from '@nestjs/config';
 
 interface RequestWithUser extends Request {
   user?: {
@@ -25,12 +26,25 @@ export const CSRF_SKIP_KEY = 'csrf_skip';
 
 @Injectable()
 export class CsrfGuard implements CanActivate {
+  private readonly publicAuthEndpoints: string[];
+
   constructor(
     private readonly csrfService: CsrfService,
     private readonly reflector: Reflector,
     private readonly logger: LoggerService,
+    private readonly configService: ConfigService,
   ) {
     this.logger.setContext(CsrfGuard.name);
+    
+    // Parse public auth endpoints from environment variables
+    const envEndpoints = this.configService.get<string>('CSRF_PUBLIC_ENDPOINTS', '');
+    const defaultEndpoints = ['/auth/signup', '/auth/forgot-password', '/auth/reset-password'];
+    
+    this.publicAuthEndpoints = envEndpoints
+      ? envEndpoints.split(',').map(path => path.trim()).filter(Boolean)
+      : defaultEndpoints;
+      
+    this.logger.debug(`CSRF public endpoints configured: ${this.publicAuthEndpoints.join(', ')}`);
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -63,6 +77,18 @@ export class CsrfGuard implements CanActivate {
       csrfProtected || ['post', 'put', 'patch', 'delete'].includes(method);
 
     if (!needsCsrfProtection) {
+      return true;
+    }
+
+    // Check if this is a public auth endpoint that doesn't require sessions
+    const isPublicAuthEndpoint = this.publicAuthEndpoints.includes(request.path);
+
+    // For public auth endpoints, skip CSRF since there's no session to protect
+    if (isPublicAuthEndpoint) {
+      this.logger.debug('Skipping CSRF for public auth endpoint', {
+        path: request.path,
+        method: request.method,
+      });
       return true;
     }
 
