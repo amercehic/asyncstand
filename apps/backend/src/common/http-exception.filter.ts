@@ -66,7 +66,7 @@ const SENSITIVE_HEADER_KEYS = ['authorization', 'cookie', 'x-api-key'];
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
-  private readonly isProd = process.env.NODE_ENV === 'production';
+  private readonly isProd = ['production', 'staging'].includes(process.env.NODE_ENV || '');
   private readonly errorTypeBase = process.env.ERROR_TYPE_BASE || 'about:blank';
 
   constructor() {}

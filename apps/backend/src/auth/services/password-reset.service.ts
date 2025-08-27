@@ -39,7 +39,7 @@ export class PasswordResetService implements OnModuleDestroy {
   }
 
   private async setupTransporter() {
-    if (process.env.NODE_ENV === 'production') {
+    if (['production', 'staging'].includes(process.env.NODE_ENV || '')) {
       // In production, use SendGrid or other email service
       this.transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,
@@ -304,7 +304,7 @@ export class PasswordResetService implements OnModuleDestroy {
       if (this.transporter) {
         const info = await this.transporter.sendMail(mailOptions);
 
-        if (process.env.NODE_ENV !== 'production') {
+        if (!['production', 'staging'].includes(process.env.NODE_ENV || '')) {
           this.logger.info('Password reset email sent', {
             email,
             previewUrl: nodemailer.getTestMessageUrl(info),
