@@ -42,6 +42,10 @@ CORS_ALLOWED_PATTERNS=^https://.*\.example\.com$
 
 # Ngrok URL for development tunneling (optional)
 NGROK_URL=https://your-subdomain.ngrok-free.app
+
+# CSRF Configuration
+# Public endpoints that don't require CSRF protection (comma-separated)
+CSRF_PUBLIC_ENDPOINTS=/auth/signup,/auth/forgot-password,/auth/reset-password
 ```
 
 #### Frontend (.env)
@@ -90,6 +94,13 @@ VITE_API_URL=https://asyncstand-backend-prod.onrender.com
 ### Preflight Caching
 
 - `maxAge: 86400` (24 hours) reduces preflight requests
+
+### CSRF Protection
+
+- Global CSRF protection for all state-changing requests (POST, PUT, PATCH, DELETE)
+- Public endpoints (signup, password reset) automatically excluded
+- Configurable via `CSRF_PUBLIC_ENDPOINTS` environment variable
+- Requires session-based authentication for protected endpoints
 
 ## Authentication Patterns
 
