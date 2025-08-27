@@ -74,7 +74,7 @@ export class CorsConfig {
         .forEach((pattern) => {
           try {
             patterns.push(new RegExp(pattern));
-          } catch (error) {
+          } catch {
             this.logger.warn(`Invalid CORS pattern ignored: ${pattern}`);
           }
         });

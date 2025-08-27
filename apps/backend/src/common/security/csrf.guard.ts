@@ -35,15 +35,18 @@ export class CsrfGuard implements CanActivate {
     private readonly configService: ConfigService,
   ) {
     this.logger.setContext(CsrfGuard.name);
-    
+
     // Parse public auth endpoints from environment variables
     const envEndpoints = this.configService.get<string>('CSRF_PUBLIC_ENDPOINTS', '');
     const defaultEndpoints = ['/auth/signup', '/auth/forgot-password', '/auth/reset-password'];
-    
+
     this.publicAuthEndpoints = envEndpoints
-      ? envEndpoints.split(',').map(path => path.trim()).filter(Boolean)
+      ? envEndpoints
+          .split(',')
+          .map((path) => path.trim())
+          .filter(Boolean)
       : defaultEndpoints;
-      
+
     this.logger.debug(`CSRF public endpoints configured: ${this.publicAuthEndpoints.join(', ')}`);
   }
 
