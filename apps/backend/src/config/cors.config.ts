@@ -48,6 +48,11 @@ export class CorsConfig {
         'https://asyncstand-frontend-staging.onrender.com',
         'https://asyncstand-backend-prod.onrender.com', // For Swagger UI
         'https://asyncstand-backend-staging.onrender.com', // For Swagger UI
+        // Custom domains
+        'https://api.asyncstand.com',
+        'https://staging.api.asyncstand.com',
+        'https://app.asyncstand.com',
+        'https://staging.app.asyncstand.com',
       ];
       productionOrigins.forEach((origin) => origins.add(origin));
     }
@@ -62,6 +67,12 @@ export class CorsConfig {
     patterns.push(
       /^https:\/\/asyncstand-frontend[\w-]*\.onrender\.com$/,
       /^https:\/\/asyncstand-backend[\w-]*\.onrender\.com$/, // For Swagger UI
+    );
+
+    // Custom domain patterns
+    patterns.push(
+      /^https:\/\/(staging\.)?api\.asyncstand\.com$/,
+      /^https:\/\/(staging\.)?app\.asyncstand\.com$/,
     );
 
     // Additional patterns from environment
