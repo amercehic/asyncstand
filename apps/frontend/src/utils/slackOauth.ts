@@ -23,9 +23,8 @@ export const startSlackOAuth = async ({ orgId, onSuccess, onError }: SlackOAuthO
     }
 
     // Start the OAuth flow - this will redirect the popup to Slack
-    // Use NGROK_URL if available for OAuth flow, otherwise use relative URL
-    const ngrokUrl = import.meta.env.VITE_NGROK_URL;
-    const baseUrl = ngrokUrl || '';
+    // Use API URL for OAuth flow
+    const baseUrl = import.meta.env.VITE_API_URL || '';
     const oauthUrl = `${baseUrl}/slack/oauth/start?orgId=${orgId}`;
     popup.location = oauthUrl;
 

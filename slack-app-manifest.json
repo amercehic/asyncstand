@@ -1,6 +1,6 @@
 {
   "display_information": {
-    "name": "AsyncStand Dev",
+    "name": "AsyncStand Staging",
     "description": "Asynchronous standup bot for distributed teams with magic link support",
     "background_color": "#4A154B",
     "long_description": "AsyncStand helps distributed teams run asynchronous standups through Slack. Team members can submit their updates via DM, thread replies, or magic links without needing an AsyncStand account. The bot collects responses and posts summaries at configured times."
@@ -12,14 +12,14 @@
       "messages_tab_read_only_enabled": false
     },
     "bot_user": {
-      "display_name": "AsyncStand Dev Bot",
+      "display_name": "AsyncStand Staging Bot",
       "always_online": true
     },
     "slash_commands": [
       {
         "command": "/standup",
         "description": "Manage standup responses and settings",
-        "url": "https://bc902dfdb558.ngrok-free.app/slack/slash-commands",
+        "url": "https://staging.api.asyncstand.com/slack/slash-commands",
         "usage_hint": "[status|submit|skip|help]",
         "should_escape": false
       }
@@ -27,7 +27,7 @@
   },
   "oauth_config": {
     "redirect_urls": [
-      "https://bc902dfdb558.ngrok-free.app/slack/oauth/callback",
+      "https://staging.api.asyncstand.com/slack/oauth/callback",
       "https://localhost:3001/slack/oauth/callback",
       "http://localhost:3001/slack/oauth/callback"
     ],
@@ -60,7 +60,7 @@
   },
   "settings": {
     "event_subscriptions": {
-      "request_url": "https://bc902dfdb558.ngrok-free.app/slack/events",
+      "request_url": "https://staging.api.asyncstand.com/slack/events",
       "bot_events": [
         "message.im",
         "app_mention",
@@ -72,7 +72,7 @@
     },
     "interactivity": {
       "is_enabled": true,
-      "request_url": "https://bc902dfdb558.ngrok-free.app/slack/interactive-components"
+      "request_url": "https://staging.api.asyncstand.com/slack/interactive-components"
     },
     "org_deploy_enabled": false,
     "socket_mode_enabled": false,
