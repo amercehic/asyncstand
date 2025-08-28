@@ -100,7 +100,9 @@ export const envConfig = () => {
   const ngrokUrl = process.env.NGROK_URL;
   const backendUrl = process.env.BACKEND_URL;
   const baseUrl =
-    ngrokUrl || backendUrl || (process.env.NODE_ENV === 'development' ? 'http://localhost:3001' : '');
+    ngrokUrl ||
+    backendUrl ||
+    (process.env.NODE_ENV === 'development' ? 'http://localhost:3001' : '');
 
   return {
     port: parseInt(process.env.PORT || '3000', 10),

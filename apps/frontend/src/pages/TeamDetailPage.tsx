@@ -35,7 +35,7 @@ export const TeamDetailPage = React.memo(() => {
   const { teamId } = useParams<{ teamId: string }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { deleteTeam } = useTeams();
+  const { deleteTeam, getTeamByIdFromCache } = useTeams();
   const [team, setTeam] = useState<Team | null>(null);
   const [standups, setStandups] = useState<StandupConfig[]>([]);
   const [recentInstances, setRecentInstances] = useState<StandupInstance[]>([]);
@@ -53,6 +53,7 @@ export const TeamDetailPage = React.memo(() => {
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleted, setIsDeleted] = useState(false);
 
   const handleTabChange = useCallback(
     (tab: TabType) => {
@@ -88,12 +89,20 @@ export const TeamDetailPage = React.memo(() => {
 
   // Function to fetch all data
   const fetchData = useCallback(async () => {
-    if (!teamId) return;
+    if (!teamId || isDeleted) return;
 
-    setIsLoading(true);
+    // Try to get team from cache first for faster loading
+    const cachedTeam = getTeamByIdFromCache(teamId);
+    if (cachedTeam) {
+      setTeam(cachedTeam);
+      setIsLoading(false); // Show team immediately from cache
+    } else {
+      setIsLoading(true);
+    }
+
     try {
       const [teamData, standupsData, instancesData] = await Promise.all([
-        teamsApi.getTeam(teamId),
+        cachedTeam ? Promise.resolve(cachedTeam) : teamsApi.getTeam(teamId),
         standupsApi.getTeamStandups(teamId),
         standupsApi.getStandupInstances(teamId),
       ]);
@@ -105,15 +114,18 @@ export const TeamDetailPage = React.memo(() => {
       console.error('Error fetching team data:', error);
       const axiosError = error as AxiosError;
       if (axiosError.response?.status === 404) {
-        toast.error('Team not found');
-        navigate('/teams');
+        // Don't show error toast if we're already on teams page (might be from navigation after deletion)
+        if (window.location.pathname !== '/teams') {
+          toast.error('Team not found');
+        }
+        navigate('/teams', { replace: true });
       } else {
         toast.error('Failed to load team data');
       }
     } finally {
       setIsLoading(false);
     }
-  }, [teamId, navigate]);
+  }, [teamId, navigate, getTeamByIdFromCache, isDeleted]);
 
   useEffect(() => {
     fetchData();
@@ -173,12 +185,12 @@ export const TeamDetailPage = React.memo(() => {
     setIsDeleting(true);
     try {
       await deleteTeam(team.id, true);
-      toast.success('Team deleted successfully');
-      navigate('/teams');
+      setIsDeleted(true); // Mark as deleted to prevent further API calls
+      // Toast already shown by TeamsContext
+      navigate('/teams', { replace: true });
     } catch (error) {
       console.error('Error deleting team:', error);
-      toast.error('Failed to delete team');
-    } finally {
+      // Don't show toast here, TeamsContext will handle the error toast
       setIsDeleting(false);
     }
   };

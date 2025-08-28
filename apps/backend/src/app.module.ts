@@ -27,7 +27,7 @@ import { RateLimitService } from '@/common/services/rate-limit.service';
     ConfigModule.forRoot({
       isGlobal: true,
       validate,
-      envFilePath: '.env',
+      envFilePath: '../../.env', // Load from root directory
       load: [envConfig],
     }),
     BullModule.forRootAsync({

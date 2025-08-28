@@ -1,0 +1,80 @@
+{
+  "display_information": {
+    "name": "AsyncStand Dev",
+    "description": "Asynchronous standup bot for distributed teams with magic link support (Development)",
+    "background_color": "#4A154B",
+    "long_description": "AsyncStand helps distributed teams run asynchronous standups through Slack. Team members can submit their updates via DM, thread replies, or magic links without needing an AsyncStand account. The bot collects responses and posts summaries at configured times. This is the development version."
+  },
+  "features": {
+    "app_home": {
+      "home_tab_enabled": true,
+      "messages_tab_enabled": true,
+      "messages_tab_read_only_enabled": false
+    },
+    "bot_user": {
+      "display_name": "AsyncStand Dev Bot",
+      "always_online": true
+    },
+    "slash_commands": [
+      {
+        "command": "/standup",
+        "description": "Manage standup responses and settings",
+        "url": "https://6cff32521426.ngrok-free.app/slack/slash-commands",
+        "usage_hint": "[status|submit|skip|help]",
+        "should_escape": false
+      }
+    ]
+  },
+  "oauth_config": {
+    "redirect_urls": [
+      "https://6cff32521426.ngrok-free.app/slack/oauth/callback",
+      "http://localhost:3001/slack/oauth/callback"
+    ],
+    "scopes": {
+      "bot": [
+        "channels:read",
+        "channels:join",
+        "channels:history",
+        "chat:write",
+        "chat:write.public",
+        "chat:write.customize",
+        "im:read",
+        "im:write",
+        "im:history",
+        "mpim:read",
+        "mpim:write",
+        "mpim:history",
+        "users:read",
+        "users:read.email",
+        "team:read",
+        "commands",
+        "app_mentions:read",
+        "groups:read",
+        "groups:write",
+        "groups:history",
+        "reactions:read",
+        "reactions:write"
+      ]
+    }
+  },
+  "settings": {
+    "event_subscriptions": {
+      "request_url": "https://6cff32521426.ngrok-free.app/slack/events",
+      "bot_events": [
+        "message.im",
+        "app_mention",
+        "message.channels",
+        "message.groups",
+        "member_joined_channel",
+        "member_left_channel"
+      ]
+    },
+    "interactivity": {
+      "is_enabled": true,
+      "request_url": "https://6cff32521426.ngrok-free.app/slack/interactive-components"
+    },
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": false,
+    "token_rotation_enabled": false
+  }
+}

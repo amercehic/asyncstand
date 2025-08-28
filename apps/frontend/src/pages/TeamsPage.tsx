@@ -590,10 +590,10 @@ export const TeamsPage = React.memo(() => {
     toast.favorite(wasFavorited ? 'Removed from favorites' : 'Added to favorites', !wasFavorited);
   };
 
-  const handleCreateSuccess = async (teamName?: string) => {
+  const handleCreateSuccess = async (teamName?: string, team?: Team) => {
     await refreshTeams();
-    if (teamName) {
-      toast.teamCreated(teamName);
+    if (teamName && team) {
+      toast.teamCreated(teamName, team.id, navigate);
     } else {
       toast.success('Team created successfully!');
     }

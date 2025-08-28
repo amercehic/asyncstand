@@ -180,7 +180,7 @@ export function IntegrationsProvider({ children }: IntegrationsProviderProps) {
           { id: `sync-${integrationId}` }
         );
 
-        // Update the integration's sync state
+        // Update the integration's sync state with actual sync results
         dispatch({
           type: 'UPDATE_INTEGRATION',
           payload: {
@@ -190,6 +190,8 @@ export function IntegrationsProvider({ children }: IntegrationsProviderProps) {
                 lastUsersSyncAt: new Date().toISOString(),
                 lastChannelsSyncAt: new Date().toISOString(),
                 errorMsg: undefined,
+                userCount: result.usersAdded + (result.usersUpdated || 0),
+                channelCount: result.channelsAdded + (result.channelsUpdated || 0),
               },
             },
           },

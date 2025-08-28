@@ -6,12 +6,12 @@ import { FormField } from '@/components/form';
 import { X, Building2, Hash, Globe, Clock } from 'lucide-react';
 import { teamsApi, integrationsApi } from '@/lib/api';
 import { useTeams, useModal } from '@/contexts';
-import type { CreateTeamRequest } from '@/types';
+import type { CreateTeamRequest, Team } from '@/types';
 
 interface CreateTeamModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (teamName?: string) => void;
+  onSuccess: (teamName?: string, team?: Team) => void;
 }
 
 interface CreateTeamFormData {
@@ -169,7 +169,7 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
           };
 
           const newTeam = await createTeam(createTeamData);
-          onSuccess(newTeam.name);
+          onSuccess(newTeam.name, newTeam);
           handleClose();
         } catch (error) {
           // Error handling is done in the context

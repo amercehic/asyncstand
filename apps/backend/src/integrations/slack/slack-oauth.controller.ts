@@ -26,7 +26,7 @@ export class SlackOauthController {
     private readonly configService: ConfigService,
   ) {
     this.logger.setContext(SlackOauthController.name);
-    
+
     // Debug: Log the frontend URL configuration at startup
     const frontendUrl = this.configService.get<string>('frontendUrl');
     this.logger.debug(`SlackOauthController initialized with frontendUrl: ${frontendUrl}`);
@@ -142,7 +142,9 @@ export class SlackOauthController {
 
       // Redirect to frontend with error status
       const errorMessage = 'An unexpected error occurred during installation';
-      this.logger.debug(`OAuth unexpected error redirect URL: ${frontendUrl}/integrations?status=error`);
+      this.logger.debug(
+        `OAuth unexpected error redirect URL: ${frontendUrl}/integrations?status=error`,
+      );
       return res.redirect(
         `${frontendUrl}/integrations?status=error&message=${encodeURIComponent(errorMessage)}`,
       );

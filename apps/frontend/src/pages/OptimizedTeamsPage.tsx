@@ -264,15 +264,22 @@ export const OptimizedTeamsPage = React.memo(() => {
   );
 
   // Memoized callbacks
-  const handleCreateTeam = useCallback(async () => {
-    try {
-      setIsCreateModalOpen(false);
-      toast.success('Team created successfully!');
-    } catch (error) {
-      console.error('Failed to create team:', error);
-      toast.error('Failed to create team');
-    }
-  }, []);
+  const handleCreateTeam = useCallback(
+    async (teamName?: string, team?: Team) => {
+      try {
+        setIsCreateModalOpen(false);
+        if (teamName && team) {
+          toast.teamCreated(teamName, team.id, navigate);
+        } else {
+          toast.success('Team created successfully!');
+        }
+      } catch (error) {
+        console.error('Failed to create team:', error);
+        toast.error('Failed to create team');
+      }
+    },
+    [navigate]
+  );
 
   const handleToggleFavorite = useCallback((teamId: string) => {
     setFavorites(prev => {

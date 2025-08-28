@@ -137,7 +137,7 @@ const favorite = (message: string, isFavorited: boolean = true) => {
   });
 };
 
-const teamCreated = (teamName: string) => {
+const teamCreated = (teamName: string, teamId?: string, navigate?: (path: string) => void) => {
   return success('Team created successfully!', {
     richContent: {
       title: 'Team Created',
@@ -148,7 +148,10 @@ const teamCreated = (teamName: string) => {
     action: {
       label: 'View team',
       onClick: () => {
-        console.log('Navigate to team');
+        if (teamId && navigate) {
+          // Navigate immediately - no loading toast needed since it's fast with cache
+          navigate(`/teams/${teamId}`);
+        }
       },
     },
   });
