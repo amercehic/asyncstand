@@ -62,11 +62,8 @@ export class SlackOauthController {
     oauthUrl.searchParams.set('scope', 'channels:read,groups:read,users:read,chat:write');
     oauthUrl.searchParams.set('state', state);
     // Use backend URL for OAuth callback since the callback endpoint is on the backend
-    const backendUrl =
-      this.configService.get<string>('ngrokUrl') ||
-      this.configService.get<string>('appUrl') ||
-      'http://localhost:3001';
-    oauthUrl.searchParams.set('redirect_uri', `${backendUrl}/slack/oauth/callback`);
+    const backendBaseUrl = this.configService.get<string>('appUrl') || 'http://localhost:3001';
+    oauthUrl.searchParams.set('redirect_uri', `${backendBaseUrl}/slack/oauth/callback`);
 
     // Redirect to Slack
     res.redirect(oauthUrl.toString());
