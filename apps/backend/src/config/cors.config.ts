@@ -26,7 +26,7 @@ export class CorsConfig {
     }
 
     // Frontend URL from environment
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
+    const frontendUrl = this.configService.get<string>('frontendUrl');
     if (frontendUrl) {
       origins.add(frontendUrl.replace(/\/$/, ''));
     }
