@@ -48,7 +48,9 @@ export const PasswordProtection: React.FC<PasswordProtectionProps> = ({ children
         <div className="flex justify-center mb-6">
           <Lock className="h-12 w-12 text-blue-600 dark:text-blue-400" />
         </div>
-        <h2 className="text-2xl font-bold text-center mb-6 text-gray-900 dark:text-white">Protected Application</h2>
+        <h2 className="text-2xl font-bold text-center mb-6 text-gray-900 dark:text-white">
+          Protected Application
+        </h2>
         <form onSubmit={handleSubmit}>
           <input
             type="password"
