@@ -26,6 +26,10 @@ export class SlackOauthController {
     private readonly configService: ConfigService,
   ) {
     this.logger.setContext(SlackOauthController.name);
+    
+    // Debug: Log the frontend URL configuration at startup
+    const frontendUrl = this.configService.get<string>('frontendUrl');
+    this.logger.debug(`SlackOauthController initialized with frontendUrl: ${frontendUrl}`);
   }
 
   @Get('start')
@@ -113,6 +117,7 @@ export class SlackOauthController {
 
       // Redirect to frontend with success status
       const frontendUrl = this.configService.get<string>('frontendUrl') || 'http://localhost:3000';
+      this.logger.debug(`OAuth success redirect URL: ${frontendUrl}/integrations?status=success`);
       return res.redirect(`${frontendUrl}/integrations?status=success`);
     } catch (error) {
       this.logger.error('OAuth callback error', {
@@ -120,6 +125,7 @@ export class SlackOauthController {
       });
 
       const frontendUrl = this.configService.get<string>('frontendUrl') || 'http://localhost:3000';
+      this.logger.debug(`OAuth error redirect URL: ${frontendUrl}/integrations?status=error`);
 
       if (error instanceof ApiError) {
         let errorMessage: string;
@@ -139,6 +145,7 @@ export class SlackOauthController {
 
       // Redirect to frontend with error status
       const errorMessage = 'An unexpected error occurred during installation';
+      this.logger.debug(`OAuth unexpected error redirect URL: ${frontendUrl}/integrations?status=error`);
       return res.redirect(
         `${frontendUrl}/integrations?status=error&message=${encodeURIComponent(errorMessage)}`,
       );
