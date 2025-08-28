@@ -14,11 +14,9 @@ import {
   Plus,
   CheckCircle2,
   AlertTriangle,
-  Play,
   Copy,
   BarChart3,
   Zap,
-  Send,
   Filter,
   X,
 } from 'lucide-react';
@@ -34,6 +32,7 @@ interface ActiveStandupsListProps {
   showCreateButton?: boolean;
   className?: string;
   onStandupsChange?: () => void;
+  from?: string;
 }
 
 interface DeleteModalProps {
@@ -146,6 +145,7 @@ export const ActiveStandupsList: React.FC<ActiveStandupsListProps> = ({
   showCreateButton = true,
   className = '',
   onStandupsChange,
+  from,
 }) => {
   const navigate = useNavigate();
   const [standups, setStandups] = useState<StandupConfig[]>([]);
@@ -224,84 +224,6 @@ export const ActiveStandupsList: React.FC<ActiveStandupsListProps> = ({
     toast.info('Analytics view - Coming soon!');
   };
 
-  const handleRunNow = async () => {
-    try {
-      toast.loading('Creating standup instances for today...', { id: 'run-now' });
-      const result = await standupsApi.triggerStandupForToday();
-
-      if (result.created.length > 0) {
-        toast.success(
-          `Successfully created ${result.created.length} standup instance${result.created.length > 1 ? 's' : ''}!`,
-          { id: 'run-now' }
-        );
-
-        toast.info('Slack messages will be sent at the scheduled time', {
-          duration: 4000,
-        });
-      } else if (result.skipped.length > 0) {
-        toast.warning(
-          `${result.skipped.length} standup instance${result.skipped.length > 1 ? 's' : ''} already exist for today`,
-          { id: 'run-now' }
-        );
-      } else {
-        toast.info('No standups were triggered (may not be scheduled for today)', {
-          id: 'run-now',
-        });
-      }
-    } catch (error) {
-      console.error('Error triggering standup:', error);
-      toast.error('Failed to trigger standup. Please try again.', { id: 'run-now' });
-    }
-  };
-
-  const handleRunNowAndSend = async () => {
-    try {
-      toast.loading('Creating standup instances and sending messages...', { id: 'run-now-send' });
-      const result = await standupsApi.triggerStandupAndSend();
-
-      if (result.created.length > 0) {
-        const successfulMessages = result.messages.filter(m => m.success).length;
-        const failedMessages = result.messages.filter(m => !m.success).length;
-
-        toast.success(
-          `Successfully created ${result.created.length} standup instance${result.created.length > 1 ? 's' : ''}!`,
-          { id: 'run-now-send' }
-        );
-
-        if (successfulMessages > 0) {
-          toast.success(
-            `Sent Slack messages for ${successfulMessages} standup${successfulMessages > 1 ? 's' : ''}!`,
-            {
-              duration: 4000,
-            }
-          );
-        }
-
-        if (failedMessages > 0) {
-          toast.warning(
-            `Failed to send messages for ${failedMessages} standup${failedMessages > 1 ? 's' : ''}`,
-            {
-              duration: 6000,
-            }
-          );
-        }
-      } else if (result.skipped.length > 0) {
-        toast.warning(
-          `${result.skipped.length} standup instance${result.skipped.length > 1 ? 's' : ''} already exist for today`,
-          { id: 'run-now-send' }
-        );
-      } else {
-        toast.info('No standups were triggered (may not be scheduled for today)', {
-          id: 'run-now-send',
-        });
-      }
-    } catch (error) {
-      console.error('Error triggering standup and sending messages:', error);
-      toast.error('Failed to trigger standup and send messages. Please try again.', {
-        id: 'run-now-send',
-      });
-    }
-  };
 
   const filterOptions: { value: FilterType; label: string; count: number }[] = [
     { value: 'all', label: 'All Standups', count: standups.length },
@@ -386,7 +308,7 @@ export const ActiveStandupsList: React.FC<ActiveStandupsListProps> = ({
             {showCreateButton && teamId && (
               <ModernButton
                 variant="primary"
-                onClick={() => navigate(`/teams/${teamId}/standups/wizard`)}
+                onClick={() => navigate(`/teams/${teamId}/standups/wizard`, from ? { state: { from } } : undefined)}
               >
                 <Plus className="w-4 h-4 mr-2" />
                 New Standup
@@ -591,29 +513,12 @@ export const ActiveStandupsList: React.FC<ActiveStandupsListProps> = ({
                   <div className="px-6 py-4 bg-muted/20 border-t border-border/50">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                        <span>Created {new Date(standup.createdAt).toLocaleDateString()}</span>
+                        <span>Created {new Date(standup.createdAt).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
                         <span>•</span>
-                        <span>Updated {new Date(standup.updatedAt).toLocaleDateString()}</span>
+                        <span>Updated {new Date(standup.updatedAt).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <ModernButton
-                          variant="ghost"
-                          size="sm"
-                          onClick={handleRunNow}
-                          className="text-xs"
-                        >
-                          <Play className="w-3 h-3 mr-1" />
-                          Run Now
-                        </ModernButton>
-                        <ModernButton
-                          variant="ghost"
-                          size="sm"
-                          onClick={handleRunNowAndSend}
-                          className="text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                        >
-                          <Send className="w-3 h-3 mr-1" />
-                          Run + Send
-                        </ModernButton>
+                        {/* Run buttons removed */}
                       </div>
                     </div>
                   </div>
@@ -660,7 +565,7 @@ export const ActiveStandupsList: React.FC<ActiveStandupsListProps> = ({
             {showCreateButton && teamId && (
               <ModernButton
                 variant="primary"
-                onClick={() => navigate(`/teams/${teamId}/standups/wizard`)}
+                onClick={() => navigate(`/teams/${teamId}/standups/wizard`, from ? { state: { from } } : undefined)}
                 className="inline-flex items-center gap-2"
               >
                 <Zap className="w-4 h-4" />
