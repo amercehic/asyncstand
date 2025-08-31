@@ -371,32 +371,43 @@ export class SlackMessagingService {
       }
 
       const activeConfig = instance.team.configs[0];
-      if (!activeConfig || !activeConfig.targetChannel?.channelId) {
-        throw new Error('Team does not have an active standup config with a target channel');
+      if (!activeConfig) {
+        throw new Error('Team does not have an active standup config');
       }
 
-      const targetChannelId = activeConfig.targetChannel.channelId;
+      // Get the delivery type to determine if we need channel validation
+      const deliveryType = activeConfig.deliveryType || StandupDeliveryType.channel;
+      let targetChannelId: string | null = null;
 
-      // Validate channel access before attempting to send
-      const channelValidation = await this.validateChannelAccess(
-        instance.team.integrationId,
-        targetChannelId,
-      );
+      // Only validate channel for channel delivery type
+      if (deliveryType === StandupDeliveryType.channel) {
+        if (!activeConfig.targetChannel?.channelId) {
+          throw new Error('Team does not have an active standup config with a target channel');
+        }
 
-      if (!channelValidation.isValid) {
-        const errorMsg = `Channel validation failed: ${channelValidation.error}. Channel ID: ${targetChannelId}`;
-        this.logger.error('Channel validation failed for standup reminder', {
-          instanceId,
-          teamId: instance.teamId,
-          channelId: targetChannelId,
-          integrationId: instance.team.integrationId,
-          validationError: channelValidation.error,
-        });
+        targetChannelId = activeConfig.targetChannel.channelId;
 
-        return {
-          ok: false,
-          error: errorMsg,
-        };
+        // Validate channel access before attempting to send
+        const channelValidation = await this.validateChannelAccess(
+          instance.team.integrationId,
+          targetChannelId,
+        );
+
+        if (!channelValidation.isValid) {
+          const errorMsg = `Channel validation failed: ${channelValidation.error}. Channel ID: ${targetChannelId}`;
+          this.logger.error('Channel validation failed for standup reminder', {
+            instanceId,
+            teamId: instance.teamId,
+            channelId: targetChannelId,
+            integrationId: instance.team.integrationId,
+            validationError: channelValidation.error,
+          });
+
+          return {
+            ok: false,
+            error: errorMsg,
+          };
+        }
       }
 
       const configSnapshot = instance.configSnapshot as {
@@ -421,13 +432,18 @@ export class SlackMessagingService {
         },
       };
 
-      // Get the delivery type from the active config
-      const config = instance.team.configs[0];
-      const deliveryType = config?.deliveryType || StandupDeliveryType.channel;
+      this.logger.info('Standup reminder config info', {
+        instanceId,
+        hasConfig: !!activeConfig,
+        configDeliveryType: activeConfig?.deliveryType,
+        resolvedDeliveryType: deliveryType,
+        expectedDirectMessage: StandupDeliveryType.direct_message,
+        targetChannelId,
+      });
 
       // Get current members from the config (for direct message type)
       const currentMembers =
-        config?.configMembers?.map((cm) => ({
+        activeConfig?.configMembers?.map((cm) => ({
           id: cm.teamMember.id,
           name: cm.teamMember.name || cm.teamMember.integrationUser?.name || 'Unknown',
           platformUserId:
@@ -446,17 +462,28 @@ export class SlackMessagingService {
         currentMemberCount: currentMembers.length,
         membersToNotifyCount: membersToNotify.length,
         usingCurrentMembers: currentMembers.length > 0,
+        membersToNotify: membersToNotify.map((m) => ({
+          id: m.id,
+          name: m.name,
+          platformUserId: m.platformUserId,
+          hasPlatformUserId: !!m.platformUserId,
+        })),
       });
 
-      const { text, blocks } = await this.formatter.formatStandupReminderWithMagicLinks(
-        instanceData,
-        teamName,
-        instance.team.orgId,
-      );
-
+      let text: string;
+      let blocks: (Block | KnownBlock)[];
       let result: MessageResponse;
 
       if (deliveryType === StandupDeliveryType.direct_message) {
+        // For direct messages, use magic links for each user
+        const formattedMessage = await this.formatter.formatStandupReminderWithMagicLinks(
+          instanceData,
+          teamName,
+          instance.team.orgId,
+        );
+        text = formattedMessage.text;
+        blocks = formattedMessage.blocks;
+
         // Send direct messages to each participating member
         result = await this.sendStandupReminderDMs(
           instance.team.integrationId,
@@ -465,6 +492,14 @@ export class SlackMessagingService {
           blocks,
         );
       } else {
+        // For channel delivery, use single Submit Response button format
+        const formattedMessage = this.formatter.formatStandupReminderForChannel(
+          instanceData,
+          teamName,
+        );
+        text = formattedMessage.text;
+        blocks = formattedMessage.blocks;
+
         // Send to channel (default behavior)
         this.logger.info('Attempting to send standup reminder to channel', {
           instanceId,
@@ -473,6 +508,10 @@ export class SlackMessagingService {
           channelId: targetChannelId,
           integrationId: instance.team.integrationId,
         });
+
+        if (!targetChannelId) {
+          throw new Error('Target channel ID is required for channel delivery');
+        }
 
         result = await this.sendChannelMessage(
           instance.team.integrationId,
@@ -510,11 +549,20 @@ export class SlackMessagingService {
         });
       }
 
+      this.logger.info('Standup reminder result', {
+        instanceId,
+        deliveryType,
+        resultOk: result.ok,
+        resultError: result.error,
+        resultTs: result.ts,
+      });
+
       return result;
     } catch (error) {
       this.logger.error('Failed to send standup reminder', {
         instanceId,
         error: this.getErrorMessage(error),
+        stack: error instanceof Error ? error.stack : undefined,
       });
 
       return {

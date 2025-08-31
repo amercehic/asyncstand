@@ -3,6 +3,8 @@ import { PrismaService } from '@/prisma/prisma.service';
 import { AuditLogService } from '@/common/audit/audit-log.service';
 import { LoggerService } from '@/common/logger.service';
 import { AnswerCollectionService } from '@/standups/answer-collection.service';
+import { StandupJobService } from '@/standups/jobs/standup-job.service';
+import { TimezoneService } from '@/common/services/timezone.service';
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
 import { AuditActorType, AuditCategory, AuditSeverity, ResourceAction } from '@/common/audit/types';
@@ -43,6 +45,8 @@ export class StandupInstanceService {
     private readonly auditLogService: AuditLogService,
     private readonly logger: LoggerService,
     private readonly answerCollectionService: AnswerCollectionService,
+    private readonly standupJobService: StandupJobService,
+    private readonly timezoneService: TimezoneService,
   ) {
     this.logger.setContext(StandupInstanceService.name);
   }
@@ -479,8 +483,8 @@ export class StandupInstanceService {
         };
       }
 
-      // Check if instance already exists for this team and date
-      const existingInstance = await this.prisma.standupInstance.findFirst({
+      // Check if instance already exists for this specific config and date
+      const existingInstances = await this.prisma.standupInstance.findMany({
         where: {
           teamId: config.teamId,
           targetDate: {
@@ -490,15 +494,36 @@ export class StandupInstanceService {
         },
       });
 
-      if (existingInstance) {
+      // Check if any existing instance has the same config name (from configSnapshot)
+      const configAlreadyExists = existingInstances.some((instance) => {
+        const snapshot = instance.configSnapshot as { name?: string };
+        return snapshot && snapshot.name === config.name;
+      });
+
+      this.logger.info('Checking for duplicate config instances', {
+        configId,
+        configName: config.name,
+        teamId: config.teamId,
+        targetDate: targetDate.toISOString().split('T')[0],
+        existingInstanceCount: existingInstances.length,
+        existingConfigNames: existingInstances
+          .map((i) => (i.configSnapshot as { name?: string })?.name)
+          .filter(Boolean),
+        configAlreadyExists,
+      });
+
+      if (configAlreadyExists) {
         return {
           success: false,
-          message: 'Standup instance already exists for this date',
+          message: `Standup instance already exists for configuration "${config.name}" on this date`,
         };
       }
 
       // Create the instance using optimized method
       const instance = await this.createStandupInstanceOptimized(config, targetDate);
+
+      // Schedule the collection start and timeout jobs
+      await this.scheduleCollectionJobs(instance.id, config, targetDate);
 
       return {
         instanceId: instance.id,
@@ -577,6 +602,58 @@ export class StandupInstanceService {
     });
 
     return { id: instance.id };
+  }
+
+  /**
+   * Schedule collection jobs for an instance
+   */
+  private async scheduleCollectionJobs(
+    instanceId: string,
+    config: {
+      teamId: string;
+      timezone: string;
+      timeLocal: string;
+      responseTimeoutHours: number;
+    },
+    targetDate: Date,
+  ): Promise<void> {
+    try {
+      // Calculate the start time for the standup using the config's timezone and time
+      const startTime = this.timezoneService.createDateAtTimeInTimezone(
+        targetDate,
+        config.timeLocal,
+        config.timezone,
+      );
+
+      // Calculate timeout time
+      const timeoutTime = new Date(
+        startTime.getTime() + config.responseTimeoutHours * 60 * 60 * 1000,
+      );
+
+      // Schedule the collection start job (which triggers the messaging)
+      await this.standupJobService.scheduleCollectionStart(instanceId, config.teamId, startTime);
+
+      // Schedule the collection timeout job
+      await this.standupJobService.scheduleCollectionTimeout(
+        instanceId,
+        timeoutTime,
+        config.responseTimeoutHours * 60,
+      );
+
+      this.logger.info('Collection jobs scheduled successfully', {
+        instanceId,
+        teamId: config.teamId,
+        startTime: startTime.toISOString(),
+        timeoutTime: timeoutTime.toISOString(),
+      });
+    } catch (error) {
+      this.logger.error('Failed to schedule collection jobs', {
+        instanceId,
+        teamId: config.teamId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      throw error; // Re-throw so the instance creation fails if scheduling fails
+    }
   }
 
   /**

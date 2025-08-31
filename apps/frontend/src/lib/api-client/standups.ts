@@ -96,7 +96,10 @@ export const standupsApi = {
     return this.mapStandupConfigsToStandups(configs, teamId);
   },
 
-  async createStandup(teamId: string, data: Partial<Standup>): Promise<Standup> {
+  async createStandup(
+    teamId: string,
+    data: Partial<Standup> & { memberIds?: string[] }
+  ): Promise<Standup> {
     // Map frontend Standup type to backend CreateStandupConfigDto
     const createData = {
       teamId,
@@ -122,6 +125,7 @@ export const standupsApi = {
       reminderMinutesBefore: 10,
       responseTimeoutHours: 2,
       isActive: true,
+      memberIds: data.memberIds, // Include memberIds if provided
     };
 
     const response = await api.post(`/standups/config`, createData);

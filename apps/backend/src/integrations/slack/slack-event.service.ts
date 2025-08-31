@@ -366,11 +366,20 @@ export class SlackEventService {
         },
         include: {
           team: {
-            include: {
+            select: {
+              orgId: true,
               members: {
                 where: {
-                  platformUserId: userId,
-                  active: true,
+                  OR: [
+                    {
+                      integrationUser: { externalUserId: userId },
+                      active: true,
+                    },
+                    {
+                      platformUserId: userId,
+                      active: true,
+                    },
+                  ],
                 },
               },
             },
@@ -404,11 +413,56 @@ export class SlackEventService {
 
         this.logger.info('Active instances for debugging', {
           instanceCount: allInstances.length,
+          searchedThreadTs: threadTs,
           instances: allInstances.map((i) => ({
             id: i.id,
             reminderMessageTs: i.reminderMessageTs,
             state: i.state,
             targetDate: i.targetDate,
+            timestampMatch: i.reminderMessageTs === threadTs,
+          })),
+        });
+
+        // Also check team members for this user
+        const teamMembers = await this.prisma.teamMember.findMany({
+          where: {
+            team: {
+              integration: { externalTeamId: teamId },
+            },
+            OR: [
+              {
+                integrationUser: { externalUserId: userId },
+                active: true,
+              },
+              {
+                platformUserId: userId,
+                active: true,
+              },
+            ],
+          },
+          select: {
+            id: true,
+            name: true,
+            platformUserId: true,
+            integrationUser: {
+              select: {
+                externalUserId: true,
+                name: true,
+              },
+            },
+          },
+        });
+
+        this.logger.info('Team members found for user', {
+          userId,
+          teamId,
+          memberCount: teamMembers.length,
+          members: teamMembers.map((m) => ({
+            id: m.id,
+            name: m.name,
+            platformUserId: m.platformUserId,
+            integrationUserId: m.integrationUser?.externalUserId,
+            integrationUserName: m.integrationUser?.name,
           })),
         });
 
@@ -420,16 +474,23 @@ export class SlackEventService {
           userId,
           teamId,
           instanceId: activeInstance.id,
+          membersFound: activeInstance.team.members.length,
         });
         return;
       }
 
+      const member = activeInstance.team.members[0];
       this.logger.info('Processing thread reply standup response', {
         userId,
         instanceId: activeInstance.id,
         threadTs,
         channelId,
         responseLength: text.length,
+        memberInfo: {
+          id: member.id,
+          name: member.name,
+          platformUserId: member.platformUserId,
+        },
       });
 
       // Submit the response using the team member ID

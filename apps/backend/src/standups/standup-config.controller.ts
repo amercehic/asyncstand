@@ -75,10 +75,15 @@ export class StandupConfigController {
     if (!data.teamId) {
       throw new Error('teamId is required');
     }
-    await this.standupConfigService.createStandupConfig(data.teamId, orgId, userId, data);
+    const result = await this.standupConfigService.createStandupConfig(
+      data.teamId,
+      orgId,
+      userId,
+      data,
+    );
 
-    // Return the created config with full details for the test
-    const config = await this.standupConfigService.getStandupConfig(data.teamId, orgId);
+    // Return the newly created config with full details by its specific ID
+    const config = await this.standupConfigService.getStandupConfigById(result.id, orgId);
     return config;
   }
 

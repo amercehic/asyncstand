@@ -110,8 +110,8 @@ describe('StandupConfigController', () => {
         updatedAt: new Date(),
         memberParticipation: [],
       };
-      mockStandupConfigService.createStandupConfig.mockResolvedValue(undefined);
-      mockStandupConfigService.getStandupConfig.mockResolvedValue(expectedConfig);
+      mockStandupConfigService.createStandupConfig.mockResolvedValue({ id: mockConfigId });
+      mockStandupConfigService.getStandupConfigById.mockResolvedValue(expectedConfig);
 
       const createData = { ...createDto, teamId: mockTeamId };
       const result = await controller.createStandupConfigFromBody(
@@ -127,7 +127,10 @@ describe('StandupConfigController', () => {
         mockUserId,
         createData,
       );
-      expect(mockStandupConfigService.getStandupConfig).toHaveBeenCalledWith(mockTeamId, mockOrgId);
+      expect(mockStandupConfigService.getStandupConfigById).toHaveBeenCalledWith(
+        mockConfigId,
+        mockOrgId,
+      );
     });
 
     it('should pass through service errors', async () => {

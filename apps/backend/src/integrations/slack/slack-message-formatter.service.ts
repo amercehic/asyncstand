@@ -259,6 +259,87 @@ export class SlackMessageFormatterService {
     return { text, blocks };
   }
 
+  formatStandupReminderForChannel(
+    instance: StandupInstance,
+    teamName: string,
+  ): { text: string; blocks: (Block | KnownBlock)[] } {
+    const { questions, responseTimeoutHours } = instance.configSnapshot;
+    const deadline = new Date(Date.now() + responseTimeoutHours * 60 * 60 * 1000);
+    const deadlineTime = deadline.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+
+    const text = `🌅 Daily Standup Time - ${teamName}`;
+
+    const blocks: (Block | KnownBlock)[] = [
+      {
+        type: 'header',
+        text: {
+          type: 'plain_text',
+          text: `🌅 Daily Standup Time - ${teamName}`,
+        },
+      },
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `*Today's Questions:*`,
+        },
+      },
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: questions.map((q, i) => `${i + 1}. ${q}`).join('\n'),
+        },
+      },
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `⏰ *Deadline:* ${deadlineTime} (${responseTimeoutHours} hours remaining)\n👥 *Waiting for:* ${instance.configSnapshot.participatingMembers.length} team members`,
+        },
+      },
+      {
+        type: 'actions',
+        elements: [
+          {
+            type: 'button',
+            text: {
+              type: 'plain_text',
+              text: '📝 Submit Response',
+            },
+            style: 'primary',
+            action_id: 'submit_standup_response',
+            value: instance.id,
+          },
+          {
+            type: 'button',
+            text: {
+              type: 'plain_text',
+              text: '⏭️ Skip Today',
+            },
+            action_id: 'skip_standup',
+            value: instance.id,
+          },
+        ],
+      },
+      {
+        type: 'context',
+        elements: [
+          {
+            type: 'mrkdwn',
+            text: `Use the buttons above or type \`/standup submit\` to respond`,
+          },
+        ],
+      },
+    ];
+
+    return { text, blocks };
+  }
+
   formatStandupSummary(
     instance: StandupInstance,
     answers: MemberAnswer[],

@@ -130,4 +130,14 @@ export class CreateStandupConfigDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Array of team member IDs to include in the standup configuration',
+    example: ['member-id-1', 'member-id-2'],
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  memberIds?: string[];
 }

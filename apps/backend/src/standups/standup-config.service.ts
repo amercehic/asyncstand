@@ -100,6 +100,20 @@ export class StandupConfigService {
       );
     }
 
+    // Validate memberIds if provided
+    if (data.memberIds && data.memberIds.length > 0) {
+      const validMemberIds = team.members.map((m) => m.id);
+      const invalidMemberIds = data.memberIds.filter((id) => !validMemberIds.includes(id));
+
+      if (invalidMemberIds.length > 0) {
+        throw new ApiError(
+          ErrorCode.VALIDATION_FAILED,
+          `Invalid member IDs provided: ${invalidMemberIds.join(', ')}. Members must belong to this team.`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+    }
+
     // Check for time conflicts with existing configs
     await this.validateTimeConflicts(teamId, data.weekdays, data.timeLocal, data.timezone);
 
@@ -127,17 +141,32 @@ export class StandupConfigService {
         },
       });
 
-      // Add all active team members to standup participation (default: included)
-      const memberParticipation = team.members.map((member) => ({
-        standupConfigId: config.id,
-        teamMemberId: member.id,
-        include: true,
-        role: null,
-      }));
+      // Add team members to standup configuration based on selection
+      const memberParticipation = team.members.map((member) => {
+        // If memberIds were specified, only include those members
+        // If no memberIds specified, include all members (backwards compatibility)
+        const shouldInclude = data.memberIds ? data.memberIds.includes(member.id) : false; // Default to false - require explicit selection
+
+        return {
+          standupConfigId: config.id,
+          teamMemberId: member.id,
+          include: shouldInclude,
+          role: null,
+        };
+      });
 
       if (memberParticipation.length > 0) {
         await tx.standupConfigMember.createMany({
           data: memberParticipation,
+        });
+
+        const includedCount = memberParticipation.filter((mp) => mp.include).length;
+        this.logger.info('Added team members to standup config with selective inclusion', {
+          configId: config.id,
+          totalMembers: memberParticipation.length,
+          includedMembers: includedCount,
+          memberIdsProvided: !!data.memberIds,
+          teamId,
         });
       }
 
