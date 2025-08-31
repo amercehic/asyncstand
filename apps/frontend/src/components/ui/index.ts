@@ -5,6 +5,7 @@ export { Tooltip } from '@/components/ui/Tooltip';
 export { SkipLinks } from '@/components/ui/SkipLinks';
 export { Dropdown } from '@/components/ui/Dropdown';
 export { ConfirmationModal } from '@/components/ui/ConfirmationModal';
+export { Avatar } from '@/components/ui/Avatar';
 export { Input } from '@/components/ui/input';
 export { Label } from '@/components/ui/label';
 export { Textarea } from '@/components/ui/textarea';

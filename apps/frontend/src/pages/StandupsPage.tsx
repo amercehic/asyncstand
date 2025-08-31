@@ -23,7 +23,7 @@ import {
   Bell,
   MessageSquare,
 } from 'lucide-react';
-import { ModernButton, Dropdown, toast } from '@/components/ui';
+import { ModernButton, Dropdown, Avatar, toast } from '@/components/ui';
 import { MemberDetailsView } from '@/components/MemberDetailsView';
 import { SmartReminderModal } from '@/components/SmartReminderModal';
 import { ResponseDetailsModal } from '@/components/ResponseDetailsModal';
@@ -711,11 +711,7 @@ export const StandupsPage = () => {
                 className="flex items-center justify-between p-4 bg-muted/30 rounded-lg"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                    <span className="text-sm font-medium text-primary">
-                      {member.name.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
+                  <Avatar name={member.name} avatar={member.avatar} size="sm" />
                   <div>
                     <div className="font-medium text-foreground">{member.name}</div>
                     <div className="text-sm text-muted-foreground">
