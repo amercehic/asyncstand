@@ -71,6 +71,11 @@ const StandupDetailsPage = React.lazy(() =>
     default: module.StandupDetailsPage,
   }))
 );
+const StandupConfigDetailsPage = React.lazy(() =>
+  import(/* webpackChunkName: "standups" */ '@/pages/StandupConfigDetailsPage').then(module => ({
+    default: module.StandupConfigDetailsPage,
+  }))
+);
 const StandupResponsesPage = React.lazy(() =>
   import(/* webpackChunkName: "standups" */ '@/pages/StandupResponsesPage').then(module => ({
     default: module.StandupResponsesPage,
@@ -280,6 +285,17 @@ const router = createBrowserRouter([
           <ProtectedRoute>
             <Suspense fallback={<PageLoader />}>
               <StandupConfigPage />
+            </Suspense>
+          </ProtectedRoute>
+        ),
+        errorElement: <ErrorPage />,
+      },
+      {
+        path: 'standups/:standupId/details',
+        element: (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <StandupConfigDetailsPage />
             </Suspense>
           </ProtectedRoute>
         ),

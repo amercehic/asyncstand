@@ -585,4 +585,24 @@ export const standupsApi = {
       return this.getActiveStandups(params);
     }
   },
+
+  async getStandupMetrics(configId: string) {
+    const response = await api.get(`/standups/config/${configId}/metrics`);
+    return response.data;
+  },
+
+  async getMemberStats(configId: string) {
+    const response = await api.get(`/standups/config/${configId}/member-stats`);
+    return response.data;
+  },
+
+  async getRecentInstances(configId: string) {
+    const response = await api.get(`/standups/config/${configId}/recent-instances`);
+    return response.data;
+  },
+
+  async getStandupDetails(configId: string) {
+    const response = await api.get(`/standups/config/${configId}/details`);
+    return response.data;
+  },
 };

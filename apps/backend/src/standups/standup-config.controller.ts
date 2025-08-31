@@ -19,6 +19,7 @@ import { OrgRole } from '@prisma/client';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 import { CurrentOrg } from '@/auth/decorators/current-org.decorator';
 import { StandupConfigService } from '@/standups/standup-config.service';
+import { StandupMetricsService } from '@/standups/standup-metrics.service';
 import { CreateStandupConfigDto } from '@/standups/dto/create-standup-config.dto';
 import { UpdateStandupConfigDto } from '@/standups/dto/update-standup-config.dto';
 import { UpdateMemberParticipationDto } from '@/standups/dto/update-member-participation.dto';
@@ -29,6 +30,12 @@ import {
   PreviewResponse,
   QuestionTemplate,
 } from '@/standups/types/standup-config.types';
+import {
+  StandupMetricsDto,
+  MemberStatsDto,
+  RecentInstanceDto,
+  StandupDetailsResponseDto,
+} from '@/standups/dto/standup-metrics.dto';
 import { Audit } from '@/common/audit/audit.decorator';
 import { AuditCategory, AuditSeverity } from '@/common/audit/types';
 import {
@@ -50,7 +57,10 @@ import {
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('standups/config')
 export class StandupConfigController {
-  constructor(private readonly standupConfigService: StandupConfigService) {}
+  constructor(
+    private readonly standupConfigService: StandupConfigService,
+    private readonly standupMetricsService: StandupMetricsService,
+  ) {}
 
   // Configuration CRUD endpoints
 
@@ -206,6 +216,40 @@ export class StandupConfigController {
   ): Promise<{ message: string }> {
     await this.standupConfigService.updateMemberParticipation(teamId, memberId, data);
     return { message: 'Member participation updated successfully' };
+  }
+
+  // Metrics endpoints
+
+  @Get(':configId/metrics')
+  async getStandupMetrics(
+    @Param('configId', ParseUUIDPipe) configId: string,
+    @CurrentOrg() orgId: string,
+  ): Promise<StandupMetricsDto> {
+    return this.standupMetricsService.getStandupMetrics(configId, orgId);
+  }
+
+  @Get(':configId/member-stats')
+  async getMemberStats(
+    @Param('configId', ParseUUIDPipe) configId: string,
+    @CurrentOrg() orgId: string,
+  ): Promise<MemberStatsDto[]> {
+    return this.standupMetricsService.getMemberStats(configId, orgId);
+  }
+
+  @Get(':configId/recent-instances')
+  async getRecentInstances(
+    @Param('configId', ParseUUIDPipe) configId: string,
+    @CurrentOrg() orgId: string,
+  ): Promise<RecentInstanceDto[]> {
+    return this.standupMetricsService.getRecentInstances(configId, orgId);
+  }
+
+  @Get(':configId/details')
+  async getStandupDetails(
+    @Param('configId', ParseUUIDPipe) configId: string,
+    @CurrentOrg() orgId: string,
+  ): Promise<StandupDetailsResponseDto> {
+    return this.standupMetricsService.getStandupDetails(configId, orgId);
   }
 
   // Utility endpoints

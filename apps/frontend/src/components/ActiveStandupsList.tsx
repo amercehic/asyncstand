@@ -14,7 +14,6 @@ import {
   Plus,
   CheckCircle2,
   AlertTriangle,
-  Copy,
   BarChart3,
   Zap,
   Filter,
@@ -33,6 +32,7 @@ interface ActiveStandupsListProps {
   className?: string;
   onStandupsChange?: () => void;
   from?: string;
+  terminology?: 'standups' | 'configurations';
 }
 
 interface DeleteModalProps {
@@ -146,8 +146,27 @@ export const ActiveStandupsList: React.FC<ActiveStandupsListProps> = ({
   className = '',
   onStandupsChange,
   from,
+  terminology = 'standups',
 }) => {
   const navigate = useNavigate();
+
+  // Helper functions for terminology
+  const getTitle = () =>
+    terminology === 'configurations' ? 'Active Standup Configurations' : 'Active Standups';
+  const getSingular = () => (terminology === 'configurations' ? 'configuration' : 'standup');
+  const getPlural = () => (terminology === 'configurations' ? 'configurations' : 'standups');
+  const getNewButtonText = () =>
+    terminology === 'configurations' ? 'New Standup Configuration' : 'New Standup';
+  const getEmptyTitle = () =>
+    terminology === 'configurations' ? 'No Active Standup Configurations' : 'No Active Standups';
+  const getEmptyDescription = () =>
+    terminology === 'configurations'
+      ? 'Get started by creating your first standup configuration to begin collecting async updates from your team.'
+      : 'Get started by creating your first standup configuration to begin collecting async updates from your team.';
+  const getCreateFirstText = () =>
+    terminology === 'configurations'
+      ? 'Create Your First Configuration'
+      : 'Create Your First Standup';
   const [standups, setStandups] = useState<StandupConfig[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
@@ -212,11 +231,6 @@ export const ActiveStandupsList: React.FC<ActiveStandupsListProps> = ({
 
   const handleEditStandup = (standup: StandupConfig) => {
     navigate(`/standups/${standup.id}/edit`);
-  };
-
-  const handleDuplicateStandup = () => {
-    // TODO: Implement duplication
-    toast.info('Duplicate standup - Coming soon!');
   };
 
   const handleViewAnalytics = () => {
@@ -298,9 +312,9 @@ export const ActiveStandupsList: React.FC<ActiveStandupsListProps> = ({
         <div className="space-y-4 mb-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold">Active Standups</h2>
+              <h2 className="text-2xl font-bold">{getTitle()}</h2>
               <p className="text-muted-foreground">
-                {standups.length} standup{standups.length !== 1 ? 's' : ''} configured
+                {standups.length} {standups.length === 1 ? getSingular() : getPlural()} configured
                 {activeFilter !== 'all' && <span> • {filteredStandups.length} showing</span>}
               </p>
             </div>
@@ -315,7 +329,7 @@ export const ActiveStandupsList: React.FC<ActiveStandupsListProps> = ({
                 }
               >
                 <Plus className="w-4 h-4 mr-2" />
-                New Standup
+                {getNewButtonText()}
               </ModernButton>
             )}
           </div>
@@ -488,17 +502,12 @@ export const ActiveStandupsList: React.FC<ActiveStandupsListProps> = ({
                             {
                               label: 'View Details',
                               icon: Eye,
-                              onClick: () => toast.info('View details - Coming soon!'),
+                              onClick: () => navigate(`/standups/${standup.id}/details`),
                             },
                             {
                               label: 'Edit Standup',
                               icon: Edit,
                               onClick: () => handleEditStandup(standup),
-                            },
-                            {
-                              label: 'Duplicate',
-                              icon: Copy,
-                              onClick: () => handleDuplicateStandup(),
                             },
                             { type: 'separator' },
                             {
@@ -573,10 +582,9 @@ export const ActiveStandupsList: React.FC<ActiveStandupsListProps> = ({
             <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
               <Calendar className="w-10 h-10 text-primary" />
             </div>
-            <h3 className="text-xl font-semibold mb-3">No Active Standups</h3>
+            <h3 className="text-xl font-semibold mb-3">{getEmptyTitle()}</h3>
             <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-              Get started by creating your first standup configuration to begin collecting async
-              updates from your team.
+              {getEmptyDescription().split(' async')[0]} async updates from your team.
             </p>
             {showCreateButton && teamId && (
               <ModernButton
@@ -590,7 +598,7 @@ export const ActiveStandupsList: React.FC<ActiveStandupsListProps> = ({
                 className="inline-flex items-center gap-2"
               >
                 <Zap className="w-4 h-4" />
-                Create Your First Standup
+                {getCreateFirstText()}
               </ModernButton>
             )}
           </motion.div>

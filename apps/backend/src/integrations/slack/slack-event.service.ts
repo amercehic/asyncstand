@@ -941,6 +941,30 @@ export class SlackEventService {
         return;
       }
 
+      // Check if user has already submitted answers for this standup
+      const existingAnswers = await this.prisma.answer.findFirst({
+        where: {
+          standupInstanceId: instanceId,
+          teamMemberId: teamMember.id,
+        },
+      });
+
+      if (existingAnswers) {
+        this.logger.warn('User has already submitted responses, cannot skip', {
+          instanceId,
+          userId,
+          teamMemberId: teamMember.id,
+        });
+
+        // Send message to user that they've already submitted
+        await this.slackMessaging.sendDirectMessage(
+          integration.id,
+          userId,
+          '⚠️ You have already submitted your responses for this standup and cannot skip it.',
+        );
+        return;
+      }
+
       // Record skip (could create a separate skip table or use a special answer)
       this.logger.info('User skipped standup', {
         instanceId,

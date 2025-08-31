@@ -213,7 +213,7 @@ export const TeamDetailPage = React.memo(() => {
   const tabs = [
     { id: 'overview' as TabType, label: 'Overview', icon: BarChart3 },
     { id: 'members' as TabType, label: 'Members', icon: Users },
-    { id: 'standups' as TabType, label: 'Standups', icon: Calendar },
+    { id: 'standups' as TabType, label: 'Standup Configurations', icon: Calendar },
     { id: 'settings' as TabType, label: 'Settings', icon: Settings },
   ];
 
@@ -372,7 +372,9 @@ export const TeamDetailPage = React.memo(() => {
                         <Calendar className="w-6 h-6 text-white" />
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground font-medium">Active Standups</p>
+                        <p className="text-sm text-muted-foreground font-medium">
+                          Active Configurations
+                        </p>
                         <p className="text-3xl font-bold bg-gradient-to-r from-emerald-500 to-emerald-600 bg-clip-text text-transparent">
                           {teamStats.activeCount}
                         </p>
@@ -444,7 +446,7 @@ export const TeamDetailPage = React.memo(() => {
                         <Plus className="w-5 h-5 text-emerald-500" />
                       </div>
                       <div>
-                        <p className="font-medium text-sm">Create Standup</p>
+                        <p className="font-medium text-sm">Create Standup Configuration</p>
                         <p className="text-xs text-muted-foreground">Start a new standup routine</p>
                       </div>
                     </div>
@@ -645,6 +647,7 @@ export const TeamDetailPage = React.memo(() => {
                 teamId={teamId!}
                 onStandupsChange={fetchStandupsOnly}
                 from={`/teams/${teamId}`}
+                terminology="configurations"
               />
             </motion.div>
           )}
