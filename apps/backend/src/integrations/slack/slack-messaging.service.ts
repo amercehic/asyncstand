@@ -502,6 +502,12 @@ export class SlackMessagingService {
           where: { id: instanceId },
           data: updateData,
         });
+
+        this.logger.info('Saved reminderMessageTs', {
+          instanceId,
+          reminderMessageTs: result.ts,
+          deliveryType,
+        });
       }
 
       return result;

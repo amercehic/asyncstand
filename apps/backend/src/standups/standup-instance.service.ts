@@ -14,6 +14,7 @@ import {
 } from '@/standups/dto/participation-status.dto';
 
 interface ConfigSnapshot {
+  name: string; // Added standup configuration name
   questions: string[];
   responseTimeoutHours: number;
   reminderMinutesBefore: number;
@@ -24,6 +25,13 @@ interface ConfigSnapshot {
   }>;
   timezone: string;
   timeLocal: string;
+  deliveryType: string;
+  targetChannelId?: string;
+  targetChannel?: {
+    id: string;
+    channelId: string;
+    name: string;
+  };
 }
 
 @Injectable()
@@ -63,6 +71,7 @@ export class StandupInstanceService {
                 },
               },
             },
+            targetChannel: true,
           },
           orderBy: { createdAt: 'desc' },
           take: 1,
@@ -95,7 +104,11 @@ export class StandupInstanceService {
     });
 
     if (existingInstance) {
-      return { id: existingInstance.id };
+      throw new ApiError(
+        ErrorCode.VALIDATION_FAILED,
+        'Standup instance already exists for this date',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     // Create config snapshot
@@ -113,12 +126,22 @@ export class StandupInstanceService {
     });
 
     const configSnapshot: ConfigSnapshot = {
+      name: config.name, // Include the standup configuration name
       questions: config.questions,
       responseTimeoutHours: config.responseTimeoutHours,
       reminderMinutesBefore: config.reminderMinutesBefore,
-      timezone: team.timezone,
+      timezone: config.timezone,
       timeLocal: config.timeLocal,
       participatingMembers,
+      deliveryType: config.deliveryType,
+      targetChannelId: config.targetChannelId,
+      targetChannel: config.targetChannel
+        ? {
+            id: config.targetChannel.id,
+            channelId: config.targetChannel.channelId,
+            name: config.targetChannel.name,
+          }
+        : undefined,
     };
 
     // Create instance
@@ -235,8 +258,16 @@ export class StandupInstanceService {
     limit = 50,
     offset = 0,
   ): Promise<StandupInstanceDto[]> {
+    this.logger.debug('Getting active instances', { orgId, teamId, limit, offset });
+
     const where: Prisma.StandupInstanceWhereInput = {
-      team: { orgId },
+      team: {
+        orgId,
+        // Only include instances where the team has at least one standup config
+        configs: {
+          some: {},
+        },
+      },
       state: { in: [StandupInstanceState.PENDING, StandupInstanceState.COLLECTING] },
     };
 
@@ -253,6 +284,17 @@ export class StandupInstanceService {
       orderBy: [{ targetDate: 'desc' }, { createdAt: 'desc' }],
       take: limit,
       skip: offset,
+    });
+
+    this.logger.debug('Found instances (filtered for teams with active configs)', {
+      count: instances.length,
+      instances: instances.map((i) => ({
+        id: i.id,
+        teamId: i.teamId,
+        teamName: i.team?.name,
+        targetDate: i.targetDate,
+        state: i.state,
+      })),
     });
 
     return instances.map((instance) => this.mapToDto(instance));
@@ -303,11 +345,12 @@ export class StandupInstanceService {
    */
   async createInstancesForDate(
     targetDate: Date,
-  ): Promise<{ created: string[]; skipped: string[] }> {
+  ): Promise<{ created: string[]; skipped: string[]; skipReasons?: Record<string, string> }> {
     this.logger.info('Creating instances for date', { targetDate });
 
     const created: string[] = [];
     const skipped: string[] = [];
+    const skipReasons: Record<string, string> = {};
 
     // Get all teams with active standup configs
     const teams = await this.prisma.team.findMany({
@@ -328,18 +371,60 @@ export class StandupInstanceService {
     for (const team of teams) {
       try {
         const shouldCreate = await this.shouldCreateStandupToday(team.id, targetDate);
+
         if (shouldCreate) {
-          const result = await this.createStandupInstance(team.id, targetDate);
-          created.push(result.id);
+          // Check if instance already exists
+          const existingInstance = await this.prisma.standupInstance.findFirst({
+            where: {
+              teamId: team.id,
+              targetDate: {
+                gte: new Date(
+                  targetDate.getFullYear(),
+                  targetDate.getMonth(),
+                  targetDate.getDate(),
+                ),
+                lt: new Date(
+                  targetDate.getFullYear(),
+                  targetDate.getMonth(),
+                  targetDate.getDate() + 1,
+                ),
+              },
+            },
+          });
+
+          if (existingInstance) {
+            skipped.push(team.id);
+            skipReasons[team.id] = 'Instance already exists for this date';
+            this.logger.debug('Skipping team - instance already exists', {
+              teamId: team.id,
+              existingInstanceId: existingInstance.id,
+              targetDate,
+            });
+          } else {
+            const result = await this.createStandupInstance(team.id, targetDate);
+            created.push(result.id);
+            this.logger.debug('Created new instance for team', {
+              teamId: team.id,
+              instanceId: result.id,
+              targetDate,
+            });
+          }
         } else {
           skipped.push(team.id);
+          skipReasons[team.id] = 'Team is not scheduled for standups on this day';
+          this.logger.debug('Skipping team - not scheduled for this day', {
+            teamId: team.id,
+            targetDate,
+          });
         }
       } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         this.logger.error('Failed to create instance for team', {
           teamId: team.id,
-          error: error instanceof Error ? error.message : 'Unknown error',
+          error: errorMessage,
         });
         skipped.push(team.id);
+        skipReasons[team.id] = `Error: ${errorMessage}`;
       }
     }
 
@@ -347,9 +432,10 @@ export class StandupInstanceService {
       targetDate,
       created: created.length,
       skipped: skipped.length,
+      skipReasons,
     });
 
-    return { created, skipped };
+    return { created, skipped, skipReasons };
   }
 
   /**
@@ -368,14 +454,27 @@ export class StandupInstanceService {
     });
 
     if (!team || !team.configs[0]) {
+      this.logger.debug('shouldCreateStandupToday: no team or config found', { teamId });
       return false;
     }
 
     const config = team.configs[0];
 
-    // Convert date to team's timezone and check weekday
-    const teamDate = this.convertToTeamTimezone(date, team.timezone);
-    const weekday = teamDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    // Convert date to config's timezone and check weekday
+    const configDate = this.convertToTeamTimezone(date, config.timezone);
+    const weekday = configDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+
+    const shouldCreate = config.weekdays.includes(weekday);
+
+    this.logger.debug('shouldCreateStandupToday: checking weekday', {
+      teamId,
+      originalDate: date.toISOString(),
+      configTimezone: config.timezone,
+      configDate: configDate.toISOString(),
+      weekday,
+      configWeekdays: config.weekdays,
+      shouldCreate,
+    });
 
     return config.weekdays.includes(weekday);
   }
@@ -412,11 +511,11 @@ export class StandupInstanceService {
 
     const config = team.configs[0];
     const now = new Date();
-    const teamNow = this.convertToTeamTimezone(now, team.timezone);
+    const configNow = this.convertToTeamTimezone(now, config.timezone);
 
     // Find next scheduled weekday
     for (let i = 1; i <= 7; i++) {
-      const checkDate = new Date(teamNow);
+      const checkDate = new Date(configNow);
       checkDate.setDate(checkDate.getDate() + i);
       const weekday = checkDate.getDay();
 
@@ -444,7 +543,7 @@ export class StandupInstanceService {
     const configSnapshot = instance.configSnapshot as unknown as ConfigSnapshot;
     const [hours, minutes] = configSnapshot.timeLocal.split(':').map(Number);
 
-    const startTime = this.convertToTeamTimezone(instance.targetDate, instance.team.timezone);
+    const startTime = this.convertToTeamTimezone(instance.targetDate, configSnapshot.timezone);
     startTime.setHours(hours, minutes, 0, 0);
 
     return startTime;
@@ -646,17 +745,45 @@ export class StandupInstanceService {
     const teamDate = new Date(date);
 
     // Basic timezone offset mapping (simplified)
-    const timezoneOffsets: Record<string, number> = {
+    const timezoneOffsets: Record<string, string | number> = {
       'America/New_York': -5,
       'America/Los_Angeles': -8,
       'Europe/London': 0,
       'Europe/Berlin': 1,
       'Asia/Tokyo': 9,
+      UTC: 0,
       // Add more as needed
     };
 
-    const offset = timezoneOffsets[timezone] || 0;
-    teamDate.setHours(teamDate.getHours() + offset);
+    const offset = timezoneOffsets[timezone];
+
+    // If timezone is 'UTC' or offset is 0, don't modify the date
+    if (timezone === 'UTC' || offset === 0) {
+      this.logger.debug('convertToTeamTimezone: UTC timezone, returning original date', {
+        originalDate: date.toISOString(),
+        timezone,
+        weekday: date.getDay(),
+      });
+      return teamDate;
+    }
+
+    // Apply offset for other timezones
+    if (typeof offset === 'number') {
+      teamDate.setHours(teamDate.getHours() + offset);
+      this.logger.debug('convertToTeamTimezone: applied offset', {
+        originalDate: date.toISOString(),
+        convertedDate: teamDate.toISOString(),
+        timezone,
+        offset,
+        originalWeekday: date.getDay(),
+        convertedWeekday: teamDate.getDay(),
+      });
+    } else {
+      this.logger.warn('convertToTeamTimezone: unknown timezone, using UTC', {
+        timezone,
+        originalDate: date.toISOString(),
+      });
+    }
 
     return teamDate;
   }
@@ -707,10 +834,29 @@ export class StandupInstanceService {
     const totalMembers = configSnapshot.participatingMembers.length;
     const responseRate = totalMembers > 0 ? Math.round((respondedMembers / totalMembers) * 100) : 0;
 
+    // Build member details from configSnapshot
+    const members = configSnapshot.participatingMembers.map((member) => {
+      const hasResponded = uniqueRespondents.has(member.id);
+      return {
+        id: member.id,
+        name: member.name,
+        platformUserId: member.platformUserId,
+        status: (hasResponded ? 'completed' : 'not_started') as
+          | 'completed'
+          | 'not_started'
+          | 'in_progress',
+        lastReminderSent: undefined as string | undefined,
+        reminderCount: 0,
+        responseTime: undefined as string | undefined,
+        isLate: false,
+      };
+    });
+
     return {
       id: instance.id,
       teamId: instance.teamId,
       teamName: instance.team?.name || 'Unknown Team',
+      configName: configSnapshot.name, // Extract config name for easy frontend access
       targetDate: instance.targetDate.toISOString().split('T')[0],
       state: instance.state,
       configSnapshot,
@@ -718,6 +864,84 @@ export class StandupInstanceService {
       totalMembers,
       respondedMembers,
       responseRate,
+      members,
+    };
+  }
+
+  /**
+   * Get individual member response for a standup instance
+   */
+  async getMemberResponse(
+    instanceId: string,
+    memberId: string,
+    orgId: string,
+  ): Promise<{
+    instanceId: string;
+    memberId: string;
+    memberName: string;
+    answers: Record<string, string>;
+    submittedAt?: string;
+    isComplete: boolean;
+  }> {
+    this.logger.debug('Getting member response', { instanceId, memberId, orgId });
+
+    // Get the instance to validate it exists and belongs to the org
+    const instance = await this.prisma.standupInstance.findFirst({
+      where: {
+        id: instanceId,
+        team: {
+          orgId: orgId,
+        },
+      },
+      include: {
+        answers: {
+          where: {
+            teamMemberId: memberId,
+          },
+          orderBy: {
+            questionIndex: 'asc',
+          },
+        },
+        team: {
+          include: {
+            members: {
+              where: { id: memberId },
+            },
+          },
+        },
+      },
+    });
+
+    if (!instance) {
+      throw new ApiError(ErrorCode.NOT_FOUND, 'Standup instance not found', HttpStatus.NOT_FOUND);
+    }
+
+    const member = instance.team.members[0];
+    if (!member) {
+      throw new ApiError(ErrorCode.NOT_FOUND, 'Team member not found', HttpStatus.NOT_FOUND);
+    }
+
+    // Get config snapshot for question count
+    const configSnapshot = instance.configSnapshot as unknown as ConfigSnapshot;
+    const totalQuestions = configSnapshot.questions.length;
+
+    // Map answers to the expected format (Record<string, string>)
+    const answersRecord: Record<string, string> = {};
+    instance.answers.forEach((answer: { questionIndex: number; text: string }) => {
+      answersRecord[answer.questionIndex.toString()] = answer.text || '';
+    });
+
+    const isComplete = instance.answers.length === totalQuestions;
+    const submittedAt =
+      instance.answers.length > 0 ? instance.answers[0]?.submittedAt?.toISOString() : undefined;
+
+    return {
+      instanceId,
+      memberId,
+      memberName: member.name,
+      answers: answersRecord,
+      submittedAt,
+      isComplete,
     };
   }
 }

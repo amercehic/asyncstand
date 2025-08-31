@@ -31,7 +31,7 @@ describe('AuthController', () => {
       validateToken: jest.fn().mockReturnValue(true),
     } as unknown as jest.Mocked<CsrfService>;
 
-    mockRequest = AuthFactory.buildMockRequest() as Partial<Request>;
+    mockRequest = AuthFactory.buildMockRequest() as unknown as Partial<Request>;
     mockResponse = {
       cookie: jest.fn().mockReturnThis(),
       clearCookie: jest.fn().mockReturnThis(),
@@ -230,9 +230,18 @@ describe('AuthController', () => {
         cookies: {},
       };
 
-      await expect(
-        controller.logout(undefined, mockRequest as Request, mockResponse as Response),
-      ).rejects.toThrow(ApiError);
+      const result = await controller.logout(
+        undefined,
+        mockRequest as Request,
+        mockResponse as Response,
+      );
+
+      expect(result).toEqual({
+        success: true,
+        message: 'Logged out successfully',
+      });
+      expect(mockResponse.clearCookie).toHaveBeenCalledWith('refreshToken');
+      expect(mockAuthService.logout).not.toHaveBeenCalled();
     });
   });
 

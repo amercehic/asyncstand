@@ -141,6 +141,7 @@ export interface ActiveStandup {
   id: string;
   teamId: string;
   teamName: string;
+  configName?: string; // Name of the standup configuration
   targetDate: string;
   state: 'pending' | 'collecting' | 'completed' | 'cancelled';
   totalMembers: number;

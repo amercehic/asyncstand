@@ -187,6 +187,10 @@ export class SlackEventService {
         eventType: event.type,
         teamId,
         userId: event.user,
+        thread_ts: event.thread_ts,
+        channel: event.channel,
+        text: event.text?.substring(0, 50) + (event.text?.length > 50 ? '...' : ''),
+        bot_id: event.bot_id,
       });
 
       switch (event.type) {
@@ -297,6 +301,14 @@ export class SlackEventService {
   }
 
   private async handleMessage(event: SlackEvent, _teamId: string): Promise<void> {
+    this.logger.info('handleMessage called', {
+      channel: event.channel,
+      thread_ts: event.thread_ts,
+      bot_id: event.bot_id,
+      user: event.user,
+      text_preview: event.text?.substring(0, 50),
+    });
+
     // Handle direct messages to the bot
     if (event.channel?.startsWith('D')) {
       this.logger.info('Direct message received', {
@@ -312,9 +324,10 @@ export class SlackEventService {
 
     // Handle thread replies to standup reminders
     if (event.thread_ts && event.text && event.user && !event.bot_id) {
-      this.logger.debug('Thread reply received', {
+      this.logger.info('Thread reply detected', {
         user: event.user,
-        text: event.text,
+        text_length: event.text.length,
+        text_preview: event.text.substring(0, 100),
         thread_ts: event.thread_ts,
         channel: event.channel,
       });
@@ -335,20 +348,20 @@ export class SlackEventService {
     teamId: string,
   ): Promise<void> {
     try {
+      this.logger.info('Looking for standup instance by thread timestamp', {
+        threadTs,
+        channelId,
+        teamId,
+      });
+
       // Find standup instance by matching the thread timestamp to the reminder message
+      // First try to find by exact thread timestamp and team
       const activeInstance = await this.prisma.standupInstance.findFirst({
         where: {
           reminderMessageTs: threadTs,
           state: { in: ['pending', 'collecting'] },
           team: {
             integration: { externalTeamId: teamId },
-            configs: {
-              some: {
-                targetChannel: {
-                  channelId: channelId,
-                },
-              },
-            },
           },
         },
         include: {
@@ -366,12 +379,39 @@ export class SlackEventService {
       });
 
       if (!activeInstance) {
-        this.logger.debug('No active standup found for thread reply', {
+        this.logger.warn('No active standup found for thread reply', {
           userId,
           teamId,
           threadTs,
           channelId,
         });
+
+        // Let's check what instances exist to debug
+        const allInstances = await this.prisma.standupInstance.findMany({
+          where: {
+            state: { in: ['pending', 'collecting'] },
+            team: {
+              integration: { externalTeamId: teamId },
+            },
+          },
+          select: {
+            id: true,
+            reminderMessageTs: true,
+            state: true,
+            targetDate: true,
+          },
+        });
+
+        this.logger.info('Active instances for debugging', {
+          instanceCount: allInstances.length,
+          instances: allInstances.map((i) => ({
+            id: i.id,
+            reminderMessageTs: i.reminderMessageTs,
+            state: i.state,
+            targetDate: i.targetDate,
+          })),
+        });
+
         return;
       }
 

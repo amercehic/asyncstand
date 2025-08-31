@@ -55,6 +55,22 @@ export const ResponseDetailsModal: React.FC<ResponseDetailsModalProps> = ({
     return undefined;
   }, [isOpen, onClose]);
 
+  // Prevent background scrolling when modal is open
+  React.useEffect(() => {
+    if (isOpen) {
+      // Store original overflow style
+      const originalStyle = window.getComputedStyle(document.body).overflow;
+      // Prevent scrolling
+      document.body.style.overflow = 'hidden';
+
+      // Cleanup function to restore original scroll behavior
+      return () => {
+        document.body.style.overflow = originalStyle;
+      };
+    }
+    return undefined;
+  }, [isOpen]);
+
   useEffect(() => {
     if (response?.answers) {
       setEditedAnswers(response.answers);

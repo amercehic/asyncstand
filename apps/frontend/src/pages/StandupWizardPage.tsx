@@ -60,8 +60,9 @@ export const StandupWizardPage: React.FC = () => {
   const handleCancel = () => {
     // Check if user came from the teams listing page
     const referrer = location.state?.from || document.referrer;
-    const cameFromTeamsListing = referrer?.includes('/teams') && !referrer?.includes(`/teams/${teamId}`);
-    
+    const cameFromTeamsListing =
+      referrer?.includes('/teams') && !referrer?.includes(`/teams/${teamId}`);
+
     if (cameFromTeamsListing || location.state?.from === '/teams') {
       navigate('/teams');
     } else {

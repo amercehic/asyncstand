@@ -1,6 +1,7 @@
-import { Injectable, HttpStatus } from '@nestjs/common';
+import { Injectable, HttpStatus, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 import { LoggerService } from '@/common/logger.service';
+import { SlackApiService } from '@/integrations/slack/slack-api.service';
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
 import { CreateStandupConfigDto } from '@/standups/dto/create-standup-config.dto';
@@ -21,6 +22,8 @@ export class StandupConfigService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly logger: LoggerService,
+    @Inject(forwardRef(() => SlackApiService))
+    private readonly slackApi: SlackApiService,
   ) {
     this.logger.setContext(StandupConfigService.name);
   }
@@ -148,6 +151,58 @@ export class StandupConfigService {
       teamId,
       createdByUserId,
     });
+
+    // If this is a channel-based standup, automatically join the bot to the channel
+    if (data.deliveryType === 'channel' && data.targetChannelId && team.integrationId) {
+      try {
+        // Get the target channel details to get the Slack channel ID
+        const targetChannel = await this.prisma.channel.findUnique({
+          where: { id: data.targetChannelId },
+          select: { channelId: true, name: true },
+        });
+
+        if (targetChannel?.channelId) {
+          this.logger.info('Attempting to join bot to channel', {
+            configId: result.id,
+            channelId: targetChannel.channelId,
+            channelName: targetChannel.name,
+            integrationId: team.integrationId,
+          });
+
+          const joinResult = await this.slackApi.joinChannel(
+            team.integrationId,
+            targetChannel.channelId,
+          );
+
+          if (joinResult.success) {
+            this.logger.info('Bot successfully joined channel', {
+              configId: result.id,
+              channelId: targetChannel.channelId,
+              channelName: targetChannel.name,
+            });
+          } else {
+            this.logger.warn('Failed to join bot to channel', {
+              configId: result.id,
+              channelId: targetChannel.channelId,
+              channelName: targetChannel.name,
+              error: joinResult.error,
+            });
+          }
+        } else {
+          this.logger.warn('Target channel not found for bot joining', {
+            configId: result.id,
+            targetChannelId: data.targetChannelId,
+          });
+        }
+      } catch (error) {
+        // Don't fail the entire config creation if bot joining fails
+        this.logger.error('Error joining bot to channel', {
+          configId: result.id,
+          targetChannelId: data.targetChannelId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
 
     return { id: result.id };
   }

@@ -211,6 +211,39 @@ export class StandupInstanceController {
     return this.standupInstanceService.getInstanceParticipation(instanceId, orgId);
   }
 
+  @Get(':id/members')
+  @ApiOperation({ summary: 'Get list of members for an instance' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of instance members with their status',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Standup instance not found',
+  })
+  async getInstanceMembers(
+    @Param('id') instanceId: string,
+    @CurrentOrg() orgId: string,
+  ): Promise<
+    Array<{
+      id: string;
+      name: string;
+      platformUserId: string;
+      status: 'completed' | 'not_started' | 'in_progress';
+      lastReminderSent?: string;
+      reminderCount: number;
+      responseTime?: string;
+      isLate: boolean;
+    }>
+  > {
+    const instance = await this.standupInstanceService.getInstanceWithDetails(instanceId, orgId);
+    if (!instance) {
+      throw new ApiError(ErrorCode.NOT_FOUND, 'Standup instance not found', HttpStatus.NOT_FOUND);
+    }
+
+    return instance.members;
+  }
+
   @Get(':id/participating-members')
   @ApiOperation({ summary: 'Get list of participating members for an instance' })
   @ApiResponse({
@@ -225,6 +258,31 @@ export class StandupInstanceController {
     @Param('id') instanceId: string,
   ): Promise<Array<{ id: string; name: string; platformUserId: string }>> {
     return this.standupInstanceService.getParticipatingMembers(instanceId);
+  }
+
+  @Get(':id/responses/:memberId')
+  @ApiOperation({ summary: 'Get individual member response for an instance' })
+  @ApiResponse({
+    status: 200,
+    description: 'Member response data',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Standup instance or member response not found',
+  })
+  async getMemberResponse(
+    @Param('id') instanceId: string,
+    @Param('memberId') memberId: string,
+    @CurrentOrg() orgId: string,
+  ): Promise<{
+    instanceId: string;
+    memberId: string;
+    memberName: string;
+    answers: Record<string, string>;
+    submittedAt?: string;
+    isComplete: boolean;
+  }> {
+    return this.standupInstanceService.getMemberResponse(instanceId, memberId, orgId);
   }
 
   @Get(':id/completion-check')
@@ -265,7 +323,7 @@ export class StandupInstanceController {
   })
   async createInstancesForDate(
     @Body() body: { targetDate: string },
-  ): Promise<{ created: string[]; skipped: string[] }> {
+  ): Promise<{ created: string[]; skipped: string[]; skipReasons?: Record<string, string> }> {
     const targetDate = new Date(body.targetDate);
 
     if (isNaN(targetDate.getTime())) {
@@ -303,6 +361,7 @@ export class StandupInstanceController {
   async createInstancesAndTrigger(@Body() body: { targetDate: string }): Promise<{
     created: string[];
     skipped: string[];
+    skipReasons?: Record<string, string>;
     messages: { instanceId: string; success: boolean; error?: string }[];
   }> {
     const targetDate = new Date(body.targetDate);
@@ -341,6 +400,7 @@ export class StandupInstanceController {
     return {
       created: createResult.created,
       skipped: createResult.skipped,
+      skipReasons: createResult.skipReasons,
       messages: messageResults,
     };
   }

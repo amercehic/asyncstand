@@ -2,6 +2,12 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class StandupInstanceConfigSnapshot {
   @ApiProperty({
+    description: 'Name of the standup configuration',
+    example: 'Daily Standup',
+  })
+  name: string;
+
+  @ApiProperty({
     description: 'Questions for the standup',
     example: ['What did you work on?', 'What will you work on today?', 'Any blockers?'],
   })
@@ -61,6 +67,12 @@ export class StandupInstanceDto {
   teamName: string;
 
   @ApiProperty({
+    description: 'Name of the standup configuration',
+    example: 'Daily Standup',
+  })
+  configName: string;
+
+  @ApiProperty({
     description: 'Target date for this standup instance',
     example: '2024-01-15',
   })
@@ -101,4 +113,40 @@ export class StandupInstanceDto {
     example: 60,
   })
   responseRate: number;
+
+  @ApiProperty({
+    description: 'Detailed member information',
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'Member ID' },
+        name: { type: 'string', description: 'Member name' },
+        platformUserId: { type: 'string', description: 'Platform user ID' },
+        status: {
+          type: 'string',
+          enum: ['not_started', 'in_progress', 'completed'],
+          description: 'Response status',
+        },
+        lastReminderSent: {
+          type: 'string',
+          format: 'date-time',
+          description: 'Last reminder time',
+        },
+        reminderCount: { type: 'number', description: 'Number of reminders sent' },
+        responseTime: { type: 'string', format: 'date-time', description: 'Time of response' },
+        isLate: { type: 'boolean', description: 'Whether response was late' },
+      },
+    },
+  })
+  members: Array<{
+    id: string;
+    name: string;
+    platformUserId: string;
+    status: 'not_started' | 'in_progress' | 'completed';
+    lastReminderSent?: string;
+    reminderCount: number;
+    responseTime?: string;
+    isLate: boolean;
+  }>;
 }

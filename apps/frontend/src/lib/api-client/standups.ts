@@ -193,12 +193,16 @@ export const standupsApi = {
     return response.data;
   },
 
-  async triggerStandup(standupId: string): Promise<StandupInstance> {
-    const response = await api.post<StandupInstance>(`/standups/${standupId}/trigger`);
+  async shouldCreateStandupToday(teamId: string): Promise<{ shouldCreate: boolean; date: string }> {
+    const response = await api.get(`/standups/instances/team/${teamId}/should-create-today`);
     return response.data;
   },
 
-  async triggerStandupForToday(): Promise<{ created: string[]; skipped: string[] }> {
+  async triggerStandupForToday(): Promise<{
+    created: string[];
+    skipped: string[];
+    skipReasons?: Record<string, string>;
+  }> {
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
     const response = await api.post('/standups/instances/create-for-date', {
       targetDate: today,
@@ -209,6 +213,7 @@ export const standupsApi = {
   async triggerStandupAndSend(): Promise<{
     created: string[];
     skipped: string[];
+    skipReasons?: Record<string, string>;
     messages: { instanceId: string; success: boolean; error?: string }[];
   }> {
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
@@ -268,10 +273,27 @@ export const standupsApi = {
         respondedMembers: number;
         responseRate: number;
         createdAt: string;
+        members?: Array<{
+          id: string;
+          name: string;
+          platformUserId: string;
+          status: string;
+          lastReminderSent?: string;
+          reminderCount: number;
+          responseTime?: string;
+          isLate: boolean;
+        }>;
         configSnapshot?: {
           questions: string[];
           timezone: string;
           timeLocal: string;
+          deliveryType?: string;
+          targetChannelId?: string;
+          targetChannel?: {
+            id: string;
+            channelId: string;
+            name: string;
+          };
         };
       }) => ({
         id: String(item.id),
@@ -286,6 +308,23 @@ export const standupsApi = {
         questions: item.configSnapshot?.questions || [],
         timezone: item.configSnapshot?.timezone || 'UTC',
         timeLocal: item.configSnapshot?.timeLocal || '09:00',
+        deliveryType:
+          (item.configSnapshot?.deliveryType as StandupDeliveryType) || 'direct_message',
+        targetChannelId: item.configSnapshot?.targetChannelId,
+        targetChannel: item.configSnapshot?.targetChannel,
+        members: (item.members || []).map(member => ({
+          id: member.id,
+          name: member.name,
+          platformUserId: member.platformUserId,
+          status: member.status as 'not_started' | 'in_progress' | 'completed' | 'overdue',
+          lastReminderSent: member.lastReminderSent,
+          reminderCount: member.reminderCount,
+          responseTime: member.responseTime,
+          isLate: member.isLate,
+        })),
+        reminderHistory: [],
+        avgResponseTime: 0,
+        participationStreak: 0,
       })
     );
   },

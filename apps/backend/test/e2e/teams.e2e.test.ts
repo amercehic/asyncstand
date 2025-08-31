@@ -282,19 +282,19 @@ describe('Teams (e2e)', () => {
 
     // Generate JWT tokens for authentication
     testData.adminToken = jwtService.sign({
-      sub: adminUser.id,
-      email: adminUser.email,
-      orgId: org.id,
+      sub: testData.adminUserId,
+      email: `teams-admin-${Date.now()}@test.com`,
+      orgId: testData.orgId,
     });
 
     testData.memberToken = jwtService.sign({
-      sub: memberUser.id,
-      email: memberUser.email,
-      orgId: org.id,
+      sub: testData.memberUserId,
+      email: `teams-member-${Date.now()}@test.com`,
+      orgId: testData.orgId,
     });
 
     // Store user IDs for cleanup
-    testData.testUserIds = [adminUser.id, memberUser.id];
+    testData.testUserIds = [testData.adminUserId, testData.memberUserId];
 
     // Mock Slack API calls
     global.fetch = jest.fn().mockImplementation((url: string) => {
@@ -392,7 +392,6 @@ describe('Teams (e2e)', () => {
       const createTeamDto = {
         name: 'Test Team',
         integrationId: testData.integrationId,
-        channelId: 'C1234567890',
         timezone: 'America/New_York',
       };
 
@@ -423,7 +422,6 @@ describe('Teams (e2e)', () => {
       const createTeamDto = {
         name: 'Test Team',
         integrationId: testData.integrationId,
-        channelId: 'C1234567890',
         timezone: 'America/New_York',
       };
 
@@ -438,7 +436,6 @@ describe('Teams (e2e)', () => {
       const createTeamDto = {
         name: 'Test Team',
         integrationId: testData.integrationId,
-        channelId: 'C1234567890',
         timezone: 'America/New_York',
       };
 
@@ -450,7 +447,6 @@ describe('Teams (e2e)', () => {
       const createTeamDto = {
         name: 'Duplicate Team',
         integrationId: testData.integrationId,
-        channelId: 'C1234567890',
         timezone: 'America/New_York',
       };
 
@@ -472,7 +468,6 @@ describe('Teams (e2e)', () => {
       const createTeamDto = {
         name: 'Test Team',
         integrationId: '12345678-1234-1234-1234-123456789012', // Valid UUID format but doesn't exist
-        channelId: 'C1234567890',
         timezone: 'America/New_York',
       };
 
@@ -483,20 +478,22 @@ describe('Teams (e2e)', () => {
         .expect(400); // System returns 400 for non-existent integration ID
     });
 
-    it('should reject invalid channel ID', async () => {
-      // In test mode, channel validation is disabled, so we expect 404 from database lookup
+    it('should create team without channel ID (channels no longer required)', async () => {
+      // Teams no longer require channels, so creation should succeed without channelId
       const createTeamDto = {
-        name: 'Test Team',
+        name: 'Test Team Without Channel',
         integrationId: testData.integrationId,
-        channelId: 'C_INVALID',
         timezone: 'America/New_York',
       };
 
-      await request(app.getHttpServer())
+      const response = await request(app.getHttpServer())
         .post('/teams')
         .set('Authorization', `Bearer ${testData.adminToken}`)
         .send(createTeamDto)
-        .expect(201); // Teams no longer require channels, so creation succeeds
+        .expect(201);
+
+      expect(response.body).toHaveProperty('id');
+      expect(response.body.id).toBeDefined();
     });
 
     it('should validate required fields', async () => {

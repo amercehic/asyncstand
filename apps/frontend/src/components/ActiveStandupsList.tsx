@@ -224,7 +224,6 @@ export const ActiveStandupsList: React.FC<ActiveStandupsListProps> = ({
     toast.info('Analytics view - Coming soon!');
   };
 
-
   const filterOptions: { value: FilterType; label: string; count: number }[] = [
     { value: 'all', label: 'All Standups', count: standups.length },
     { value: 'active', label: 'Active', count: standups.filter(s => s.isActive).length },
@@ -308,7 +307,12 @@ export const ActiveStandupsList: React.FC<ActiveStandupsListProps> = ({
             {showCreateButton && teamId && (
               <ModernButton
                 variant="primary"
-                onClick={() => navigate(`/teams/${teamId}/standups/wizard`, from ? { state: { from } } : undefined)}
+                onClick={() =>
+                  navigate(
+                    `/teams/${teamId}/standups/wizard`,
+                    from ? { state: { from } } : undefined
+                  )
+                }
               >
                 <Plus className="w-4 h-4 mr-2" />
                 New Standup
@@ -513,13 +517,25 @@ export const ActiveStandupsList: React.FC<ActiveStandupsListProps> = ({
                   <div className="px-6 py-4 bg-muted/20 border-t border-border/50">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                        <span>Created {new Date(standup.createdAt).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                        <span>
+                          Created{' '}
+                          {new Date(standup.createdAt).toLocaleDateString('en-US', {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric',
+                          })}
+                        </span>
                         <span>•</span>
-                        <span>Updated {new Date(standup.updatedAt).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                        <span>
+                          Updated{' '}
+                          {new Date(standup.updatedAt).toLocaleDateString('en-US', {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric',
+                          })}
+                        </span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        {/* Run buttons removed */}
-                      </div>
+                      <div className="flex items-center gap-2">{/* Run buttons removed */}</div>
                     </div>
                   </div>
                 </motion.div>
@@ -565,7 +581,12 @@ export const ActiveStandupsList: React.FC<ActiveStandupsListProps> = ({
             {showCreateButton && teamId && (
               <ModernButton
                 variant="primary"
-                onClick={() => navigate(`/teams/${teamId}/standups/wizard`, from ? { state: { from } } : undefined)}
+                onClick={() =>
+                  navigate(
+                    `/teams/${teamId}/standups/wizard`,
+                    from ? { state: { from } } : undefined
+                  )
+                }
                 className="inline-flex items-center gap-2"
               >
                 <Zap className="w-4 h-4" />

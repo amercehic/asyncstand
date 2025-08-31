@@ -46,7 +46,6 @@ interface StandupsContextType extends StandupsState {
   createStandup: (teamId: string, data: Partial<Standup>) => Promise<Standup>;
   updateStandup: (id: string, updates: Partial<Standup>) => Promise<void>;
   deleteStandup: (id: string) => Promise<void>;
-  triggerStandupInstance: (standupId: string) => Promise<StandupInstance>;
   submitResponse: (instanceId: string, responses: Record<string, string>) => Promise<void>;
   updateResponse: (responseId: string, updates: Record<string, string>) => Promise<void>;
   selectStandup: (standup: Standup | null) => void;
@@ -338,26 +337,6 @@ export function StandupsProvider({ children }: StandupsProviderProps) {
     [state.standups]
   );
 
-  const triggerStandupInstance = useCallback(
-    async (standupId: string): Promise<StandupInstance> => {
-      try {
-        toast.loading('Creating standup instance...', { id: `trigger-${standupId}` });
-
-        const instance = await standupsApi.triggerStandup(standupId);
-
-        dispatch({ type: 'ADD_INSTANCE', payload: instance });
-        toast.success('Standup instance created!', { id: `trigger-${standupId}` });
-
-        return instance;
-      } catch (error) {
-        const { message } = normalizeApiError(error, 'Failed to trigger standup');
-        toast.error(message, { id: `trigger-${standupId}` });
-        throw error;
-      }
-    },
-    []
-  );
-
   const submitResponse = useCallback(
     async (instanceId: string, responses: Record<string, string>) => {
       dispatch({ type: 'SET_SUBMITTING_RESPONSE', payload: true });
@@ -447,7 +426,6 @@ export function StandupsProvider({ children }: StandupsProviderProps) {
       createStandup,
       updateStandup,
       deleteStandup,
-      triggerStandupInstance,
       submitResponse,
       updateResponse,
       selectStandup,
@@ -465,7 +443,6 @@ export function StandupsProvider({ children }: StandupsProviderProps) {
       createStandup,
       updateStandup,
       deleteStandup,
-      triggerStandupInstance,
       submitResponse,
       updateResponse,
       selectStandup,

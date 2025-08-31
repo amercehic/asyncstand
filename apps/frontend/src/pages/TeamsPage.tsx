@@ -11,9 +11,7 @@ import {
   Settings,
   ChevronRight,
   Building2,
-  Link2,
   Calendar,
-  Slack,
   Search,
   Filter,
   SortAsc,
@@ -938,7 +936,9 @@ export const TeamsPage = React.memo(() => {
                         setSelectedTeamForSettings(team);
                         setIsSettingsModalOpen(true);
                       }}
-                      onCreateStandup={() => navigate(`/teams/${team.id}/standups/wizard`, { state: { from: '/teams' } })}
+                      onCreateStandup={() =>
+                        navigate(`/teams/${team.id}/standups/wizard`, { state: { from: '/teams' } })
+                      }
                       index={index}
                     />
                   ))}

@@ -641,7 +641,11 @@ export const TeamDetailPage = React.memo(() => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
             >
-              <ActiveStandupsList teamId={teamId!} onStandupsChange={fetchStandupsOnly} from={`/teams/${teamId}`} />
+              <ActiveStandupsList
+                teamId={teamId!}
+                onStandupsChange={fetchStandupsOnly}
+                from={`/teams/${teamId}`}
+              />
             </motion.div>
           )}
 
