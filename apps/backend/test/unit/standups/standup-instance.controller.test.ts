@@ -59,9 +59,7 @@ interface MockParticipationStatus {
 }
 import { StandupInstanceController } from '@/standups/standup-instance.controller';
 import { StandupInstanceService } from '@/standups/standup-instance.service';
-import { AnswerCollectionService } from '@/standups/answer-collection.service';
 import { SlackMessagingService } from '@/integrations/slack/slack-messaging.service';
-import { PrismaService } from '@/prisma/prisma.service';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/auth/guards/roles.guard';
 import {
@@ -73,9 +71,7 @@ import { SubmitAnswersDto } from '@/standups/dto/submit-answers.dto';
 describe('StandupInstanceController', () => {
   let controller: StandupInstanceController;
   let mockStandupInstanceService: jest.Mocked<StandupInstanceService>;
-  let mockAnswerCollectionService: jest.Mocked<AnswerCollectionService>;
   let mockSlackMessagingService: jest.Mocked<SlackMessagingService>;
-  let mockPrismaService: jest.Mocked<PrismaService>;
 
   const mockOrgId = 'org-123';
   const mockUserId = 'user-123';
@@ -95,29 +91,21 @@ describe('StandupInstanceController', () => {
       calculateNextStandupDate: jest.fn(),
       teamExists: jest.fn(),
       shouldCreateStandupToday: jest.fn(),
+      getInstanceMembers: jest.fn(),
+      getInstanceCompletionStatus: jest.fn(),
+      submitAnswersForInstance: jest.fn(),
+      getActiveTeamMemberForInstance: jest.fn(),
     } as unknown as jest.Mocked<StandupInstanceService>;
-
-    mockAnswerCollectionService = {
-      submitFullResponse: jest.fn(),
-    } as unknown as jest.Mocked<AnswerCollectionService>;
 
     mockSlackMessagingService = {
       sendStandupReminder: jest.fn(),
     } as unknown as jest.Mocked<SlackMessagingService>;
 
-    mockPrismaService = {
-      teamMember: {
-        findFirst: jest.fn(),
-      },
-    } as unknown as jest.Mocked<PrismaService>;
-
     const module: TestingModule = await Test.createTestingModule({
       controllers: [StandupInstanceController],
       providers: [
         { provide: StandupInstanceService, useValue: mockStandupInstanceService },
-        { provide: AnswerCollectionService, useValue: mockAnswerCollectionService },
         { provide: SlackMessagingService, useValue: mockSlackMessagingService },
-        { provide: PrismaService, useValue: mockPrismaService },
       ],
     })
       .overrideGuard(JwtAuthGuard)
@@ -293,52 +281,16 @@ describe('StandupInstanceController', () => {
         standupInstanceId: mockInstanceId,
         answers: [{ questionIndex: 0, text: 'My answer' }],
       };
-      const mockInstance = {
-        id: mockInstanceId,
-        teamId: mockTeamId,
-        teamName: 'Test Team',
-        targetDate: '2024-01-01',
-        state: 'collecting',
-        configSnapshot: {
-          questions: ['Q1'],
-          responseTimeoutHours: 2,
-          reminderMinutesBefore: 10,
-          participatingMembers: [{ id: 'member1', name: 'Member 1', platformUserId: 'user1' }],
-          timezone: 'UTC',
-          timeLocal: '09:00',
-        },
-        createdAt: new Date(),
-        totalMembers: 1,
-        respondedMembers: 0,
-        responseRate: 0,
-        members: [
-          {
-            id: 'member1',
-            name: 'Member 1',
-            platformUserId: 'user1',
-            status: 'not_started' as const,
-            lastReminderSent: undefined,
-            reminderCount: 0,
-            responseTime: undefined,
-            isLate: false,
-          },
-        ],
-      };
-      const mockTeamMember = { id: 'member-123', teamId: mockTeamId, active: true };
       const mockResult = { success: true, answersSubmitted: 1 };
 
-      mockStandupInstanceService.getInstanceWithDetails.mockResolvedValue(
-        mockInstance as MockInstance & { answers: unknown[] },
-      );
-      (mockPrismaService.teamMember.findFirst as jest.Mock).mockResolvedValue(mockTeamMember);
-      mockAnswerCollectionService.submitFullResponse.mockResolvedValue(mockResult);
+      mockStandupInstanceService.submitAnswersForInstance.mockResolvedValue(mockResult);
 
       const result = await controller.submitAnswers(mockInstanceId, submitDto, mockOrgId);
 
       expect(result).toEqual(mockResult);
-      expect(mockAnswerCollectionService.submitFullResponse).toHaveBeenCalledWith(
+      expect(mockStandupInstanceService.submitAnswersForInstance).toHaveBeenCalledWith(
+        mockInstanceId,
         submitDto,
-        'member-123',
         mockOrgId,
       );
     });
@@ -417,12 +369,12 @@ describe('StandupInstanceController', () => {
         ],
         answers: [],
       };
-      mockStandupInstanceService.getInstanceWithDetails.mockResolvedValue(mockInstance);
+      mockStandupInstanceService.getInstanceMembers.mockResolvedValue(mockInstance.members);
 
       const result = await controller.getInstanceMembers(mockInstanceId, mockOrgId);
 
       expect(result).toEqual(mockInstance.members);
-      expect(mockStandupInstanceService.getInstanceWithDetails).toHaveBeenCalledWith(
+      expect(mockStandupInstanceService.getInstanceMembers).toHaveBeenCalledWith(
         mockInstanceId,
         mockOrgId,
       );
@@ -448,17 +400,15 @@ describe('StandupInstanceController', () => {
 
   describe('checkCompletion', () => {
     it('should check if instance is complete', async () => {
-      mockStandupInstanceService.isInstanceComplete.mockResolvedValue(true);
-      mockStandupInstanceService.calculateResponseRate.mockResolvedValue(85);
+      const mockCompletionStatus = { isComplete: true, responseRate: 85 };
+      mockStandupInstanceService.getInstanceCompletionStatus.mockResolvedValue(
+        mockCompletionStatus,
+      );
 
       const result = await controller.checkCompletion(mockInstanceId, mockOrgId);
 
-      expect(result).toEqual({ isComplete: true, responseRate: 85 });
-      expect(mockStandupInstanceService.isInstanceComplete).toHaveBeenCalledWith(
-        mockInstanceId,
-        mockOrgId,
-      );
-      expect(mockStandupInstanceService.calculateResponseRate).toHaveBeenCalledWith(
+      expect(result).toEqual(mockCompletionStatus);
+      expect(mockStandupInstanceService.getInstanceCompletionStatus).toHaveBeenCalledWith(
         mockInstanceId,
         mockOrgId,
       );

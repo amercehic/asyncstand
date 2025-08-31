@@ -538,49 +538,66 @@ export class SlackMessagingService {
     blocks: (Block | KnownBlock)[],
   ): Promise<MessageResponse> {
     try {
-      const results: MessageResponse[] = [];
-      let successCount = 0;
-      let firstSuccessTs: string | undefined;
-
-      // Send DM to each participating member
-      for (const member of participatingMembers) {
+      // Send DMs to all participating members in parallel
+      const dmPromises = participatingMembers.map(async (member) => {
         if (!member.platformUserId) {
           this.logger.warn('Skipping member without platformUserId', {
             memberId: member.id,
             memberName: member.name,
           });
-          continue;
+          return {
+            ok: false,
+            error: 'No platformUserId',
+            ts: undefined,
+            member,
+          };
         }
 
-        const result = await this.sendDirectMessage(
-          integrationId,
-          member.platformUserId,
-          text,
-          blocks,
-        );
+        try {
+          const result = await this.sendDirectMessage(
+            integrationId,
+            member.platformUserId,
+            text,
+            blocks,
+          );
 
-        results.push(result);
-
-        if (result.ok) {
-          successCount++;
-          if (!firstSuccessTs && result.ts) {
-            firstSuccessTs = result.ts;
+          if (result.ok) {
+            this.logger.debug('Sent DM standup reminder', {
+              memberId: member.id,
+              memberName: member.name,
+              platformUserId: member.platformUserId,
+              ts: result.ts,
+            });
+          } else {
+            this.logger.warn('Failed to send DM standup reminder', {
+              memberId: member.id,
+              memberName: member.name,
+              platformUserId: member.platformUserId,
+              error: result.error,
+            });
           }
-          this.logger.debug('Sent DM standup reminder', {
+
+          return { ...result, member };
+        } catch (error) {
+          this.logger.warn('Exception sending DM standup reminder', {
             memberId: member.id,
             memberName: member.name,
             platformUserId: member.platformUserId,
-            ts: result.ts,
+            error: error instanceof Error ? error.message : String(error),
           });
-        } else {
-          this.logger.warn('Failed to send DM standup reminder', {
-            memberId: member.id,
-            memberName: member.name,
-            platformUserId: member.platformUserId,
-            error: result.error,
-          });
+          return {
+            ok: false,
+            error: error instanceof Error ? error.message : String(error),
+            ts: undefined,
+            member,
+          };
         }
-      }
+      });
+
+      // Wait for all DM operations to complete
+      const results = await Promise.all(dmPromises);
+      const successCount = results.filter((result) => result.ok).length;
+      const firstSuccessTs = results.find((result) => result.ok && result.ts)?.ts;
 
       // Return aggregate result
       const isSuccess = successCount > 0;

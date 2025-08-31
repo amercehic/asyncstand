@@ -223,6 +223,19 @@ export const standupsApi = {
     return response.data;
   },
 
+  async triggerStandupForConfig(configId: string): Promise<{
+    instanceId?: string;
+    success: boolean;
+    message: string;
+    messageResult?: { success: boolean; error?: string };
+  }> {
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+    const response = await api.post(`/standups/instances/config/${configId}/create-and-trigger`, {
+      targetDate: today,
+    });
+    return response.data;
+  },
+
   async triggerReminderForInstance(instanceId: string): Promise<{
     success: boolean;
     messageTs?: string;

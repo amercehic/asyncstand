@@ -872,61 +872,37 @@ export const StandupsPage = () => {
         `Attempting to trigger standup for team: ${selectedTeam.id}, config: ${config.id}`
       );
 
-      // Use the triggerStandupAndSend API which creates instance and sends Slack message in one call
-      const result = await standupsApi.triggerStandupAndSend();
+      // Use the targeted API to create instance for this specific config
+      const result = await standupsApi.triggerStandupForConfig(config.id);
 
-      console.log('triggerStandupAndSend result:', result);
+      console.log('triggerStandupForConfig result:', result);
 
       // Check results and provide appropriate feedback
-      if (result.created && result.created.length > 0) {
-        toast.success(
-          `Successfully created ${result.created.length} standup instance(s) and sent notifications!`,
-          { id: `trigger-${config.id}` }
-        );
+      if (result.success && result.instanceId) {
+        toast.success(`Successfully created standup instance and sent notifications!`, {
+          id: `trigger-${config.id}`,
+        });
 
         // Log message results for debugging
-        if (result.messages) {
-          console.log('Slack message results:', result.messages);
-          const failedMessages = result.messages.filter(msg => !msg.success);
-          if (failedMessages.length > 0) {
-            console.warn('Some Slack messages failed:', failedMessages);
+        if (result.messageResult) {
+          console.log('Slack message result:', result.messageResult);
+          if (!result.messageResult.success) {
+            console.warn('Slack message failed:', result.messageResult.error);
           }
         }
 
-        // Refresh data to show the new instance(s)
+        // Refresh data to show the new instance
         if (selectedTeam) {
           await Promise.all([
             fetchStandupConfigs(selectedTeam.id),
             fetchActiveInstances(selectedTeam.id),
           ]);
         }
-      } else if (result.skipped && result.skipped.length > 0) {
-        console.log('Instances were skipped:', result.skipped);
-        console.log('Skip reasons:', result.skipReasons);
-
-        // Check if our team was specifically skipped
-        if (result.skipped.includes(selectedTeam.id)) {
-          const reason = result.skipReasons?.[selectedTeam.id] || 'Unknown reason';
-          toast.warning(`Standup instance was skipped for this team: ${reason}`, {
-            id: `trigger-${config.id}`,
-          });
-        } else {
-          // Show reasons for all skipped teams
-          const skipDetails = result.skipped
-            .map(teamId => {
-              const reason = result.skipReasons?.[teamId] || 'Unknown reason';
-              return `${teamId}: ${reason}`;
-            })
-            .join('; ');
-          toast.warning(`Some standup instances were skipped: ${skipDetails}`, {
-            id: `trigger-${config.id}`,
-          });
-        }
       } else {
-        toast.warning(
-          'No standup instances were created. All teams may already have instances for today.',
-          { id: `trigger-${config.id}` }
-        );
+        console.log('Standup creation failed:', result.message);
+        toast.warning(result.message, {
+          id: `trigger-${config.id}`,
+        });
       }
     } catch (error) {
       console.error('Error triggering standup:', error);
