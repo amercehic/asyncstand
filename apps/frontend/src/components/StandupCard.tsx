@@ -6,8 +6,6 @@ import {
   CheckCircle2,
   AlertTriangle,
   Star,
-  Play,
-  Pause,
   Settings,
   Eye,
   Send,
@@ -15,7 +13,7 @@ import {
   TrendingUp,
   Timer,
   MessageSquare,
-  Zap,
+  Users,
 } from 'lucide-react';
 import { ModernButton } from '@/components/ui';
 import type { ActiveStandup } from '@/types';
@@ -26,8 +24,8 @@ interface StandupCardProps {
   onToggleFavorite?: () => void;
   onViewResponses: () => void;
   onSettings?: () => void;
-  onToggleActive?: () => void;
-  onSendReminder?: () => void;
+  onSendToChannel?: () => void;
+  onMemberReminders?: () => void;
   index?: number;
 }
 
@@ -38,11 +36,22 @@ export const StandupCard = React.memo<StandupCardProps>(
     onToggleFavorite,
     onViewResponses,
     onSettings,
-    onToggleActive,
-    onSendReminder,
+    onSendToChannel,
+    onMemberReminders,
     index = 0,
   }) => {
     const [isHovered, setIsHovered] = useState(false);
+
+    // Get the standup title from the actual API data
+    const getStandupTitle = () => {
+      // Use the configName field if available (this is the real standup config name)
+      if (standup.configName) {
+        return standup.configName;
+      }
+
+      // Fall back to a generic name if no config name is provided
+      return 'Standup';
+    };
 
     const progressPercentage = useMemo(
       () =>
@@ -131,224 +140,350 @@ export const StandupCard = React.memo<StandupCardProps>(
         onHoverEnd={() => setIsHovered(false)}
         className="bg-white border border-slate-200 hover:border-blue-300 hover:shadow-lg transition-all duration-300 overflow-hidden group relative rounded-2xl"
       >
-        {/* Favorite Badge */}
-        {onToggleFavorite && (
-          <motion.button
-            whileTap={{ scale: 0.9 }}
-            onClick={e => {
-              e.stopPropagation();
-              onToggleFavorite();
-            }}
-            className={`absolute top-3 right-3 z-10 p-2 rounded-lg transition-all ${
-              isFavorite
-                ? 'bg-yellow-500/20 text-yellow-500'
-                : 'bg-background/80 backdrop-blur-sm text-muted-foreground hover:text-yellow-500'
-            }`}
-          >
-            <Star className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
-          </motion.button>
-        )}
+        {/* Fixed Header Layout */}
+        <div className="relative p-6 pb-4 border-b border-slate-100">
+          {/* Favorite Star - Fixed positioning to avoid overlap */}
+          {onToggleFavorite && (
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={e => {
+                e.stopPropagation();
+                onToggleFavorite();
+              }}
+              className={`absolute top-4 right-4 z-10 p-2 rounded-lg transition-all ${
+                isFavorite
+                  ? 'bg-yellow-500/20 text-yellow-500'
+                  : 'bg-background/80 backdrop-blur-sm text-muted-foreground hover:text-yellow-500'
+              }`}
+            >
+              <Star className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
+            </motion.button>
+          )}
 
-        {/* Header */}
-        <div className="p-6 pb-4 border-b border-slate-100">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-start gap-4 mb-4 pr-12">
             <div className="relative">
               <motion.div
                 whileHover={{ scale: 1.05 }}
-                className="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg"
+                className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg"
               >
-                <Calendar className="w-7 h-7 text-white" />
+                <Calendar className="w-8 h-8 text-white" />
               </motion.div>
               {standup.state === 'collecting' && (
-                <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white animate-pulse flex items-center justify-center">
+                <div className="absolute -top-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full border-2 border-white animate-pulse flex items-center justify-center">
                   <div className="w-2 h-2 bg-white rounded-full" />
                 </div>
               )}
             </div>
-            <div
-              className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                standup.state === 'collecting'
-                  ? 'bg-emerald-100 text-emerald-700'
-                  : standup.state === 'completed'
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'bg-slate-100 text-slate-600'
-              }`}
-            >
-              {standup.state === 'collecting' ? 'Active' : standup.state}
+
+            <div className="flex-1">
+              {/* Status Badge - Moved here to avoid star overlap */}
+              <div className="flex items-center gap-2 mb-3">
+                <div
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold shadow-sm ${
+                    standup.state === 'collecting'
+                      ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                      : standup.state === 'completed'
+                        ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                        : standup.state === 'pending'
+                          ? 'bg-amber-100 text-amber-700 border border-amber-200'
+                          : 'bg-gray-100 text-gray-700 border border-gray-200'
+                  }`}
+                >
+                  {standup.state === 'collecting'
+                    ? '🟢 Active'
+                    : standup.state === 'completed'
+                      ? '✅ Complete'
+                      : standup.state === 'pending'
+                        ? '⏳ Scheduled'
+                        : standup.state === 'cancelled'
+                          ? '❌ Cancelled'
+                          : '⏸️ Paused'}
+                </div>
+                {standup.questions && (
+                  <span className="text-xs text-slate-500 bg-slate-50 px-2 py-1 rounded-md">
+                    {standup.questions.length} questions
+                  </span>
+                )}
+              </div>
+
+              {/* Main Title - Only standup name */}
+              <h3 className="font-bold text-2xl text-slate-800 group-hover:text-blue-600 transition-colors mb-2">
+                {getStandupTitle()}
+              </h3>
+
+              {/* Team name and metadata */}
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5">👥 {standup.teamName}</span>
+                  <span className="text-slate-400">•</span>
+                  <span className="text-slate-500">
+                    {standup.totalMembers} member{standup.totalMembers !== 1 ? 's' : ''}
+                  </span>
+                </p>
+                <p className="text-sm text-slate-500 font-medium">
+                  📅{' '}
+                  {new Date(standup.targetDate).toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    month: 'short',
+                    day: 'numeric',
+                  })}
+                  {standup.timeLocal && <span className="ml-2">⏰ {standup.timeLocal}</span>}
+                  {standup.timezone && <span className="text-xs ml-1">({standup.timezone})</span>}
+                </p>
+              </div>
             </div>
           </div>
-          <h3 className="font-bold text-xl text-slate-800 group-hover:text-blue-600 transition-colors mb-1">
-            {standup.teamName}
-          </h3>
-          <p className="text-sm text-slate-500 font-medium">
-            {new Date(standup.targetDate).toLocaleDateString('en-US', {
-              weekday: 'long',
-              month: 'short',
-              day: 'numeric',
-            })}
-            {standup.timeLocal && <span className="ml-2">at {standup.timeLocal}</span>}
-          </p>
         </div>
 
-        {/* Stats Section */}
-        <div className="p-6 space-y-4">
-          {/* Progress Bar */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-slate-600">Response Progress</span>
-              <span className="text-sm font-bold text-slate-800">
-                {standup.respondedMembers}/{standup.totalMembers}
-              </span>
+        {/* Enhanced Stats Section - Fixed Height */}
+        <div className="p-6 flex-1 flex flex-col justify-between min-h-[200px]">
+          {/* Progress Bar with Enhanced Info */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-sm font-semibold text-slate-700">Response Progress</span>
+                <p className="text-xs text-slate-500">
+                  {standup.respondedMembers} of {standup.totalMembers} responses •{' '}
+                  {Math.round(progressPercentage)}% complete
+                </p>
+              </div>
+              <div className="text-right">
+                <span className="text-lg font-bold text-slate-800">
+                  {standup.respondedMembers}/{standup.totalMembers}
+                </span>
+                {progressPercentage === 100 && (
+                  <div className="text-xs text-emerald-600 font-medium">🎉 All done!</div>
+                )}
+              </div>
             </div>
-            <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+            <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden shadow-inner">
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${progressPercentage}%` }}
                 transition={{ duration: 0.8, delay: 0.2 }}
                 className={`h-full rounded-full ${
-                  progressPercentage === 100 ? 'bg-emerald-500' : 'bg-blue-500'
+                  progressPercentage === 100
+                    ? 'bg-gradient-to-r from-emerald-500 to-emerald-400'
+                    : 'bg-gradient-to-r from-blue-500 to-blue-400'
                 }`}
               />
             </div>
           </div>
 
-          {/* Status Pills */}
-          <div className="flex flex-wrap gap-2">
-            {completedMembers > 0 && (
-              <div className="flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded-md text-xs font-medium">
-                <CheckCircle2 className="w-3 h-3" />
-                {completedMembers} done
-              </div>
-            )}
-            {overdueMembers > 0 && (
-              <div className="flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 rounded-md text-xs font-medium">
-                <AlertTriangle className="w-3 h-3" />
-                {overdueMembers} overdue
-              </div>
-            )}
-            {notStartedMembers > 0 && (
-              <div className="flex items-center gap-1 px-2 py-1 bg-slate-100 text-slate-700 rounded-md text-xs font-medium">
-                <Timer className="w-3 h-3" />
-                {notStartedMembers} pending
-              </div>
-            )}
-            {standup.participationStreak && standup.participationStreak > 0 && (
-              <div className="flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-700 rounded-md text-xs font-medium">
-                <TrendingUp className="w-3 h-3" />
-                {standup.participationStreak}d streak
-              </div>
-            )}
-          </div>
-        </div>
+          {/* Consistent Status Grid - Always show all categories - Fixed at bottom */}
+          <div className="grid grid-cols-2 gap-2 mt-4">
+            {/* Completed - Always show */}
+            <div
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium ${
+                completedMembers > 0
+                  ? 'bg-emerald-50 border border-emerald-200 text-emerald-700'
+                  : 'bg-slate-50 border border-slate-200 text-slate-500'
+              }`}
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              <span>{completedMembers} completed</span>
+            </div>
 
-        {/* Delivery Type & Channel */}
-        <div className="px-5 pb-3">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              {standup.deliveryType === 'channel' ? (
+            {/* Overdue - Always show */}
+            <div
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium ${
+                overdueMembers > 0
+                  ? 'bg-red-50 border border-red-200 text-red-700'
+                  : 'bg-slate-50 border border-slate-200 text-slate-500'
+              }`}
+            >
+              <AlertTriangle className="w-4 h-4" />
+              <span>{overdueMembers} overdue</span>
+            </div>
+
+            {/* Pending - Always show */}
+            <div
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium ${
+                notStartedMembers > 0
+                  ? 'bg-amber-50 border border-amber-200 text-amber-700'
+                  : 'bg-slate-50 border border-slate-200 text-slate-500'
+              }`}
+            >
+              <Timer className="w-4 h-4" />
+              <span>{notStartedMembers} pending</span>
+            </div>
+
+            {/* Streak or In Progress - Show one or the other */}
+            <div
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium ${
+                standup.participationStreak && standup.participationStreak > 0
+                  ? 'bg-purple-50 border border-purple-200 text-purple-700'
+                  : standup.totalMembers - completedMembers - overdueMembers - notStartedMembers > 0
+                    ? 'bg-blue-50 border border-blue-200 text-blue-700'
+                    : 'bg-slate-50 border border-slate-200 text-slate-500'
+              }`}
+            >
+              {standup.participationStreak && standup.participationStreak > 0 ? (
                 <>
-                  <div className="w-6 h-6 bg-green-500 rounded flex items-center justify-center">
-                    <MessageSquare className="w-3.5 h-3.5 text-white" />
-                  </div>
-                  <span className="text-xs font-medium text-green-600">
-                    #{standup.targetChannel?.name || 'Channel'}
-                  </span>
+                  <TrendingUp className="w-4 h-4" />
+                  <span>{standup.participationStreak}d streak</span>
                 </>
               ) : (
                 <>
-                  <div className="w-6 h-6 bg-blue-500 rounded flex items-center justify-center">
-                    <Send className="w-3.5 h-3.5 text-white" />
-                  </div>
-                  <span className="text-xs font-medium text-blue-600">Direct messages</span>
+                  <Clock className="w-4 h-4" />
+                  <span>
+                    {standup.totalMembers - completedMembers - overdueMembers - notStartedMembers}{' '}
+                    in progress
+                  </span>
                 </>
               )}
             </div>
-            <div className="flex items-center gap-2">
-              <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">{getActivityStatus()}</span>
+          </div>
+        </div>
+
+        {/* Simplified Info Section - Fixed Height */}
+        <div className="px-6 pb-4 min-h-[120px] flex flex-col justify-between">
+          {/* Delivery Method - Always consistent */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {standup.deliveryType === 'channel' ? (
+                <>
+                  <div className="w-7 h-7 bg-gradient-to-br from-green-500 to-green-400 rounded-lg flex items-center justify-center">
+                    <MessageSquare className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <span className="text-sm font-semibold text-green-700">
+                      #{standup.targetChannel?.name || 'Channel'}
+                    </span>
+                    <p className="text-xs text-slate-500">Public delivery</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="w-7 h-7 bg-gradient-to-br from-blue-500 to-blue-400 rounded-lg flex items-center justify-center">
+                    <Send className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <span className="text-sm font-semibold text-blue-700">Direct Messages</span>
+                    <p className="text-xs text-slate-500">Private delivery</p>
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="text-right">
+              <div className="flex items-center gap-1 text-slate-500">
+                <Clock className="w-3.5 h-3.5" />
+                <span className="text-xs">{getActivityStatus()}</span>
+              </div>
             </div>
           </div>
 
-          {/* Health Score */}
-          <div className="space-y-1">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">Response Health</span>
-              <span className={`text-xs font-medium ${healthColor}`}>{healthScore}%</span>
+          {/* Health Score - Simplified and always visible */}
+          <div className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-lg p-3 border border-slate-200">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Activity className="w-4 h-4 text-slate-600" />
+                <span className="text-sm font-semibold text-slate-700">
+                  Health Score • {standup.questions?.length || 0} questions
+                </span>
+              </div>
+              <span className={`text-sm font-bold ${healthColor}`}>{healthScore}%</span>
             </div>
-            <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+            <div className="w-full bg-white rounded-full h-2 overflow-hidden shadow-inner">
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${healthScore}%` }}
                 transition={{ duration: 1, delay: 0.2 }}
                 className={`h-full rounded-full ${
                   healthScore > 70
-                    ? 'bg-green-500'
+                    ? 'bg-gradient-to-r from-green-500 to-green-400'
                     : healthScore > 40
-                      ? 'bg-yellow-500'
-                      : 'bg-red-500'
+                      ? 'bg-gradient-to-r from-yellow-500 to-yellow-400'
+                      : 'bg-gradient-to-r from-red-500 to-red-400'
                 }`}
               />
+            </div>
+            <div className="flex items-center justify-between mt-1">
+              <p className="text-xs text-slate-500">
+                {healthScore > 80
+                  ? '🟢 Excellent'
+                  : healthScore > 60
+                    ? '🟡 Good'
+                    : healthScore > 40
+                      ? '🟠 Fair'
+                      : '🔴 Poor'}
+              </p>
+              <p className="text-xs text-slate-500">
+                {standup.questions?.length
+                  ? `${standup.questions.length} questions`
+                  : 'No questions'}
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="p-2 bg-muted/30 border-t border-border flex items-center gap-1">
-          <ModernButton
-            variant="ghost"
-            size="sm"
-            onClick={onViewResponses}
-            className="flex-1 text-xs h-8"
-            title="View responses"
-          >
-            <Eye className="w-3.5 h-3.5" />
-            <span className="ml-1 hidden sm:inline">Responses</span>
-          </ModernButton>
-
-          {onSendReminder && standup.state === 'collecting' && progressPercentage < 100 && (
+        {/* Enhanced Actions Bar - Always Consistent */}
+        <div className="bg-gradient-to-r from-slate-50 to-slate-100 border-t border-slate-200 p-3">
+          <div className="grid grid-cols-2 gap-2">
+            {/* Primary Action - View Responses (Always visible) */}
             <ModernButton
-              variant="ghost"
+              variant="secondary"
               size="sm"
-              onClick={onSendReminder}
-              className="flex-1 text-xs h-8"
-              title="Send reminder"
+              onClick={onViewResponses}
+              className="bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0 shadow-sm hover:from-blue-600 hover:to-blue-700 font-semibold text-xs h-9"
+              title="View responses and details"
             >
-              <Zap className="w-3.5 h-3.5" />
-              <span className="ml-1 hidden sm:inline">Remind</span>
+              <Eye className="w-4 h-4 mr-1.5" />
+              <span>View Responses</span>
             </ModernButton>
-          )}
 
-          {onSettings && (
-            <ModernButton
-              variant="ghost"
-              size="sm"
-              onClick={onSettings}
-              className="flex-1 text-xs h-8"
-              title="Standup settings"
-            >
-              <Settings className="w-3.5 h-3.5" />
-              <span className="ml-1 hidden sm:inline">Settings</span>
-            </ModernButton>
-          )}
-
-          {onToggleActive && (
-            <ModernButton
-              variant="ghost"
-              size="sm"
-              onClick={onToggleActive}
-              className="flex-1 text-xs h-8"
-              title={standup.state === 'collecting' ? 'Pause standup' : 'Resume standup'}
-            >
-              {standup.state === 'collecting' ? (
-                <Pause className="w-3.5 h-3.5" />
-              ) : (
-                <Play className="w-3.5 h-3.5" />
-              )}
-              <span className="ml-1 hidden sm:inline">
-                {standup.state === 'collecting' ? 'Pause' : 'Resume'}
-              </span>
-            </ModernButton>
-          )}
+            {/* Secondary Action - Context dependent */}
+            {onSettings ? (
+              <ModernButton
+                variant="outline"
+                size="sm"
+                onClick={onSettings}
+                className="border-slate-300 text-slate-700 hover:bg-slate-100 font-semibold text-xs h-9"
+                title="Standup settings and configuration"
+              >
+                <Settings className="w-4 h-4 mr-1.5" />
+                <span>Settings</span>
+              </ModernButton>
+            ) : standup.state === 'collecting' &&
+              onSendToChannel &&
+              standup.deliveryType === 'channel' ? (
+              <ModernButton
+                variant="outline"
+                size="sm"
+                onClick={onSendToChannel}
+                className="border-green-300 text-green-700 hover:bg-green-50 font-semibold text-xs h-9"
+                title="Send standup summary to channel"
+              >
+                <MessageSquare className="w-4 h-4 mr-1.5" />
+                <span>Send</span>
+              </ModernButton>
+            ) : standup.state === 'collecting' && progressPercentage < 100 && onMemberReminders ? (
+              <ModernButton
+                variant="outline"
+                size="sm"
+                onClick={onMemberReminders}
+                className="border-orange-300 text-orange-700 hover:bg-orange-50 font-semibold text-xs h-9"
+                title="Send reminders to members"
+              >
+                <Users className="w-4 h-4 mr-1.5" />
+                <span>Remind</span>
+              </ModernButton>
+            ) : (
+              <div className="flex items-center justify-center h-9 bg-slate-100 rounded-lg border border-slate-200">
+                <span className="text-xs text-slate-500 font-medium">
+                  {standup.state === 'completed'
+                    ? '✅ Complete'
+                    : standup.state === 'collecting'
+                      ? '⏳ Active'
+                      : standup.state === 'pending'
+                        ? '⏳ Scheduled'
+                        : standup.state === 'cancelled'
+                          ? '❌ Cancelled'
+                          : '⏸️ Paused'}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Hover Preview */}

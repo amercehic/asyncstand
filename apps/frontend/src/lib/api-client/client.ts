@@ -75,7 +75,9 @@ api.interceptors.request.use(
       }
     }
 
-    if (env.enableDebug) {
+    // Skip logging logout requests since errors are handled gracefully
+    const isLogoutRequest = config.url?.includes('/auth/logout');
+    if (env.enableDebug && !isLogoutRequest) {
       console.log('API Request:', config);
     }
     return config;
@@ -97,7 +99,9 @@ api.interceptors.response.use(
     return response;
   },
   error => {
-    if (env.enableDebug) {
+    // Skip logging logout errors since they're handled gracefully
+    const isLogoutError = error.config?.url?.includes('/auth/logout');
+    if (env.enableDebug && !isLogoutError) {
       console.error('API Response Error:', error);
     }
 

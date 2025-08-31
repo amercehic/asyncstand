@@ -1,6 +1,7 @@
-import { Injectable, HttpStatus } from '@nestjs/common';
+import { Injectable, HttpStatus, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 import { LoggerService } from '@/common/logger.service';
+import { SlackApiService } from '@/integrations/slack/slack-api.service';
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
 import { CreateStandupConfigDto } from '@/standups/dto/create-standup-config.dto';
@@ -21,6 +22,8 @@ export class StandupConfigService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly logger: LoggerService,
+    @Inject(forwardRef(() => SlackApiService))
+    private readonly slackApi: SlackApiService,
   ) {
     this.logger.setContext(StandupConfigService.name);
   }
@@ -97,6 +100,20 @@ export class StandupConfigService {
       );
     }
 
+    // Validate memberIds if provided
+    if (data.memberIds && data.memberIds.length > 0) {
+      const validMemberIds = team.members.map((m) => m.id);
+      const invalidMemberIds = data.memberIds.filter((id) => !validMemberIds.includes(id));
+
+      if (invalidMemberIds.length > 0) {
+        throw new ApiError(
+          ErrorCode.VALIDATION_FAILED,
+          `Invalid member IDs provided: ${invalidMemberIds.join(', ')}. Members must belong to this team.`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+    }
+
     // Check for time conflicts with existing configs
     await this.validateTimeConflicts(teamId, data.weekdays, data.timeLocal, data.timezone);
 
@@ -124,17 +141,32 @@ export class StandupConfigService {
         },
       });
 
-      // Add all active team members to standup participation (default: included)
-      const memberParticipation = team.members.map((member) => ({
-        standupConfigId: config.id,
-        teamMemberId: member.id,
-        include: true,
-        role: null,
-      }));
+      // Add team members to standup configuration based on selection
+      const memberParticipation = team.members.map((member) => {
+        // If memberIds were specified, only include those members
+        // If no memberIds specified, include all members (backwards compatibility)
+        const shouldInclude = data.memberIds ? data.memberIds.includes(member.id) : false; // Default to false - require explicit selection
+
+        return {
+          standupConfigId: config.id,
+          teamMemberId: member.id,
+          include: shouldInclude,
+          role: null,
+        };
+      });
 
       if (memberParticipation.length > 0) {
         await tx.standupConfigMember.createMany({
           data: memberParticipation,
+        });
+
+        const includedCount = memberParticipation.filter((mp) => mp.include).length;
+        this.logger.info('Added team members to standup config with selective inclusion', {
+          configId: config.id,
+          totalMembers: memberParticipation.length,
+          includedMembers: includedCount,
+          memberIdsProvided: !!data.memberIds,
+          teamId,
         });
       }
 
@@ -148,6 +180,58 @@ export class StandupConfigService {
       teamId,
       createdByUserId,
     });
+
+    // If this is a channel-based standup, automatically join the bot to the channel
+    if (data.deliveryType === 'channel' && data.targetChannelId && team.integrationId) {
+      try {
+        // Get the target channel details to get the Slack channel ID
+        const targetChannel = await this.prisma.channel.findUnique({
+          where: { id: data.targetChannelId },
+          select: { channelId: true, name: true },
+        });
+
+        if (targetChannel?.channelId) {
+          this.logger.info('Attempting to join bot to channel', {
+            configId: result.id,
+            channelId: targetChannel.channelId,
+            channelName: targetChannel.name,
+            integrationId: team.integrationId,
+          });
+
+          const joinResult = await this.slackApi.joinChannel(
+            team.integrationId,
+            targetChannel.channelId,
+          );
+
+          if (joinResult.success) {
+            this.logger.info('Bot successfully joined channel', {
+              configId: result.id,
+              channelId: targetChannel.channelId,
+              channelName: targetChannel.name,
+            });
+          } else {
+            this.logger.warn('Failed to join bot to channel', {
+              configId: result.id,
+              channelId: targetChannel.channelId,
+              channelName: targetChannel.name,
+              error: joinResult.error,
+            });
+          }
+        } else {
+          this.logger.warn('Target channel not found for bot joining', {
+            configId: result.id,
+            targetChannelId: data.targetChannelId,
+          });
+        }
+      } catch (error) {
+        // Don't fail the entire config creation if bot joining fails
+        this.logger.error('Error joining bot to channel', {
+          configId: result.id,
+          targetChannelId: data.targetChannelId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
 
     return { id: result.id };
   }

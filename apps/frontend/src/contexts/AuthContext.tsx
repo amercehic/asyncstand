@@ -256,9 +256,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const logout = useCallback(async () => {
     try {
       await authApi.logout();
-    } catch (error) {
-      // Continue with local logout even if API call fails
-      console.warn('Logout API call failed:', error);
+    } catch {
+      // Continue with local logout even if API call fails (e.g., missing refresh token)
+      console.debug(
+        'Server logout failed, continuing with local logout. This is expected if refresh token cookie is missing.'
+      );
+      // Don't show error to user since local logout will still work
     }
 
     // Clear API token and CSRF token

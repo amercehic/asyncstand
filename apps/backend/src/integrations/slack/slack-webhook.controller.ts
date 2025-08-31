@@ -75,6 +75,17 @@ export class SlackWebhookController {
         this.logger.info('Processing Slack event', {
           eventType: payload.event?.type,
           teamId: payload.team_id,
+          event: {
+            type: payload.event?.type,
+            user: payload.event?.user,
+            thread_ts: payload.event?.thread_ts,
+            channel: payload.event?.channel,
+            text_preview:
+              typeof payload.event?.text === 'string'
+                ? payload.event.text.substring(0, 50)
+                : payload.event?.text,
+            bot_id: payload.event?.bot_id,
+          },
         });
 
         // Process event asynchronously to respond quickly to Slack

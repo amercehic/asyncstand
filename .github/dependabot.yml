@@ -7,6 +7,7 @@ updates:
       interval: 'daily'
       time: '08:00'
       timezone: 'Europe/Berlin'
+    target-branch: 'staging'
     open-pull-requests-limit: 10
     reviewers:
       - '@me'
@@ -47,6 +48,7 @@ updates:
       interval: 'daily'
       time: '08:00'
       timezone: 'Europe/Berlin'
+    target-branch: 'staging'
     open-pull-requests-limit: 10
     reviewers:
       - '@me'
@@ -94,6 +96,7 @@ updates:
       interval: 'daily'
       time: '08:00'
       timezone: 'Europe/Berlin'
+    target-branch: 'staging'
     open-pull-requests-limit: 10
     reviewers:
       - '@me'
@@ -142,6 +145,7 @@ updates:
       interval: 'daily'
       time: '08:00'
       timezone: 'Europe/Berlin'
+    target-branch: 'staging'
     open-pull-requests-limit: 10
     reviewers:
       - '@me'
@@ -182,6 +186,7 @@ updates:
       interval: 'daily'
       time: '08:00'
       timezone: 'Europe/Berlin'
+    target-branch: 'staging'
     open-pull-requests-limit: 10
     reviewers:
       - '@me'
@@ -222,6 +227,7 @@ updates:
       interval: 'daily'
       time: '08:00'
       timezone: 'Europe/Berlin'
+    target-branch: 'staging'
     open-pull-requests-limit: 5
     reviewers:
       - '@me'

@@ -26,6 +26,7 @@ import { TeamManagementService } from '@/teams/team-management.service';
 import { CreateTeamDto } from '@/teams/dto/create-team.dto';
 import { UpdateTeamDto } from '@/teams/dto/update-team.dto';
 import { AddTeamMemberDto } from '@/teams/dto/add-team-member.dto';
+import { BulkAddTeamMembersDto } from '@/teams/dto/bulk-add-team-members.dto';
 import {
   TeamListResponse,
   TeamDetailsResponse,
@@ -196,6 +197,28 @@ export class TeamsController {
   ): Promise<{ success: boolean }> {
     await this.teamManagementService.addTeamMember(teamId, addMemberDto.slackUserId, user.userId);
     return { success: true };
+  }
+
+  @Post(':id/members/bulk')
+  @HttpCode(HttpStatus.CREATED)
+  @Roles(OrgRole.admin, OrgRole.owner)
+  @Audit({
+    action: 'team.members_bulk_added',
+    resourcesFromRequest: (req) => [{ type: 'team', id: req.params.id, action: 'UPDATED' }],
+    category: AuditCategory.DATA_MODIFICATION,
+    severity: AuditSeverity.MEDIUM,
+  })
+  async bulkAddTeamMembers(
+    @Param('id', ParseUUIDPipe) teamId: string,
+    @Body(ValidationPipe) bulkAddMembersDto: BulkAddTeamMembersDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<{ success: boolean; added: number; errors: string[] }> {
+    const result = await this.teamManagementService.bulkAddTeamMembers(
+      teamId,
+      bulkAddMembersDto.slackUserIds,
+      user.userId,
+    );
+    return result;
   }
 
   @Delete(':id/members/:memberId')

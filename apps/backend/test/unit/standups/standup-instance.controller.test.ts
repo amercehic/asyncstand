@@ -5,9 +5,11 @@ interface MockInstance {
   id: string;
   teamId: string;
   teamName: string;
+  configName: string;
   targetDate: string;
   state: string;
   configSnapshot: {
+    name: string;
     questions: string[];
     responseTimeoutHours: number;
     reminderMinutesBefore: number;
@@ -23,6 +25,16 @@ interface MockInstance {
   totalMembers: number;
   respondedMembers: number;
   responseRate: number;
+  members: Array<{
+    id: string;
+    name: string;
+    platformUserId: string;
+    status: 'completed' | 'not_started' | 'in_progress';
+    lastReminderSent?: string;
+    reminderCount: number;
+    responseTime?: string;
+    isLate: boolean;
+  }>;
 }
 
 interface MockParticipationStatus {
@@ -47,9 +59,7 @@ interface MockParticipationStatus {
 }
 import { StandupInstanceController } from '@/standups/standup-instance.controller';
 import { StandupInstanceService } from '@/standups/standup-instance.service';
-import { AnswerCollectionService } from '@/standups/answer-collection.service';
 import { SlackMessagingService } from '@/integrations/slack/slack-messaging.service';
-import { PrismaService } from '@/prisma/prisma.service';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/auth/guards/roles.guard';
 import {
@@ -61,9 +71,7 @@ import { SubmitAnswersDto } from '@/standups/dto/submit-answers.dto';
 describe('StandupInstanceController', () => {
   let controller: StandupInstanceController;
   let mockStandupInstanceService: jest.Mocked<StandupInstanceService>;
-  let mockAnswerCollectionService: jest.Mocked<AnswerCollectionService>;
   let mockSlackMessagingService: jest.Mocked<SlackMessagingService>;
-  let mockPrismaService: jest.Mocked<PrismaService>;
 
   const mockOrgId = 'org-123';
   const mockUserId = 'user-123';
@@ -83,29 +91,21 @@ describe('StandupInstanceController', () => {
       calculateNextStandupDate: jest.fn(),
       teamExists: jest.fn(),
       shouldCreateStandupToday: jest.fn(),
+      getInstanceMembers: jest.fn(),
+      getInstanceCompletionStatus: jest.fn(),
+      submitAnswersForInstance: jest.fn(),
+      getActiveTeamMemberForInstance: jest.fn(),
     } as unknown as jest.Mocked<StandupInstanceService>;
-
-    mockAnswerCollectionService = {
-      submitFullResponse: jest.fn(),
-    } as unknown as jest.Mocked<AnswerCollectionService>;
 
     mockSlackMessagingService = {
       sendStandupReminder: jest.fn(),
     } as unknown as jest.Mocked<SlackMessagingService>;
 
-    mockPrismaService = {
-      teamMember: {
-        findFirst: jest.fn(),
-      },
-    } as unknown as jest.Mocked<PrismaService>;
-
     const module: TestingModule = await Test.createTestingModule({
       controllers: [StandupInstanceController],
       providers: [
         { provide: StandupInstanceService, useValue: mockStandupInstanceService },
-        { provide: AnswerCollectionService, useValue: mockAnswerCollectionService },
         { provide: SlackMessagingService, useValue: mockSlackMessagingService },
-        { provide: PrismaService, useValue: mockPrismaService },
       ],
     })
       .overrideGuard(JwtAuthGuard)
@@ -128,9 +128,11 @@ describe('StandupInstanceController', () => {
           id: 'instance1',
           teamId: 'team1',
           teamName: 'Team 1',
+          configName: 'Daily Standup',
           targetDate: '2024-01-15',
           state: 'collecting',
           configSnapshot: {
+            name: 'Daily Standup',
             questions: ['Q1', 'Q2'],
             responseTimeoutHours: 2,
             reminderMinutesBefore: 10,
@@ -142,14 +144,28 @@ describe('StandupInstanceController', () => {
           totalMembers: 5,
           respondedMembers: 3,
           responseRate: 60,
+          members: [
+            {
+              id: 'member1',
+              name: 'Member 1',
+              platformUserId: 'user1',
+              status: 'completed' as const,
+              lastReminderSent: undefined,
+              reminderCount: 0,
+              responseTime: undefined,
+              isLate: false,
+            },
+          ],
         },
         {
           id: 'instance2',
           teamId: 'team2',
           teamName: 'Team 2',
+          configName: 'Weekly Sync',
           targetDate: '2024-01-16',
           state: 'pending',
           configSnapshot: {
+            name: 'Weekly Sync',
             questions: ['Q1', 'Q2'],
             responseTimeoutHours: 2,
             reminderMinutesBefore: 15,
@@ -161,6 +177,18 @@ describe('StandupInstanceController', () => {
           totalMembers: 4,
           respondedMembers: 2,
           responseRate: 50,
+          members: [
+            {
+              id: 'member2',
+              name: 'Member 2',
+              platformUserId: 'user2',
+              status: 'not_started' as const,
+              lastReminderSent: undefined,
+              reminderCount: 0,
+              responseTime: undefined,
+              isLate: false,
+            },
+          ],
         },
       ];
       mockStandupInstanceService.getActiveInstances.mockResolvedValue(mockInstances);
@@ -183,9 +211,11 @@ describe('StandupInstanceController', () => {
         id: mockInstanceId,
         teamId: mockTeamId,
         teamName: 'Test Team',
+        configName: 'Test Standup',
         targetDate: '2024-01-15',
         state: 'collecting',
         configSnapshot: {
+          name: 'Test Standup',
           questions: ['Q1', 'Q2'],
           responseTimeoutHours: 2,
           reminderMinutesBefore: 10,
@@ -197,6 +227,18 @@ describe('StandupInstanceController', () => {
         totalMembers: 5,
         respondedMembers: 3,
         responseRate: 60,
+        members: [
+          {
+            id: 'member1',
+            name: 'Member 1',
+            platformUserId: 'user1',
+            status: 'completed' as const,
+            lastReminderSent: undefined,
+            reminderCount: 0,
+            responseTime: undefined,
+            isLate: false,
+          },
+        ],
         answers: [{ questionIndex: 0, text: 'Answer 1' }],
       };
       mockStandupInstanceService.getInstanceWithDetails.mockResolvedValue(mockInstance);
@@ -239,22 +281,16 @@ describe('StandupInstanceController', () => {
         standupInstanceId: mockInstanceId,
         answers: [{ questionIndex: 0, text: 'My answer' }],
       };
-      const mockInstance = { id: mockInstanceId, teamId: mockTeamId };
-      const mockTeamMember = { id: 'member-123', teamId: mockTeamId, active: true };
       const mockResult = { success: true, answersSubmitted: 1 };
 
-      mockStandupInstanceService.getInstanceWithDetails.mockResolvedValue(
-        mockInstance as MockInstance & { answers: unknown[] },
-      );
-      (mockPrismaService.teamMember.findFirst as jest.Mock).mockResolvedValue(mockTeamMember);
-      mockAnswerCollectionService.submitFullResponse.mockResolvedValue(mockResult);
+      mockStandupInstanceService.submitAnswersForInstance.mockResolvedValue(mockResult);
 
       const result = await controller.submitAnswers(mockInstanceId, submitDto, mockOrgId);
 
       expect(result).toEqual(mockResult);
-      expect(mockAnswerCollectionService.submitFullResponse).toHaveBeenCalledWith(
+      expect(mockStandupInstanceService.submitAnswersForInstance).toHaveBeenCalledWith(
+        mockInstanceId,
         submitDto,
-        'member-123',
         mockOrgId,
       );
     });
@@ -287,6 +323,64 @@ describe('StandupInstanceController', () => {
     });
   });
 
+  describe('getInstanceMembers', () => {
+    it('should return instance members with status', async () => {
+      const mockInstance = {
+        id: mockInstanceId,
+        teamId: mockTeamId,
+        teamName: 'Test Team',
+        configName: 'Test Standup',
+        targetDate: '2024-01-15',
+        state: 'collecting',
+        configSnapshot: {
+          name: 'Test Standup',
+          questions: ['Q1', 'Q2'],
+          responseTimeoutHours: 2,
+          reminderMinutesBefore: 10,
+          participatingMembers: [{ id: 'member1', name: 'Member 1', platformUserId: 'user1' }],
+          timezone: 'UTC',
+          timeLocal: '09:00',
+        },
+        createdAt: new Date(),
+        totalMembers: 5,
+        respondedMembers: 3,
+        responseRate: 60,
+        members: [
+          {
+            id: 'member1',
+            name: 'Member 1',
+            platformUserId: 'user1',
+            status: 'completed' as const,
+            lastReminderSent: undefined,
+            reminderCount: 0,
+            responseTime: undefined,
+            isLate: false,
+          },
+          {
+            id: 'member2',
+            name: 'Member 2',
+            platformUserId: 'user2',
+            status: 'not_started' as const,
+            lastReminderSent: undefined,
+            reminderCount: 0,
+            responseTime: undefined,
+            isLate: false,
+          },
+        ],
+        answers: [],
+      };
+      mockStandupInstanceService.getInstanceMembers.mockResolvedValue(mockInstance.members);
+
+      const result = await controller.getInstanceMembers(mockInstanceId, mockOrgId);
+
+      expect(result).toEqual(mockInstance.members);
+      expect(mockStandupInstanceService.getInstanceMembers).toHaveBeenCalledWith(
+        mockInstanceId,
+        mockOrgId,
+      );
+    });
+  });
+
   describe('getParticipatingMembers', () => {
     it('should return participating members', async () => {
       const mockMembers = [
@@ -306,17 +400,15 @@ describe('StandupInstanceController', () => {
 
   describe('checkCompletion', () => {
     it('should check if instance is complete', async () => {
-      mockStandupInstanceService.isInstanceComplete.mockResolvedValue(true);
-      mockStandupInstanceService.calculateResponseRate.mockResolvedValue(85);
+      const mockCompletionStatus = { isComplete: true, responseRate: 85 };
+      mockStandupInstanceService.getInstanceCompletionStatus.mockResolvedValue(
+        mockCompletionStatus,
+      );
 
       const result = await controller.checkCompletion(mockInstanceId, mockOrgId);
 
-      expect(result).toEqual({ isComplete: true, responseRate: 85 });
-      expect(mockStandupInstanceService.isInstanceComplete).toHaveBeenCalledWith(
-        mockInstanceId,
-        mockOrgId,
-      );
-      expect(mockStandupInstanceService.calculateResponseRate).toHaveBeenCalledWith(
+      expect(result).toEqual(mockCompletionStatus);
+      expect(mockStandupInstanceService.getInstanceCompletionStatus).toHaveBeenCalledWith(
         mockInstanceId,
         mockOrgId,
       );

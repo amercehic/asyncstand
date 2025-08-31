@@ -91,22 +91,24 @@ export const TeamDetailPage = React.memo(() => {
   const fetchData = useCallback(async () => {
     if (!teamId || isDeleted) return;
 
-    // Try to get team from cache first for faster loading
+    // Try to get team from cache first for faster loading (basic info only)
     const cachedTeam = getTeamByIdFromCache(teamId);
     if (cachedTeam) {
       setTeam(cachedTeam);
-      setIsLoading(false); // Show team immediately from cache
+      setIsLoading(false); // Show basic team info immediately from cache
     } else {
       setIsLoading(true);
     }
 
     try {
+      // Always fetch full team details in background (includes members and standups)
       const [teamData, standupsData, instancesData] = await Promise.all([
-        cachedTeam ? Promise.resolve(cachedTeam) : teamsApi.getTeam(teamId),
+        teamsApi.getTeam(teamId), // Full team details with members
         standupsApi.getTeamStandups(teamId),
         standupsApi.getStandupInstances(teamId),
       ]);
 
+      // Update with complete team data (will show members)
       setTeam(teamData);
       setStandups(standupsData);
       setRecentInstances(instancesData.slice(0, 10));
@@ -152,6 +154,7 @@ export const TeamDetailPage = React.memo(() => {
   }, [team, activeStandups, recentInstances]);
 
   const handleTeamUpdate = async () => {
+    console.log('handleTeamUpdate called - refreshing team data');
     await fetchData();
   };
 
@@ -210,7 +213,7 @@ export const TeamDetailPage = React.memo(() => {
   const tabs = [
     { id: 'overview' as TabType, label: 'Overview', icon: BarChart3 },
     { id: 'members' as TabType, label: 'Members', icon: Users },
-    { id: 'standups' as TabType, label: 'Standups', icon: Calendar },
+    { id: 'standups' as TabType, label: 'Standup Configurations', icon: Calendar },
     { id: 'settings' as TabType, label: 'Settings', icon: Settings },
   ];
 
@@ -369,7 +372,9 @@ export const TeamDetailPage = React.memo(() => {
                         <Calendar className="w-6 h-6 text-white" />
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground font-medium">Active Standups</p>
+                        <p className="text-sm text-muted-foreground font-medium">
+                          Active Configurations
+                        </p>
                         <p className="text-3xl font-bold bg-gradient-to-r from-emerald-500 to-emerald-600 bg-clip-text text-transparent">
                           {teamStats.activeCount}
                         </p>
@@ -432,7 +437,7 @@ export const TeamDetailPage = React.memo(() => {
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => toast.info('Create standup coming soon!')}
+                    onClick={() => navigate(`/teams/${teamId}/standups/wizard`)}
                     className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 backdrop-blur-sm border border-border/50 p-4 text-left transition-all hover:border-emerald-500/50"
                   >
                     <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/0 to-emerald-600/0 group-hover:from-emerald-500/10 group-hover:to-emerald-600/10 transition-all duration-300" />
@@ -441,7 +446,7 @@ export const TeamDetailPage = React.memo(() => {
                         <Plus className="w-5 h-5 text-emerald-500" />
                       </div>
                       <div>
-                        <p className="font-medium text-sm">Create Standup</p>
+                        <p className="font-medium text-sm">Create Standup Configuration</p>
                         <p className="text-xs text-muted-foreground">Start a new standup routine</p>
                       </div>
                     </div>
@@ -588,37 +593,45 @@ export const TeamDetailPage = React.memo(() => {
                 </div>
 
                 <div className="space-y-4">
-                  {team.members.map(member => (
-                    <div
-                      key={member.id}
-                      className="flex items-center justify-between p-4 bg-muted/30 rounded-lg"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center">
-                          <span className="text-white font-medium text-sm">
-                            {member.name.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                        <div>
-                          <p className="font-medium">{member.name}</p>
-                          <p className="text-sm text-muted-foreground">{member.email}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium capitalize">
-                          {member.role}
-                        </span>
-                        <ModernButton
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setMemberToRemove(member)}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </ModernButton>
-                      </div>
+                  {team.members.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                      <p className="text-sm">No team members yet</p>
+                      <p className="text-xs mt-1">Click "Manage Members" to add team members</p>
                     </div>
-                  ))}
+                  ) : (
+                    team.members.map(member => (
+                      <div
+                        key={member.id}
+                        className="flex items-center justify-between p-4 bg-muted/30 rounded-lg"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center">
+                            <span className="text-white font-medium text-sm">
+                              {member.name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="font-medium">{member.name}</p>
+                            <p className="text-sm text-muted-foreground">{member.email}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium capitalize">
+                            {member.role}
+                          </span>
+                          <ModernButton
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setMemberToRemove(member)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </ModernButton>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </motion.div>
@@ -630,7 +643,12 @@ export const TeamDetailPage = React.memo(() => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
             >
-              <ActiveStandupsList teamId={teamId!} onStandupsChange={fetchStandupsOnly} />
+              <ActiveStandupsList
+                teamId={teamId!}
+                onStandupsChange={fetchStandupsOnly}
+                from={`/teams/${teamId}`}
+                terminology="configurations"
+              />
             </motion.div>
           )}
 

@@ -211,13 +211,20 @@ export class AuthFactory {
       headers?: Record<string, string>;
       user?: unknown;
       cookies?: Record<string, string>;
+      protocol?: string;
     } = {},
   ) {
+    const headers = overrides.headers ?? {};
     return {
       ip: overrides.ip ?? faker.internet.ip(),
-      headers: overrides.headers ?? {},
+      headers,
       user: overrides.user,
       cookies: overrides.cookies ?? {},
+      protocol: overrides.protocol ?? 'http',
+      get: jest.fn((headerName: string): string | string[] | undefined => {
+        const value = headers[headerName.toLowerCase()];
+        return value || undefined;
+      }),
       socket: {
         remoteAddress: overrides.ip ?? faker.internet.ip(),
       },

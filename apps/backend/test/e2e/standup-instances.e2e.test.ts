@@ -88,7 +88,7 @@ describe('Standup Instances (e2e)', () => {
     await prisma.orgMember.create({
       data: {
         orgId: org.id,
-        userId: memberUser.id,
+        userId: testData.memberUserId,
         role: OrgRole.member,
         status: 'active',
       },

@@ -92,6 +92,16 @@ export type MockPrismaService = {
     delete: jest.Mock;
     deleteMany: jest.Mock;
   };
+  standupInstance: {
+    create: jest.Mock;
+    findFirst: jest.Mock;
+    findUnique: jest.Mock;
+    findMany: jest.Mock;
+    update: jest.Mock;
+    updateMany: jest.Mock;
+    delete: jest.Mock;
+    deleteMany: jest.Mock;
+  };
   standupConfigMember: {
     create: jest.Mock;
     findUnique: jest.Mock;
@@ -328,6 +338,24 @@ export const createMockPrismaService = (): MockPrismaService => {
       findUnique: jest.fn().mockResolvedValue(null),
       findMany: jest.fn().mockResolvedValue([]),
       update: jest.fn().mockResolvedValue({}),
+      delete: jest.fn().mockResolvedValue({}),
+      deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
+    },
+    standupInstance: {
+      create: jest.fn().mockResolvedValue({
+        id: TestHelpers.generateRandomString(),
+        teamId: TestHelpers.generateRandomString(),
+        targetDate: new Date(),
+        state: 'pending',
+        configSnapshot: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }),
+      findFirst: jest.fn().mockResolvedValue(null),
+      findUnique: jest.fn().mockResolvedValue(null),
+      findMany: jest.fn().mockResolvedValue([]),
+      update: jest.fn().mockResolvedValue({}),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       delete: jest.fn().mockResolvedValue({}),
       deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
     },

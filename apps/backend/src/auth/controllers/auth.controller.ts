@@ -1,14 +1,4 @@
-import {
-  Controller,
-  Post,
-  Body,
-  Req,
-  Res,
-  HttpCode,
-  HttpStatus,
-  UseGuards,
-  Get,
-} from '@nestjs/common';
+import { Controller, Post, Body, Req, Res, HttpCode, UseGuards, Get } from '@nestjs/common';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { CsrfProtected, CsrfTokenEndpoint } from '@/common/decorators/csrf-protected.decorator';
 import { AuthService } from '@/auth/services/auth.service';
@@ -23,8 +13,6 @@ interface RequestWithSession extends Request {
   session?: { id: string };
   user?: { id: string };
 }
-import { ApiError } from '@/common/api-error';
-import { ErrorCode } from 'shared';
 import { ApiTags } from '@nestjs/swagger';
 import {
   SwaggerSignup,
@@ -122,13 +110,22 @@ export class AuthController {
   ) {
     const loginResponse = await this.authService.login(dto.email, dto.password, req);
 
-    res.cookie('refreshToken', loginResponse.refreshToken, {
+    // Determine if we should use secure cookies
+    // Use secure if in production/staging OR if request came via HTTPS (e.g., ngrok)
+    const isSecure =
+      ['production', 'staging'].includes(process.env.NODE_ENV || '') ||
+      req.get('x-forwarded-proto') === 'https' ||
+      req.protocol === 'https';
+
+    const cookieOptions = {
       httpOnly: true,
-      secure: ['production', 'staging'].includes(process.env.NODE_ENV || ''),
-      sameSite: 'lax',
+      secure: isSecure,
+      sameSite: 'lax' as const,
       path: '/',
       maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    };
+
+    res.cookie('refreshToken', loginResponse.refreshToken, cookieOptions);
 
     const { refreshToken: _, ...response } = loginResponse;
     return response;
@@ -149,12 +146,18 @@ export class AuthController {
   ) {
     const token = req.cookies?.refreshToken || bodyToken;
 
+    // If no refresh token is provided, still perform a local logout
+    // This handles cases where cookies aren't available (cross-origin with ngrok)
+    // or the refresh token has already been cleared
     if (!token) {
-      throw new ApiError(
-        ErrorCode.VALIDATION_FAILED,
-        'Refresh token is required',
-        HttpStatus.BAD_REQUEST,
-      );
+      // Clear any existing refresh token cookie just in case
+      res.clearCookie('refreshToken');
+
+      // Return success response for local logout
+      return {
+        success: true,
+        message: 'Logged out successfully',
+      };
     }
 
     const ip = getClientIp(req);
