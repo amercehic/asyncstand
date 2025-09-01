@@ -14,6 +14,7 @@ import { AuditModule } from '@/common/audit/audit.module';
 import { IntegrationsModule } from '@/integrations/integrations.module';
 import { TeamsModule } from '@/teams/teams.module';
 import { StandupsModule } from '@/standups/standups.module';
+import { FeatureModule } from '@/features/feature.module';
 import { CacheModule } from '@/common/cache/cache.module';
 import { CacheInterceptor } from '@/common/cache/cache.interceptor';
 import { QueryPerformanceInterceptor } from '@/common/interceptors/query-performance.interceptor';
@@ -86,6 +87,7 @@ import { RateLimitService } from '@/common/services/rate-limit.service';
     CacheModule,
     SecurityModule,
     AuthModule,
+    FeatureModule,
     IntegrationsModule,
     TeamsModule,
     StandupsModule,

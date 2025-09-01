@@ -37,7 +37,12 @@ describe('OrganizationController', () => {
 
   describe('getOrganization', () => {
     it('should return organization data', async () => {
-      const expectedOrg = { id: mockOrgId, name: 'Test Organization' };
+      const expectedOrg = {
+        id: mockOrgId,
+        name: 'Test Organization',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
       mockOrganizationService.getOrganization.mockResolvedValue(expectedOrg);
 
       const result = await controller.getOrganization(mockOrgId, mockUserId);
@@ -50,7 +55,12 @@ describe('OrganizationController', () => {
   describe('updateOrganization', () => {
     it('should update organization name', async () => {
       const updateDto: UpdateOrganizationDto = { name: 'Updated Organization' };
-      const expectedResult = { id: mockOrgId, name: 'Updated Organization' };
+      const expectedResult = {
+        id: mockOrgId,
+        name: 'Updated Organization',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
       mockOrganizationService.updateOrganizationName.mockResolvedValue(expectedResult);
 
       const result = await controller.updateOrganization(mockOrgId, mockUserId, updateDto);

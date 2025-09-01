@@ -18,6 +18,7 @@ import { toast } from '@/components/ui';
 export const Navbar = React.memo(() => {
   const { user, logout, isAuthenticated } = useAuth();
   const location = useLocation();
+
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
@@ -181,17 +182,15 @@ export const Navbar = React.memo(() => {
                   </div>
 
                   <div className="p-2">
-                    <button
-                      onClick={() => {
-                        toast.info('Settings - Coming soon!');
-                        setIsUserMenuOpen(false);
-                      }}
+                    <Link
+                      to="/settings"
+                      onClick={() => setIsUserMenuOpen(false)}
                       className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted/50 transition-colors text-left"
                       data-testid="nav-settings-button"
                     >
                       <Settings className="w-4 h-4" />
                       <span className="text-sm">Settings</span>
-                    </button>
+                    </Link>
 
                     <button
                       onClick={() => {
@@ -284,17 +283,15 @@ export const Navbar = React.memo(() => {
                 <p className="text-xs text-muted-foreground capitalize">{user?.role} Account</p>
               </div>
 
-              <button
-                onClick={() => {
-                  toast.info('Settings - Coming soon!');
-                  setIsMobileMenuOpen(false);
-                }}
+              <Link
+                to="/settings"
+                onClick={() => setIsMobileMenuOpen(false)}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-muted/50 transition-colors text-left"
                 data-testid="nav-mobile-settings-button"
               >
                 <Settings className="w-5 h-5" />
                 <span className="font-medium">Settings</span>
-              </button>
+              </Link>
 
               <button
                 onClick={() => {

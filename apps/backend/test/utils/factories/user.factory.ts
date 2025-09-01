@@ -28,6 +28,7 @@ export class UserFactory {
       name: overrides.name ?? faker.person.fullName(),
       passwordHash: overrides.passwordHash ?? 'hashed_password_123',
       twofaSecret: overrides.twofaSecret ?? null,
+      isSuperAdmin: false,
       createdAt: overrides.createdAt ?? new Date(),
       updatedAt: overrides.updatedAt ?? new Date(),
     };

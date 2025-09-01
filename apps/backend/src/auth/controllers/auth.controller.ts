@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Req, Res, HttpCode, UseGuards, Get } from '@nestjs/common';
+import { Controller, Post, Body, Req, Res, HttpCode, UseGuards, Get, Put } from '@nestjs/common';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { CsrfProtected, CsrfTokenEndpoint } from '@/common/decorators/csrf-protected.decorator';
 import { AuthService } from '@/auth/services/auth.service';
@@ -7,13 +7,14 @@ import { SignupDto } from '@/auth/dto/signup.dto';
 import { LoginDto } from '@/auth/dto/login.dto';
 import { ForgotPasswordDto } from '@/auth/dto/forgot-password.dto';
 import { ResetPasswordDto } from '@/auth/dto/reset-password.dto';
+import { UpdatePasswordDto } from '@/auth/dto/update-password.dto';
 import { Request, Response } from 'express';
 
 interface RequestWithSession extends Request {
   session?: { id: string };
   user?: { id: string };
 }
-import { ApiTags } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import {
   SwaggerSignup,
   SwaggerLogin,
@@ -25,6 +26,8 @@ import { Audit } from '@/common/audit/audit.decorator';
 import { getClientIp } from '@/common/http/ip.util';
 import { AuditCategory, AuditSeverity } from '@/common/audit/types';
 import { CsrfService } from '@/common/security/csrf.service';
+import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
+import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -200,6 +203,40 @@ export class AuthController {
 
     return {
       message: 'Password has been successfully reset.',
+      success: true,
+    };
+  }
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  async getCurrentUser(@CurrentUser('userId') userId: string, @CurrentUser('orgId') orgId: string) {
+    const userData = await this.authService.getCurrentUser(userId, orgId);
+    return { user: userData };
+  }
+
+  @Put('password')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @HttpCode(200)
+  @CsrfProtected()
+  @Audit({
+    action: 'password.updated',
+    category: AuditCategory.AUTH,
+    severity: AuditSeverity.MEDIUM,
+    redactRequestBodyPaths: ['currentPassword', 'newPassword'],
+    resourcesFromRequest: (req) => [{ type: 'user', id: req.user?.userId, action: 'UPDATED' }],
+  })
+  async updatePassword(
+    @Body() dto: UpdatePasswordDto,
+    @CurrentUser('userId') userId: string,
+    @Req() req: Request,
+  ) {
+    const ip = getClientIp(req);
+    await this.authService.updatePassword(userId, dto.currentPassword, dto.newPassword, ip);
+
+    return {
+      message: 'Password has been successfully updated.',
       success: true,
     };
   }

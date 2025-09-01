@@ -61,6 +61,12 @@ const IntegrationsPage = React.lazy(() =>
     default: module.IntegrationsPage,
   }))
 );
+const SettingsPage = React.lazy(() =>
+  import(/* webpackChunkName: "settings" */ '@/pages/SettingsPage').then(module => ({
+    default: module.SettingsPage,
+  }))
+);
+
 const IntegrationDetailsPage = React.lazy(() =>
   import(/* webpackChunkName: "integrations" */ '@/pages/IntegrationDetailsPage').then(module => ({
     default: module.IntegrationDetailsPage,
@@ -263,6 +269,17 @@ const router = createBrowserRouter([
           <ProtectedRoute allowedRoles={['owner', 'admin']}>
             <Suspense fallback={<PageLoader />}>
               <IntegrationDetailsPage />
+            </Suspense>
+          </ProtectedRoute>
+        ),
+        errorElement: <ErrorPage />,
+      },
+      {
+        path: 'settings',
+        element: (
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <SettingsPage />
             </Suspense>
           </ProtectedRoute>
         ),

@@ -130,8 +130,49 @@ export class AuthService {
         email: user.email,
         name: user.name,
         role: userRole,
+        isSuperAdmin: user.isSuperAdmin,
+        orgId: primaryOrg.id,
       },
       organizations, // List of all organizations user belongs to
+    };
+  }
+
+  async getCurrentUser(userId: string, orgId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        isSuperAdmin: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!user) {
+      throw new ApiError(ErrorCode.NOT_FOUND, 'User not found', HttpStatus.NOT_FOUND);
+    }
+
+    // Get user's role in current organization
+    const orgMember = await this.prisma.orgMember.findUnique({
+      where: {
+        orgId_userId: {
+          userId,
+          orgId,
+        },
+      },
+    });
+
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      isSuperAdmin: user.isSuperAdmin,
+      role: orgMember?.role || 'member',
+      orgId,
+      createdAt: user.createdAt.toISOString(),
+      updatedAt: user.updatedAt.toISOString(),
     };
   }
 
@@ -313,6 +354,81 @@ export class AuthService {
         name: orgMember.org.name,
       },
     };
+  }
+
+  async updatePassword(userId: string, currentPassword: string, newPassword: string, ip: string) {
+    // Get user with current password hash
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, passwordHash: true },
+    });
+
+    if (!user) {
+      throw new ApiError(ErrorCode.USER_NOT_FOUND, 'User not found', HttpStatus.NOT_FOUND);
+    }
+
+    // Verify current password
+    if (!user.passwordHash) {
+      throw new ApiError(
+        ErrorCode.INVALID_CREDENTIALS,
+        'Current password is invalid',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const isCurrentPasswordValid = await verify(user.passwordHash, currentPassword);
+    if (!isCurrentPasswordValid) {
+      // Log audit event for failed password update attempt
+      await this.auditLogService.log({
+        actorUserId: userId,
+        actorType: AuditActorType.USER,
+        action: 'password.update.failed',
+        category: AuditCategory.AUTH,
+        severity: AuditSeverity.HIGH,
+        requestData: {
+          method: 'PUT',
+          path: '/auth/password',
+          ipAddress: ip,
+          body: {
+            reason: 'Invalid current password',
+          },
+        },
+      });
+
+      throw new ApiError(
+        ErrorCode.INVALID_CREDENTIALS,
+        'Current password is incorrect',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    // Hash new password
+    const newPasswordHash = await this.userUtilsService.hashPassword(newPassword);
+
+    // Update password in database
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: newPasswordHash },
+    });
+
+    // Log successful password update
+    await this.auditLogService.log({
+      actorUserId: userId,
+      actorType: AuditActorType.USER,
+      action: 'password.updated',
+      category: AuditCategory.AUTH,
+      severity: AuditSeverity.MEDIUM,
+      requestData: {
+        method: 'PUT',
+        path: '/auth/password',
+        ipAddress: ip,
+        body: {
+          email: user.email,
+        },
+      },
+    });
+
+    this.logger.info(`Password updated successfully for user ${userId}`);
   }
 
   private async hashToken(token: string): Promise<string> {
