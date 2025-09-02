@@ -16,6 +16,7 @@ model User {
   passwordHash               String
   name                       String?
   twofaSecret                String?
+  isSuperAdmin               Boolean      @default(false)
   createdAt                  DateTime     @default(now())
   updatedAt                  DateTime     @updatedAt
 
@@ -24,6 +25,7 @@ model User {
   sessions                   Session[]
   refreshTokens              RefreshToken[]
   orgMembers                 OrgMember[]
+  invitedMembers             OrgMember[]      @relation("InvitedBy")
   auditLogs                  AuditLog[]       @relation("AuditLogActor")
   integrationsInstalled      Integration[]    @relation("IntegrationInstalledBy")
   teamMembers                TeamMember[]     @relation("TeamMemberUser")
@@ -75,6 +77,8 @@ model RefreshToken {
 model Organization {
   id               String           @id @default(uuid())
   name             String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
   // Relations
   billingAccount   BillingAccount?
@@ -82,6 +86,7 @@ model Organization {
   integrations     Integration[]
   teams            Team[]
   auditLogs        AuditLog[]
+  featureOverrides FeatureOverride[]
 }
 
 enum OrgRole {
@@ -105,6 +110,8 @@ model OrgMember {
   status       OrgMemberStatus
   inviteToken  String?      @unique
   invitedAt    DateTime?
+  invitedBy    User?        @relation("InvitedBy", fields: [invitedById], references: [id], onDelete: SetNull)
+  invitedById  String?
   acceptedAt   DateTime?
 
   @@id([orgId, userId])
@@ -452,13 +459,107 @@ enum SubscriptionStatus {
   canceled
 }
 
+model Plan {
+  id            String   @id @default(uuid())
+  key           String   @unique // "free", "starter", "professional", "enterprise"
+  name          String   // "Free Plan"
+  displayName   String   // "Free"
+  description   String?  // "Perfect for small teams"
+  price         Decimal  // Monthly price in cents
+  interval      String   @default("month") // "month" or "year"
+  stripePriceId String?  // Stripe price ID
+  isActive      Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  
+  // Quotas and limits (null = unlimited)
+  memberLimit      Int?
+  teamLimit        Int?
+  standupLimit     Int?     // per month
+  storageLimit     Int?     // in MB
+  integrationLimit Int?
+  
+  // Relations
+  features      PlanFeature[]
+  subscriptions Subscription[]
+  planHistory   PlanHistory[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([isActive, sortOrder])
+}
+
+model PlanFeature {
+  id          String @id @default(uuid())
+  plan        Plan   @relation(fields: [planId], references: [id], onDelete: Cascade)
+  planId      String
+  feature     Feature @relation(fields: [featureKey], references: [key])
+  featureKey  String
+  enabled     Boolean @default(true)
+  value       String? // For features with specific values
+  
+  @@unique([planId, featureKey])
+  @@index([featureKey])
+}
+
+// Global feature flags for development, A/B testing, gradual rollout
+model Feature {
+  key           String   @id // "new_ui", "advanced_analytics", "beta_feature"
+  name          String   // Human-readable name
+  description   String?  // What this feature does
+  
+  // Feature availability controls
+  isEnabled     Boolean  @default(false) // Global kill switch
+  environment   String[] @default([]) // ["development", "staging", "production"]
+  
+  // Rollout configuration
+  rolloutType   String   @default("boolean") // "boolean", "percentage", "user_list", "org_list"
+  rolloutValue  Json?    // Percentage, user IDs, org IDs, etc.
+  
+  // Feature metadata
+  category      String?  // "billing", "ui", "experimental", "integration"
+  isPlanBased   Boolean  @default(false) // Whether this requires a specific plan
+  requiresAdmin Boolean  @default(false) // Whether only admins can use this
+  
+  // Relations
+  planFeatures  PlanFeature[]
+  orgOverrides  FeatureOverride[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([isEnabled, environment])
+  @@index([category])
+}
+
+// Organization-specific feature overrides
+model FeatureOverride {
+  id          String   @id @default(uuid())
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orgId       String
+  feature     Feature @relation(fields: [featureKey], references: [key])
+  featureKey  String
+  enabled     Boolean // Override the default feature state for this org
+  value       String? // Custom value for this org
+  reason      String? // Why this override exists
+  expiresAt   DateTime? // Temporary overrides (e.g., beta access)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([orgId, featureKey])
+  @@index([orgId])
+  @@index([featureKey])
+  @@index([expiresAt])
+}
+
 model Subscription {
   id                    String           @id @default(uuid())
   billingAccount        BillingAccount   @relation(fields: [billingAccountId], references: [id], onDelete: Cascade)
   billingAccountId      String           @unique
-  stripeSubscriptionId  String
-  plan                  String
-  memberQuota           Int
+  stripeSubscriptionId  String?
+  plan                  Plan             @relation(fields: [planId], references: [id])
+  planId                String
   status                SubscriptionStatus
   renewsAt              DateTime
 
@@ -468,6 +569,7 @@ model Subscription {
 
   @@index([status])
   @@index([renewsAt])
+  @@index([planId])
 }
 
 model SubscriptionEvent {
@@ -483,10 +585,11 @@ model PlanHistory {
   subscription     Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
   subscriptionId   String
   validFrom        DateTime
-  plan             String
-  memberQuota      Int
+  plan             Plan         @relation(fields: [planId], references: [id])
+  planId           String
 
   @@id([subscriptionId, validFrom])
+  @@index([planId])
 }
 
 // ------------------------------

@@ -5,6 +5,7 @@ import { IntegrationsProvider } from '@/contexts/IntegrationsContext';
 import { TeamsProvider } from '@/contexts/TeamsContext';
 import { StandupsProvider } from '@/contexts/StandupsContext';
 import { ModalProvider } from '@/contexts/ModalContext';
+import { FeatureProvider } from '@/contexts/FeatureContext';
 
 interface AppProvidersProps {
   children: React.ReactNode;
@@ -19,11 +20,13 @@ export function AppProviders({ children }: AppProvidersProps) {
     <ThemeProvider>
       <ModalProvider>
         <AuthProvider>
-          <IntegrationsProvider>
-            <TeamsProvider>
-              <StandupsProvider>{children}</StandupsProvider>
-            </TeamsProvider>
-          </IntegrationsProvider>
+          <FeatureProvider>
+            <IntegrationsProvider>
+              <TeamsProvider>
+                <StandupsProvider>{children}</StandupsProvider>
+              </TeamsProvider>
+            </IntegrationsProvider>
+          </FeatureProvider>
         </AuthProvider>
       </ModalProvider>
     </ThemeProvider>

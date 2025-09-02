@@ -182,6 +182,8 @@ api.interceptors.response.use(
       error.config?.url?.includes('/teams'),
       // Integration endpoints - handled by IntegrationsContext
       error.config?.url?.includes('/integrations'),
+      // Organization endpoints - handled by SettingsPage and other components
+      error.config?.url?.includes('/org/'),
       // Missing standup config is expected for new teams
       error.response?.status === 404 && errorCode === 'STANDUP_CONFIG_NOT_FOUND',
       // Standup config conflicts are handled by components

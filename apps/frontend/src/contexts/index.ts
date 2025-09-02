@@ -4,4 +4,5 @@ export * from '@/contexts/IntegrationsContext';
 export * from '@/contexts/TeamsContext';
 export * from '@/contexts/StandupsContext';
 export * from '@/contexts/ModalContext';
+export * from '@/contexts/FeatureContext';
 export * from '@/contexts/AppProviders';

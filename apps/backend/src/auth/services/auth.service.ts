@@ -10,6 +10,8 @@ import { AuditActorType, AuditCategory, AuditSeverity } from '@/common/audit/typ
 import { UserUtilsService } from '@/auth/services/user-utils.service';
 import { TokenService } from '@/auth/services/token.service';
 import { UserService } from '@/auth/services/user.service';
+import { SessionIdentifierService } from '@/common/session/session-identifier.service';
+import { SessionCleanupService } from '@/common/session/session-cleanup.service';
 import { OrgRole, OrgMemberStatus } from '@prisma/client';
 import { getClientIp } from '@/common/http/ip.util';
 
@@ -22,6 +24,8 @@ export class AuthService {
     private readonly userUtilsService: UserUtilsService,
     private readonly tokenService: TokenService,
     private readonly userService: UserService,
+    private readonly sessionIdentifierService: SessionIdentifierService,
+    private readonly sessionCleanupService: SessionCleanupService,
   ) {
     this.logger.setContext(AuthService.name);
   }
@@ -130,12 +134,53 @@ export class AuthService {
         email: user.email,
         name: user.name,
         role: userRole,
+        isSuperAdmin: user.isSuperAdmin,
+        orgId: primaryOrg.id,
       },
       organizations, // List of all organizations user belongs to
     };
   }
 
-  async logout(token: string, ip: string) {
+  async getCurrentUser(userId: string, orgId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        isSuperAdmin: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!user) {
+      throw new ApiError(ErrorCode.NOT_FOUND, 'User not found', HttpStatus.NOT_FOUND);
+    }
+
+    // Get user's role in current organization
+    const orgMember = await this.prisma.orgMember.findUnique({
+      where: {
+        orgId_userId: {
+          userId,
+          orgId,
+        },
+      },
+    });
+
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      isSuperAdmin: user.isSuperAdmin,
+      role: orgMember?.role || 'member',
+      orgId,
+      createdAt: user.createdAt.toISOString(),
+      updatedAt: user.updatedAt.toISOString(),
+    };
+  }
+
+  async logout(token: string, ip: string, req?: Request) {
     // Find the refresh token and get user with org membership
     const refreshToken = await this.prisma.refreshToken.findUnique({
       where: { token },
@@ -162,6 +207,28 @@ export class AuthService {
 
     // Revoke the refresh token using TokenService
     await this.tokenService.revokeRefreshToken(token);
+
+    // Clean up all session-related data
+    if (refreshToken.userId) {
+      try {
+        const sessionIds = req
+          ? this.sessionIdentifierService.getAllSessionIds(req, refreshToken.userId)
+          : [`user-session:${refreshToken.userId}`];
+
+        await this.sessionCleanupService.cleanupSessions(sessionIds);
+
+        this.logger.info('Session cleanup completed during logout', {
+          userId: refreshToken.userId,
+          sessionCount: sessionIds.length,
+        });
+      } catch (error) {
+        this.logger.warn('Session cleanup failed during logout', {
+          userId: refreshToken.userId,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+        // Don't fail the logout if session cleanup fails
+      }
+    }
 
     // Emit audit log for logout - only if we have an orgId
     const primaryOrg = refreshToken.user?.orgMembers[0]?.org;
@@ -313,6 +380,84 @@ export class AuthService {
         name: orgMember.org.name,
       },
     };
+  }
+
+  async updatePassword(userId: string, currentPassword: string, newPassword: string, ip: string) {
+    // Get user with current password hash
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, passwordHash: true },
+    });
+
+    if (!user) {
+      throw new ApiError(ErrorCode.USER_NOT_FOUND, 'User not found', HttpStatus.NOT_FOUND);
+    }
+
+    // Verify current password
+    if (!user.passwordHash) {
+      throw new ApiError(
+        ErrorCode.INVALID_CREDENTIALS,
+        'Current password is invalid',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const isCurrentPasswordValid = await verify(user.passwordHash, currentPassword);
+    if (!isCurrentPasswordValid) {
+      // Log audit event for failed password update attempt
+      await this.auditLogService.log({
+        actorUserId: userId,
+        actorType: AuditActorType.USER,
+        action: 'password.update.failed',
+        category: AuditCategory.AUTH,
+        severity: AuditSeverity.HIGH,
+        requestData: {
+          method: 'PUT',
+          path: '/auth/password',
+          ipAddress: ip,
+          body: {
+            reason: 'Invalid current password',
+          },
+        },
+      });
+
+      throw new ApiError(
+        ErrorCode.INVALID_CREDENTIALS,
+        'Current password is incorrect',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    // Hash new password
+    const newPasswordHash = await this.userUtilsService.hashPassword(newPassword);
+
+    // Update password in database
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        passwordHash: newPasswordHash,
+        updatedAt: new Date(),
+      },
+    });
+
+    // Log successful password update
+    await this.auditLogService.log({
+      actorUserId: userId,
+      actorType: AuditActorType.USER,
+      action: 'password.updated',
+      category: AuditCategory.AUTH,
+      severity: AuditSeverity.MEDIUM,
+      requestData: {
+        method: 'PUT',
+        path: '/auth/password',
+        ipAddress: ip,
+        body: {
+          email: user.email,
+        },
+      },
+    });
+
+    this.logger.info(`Password updated successfully for user ${userId}`);
   }
 
   private async hashToken(token: string): Promise<string> {

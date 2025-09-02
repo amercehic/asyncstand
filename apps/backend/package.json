@@ -10,6 +10,7 @@
     "clean": "rm -rf dist coverage",
     "build": "pnpm run clean && nest build",
     "dev": "cross-env NODE_ENV=development nest start --watch",
+    "dev:ngrok": "cp .env.ngrok .env.local && cross-env NODE_ENV=development nest start --watch",
     "dev:debug": "cross-env NODE_ENV=development nest start --watch --debug --inspect",
     "start": "node dist/src/main.js",
     "start:prod": "cross-env NODE_ENV=production node dist/src/main.js",
@@ -42,7 +43,9 @@
     "db:reset": "prisma migrate reset --force",
     "db:status": "prisma migrate status",
     "db:seed": "ts-node src/scripts/seed.ts",
-    "db:reset-and-seed": "prisma migrate reset --force && ts-node src/scripts/seed.ts"
+    "db:seed:features": "ts-node src/features/seeds/seed-features.ts",
+    "db:reset-and-seed": "prisma migrate reset --force && ts-node src/scripts/seed.ts",
+    "super-admin": "ts-node src/scripts/promote-super-admin.ts"
   },
   "keywords": [
     "nestjs",
