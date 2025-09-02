@@ -9,6 +9,8 @@ import { ForgotPasswordDto } from '@/auth/dto/forgot-password.dto';
 import { ResetPasswordDto } from '@/auth/dto/reset-password.dto';
 import { UpdatePasswordDto } from '@/auth/dto/update-password.dto';
 import { Request, Response } from 'express';
+import { SessionIdentifierService } from '@/common/session/session-identifier.service';
+import { SessionCleanupService } from '@/common/session/session-cleanup.service';
 
 interface RequestWithSession extends Request {
   session?: { id: string };
@@ -36,48 +38,16 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly passwordResetService: PasswordResetService,
     private readonly csrfService: CsrfService,
+    private readonly sessionIdentifierService: SessionIdentifierService,
+    private readonly sessionCleanupService: SessionCleanupService,
   ) {}
 
   @Get('csrf-token')
   @CsrfTokenEndpoint()
   async getCsrfToken(@Req() req: RequestWithSession) {
-    // Extract session ID using the same approach as CSRF guard
-    const sessionId = this.extractSessionId(req);
+    const sessionId = this.sessionIdentifierService.extractSessionId(req);
     const token = await this.csrfService.generateToken(sessionId);
     return { csrfToken: token };
-  }
-
-  /**
-   * Extract session ID using the same logic as CSRF guard
-   */
-  private extractSessionId(request: RequestWithSession): string {
-    // Express session
-    if (request.session?.id) {
-      return request.session.id;
-    }
-
-    // Custom session header
-    if (request.headers['x-session-id']) {
-      return request.headers['x-session-id'] as string;
-    }
-
-    // User ID as fallback (for JWT-based auth without sessions)
-    const user = request.user;
-    if (user?.id) {
-      return `user-session:${user.id}`;
-    }
-
-    // Request fingerprint as last resort
-    const fingerprint = this.generateRequestFingerprint(request);
-    return `fingerprint:${fingerprint}`;
-  }
-
-  /**
-   * Generate a request fingerprint for session-less scenarios
-   */
-  private generateRequestFingerprint(request: RequestWithSession): string {
-    const components = [request.ip || 'unknown-ip', request.get('user-agent') || 'unknown-ua'];
-    return Buffer.from(components.join('|')).toString('base64');
   }
 
   @Post('signup')
@@ -156,6 +126,14 @@ export class AuthController {
       // Clear any existing refresh token cookie just in case
       res.clearCookie('refreshToken');
 
+      // Also try to clean up any active session data
+      try {
+        const sessionId = this.sessionIdentifierService.extractSessionId(req as RequestWithSession);
+        await this.sessionCleanupService.cleanupSession(sessionId);
+      } catch {
+        // Ignore errors during session cleanup for local logout
+      }
+
       // Return success response for local logout
       return {
         success: true,
@@ -164,7 +142,7 @@ export class AuthController {
     }
 
     const ip = getClientIp(req);
-    const result = await this.authService.logout(token, ip);
+    const result = await this.authService.logout(token, ip, req);
 
     res.clearCookie('refreshToken');
 

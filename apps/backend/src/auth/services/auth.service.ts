@@ -10,6 +10,8 @@ import { AuditActorType, AuditCategory, AuditSeverity } from '@/common/audit/typ
 import { UserUtilsService } from '@/auth/services/user-utils.service';
 import { TokenService } from '@/auth/services/token.service';
 import { UserService } from '@/auth/services/user.service';
+import { SessionIdentifierService } from '@/common/session/session-identifier.service';
+import { SessionCleanupService } from '@/common/session/session-cleanup.service';
 import { OrgRole, OrgMemberStatus } from '@prisma/client';
 import { getClientIp } from '@/common/http/ip.util';
 
@@ -22,6 +24,8 @@ export class AuthService {
     private readonly userUtilsService: UserUtilsService,
     private readonly tokenService: TokenService,
     private readonly userService: UserService,
+    private readonly sessionIdentifierService: SessionIdentifierService,
+    private readonly sessionCleanupService: SessionCleanupService,
   ) {
     this.logger.setContext(AuthService.name);
   }
@@ -176,7 +180,7 @@ export class AuthService {
     };
   }
 
-  async logout(token: string, ip: string) {
+  async logout(token: string, ip: string, req?: Request) {
     // Find the refresh token and get user with org membership
     const refreshToken = await this.prisma.refreshToken.findUnique({
       where: { token },
@@ -203,6 +207,28 @@ export class AuthService {
 
     // Revoke the refresh token using TokenService
     await this.tokenService.revokeRefreshToken(token);
+
+    // Clean up all session-related data
+    if (refreshToken.userId) {
+      try {
+        const sessionIds = req
+          ? this.sessionIdentifierService.getAllSessionIds(req, refreshToken.userId)
+          : [`user-session:${refreshToken.userId}`];
+
+        await this.sessionCleanupService.cleanupSessions(sessionIds);
+
+        this.logger.info('Session cleanup completed during logout', {
+          userId: refreshToken.userId,
+          sessionCount: sessionIds.length,
+        });
+      } catch (error) {
+        this.logger.warn('Session cleanup failed during logout', {
+          userId: refreshToken.userId,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+        // Don't fail the logout if session cleanup fails
+      }
+    }
 
     // Emit audit log for logout - only if we have an orgId
     const primaryOrg = refreshToken.user?.orgMembers[0]?.org;

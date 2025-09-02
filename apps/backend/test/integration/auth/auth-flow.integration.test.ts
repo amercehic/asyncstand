@@ -6,6 +6,8 @@ import { UserUtilsService } from '@/auth/services/user-utils.service';
 import { PrismaService } from '@/prisma/prisma.service';
 import { AuditLogService } from '@/common/audit/audit-log.service';
 import { LoggerService } from '@/common/logger.service';
+import { SessionIdentifierService } from '@/common/session/session-identifier.service';
+import { SessionCleanupService } from '@/common/session/session-cleanup.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
@@ -31,6 +33,27 @@ describe('Auth Integration', () => {
             log: jest.fn(),
             error: jest.fn(),
             warn: jest.fn(),
+            info: jest.fn(),
+            debug: jest.fn(),
+          },
+        },
+        {
+          provide: SessionIdentifierService,
+          useValue: {
+            extractSessionId: jest.fn().mockReturnValue('test-session-id'),
+            getAllSessionIds: jest.fn().mockReturnValue(['test-session-id']),
+            getSessionContext: jest.fn().mockReturnValue({
+              sessionId: 'test-session-id',
+              source: 'test',
+              isAuthenticated: false,
+            }),
+          },
+        },
+        {
+          provide: SessionCleanupService,
+          useValue: {
+            cleanupSession: jest.fn().mockResolvedValue(undefined),
+            cleanupSessions: jest.fn().mockResolvedValue(undefined),
           },
         },
         {
