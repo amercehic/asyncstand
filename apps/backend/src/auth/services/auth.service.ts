@@ -434,7 +434,10 @@ export class AuthService {
     // Update password in database
     await this.prisma.user.update({
       where: { id: userId },
-      data: { passwordHash: newPasswordHash },
+      data: {
+        passwordHash: newPasswordHash,
+        updatedAt: new Date(),
+      },
     });
 
     // Log successful password update

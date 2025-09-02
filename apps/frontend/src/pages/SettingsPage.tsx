@@ -37,8 +37,16 @@ interface InviteMemberForm {
   role: OrgRole;
 }
 
+// Email validation utility
+const isValidEmail = (email: string): boolean => {
+  if (!email.trim()) return false;
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email.trim());
+};
+
 export const SettingsPage = React.memo(() => {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { setModalOpen } = useModal();
   const [activeTab, setActiveTab] = useState<TabType>('organization');
   const [organization, setOrganization] = useState<Organization | null>(null);
@@ -57,6 +65,7 @@ export const SettingsPage = React.memo(() => {
     role: 'member' as OrgRole,
   });
   const [isInviting, setIsInviting] = useState(false);
+  const [emailTouched, setEmailTouched] = useState(false);
 
   // Member filtering and pagination state
   const [searchQuery, setSearchQuery] = useState('');
@@ -97,6 +106,11 @@ export const SettingsPage = React.memo(() => {
   const handleInviteModalToggle = (open: boolean) => {
     setShowInviteModal(open);
     setModalOpen(open);
+    if (!open) {
+      // Reset form and validation state when closing modal
+      setInviteForm({ email: '', role: 'member' as OrgRole });
+      setEmailTouched(false);
+    }
   };
 
   // Load organization and members data
@@ -168,12 +182,16 @@ export const SettingsPage = React.memo(() => {
       return;
     }
 
+    if (!isValidEmail(inviteForm.email)) {
+      toast.error('Please provide a valid email address (e.g., user@example.com)');
+      return;
+    }
+
     try {
       setIsInviting(true);
       await organizationApi.inviteMember(inviteForm.email, inviteForm.role);
       toast.success(`Invitation sent to ${inviteForm.email}`);
       handleInviteModalToggle(false);
-      setInviteForm({ email: '', role: 'member' as OrgRole });
       // Reload members to show pending invitation
       const updatedMembers = await organizationApi.getMembers();
       setMembers(updatedMembers);
@@ -277,6 +295,10 @@ export const SettingsPage = React.memo(() => {
     try {
       setIsUpdatingPassword(true);
       await authApi.updatePassword(passwordForm.currentPassword, passwordForm.newPassword);
+
+      // Refresh user data to get updated timestamp
+      await refreshUser();
+
       toast.success('Password updated successfully');
       setPasswordForm({
         currentPassword: '',
@@ -1172,7 +1194,25 @@ export const SettingsPage = React.memo(() => {
                         Keep your account secure by using a strong password and changing it
                         regularly.
                       </p>
-                      <p className="text-xs mt-2">Last updated: Unknown</p>
+                      <p className="text-xs mt-2">
+                        Last updated:{' '}
+                        {user?.updatedAt
+                          ? (() => {
+                              // Ensure the timestamp is properly treated as UTC
+                              const utcDate = new Date(
+                                user.updatedAt.endsWith('Z') ? user.updatedAt : user.updatedAt + 'Z'
+                              );
+                              return utcDate.toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                timeZoneName: 'short',
+                              });
+                            })()
+                          : 'Unknown'}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -1212,10 +1252,25 @@ export const SettingsPage = React.memo(() => {
                   <input
                     type="email"
                     value={inviteForm.email}
-                    onChange={e => setInviteForm(prev => ({ ...prev, email: e.target.value }))}
-                    className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    onChange={e => {
+                      setInviteForm(prev => ({ ...prev, email: e.target.value }));
+                      setEmailTouched(true);
+                    }}
+                    onBlur={() => setEmailTouched(true)}
+                    className={`w-full px-3 py-2 bg-background border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
+                      emailTouched && inviteForm.email && !isValidEmail(inviteForm.email)
+                        ? 'border-red-500 focus:ring-red-500/50'
+                        : emailTouched && isValidEmail(inviteForm.email)
+                          ? 'border-green-500 focus:ring-green-500/50'
+                          : 'border-border focus:ring-primary/50'
+                    }`}
                     placeholder="colleague@example.com"
                   />
+                  {emailTouched && inviteForm.email && !isValidEmail(inviteForm.email) && (
+                    <p className="text-red-500 text-xs mt-1">
+                      Please provide a valid email address (e.g., user@example.com)
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -1242,7 +1297,7 @@ export const SettingsPage = React.memo(() => {
                 <div className="flex gap-3 pt-2">
                   <ModernButton
                     onClick={handleInviteMember}
-                    disabled={isInviting}
+                    disabled={isInviting || !isValidEmail(inviteForm.email)}
                     className="flex-1 gap-2"
                   >
                     {isInviting ? (
