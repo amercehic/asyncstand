@@ -15,7 +15,7 @@ ALTER TABLE "public"."OrgMember" ADD COLUMN     "invitedById" TEXT;
 
 -- AlterTable
 ALTER TABLE "public"."Organization" ADD COLUMN     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-ADD COLUMN     "updatedAt" TIMESTAMP(3) NOT NULL;
+ADD COLUMN     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
 
 -- AlterTable
 ALTER TABLE "public"."PlanHistory" DROP COLUMN "memberQuota",
