@@ -1,8 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 import { LoggerService } from '@/common/logger.service';
 import { Cacheable } from '@/common/cache/decorators/cacheable.decorator';
+import { ApiError } from '@/common/api-error';
+import { ErrorCode } from 'shared';
 import { Feature, FeatureOverride, PlanFeature } from '@prisma/client';
+import { CreateFeatureDto } from '@/features/dto/create-feature.dto';
+import { UpdateFeatureDto } from '@/features/dto/update-feature.dto';
 
 export interface FeatureCheckResult {
   enabled: boolean;
@@ -327,5 +331,65 @@ export class FeatureService {
       hash = hash & hash; // Convert to 32-bit integer
     }
     return Math.abs(hash);
+  }
+
+  // Admin methods
+
+  async listAllFeatures(category?: string) {
+    const where = category ? { category } : {};
+    return this.prisma.feature.findMany({
+      where,
+      include: {
+        planFeatures: {
+          include: { plan: true },
+        },
+        _count: {
+          select: { orgOverrides: true },
+        },
+      },
+      orderBy: { key: 'asc' },
+    });
+  }
+
+  async createFeature(createFeatureDto: CreateFeatureDto) {
+    return this.prisma.feature.create({
+      data: createFeatureDto,
+    });
+  }
+
+  async updateFeature(featureKey: string, updateFeatureDto: UpdateFeatureDto) {
+    return this.prisma.feature.update({
+      where: { key: featureKey },
+      data: updateFeatureDto,
+    });
+  }
+
+  async createFeatureOverride(
+    orgId: string,
+    featureKey: string,
+    enabled: boolean,
+    options?: {
+      value?: string;
+      reason?: string;
+      expiresAt?: Date;
+    },
+  ) {
+    // Verify the feature exists
+    const feature = await this.prisma.feature.findUnique({
+      where: { key: featureKey },
+    });
+
+    if (!feature) {
+      throw new ApiError(ErrorCode.NOT_FOUND, 'Feature not found', HttpStatus.NOT_FOUND);
+    }
+
+    return this.setFeatureOverride(orgId, featureKey, enabled, options);
+  }
+
+  async listFeatureOverrides(orgId: string) {
+    return this.prisma.featureOverride.findMany({
+      where: { orgId },
+      include: { feature: true },
+    });
   }
 }

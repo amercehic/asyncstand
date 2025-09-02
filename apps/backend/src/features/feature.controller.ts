@@ -1,23 +1,9 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Body,
-  Param,
-  Query,
-  UseGuards,
-  HttpStatus,
-} from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { FeatureService } from '@/features/feature.service';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { SuperAdminGuard } from '@/auth/guards/super-admin.guard';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
-import { PrismaService } from '@/prisma/prisma.service';
-import { ApiError } from '@/common/api-error';
-import { ErrorCode } from 'shared';
 import { CreateFeatureDto } from '@/features/dto/create-feature.dto';
 import { UpdateFeatureDto } from '@/features/dto/update-feature.dto';
 import { CreateFeatureOverrideDto } from '@/features/dto/feature-override.dto';
@@ -47,10 +33,7 @@ interface AuthenticatedUser {
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('JWT-auth')
 export class FeatureController {
-  constructor(
-    private readonly featureService: FeatureService,
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private readonly featureService: FeatureService) {}
 
   @Get('enabled')
   @SwaggerGetEnabledFeatures()
@@ -84,19 +67,7 @@ export class FeatureController {
   @UseGuards(SuperAdminGuard)
   @SwaggerListFeatures()
   async listFeatures(@Query('category') category?: string) {
-    const where = category ? { category } : {};
-    const features = await this.prisma.feature.findMany({
-      where,
-      include: {
-        planFeatures: {
-          include: { plan: true },
-        },
-        _count: {
-          select: { orgOverrides: true },
-        },
-      },
-      orderBy: { key: 'asc' },
-    });
+    const features = await this.featureService.listAllFeatures(category);
     return { features };
   }
 
@@ -104,9 +75,7 @@ export class FeatureController {
   @UseGuards(SuperAdminGuard)
   @SwaggerCreateFeature()
   async createFeature(@Body() createFeatureDto: CreateFeatureDto) {
-    const feature = await this.prisma.feature.create({
-      data: createFeatureDto,
-    });
+    const feature = await this.featureService.createFeature(createFeatureDto);
     return { feature };
   }
 
@@ -117,10 +86,7 @@ export class FeatureController {
     @Param('featureKey') featureKey: string,
     @Body() updateFeatureDto: UpdateFeatureDto,
   ) {
-    const feature = await this.prisma.feature.update({
-      where: { key: featureKey },
-      data: updateFeatureDto,
-    });
+    const feature = await this.featureService.updateFeature(featureKey, updateFeatureDto);
     return { feature };
   }
 
@@ -134,16 +100,7 @@ export class FeatureController {
     // Use current org if not specified
     const targetOrgId = overrideDto.orgId || user.orgId;
 
-    // Verify the feature exists
-    const feature = await this.prisma.feature.findUnique({
-      where: { key: overrideDto.featureKey },
-    });
-
-    if (!feature) {
-      throw new ApiError(ErrorCode.NOT_FOUND, 'Feature not found', HttpStatus.NOT_FOUND);
-    }
-
-    const override = await this.featureService.setFeatureOverride(
+    const override = await this.featureService.createFeatureOverride(
       targetOrgId,
       overrideDto.featureKey,
       overrideDto.enabled,
@@ -169,10 +126,7 @@ export class FeatureController {
   @UseGuards(SuperAdminGuard)
   @SwaggerListOverrides()
   async listOverrides(@CurrentUser() user: AuthenticatedUser) {
-    const overrides = await this.prisma.featureOverride.findMany({
-      where: { orgId: user.orgId },
-      include: { feature: true },
-    });
+    const overrides = await this.featureService.listFeatureOverrides(user.orgId);
     return { overrides };
   }
 }

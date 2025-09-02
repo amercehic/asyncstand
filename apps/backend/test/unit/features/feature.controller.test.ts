@@ -2,17 +2,14 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { HttpStatus } from '@nestjs/common';
 import { FeatureController } from '@/features/feature.controller';
 import { FeatureService } from '@/features/feature.service';
-import { PrismaService } from '@/prisma/prisma.service';
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
 import { FeatureOverride } from '@prisma/client';
-import { createMockPrismaService } from '@/test/utils/mocks/prisma.mock';
 import { TestHelpers } from '@/test/utils/test-helpers';
 
 describe('FeatureController', () => {
   let controller: FeatureController;
   let mockFeatureService: jest.Mocked<FeatureService>;
-  let mockPrisma: ReturnType<typeof createMockPrismaService>;
 
   const mockAuthenticatedUser = {
     id: TestHelpers.generateRandomString(),
@@ -36,16 +33,16 @@ describe('FeatureController', () => {
       checkQuota: jest.fn(),
       setFeatureOverride: jest.fn(),
       removeFeatureOverride: jest.fn(),
+      listAllFeatures: jest.fn(),
+      createFeature: jest.fn(),
+      updateFeature: jest.fn(),
+      createFeatureOverride: jest.fn(),
+      listFeatureOverrides: jest.fn(),
     } as unknown as jest.Mocked<FeatureService>;
-
-    mockPrisma = createMockPrismaService();
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [FeatureController],
-      providers: [
-        { provide: FeatureService, useValue: mockFeatureService },
-        { provide: PrismaService, useValue: mockPrisma },
-      ],
+      providers: [{ provide: FeatureService, useValue: mockFeatureService }],
     }).compile();
 
     controller = module.get<FeatureController>(FeatureController);
@@ -140,49 +137,29 @@ describe('FeatureController', () => {
           rolloutValue: null,
           createdAt: new Date(),
           updatedAt: new Date(),
+          planFeatures: [],
+          _count: { orgOverrides: 0 },
         },
       ];
 
-      mockPrisma.feature.findMany.mockResolvedValue(mockFeatures);
+      mockFeatureService.listAllFeatures.mockResolvedValue(mockFeatures);
 
       const result = await controller.listFeatures();
 
       expect(result).toEqual({ features: mockFeatures });
-      expect(mockPrisma.feature.findMany).toHaveBeenCalledWith({
-        where: {},
-        include: {
-          planFeatures: {
-            include: { plan: true },
-          },
-          _count: {
-            select: { orgOverrides: true },
-          },
-        },
-        orderBy: { key: 'asc' },
-      });
+      expect(mockFeatureService.listAllFeatures).toHaveBeenCalledWith(undefined);
     });
 
     it('should list features with category filter', async () => {
       const category = 'billing';
       const mockFeatures = [];
 
-      mockPrisma.feature.findMany.mockResolvedValue(mockFeatures);
+      mockFeatureService.listAllFeatures.mockResolvedValue(mockFeatures);
 
       const result = await controller.listFeatures(category);
 
       expect(result).toEqual({ features: mockFeatures });
-      expect(mockPrisma.feature.findMany).toHaveBeenCalledWith({
-        where: { category },
-        include: {
-          planFeatures: {
-            include: { plan: true },
-          },
-          _count: {
-            select: { orgOverrides: true },
-          },
-        },
-        orderBy: { key: 'asc' },
-      });
+      expect(mockFeatureService.listAllFeatures).toHaveBeenCalledWith(category);
     });
   });
 
@@ -208,14 +185,12 @@ describe('FeatureController', () => {
         updatedAt: new Date(),
       };
 
-      mockPrisma.feature.create.mockResolvedValue(mockFeature);
+      mockFeatureService.createFeature.mockResolvedValue(mockFeature);
 
       const result = await controller.createFeature(createFeatureDto);
 
       expect(result).toEqual({ feature: mockFeature });
-      expect(mockPrisma.feature.create).toHaveBeenCalledWith({
-        data: createFeatureDto,
-      });
+      expect(mockFeatureService.createFeature).toHaveBeenCalledWith(createFeatureDto);
     });
   });
 
@@ -243,15 +218,12 @@ describe('FeatureController', () => {
         updatedAt: new Date(),
       };
 
-      mockPrisma.feature.update.mockResolvedValue(mockUpdatedFeature);
+      mockFeatureService.updateFeature.mockResolvedValue(mockUpdatedFeature);
 
       const result = await controller.updateFeature(featureKey, updateFeatureDto);
 
       expect(result).toEqual({ feature: mockUpdatedFeature });
-      expect(mockPrisma.feature.update).toHaveBeenCalledWith({
-        where: { key: featureKey },
-        data: updateFeatureDto,
-      });
+      expect(mockFeatureService.updateFeature).toHaveBeenCalledWith(featureKey, updateFeatureDto);
     });
   });
 
@@ -267,22 +239,6 @@ describe('FeatureController', () => {
         reason: 'Testing override',
       };
 
-      const mockFeature = {
-        id: 'feature-id',
-        key: featureKey,
-        name: 'Test Feature',
-        description: null,
-        isEnabled: true,
-        environment: [],
-        category: 'test',
-        isPlanBased: false,
-        requiresAdmin: false,
-        rolloutType: null,
-        rolloutValue: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
       const mockOverride: FeatureOverride = {
         id: 'override-id',
         orgId: targetOrgId,
@@ -295,16 +251,12 @@ describe('FeatureController', () => {
         updatedAt: new Date(),
       };
 
-      mockPrisma.feature.findUnique.mockResolvedValue(mockFeature);
-      mockFeatureService.setFeatureOverride.mockResolvedValue(mockOverride);
+      mockFeatureService.createFeatureOverride.mockResolvedValue(mockOverride);
 
       const result = await controller.setOverride(mockSuperAdminUser, overrideDto);
 
       expect(result).toEqual({ override: mockOverride });
-      expect(mockPrisma.feature.findUnique).toHaveBeenCalledWith({
-        where: { key: featureKey },
-      });
-      expect(mockFeatureService.setFeatureOverride).toHaveBeenCalledWith(
+      expect(mockFeatureService.createFeatureOverride).toHaveBeenCalledWith(
         targetOrgId,
         featureKey,
         true,
@@ -323,22 +275,6 @@ describe('FeatureController', () => {
         enabled: true,
       };
 
-      const mockFeature = {
-        id: 'feature-id',
-        key: featureKey,
-        name: 'Test Feature',
-        description: null,
-        isEnabled: true,
-        environment: [],
-        category: 'test',
-        isPlanBased: false,
-        requiresAdmin: false,
-        rolloutType: null,
-        rolloutValue: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
       const mockOverride: FeatureOverride = {
         id: 'override-id',
         orgId: mockSuperAdminUser.orgId,
@@ -351,12 +287,11 @@ describe('FeatureController', () => {
         updatedAt: new Date(),
       };
 
-      mockPrisma.feature.findUnique.mockResolvedValue(mockFeature);
-      mockFeatureService.setFeatureOverride.mockResolvedValue(mockOverride);
+      mockFeatureService.createFeatureOverride.mockResolvedValue(mockOverride);
 
       await controller.setOverride(mockSuperAdminUser, overrideDto);
 
-      expect(mockFeatureService.setFeatureOverride).toHaveBeenCalledWith(
+      expect(mockFeatureService.createFeatureOverride).toHaveBeenCalledWith(
         mockSuperAdminUser.orgId,
         featureKey,
         true,
@@ -375,7 +310,9 @@ describe('FeatureController', () => {
         enabled: true,
       };
 
-      mockPrisma.feature.findUnique.mockResolvedValue(null);
+      mockFeatureService.createFeatureOverride.mockRejectedValue(
+        new ApiError(ErrorCode.NOT_FOUND, 'Feature not found', HttpStatus.NOT_FOUND),
+      );
 
       await expect(controller.setOverride(mockSuperAdminUser, overrideDto)).rejects.toThrow(
         new ApiError(ErrorCode.NOT_FOUND, 'Feature not found', HttpStatus.NOT_FOUND),
@@ -391,22 +328,6 @@ describe('FeatureController', () => {
         expiresAt: expirationDate,
       };
 
-      const mockFeature = {
-        id: 'feature-id',
-        key: featureKey,
-        name: 'Test Feature',
-        description: null,
-        isEnabled: true,
-        environment: [],
-        category: 'test',
-        isPlanBased: false,
-        requiresAdmin: false,
-        rolloutType: null,
-        rolloutValue: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
       const mockOverride: FeatureOverride = {
         id: 'override-id',
         orgId: mockSuperAdminUser.orgId,
@@ -419,12 +340,11 @@ describe('FeatureController', () => {
         updatedAt: new Date(),
       };
 
-      mockPrisma.feature.findUnique.mockResolvedValue(mockFeature);
-      mockFeatureService.setFeatureOverride.mockResolvedValue(mockOverride);
+      mockFeatureService.createFeatureOverride.mockResolvedValue(mockOverride);
 
       await controller.setOverride(mockSuperAdminUser, overrideDto);
 
-      expect(mockFeatureService.setFeatureOverride).toHaveBeenCalledWith(
+      expect(mockFeatureService.createFeatureOverride).toHaveBeenCalledWith(
         mockSuperAdminUser.orgId,
         featureKey,
         true,
@@ -466,19 +386,28 @@ describe('FeatureController', () => {
             id: 'feature-1',
             key: 'feature-1',
             name: 'Feature 1',
+            description: null,
+            isEnabled: true,
+            environment: [],
+            category: 'test',
+            isPlanBased: false,
+            requiresAdmin: false,
+            rolloutType: null,
+            rolloutValue: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
           },
         },
       ];
 
-      mockPrisma.featureOverride.findMany.mockResolvedValue(mockOverrides);
+      mockFeatureService.listFeatureOverrides.mockResolvedValue(mockOverrides);
 
       const result = await controller.listOverrides(mockSuperAdminUser);
 
       expect(result).toEqual({ overrides: mockOverrides });
-      expect(mockPrisma.featureOverride.findMany).toHaveBeenCalledWith({
-        where: { orgId: mockSuperAdminUser.orgId },
-        include: { feature: true },
-      });
+      expect(mockFeatureService.listFeatureOverrides).toHaveBeenCalledWith(
+        mockSuperAdminUser.orgId,
+      );
     });
   });
 });
