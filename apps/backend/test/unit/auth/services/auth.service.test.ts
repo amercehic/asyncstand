@@ -147,7 +147,7 @@ describe('AuthService', () => {
     it('should login user successfully', async () => {
       const email = TestHelpers.generateRandomEmail();
       const password = 'TestPassword123!';
-      const mockUser = TestHelpers.createMockUser({ email });
+      const mockUser = TestHelpers.createMockUser({ email, isSuperAdmin: false });
       const mockOrg = TestHelpers.createMockOrganization();
       const mockOrgMember = {
         org: mockOrg,
@@ -209,6 +209,8 @@ describe('AuthService', () => {
           email: mockUser.email,
           name: mockUser.name,
           role: OrgRole.owner,
+          isSuperAdmin: false,
+          orgId: mockOrg.id,
         },
         organizations: [
           {

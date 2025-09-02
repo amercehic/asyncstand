@@ -10,7 +10,7 @@ import {
   UseGuards,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { FeatureService } from '@/features/feature.service';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { SuperAdminGuard } from '@/auth/guards/super-admin.guard';
@@ -18,7 +18,20 @@ import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 import { PrismaService } from '@/prisma/prisma.service';
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
-import { Prisma } from '@prisma/client';
+import { CreateFeatureDto } from '@/features/dto/create-feature.dto';
+import { UpdateFeatureDto } from '@/features/dto/update-feature.dto';
+import { CreateFeatureOverrideDto } from '@/features/dto/feature-override.dto';
+import {
+  SwaggerGetEnabledFeatures,
+  SwaggerCheckFeature,
+  SwaggerCheckQuota,
+  SwaggerListFeatures,
+  SwaggerCreateFeature,
+  SwaggerUpdateFeature,
+  SwaggerSetOverride,
+  SwaggerRemoveOverride,
+  SwaggerListOverrides,
+} from '@/swagger/features.swagger';
 
 interface AuthenticatedUser {
   id: string;
@@ -29,34 +42,10 @@ interface AuthenticatedUser {
   role: string;
 }
 
-interface CreateFeatureDto {
-  key: string;
-  name: string;
-  description?: string;
-  isEnabled: boolean;
-  environment: string[];
-  category?: string;
-  isPlanBased: boolean;
-  requiresAdmin: boolean;
-  rolloutType?: string;
-  rolloutValue?: Prisma.InputJsonValue;
-}
-
-interface UpdateFeatureDto {
-  name?: string;
-  description?: string;
-  isEnabled?: boolean;
-  environment?: string[];
-  category?: string;
-  isPlanBased?: boolean;
-  requiresAdmin?: boolean;
-  rolloutType?: string;
-  rolloutValue?: Prisma.InputJsonValue;
-}
-
 @ApiTags('Features')
 @Controller('features')
 @UseGuards(JwtAuthGuard)
+@ApiBearerAuth('JWT-auth')
 export class FeatureController {
   constructor(
     private readonly featureService: FeatureService,
@@ -64,18 +53,14 @@ export class FeatureController {
   ) {}
 
   @Get('enabled')
-  @ApiOperation({ summary: 'Get all enabled features for the current organization' })
-  @ApiResponse({ status: HttpStatus.OK })
-  @ApiBearerAuth()
+  @SwaggerGetEnabledFeatures()
   async getEnabledFeatures(@CurrentUser() user: AuthenticatedUser) {
     const enabledFeatures = await this.featureService.getEnabledFeatures(user.orgId);
     return { features: enabledFeatures };
   }
 
   @Get('check/:featureKey')
-  @ApiOperation({ summary: 'Check if a specific feature is enabled' })
-  @ApiResponse({ status: HttpStatus.OK })
-  @ApiBearerAuth()
+  @SwaggerCheckFeature()
   async checkFeature(
     @CurrentUser() user: AuthenticatedUser,
     @Param('featureKey') featureKey: string,
@@ -85,9 +70,7 @@ export class FeatureController {
   }
 
   @Get('quota/:quotaType')
-  @ApiOperation({ summary: 'Check quota usage for a specific resource' })
-  @ApiResponse({ status: HttpStatus.OK })
-  @ApiBearerAuth()
+  @SwaggerCheckQuota()
   async checkQuota(
     @CurrentUser() user: AuthenticatedUser,
     @Param('quotaType') quotaType: 'members' | 'teams' | 'standups' | 'storage' | 'integrations',
@@ -99,9 +82,7 @@ export class FeatureController {
 
   @Get('admin/list')
   @UseGuards(SuperAdminGuard)
-  @ApiOperation({ summary: 'List all features (super admin only)' })
-  @ApiResponse({ status: HttpStatus.OK })
-  @ApiBearerAuth()
+  @SwaggerListFeatures()
   async listFeatures(@Query('category') category?: string) {
     const where = category ? { category } : {};
     const features = await this.prisma.feature.findMany({
@@ -121,9 +102,7 @@ export class FeatureController {
 
   @Post('admin/create')
   @UseGuards(SuperAdminGuard)
-  @ApiOperation({ summary: 'Create a new feature flag (super admin only)' })
-  @ApiResponse({ status: HttpStatus.CREATED })
-  @ApiBearerAuth()
+  @SwaggerCreateFeature()
   async createFeature(@Body() createFeatureDto: CreateFeatureDto) {
     const feature = await this.prisma.feature.create({
       data: createFeatureDto,
@@ -133,9 +112,7 @@ export class FeatureController {
 
   @Put('admin/:featureKey')
   @UseGuards(SuperAdminGuard)
-  @ApiOperation({ summary: 'Update a feature flag (super admin only)' })
-  @ApiResponse({ status: HttpStatus.OK })
-  @ApiBearerAuth()
+  @SwaggerUpdateFeature()
   async updateFeature(
     @Param('featureKey') featureKey: string,
     @Body() updateFeatureDto: UpdateFeatureDto,
@@ -149,20 +126,10 @@ export class FeatureController {
 
   @Post('admin/override')
   @UseGuards(SuperAdminGuard)
-  @ApiOperation({ summary: 'Set a feature override for an organization (super admin only)' })
-  @ApiResponse({ status: HttpStatus.CREATED })
-  @ApiBearerAuth()
+  @SwaggerSetOverride()
   async setOverride(
     @CurrentUser() user: AuthenticatedUser,
-    @Body()
-    overrideDto: {
-      featureKey: string;
-      orgId?: string;
-      enabled: boolean;
-      value?: string;
-      reason?: string;
-      expiresAt?: string;
-    },
+    @Body() overrideDto: CreateFeatureOverrideDto,
   ) {
     // Use current org if not specified
     const targetOrgId = overrideDto.orgId || user.orgId;
@@ -192,9 +159,7 @@ export class FeatureController {
 
   @Delete('admin/override/:orgId/:featureKey')
   @UseGuards(SuperAdminGuard)
-  @ApiOperation({ summary: 'Remove a feature override (super admin only)' })
-  @ApiResponse({ status: HttpStatus.NO_CONTENT })
-  @ApiBearerAuth()
+  @SwaggerRemoveOverride()
   async removeOverride(@Param('orgId') orgId: string, @Param('featureKey') featureKey: string) {
     await this.featureService.removeFeatureOverride(orgId, featureKey);
     return { message: 'Override removed successfully' };
@@ -202,9 +167,7 @@ export class FeatureController {
 
   @Get('admin/overrides')
   @UseGuards(SuperAdminGuard)
-  @ApiOperation({ summary: 'List all feature overrides (super admin only)' })
-  @ApiResponse({ status: HttpStatus.OK })
-  @ApiBearerAuth()
+  @SwaggerListOverrides()
   async listOverrides(@CurrentUser() user: AuthenticatedUser) {
     const overrides = await this.prisma.featureOverride.findMany({
       where: { orgId: user.orgId },
