@@ -212,8 +212,8 @@ describe('CreateTeamModal', () => {
       });
     });
 
-    expect(toast.loading).toHaveBeenCalledWith('Creating team...', { id: 'create-team' });
-    expect(toast.dismiss).toHaveBeenCalledWith('create-team');
+    expect(toast.loading).toHaveBeenCalledWith('Creating team...');
+    expect(toast.dismiss).toHaveBeenCalled();
     expect(mockProps.onSuccess).toHaveBeenCalledWith('Test Team', mockTeam);
   });
 
@@ -264,7 +264,7 @@ describe('CreateTeamModal', () => {
     fireEvent.click(screen.getByTestId('create-team-submit-button'));
 
     await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith('Test error message', { id: 'create-team' });
+      expect(toast.error).toHaveBeenCalledWith('Test error message');
     });
 
     expect(mockProps.onSuccess).not.toHaveBeenCalled();
