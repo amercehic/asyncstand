@@ -23,6 +23,16 @@ export function SwaggerGetOrganization() {
             type: 'string',
             example: 'Acme Corporation',
           },
+          createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2023-12-01T10:00:00Z',
+          },
+          updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2023-12-01T10:00:00Z',
+          },
         },
       },
     }),
@@ -61,6 +71,16 @@ export function SwaggerUpdateOrganization() {
           name: {
             type: 'string',
             example: 'Updated Organization Name',
+          },
+          createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2023-12-01T10:00:00Z',
+          },
+          updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2023-12-01T12:30:00Z',
           },
         },
       },

@@ -6,21 +6,29 @@ import { AuthController } from '@/auth/controllers/auth.controller';
 import { AuthService } from '@/auth/services/auth.service';
 import { PasswordResetService } from '@/auth/services/password-reset.service';
 import { CsrfService } from '@/common/security/csrf.service';
+import { SessionIdentifierService } from '@/common/session/session-identifier.service';
+import { SessionCleanupService } from '@/common/session/session-cleanup.service';
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
 import { AuthFactory } from '@/test/utils/factories';
 import { createMockAuthService } from '@/test/utils/mocks/typed-mocks';
+import { LoggerService } from '@/common/logger.service';
+import { createMockLoggerService } from '@/test/utils/mocks/services.mock';
 
 describe('AuthController', () => {
   let controller: AuthController;
   let mockAuthService: ReturnType<typeof createMockAuthService>;
   let mockPasswordResetService: jest.Mocked<PasswordResetService>;
   let mockCsrfService: jest.Mocked<CsrfService>;
+  let mockSessionIdentifierService: jest.Mocked<SessionIdentifierService>;
+  let mockSessionCleanupService: jest.Mocked<SessionCleanupService>;
+  let mockLoggerService: ReturnType<typeof createMockLoggerService>;
   let mockRequest: Partial<Request>;
   let mockResponse: Partial<Response>;
 
   beforeEach(async () => {
     mockAuthService = createMockAuthService();
+    mockLoggerService = createMockLoggerService();
     mockPasswordResetService = {
       createPasswordResetToken: jest.fn(),
       resetPassword: jest.fn(),
@@ -29,9 +37,25 @@ describe('AuthController', () => {
     mockCsrfService = {
       getToken: jest.fn().mockReturnValue('mock-csrf-token'),
       validateToken: jest.fn().mockReturnValue(true),
+      generateToken: jest.fn().mockResolvedValue('mock-csrf-token'),
     } as unknown as jest.Mocked<CsrfService>;
 
-    mockRequest = AuthFactory.buildMockRequest() as Partial<Request>;
+    mockSessionIdentifierService = {
+      extractSessionId: jest.fn().mockReturnValue('test-session-id'),
+      getAllSessionIds: jest.fn().mockReturnValue(['test-session-id']),
+      getSessionContext: jest.fn().mockReturnValue({
+        sessionId: 'test-session-id',
+        source: 'test',
+        isAuthenticated: false,
+      }),
+    } as unknown as jest.Mocked<SessionIdentifierService>;
+
+    mockSessionCleanupService = {
+      cleanupSession: jest.fn().mockResolvedValue(undefined),
+      cleanupSessions: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<SessionCleanupService>;
+
+    mockRequest = AuthFactory.buildMockRequest() as unknown as Partial<Request>;
     mockResponse = {
       cookie: jest.fn().mockReturnThis(),
       clearCookie: jest.fn().mockReturnThis(),
@@ -45,6 +69,9 @@ describe('AuthController', () => {
         { provide: AuthService, useValue: mockAuthService },
         { provide: PasswordResetService, useValue: mockPasswordResetService },
         { provide: CsrfService, useValue: mockCsrfService },
+        { provide: SessionIdentifierService, useValue: mockSessionIdentifierService },
+        { provide: SessionCleanupService, useValue: mockSessionCleanupService },
+        { provide: LoggerService, useValue: mockLoggerService },
       ],
       imports: [
         ThrottlerModule.forRoot([
@@ -197,7 +224,11 @@ describe('AuthController', () => {
         mockResponse as Response,
       );
 
-      expect(mockAuthService.logout).toHaveBeenCalledWith('valid-refresh-token', '192.168.1.1');
+      expect(mockAuthService.logout).toHaveBeenCalledWith(
+        'valid-refresh-token',
+        '192.168.1.1',
+        mockRequest,
+      );
       expect(mockResponse.clearCookie).toHaveBeenCalledWith('refreshToken');
       expect(result).toEqual({ success: true });
     });
@@ -219,7 +250,7 @@ describe('AuthController', () => {
         mockResponse as Response,
       );
 
-      expect(mockAuthService.logout).toHaveBeenCalledWith(bodyToken, '192.168.1.1');
+      expect(mockAuthService.logout).toHaveBeenCalledWith(bodyToken, '192.168.1.1', mockRequest);
       expect(mockResponse.clearCookie).toHaveBeenCalledWith('refreshToken');
       expect(result).toEqual({ success: true });
     });
@@ -230,9 +261,18 @@ describe('AuthController', () => {
         cookies: {},
       };
 
-      await expect(
-        controller.logout(undefined, mockRequest as Request, mockResponse as Response),
-      ).rejects.toThrow(ApiError);
+      const result = await controller.logout(
+        undefined,
+        mockRequest as Request,
+        mockResponse as Response,
+      );
+
+      expect(result).toEqual({
+        success: true,
+        message: 'Logged out successfully',
+      });
+      expect(mockResponse.clearCookie).toHaveBeenCalledWith('refreshToken');
+      expect(mockAuthService.logout).not.toHaveBeenCalled();
     });
   });
 

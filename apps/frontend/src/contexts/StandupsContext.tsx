@@ -46,7 +46,6 @@ interface StandupsContextType extends StandupsState {
   createStandup: (teamId: string, data: Partial<Standup>) => Promise<Standup>;
   updateStandup: (id: string, updates: Partial<Standup>) => Promise<void>;
   deleteStandup: (id: string) => Promise<void>;
-  triggerStandupInstance: (standupId: string) => Promise<StandupInstance>;
   submitResponse: (instanceId: string, responses: Record<string, string>) => Promise<void>;
   updateResponse: (responseId: string, updates: Record<string, string>) => Promise<void>;
   selectStandup: (standup: Standup | null) => void;
@@ -264,18 +263,24 @@ export function StandupsProvider({ children }: StandupsProviderProps) {
     async (teamId: string, data: Partial<Standup>): Promise<Standup> => {
       dispatch({ type: 'SET_CREATING', payload: true });
 
+      let createStandupToastId: string | undefined;
       try {
-        toast.loading('Creating standup...', { id: 'create-standup' });
+        createStandupToastId = toast.loading('Creating standup...');
         const newStandup = await standupsApi.createStandup(teamId, data);
 
-        toast.success('Standup created successfully!', { id: 'create-standup' });
+        toast.dismiss(createStandupToastId);
+        toast.success('Standup created successfully!');
         dispatch({ type: 'ADD_STANDUP', payload: newStandup });
 
         return newStandup;
       } catch (error) {
+        // Dismiss the loading toast if it exists
+        if (createStandupToastId) {
+          toast.dismiss(createStandupToastId);
+        }
         const { message } = normalizeApiError(error, 'Failed to create standup');
         dispatch({ type: 'SET_CREATING', payload: false });
-        toast.error(message, { id: 'create-standup' });
+        toast.error(message);
         throw error;
       }
     },
@@ -336,26 +341,6 @@ export function StandupsProvider({ children }: StandupsProviderProps) {
       }
     },
     [state.standups]
-  );
-
-  const triggerStandupInstance = useCallback(
-    async (standupId: string): Promise<StandupInstance> => {
-      try {
-        toast.loading('Creating standup instance...', { id: `trigger-${standupId}` });
-
-        const instance = await standupsApi.triggerStandup(standupId);
-
-        dispatch({ type: 'ADD_INSTANCE', payload: instance });
-        toast.success('Standup instance created!', { id: `trigger-${standupId}` });
-
-        return instance;
-      } catch (error) {
-        const { message } = normalizeApiError(error, 'Failed to trigger standup');
-        toast.error(message, { id: `trigger-${standupId}` });
-        throw error;
-      }
-    },
-    []
   );
 
   const submitResponse = useCallback(
@@ -447,7 +432,6 @@ export function StandupsProvider({ children }: StandupsProviderProps) {
       createStandup,
       updateStandup,
       deleteStandup,
-      triggerStandupInstance,
       submitResponse,
       updateResponse,
       selectStandup,
@@ -465,7 +449,6 @@ export function StandupsProvider({ children }: StandupsProviderProps) {
       createStandup,
       updateStandup,
       deleteStandup,
-      triggerStandupInstance,
       submitResponse,
       updateResponse,
       selectStandup,

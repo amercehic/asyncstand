@@ -40,7 +40,17 @@ export const handlers = [
     if (!authorization || !authorization.includes('Bearer')) {
       return HttpResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
-    return HttpResponse.json({ id: '1', email: 'test@example.com', name: 'Test User' });
+    return HttpResponse.json({
+      user: {
+        id: '1',
+        email: 'test@example.com',
+        name: 'Test User',
+        role: 'admin',
+        orgId: 'org-1',
+        createdAt: '2025-09-02T09:07:42.146Z',
+        updatedAt: '2025-09-02T10:30:00.000Z',
+      },
+    });
   }),
 
   // Auth: logout

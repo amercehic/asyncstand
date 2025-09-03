@@ -99,4 +99,13 @@ export default [
       ],
     },
   },
+
+  // Feature seeds overrides - allow console for seed scripts
+  {
+    files: ['apps/backend/src/features/seeds/**/*.ts'],
+    rules: {
+      'no-console': 'off',
+      'no-restricted-syntax': 'off',
+    },
+  },
 ];

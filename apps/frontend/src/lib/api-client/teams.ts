@@ -112,11 +112,15 @@ export const teamsApi = {
   },
 
   async assignPlatformMembers(teamId: string, platformUserIds: string[]): Promise<void> {
-    // Use existing single member endpoint in parallel
-    const assignPromises = platformUserIds.map(slackUserId =>
-      api.post(`/teams/${teamId}/members`, { slackUserId })
-    );
-    await Promise.all(assignPromises);
+    if (platformUserIds.length === 0) return;
+
+    if (platformUserIds.length === 1) {
+      // Use single member endpoint for single additions
+      await api.post(`/teams/${teamId}/members`, { slackUserId: platformUserIds[0] });
+    } else {
+      // Use bulk endpoint for multiple additions
+      await api.post(`/teams/${teamId}/members/bulk`, { slackUserIds: platformUserIds });
+    }
   },
 
   async removePlatformMembers(teamId: string, teamMemberIds: string[]): Promise<void> {

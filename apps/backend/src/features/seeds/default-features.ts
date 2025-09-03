@@ -1,0 +1,161 @@
+export const DEFAULT_FEATURES = [
+  // Core Features
+  {
+    key: 'dashboard',
+    name: 'Dashboard',
+    description: 'Access to main dashboard and overview',
+    isEnabled: true,
+    environment: ['development', 'staging', 'production'],
+    category: 'core',
+    isPlanBased: false,
+    requiresAdmin: false,
+  },
+  {
+    key: 'teams',
+    name: 'Teams',
+    description: 'Team management and configuration',
+    isEnabled: true,
+    environment: ['development', 'staging', 'production'],
+    category: 'core',
+    isPlanBased: false,
+    requiresAdmin: false,
+  },
+  {
+    key: 'standups',
+    name: 'Standups',
+    description: 'Access to standup features',
+    isEnabled: true,
+    environment: ['development', 'staging', 'production'],
+    category: 'core',
+    isPlanBased: false,
+    requiresAdmin: false,
+  },
+  {
+    key: 'settings',
+    name: 'Settings',
+    description: 'Access to user and organization settings',
+    isEnabled: true,
+    environment: ['development', 'staging', 'production'],
+    category: 'core',
+    isPlanBased: false,
+    requiresAdmin: false,
+  },
+
+  // Integration Features
+  {
+    key: 'integrations',
+    name: 'Integrations',
+    description: 'Access to integrations management',
+    isEnabled: true,
+    environment: ['development', 'staging', 'production'],
+    category: 'integration',
+    isPlanBased: false,
+    requiresAdmin: false,
+  },
+  {
+    key: 'slack_integration',
+    name: 'Slack Integration',
+    description: 'Slack bot and notifications',
+    isEnabled: true,
+    environment: ['development', 'staging', 'production'],
+    category: 'integration',
+    isPlanBased: false,
+    requiresAdmin: true,
+  },
+];
+
+export const DEFAULT_PLANS = [
+  {
+    key: 'free',
+    name: 'Free Plan',
+    displayName: 'Free',
+    description: 'Perfect for small teams getting started',
+    price: 0,
+    interval: 'month',
+    stripePriceId: null,
+    isActive: true,
+    sortOrder: 0,
+    memberLimit: 5,
+    teamLimit: 2,
+    standupLimit: 50, // per month
+    storageLimit: 100, // MB
+    integrationLimit: 1,
+    features: [
+      { featureKey: 'dashboard', enabled: true },
+      { featureKey: 'teams', enabled: true },
+      { featureKey: 'standups', enabled: true },
+      { featureKey: 'settings', enabled: true },
+    ],
+  },
+  {
+    key: 'starter',
+    name: 'Starter Plan',
+    displayName: 'Starter',
+    description: 'For growing teams that need more features',
+    price: 999, // $9.99 in cents
+    interval: 'month',
+    stripePriceId: 'price_starter_monthly', // Replace with actual Stripe price ID
+    isActive: true,
+    sortOrder: 1,
+    memberLimit: 25,
+    teamLimit: 10,
+    standupLimit: 500,
+    storageLimit: 1000,
+    integrationLimit: 3,
+    features: [
+      { featureKey: 'dashboard', enabled: true },
+      { featureKey: 'teams', enabled: true },
+      { featureKey: 'standups', enabled: true },
+      { featureKey: 'settings', enabled: true },
+      { featureKey: 'integrations', enabled: true },
+    ],
+  },
+  {
+    key: 'professional',
+    name: 'Professional Plan',
+    displayName: 'Professional',
+    description: 'For teams that need advanced features and insights',
+    price: 2999, // $29.99 in cents
+    interval: 'month',
+    stripePriceId: 'price_professional_monthly', // Replace with actual Stripe price ID
+    isActive: true,
+    sortOrder: 2,
+    memberLimit: 100,
+    teamLimit: 50,
+    standupLimit: 2000,
+    storageLimit: 5000,
+    integrationLimit: 10,
+    features: [
+      { featureKey: 'dashboard', enabled: true },
+      { featureKey: 'teams', enabled: true },
+      { featureKey: 'standups', enabled: true },
+      { featureKey: 'settings', enabled: true },
+      { featureKey: 'integrations', enabled: true },
+      { featureKey: 'slack_integration', enabled: true },
+    ],
+  },
+  {
+    key: 'enterprise',
+    name: 'Enterprise Plan',
+    displayName: 'Enterprise',
+    description: 'For large organizations with custom needs',
+    price: 9999, // $99.99 in cents - base price, usually custom
+    interval: 'month',
+    stripePriceId: 'price_enterprise_monthly', // Replace with actual Stripe price ID
+    isActive: true,
+    sortOrder: 3,
+    memberLimit: null, // unlimited
+    teamLimit: null,
+    standupLimit: null,
+    storageLimit: null,
+    integrationLimit: null,
+    features: [
+      { featureKey: 'dashboard', enabled: true },
+      { featureKey: 'teams', enabled: true },
+      { featureKey: 'standups', enabled: true },
+      { featureKey: 'settings', enabled: true },
+      { featureKey: 'integrations', enabled: true },
+      { featureKey: 'slack_integration', enabled: true },
+    ],
+  },
+];

@@ -9,6 +9,9 @@ import { AuditLogService } from '@/common/audit/audit-log.service';
 import { UserUtilsService } from '@/auth/services/user-utils.service';
 import { TokenService } from '@/auth/services/token.service';
 import { UserService } from '@/auth/services/user.service';
+import { CsrfService } from '@/common/security/csrf.service';
+import { SessionIdentifierService } from '@/common/session/session-identifier.service';
+import { SessionCleanupService } from '@/common/session/session-cleanup.service';
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
 import { OrgRole, OrgMemberStatus } from '@prisma/client';
@@ -21,6 +24,9 @@ import {
   createMockUserUtilsService,
   createMockTokenService,
   createMockUserService,
+  createMockCsrfService,
+  createMockSessionIdentifierService,
+  createMockSessionCleanupService,
 } from '@/test/utils/mocks/services.mock';
 import { TestHelpers } from '@/test/utils/test-helpers';
 
@@ -43,6 +49,9 @@ describe('AuthService', () => {
   let mockUserUtils: ReturnType<typeof createMockUserUtilsService>;
   let mockTokenService: ReturnType<typeof createMockTokenService>;
   let mockUserService: ReturnType<typeof createMockUserService>;
+  let mockCsrfService: ReturnType<typeof createMockCsrfService>;
+  let mockSessionIdentifierService: ReturnType<typeof createMockSessionIdentifierService>;
+  let mockSessionCleanupService: ReturnType<typeof createMockSessionCleanupService>;
 
   beforeEach(async () => {
     mockPrisma = createMockPrismaService();
@@ -52,6 +61,9 @@ describe('AuthService', () => {
     mockUserUtils = createMockUserUtilsService();
     mockTokenService = createMockTokenService();
     mockUserService = createMockUserService();
+    mockCsrfService = createMockCsrfService();
+    mockSessionIdentifierService = createMockSessionIdentifierService();
+    mockSessionCleanupService = createMockSessionCleanupService();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -63,6 +75,9 @@ describe('AuthService', () => {
         { provide: UserUtilsService, useValue: mockUserUtils },
         { provide: TokenService, useValue: mockTokenService },
         { provide: UserService, useValue: mockUserService },
+        { provide: CsrfService, useValue: mockCsrfService },
+        { provide: SessionIdentifierService, useValue: mockSessionIdentifierService },
+        { provide: SessionCleanupService, useValue: mockSessionCleanupService },
       ],
     }).compile();
 
@@ -147,7 +162,7 @@ describe('AuthService', () => {
     it('should login user successfully', async () => {
       const email = TestHelpers.generateRandomEmail();
       const password = 'TestPassword123!';
-      const mockUser = TestHelpers.createMockUser({ email });
+      const mockUser = TestHelpers.createMockUser({ email, isSuperAdmin: false });
       const mockOrg = TestHelpers.createMockOrganization();
       const mockOrgMember = {
         org: mockOrg,
@@ -183,6 +198,7 @@ describe('AuthService', () => {
         mockUser.id,
         mockOrg.id,
         '192.168.1.1',
+        'owner',
       );
       expect(mockPrisma.auditLog.create).toHaveBeenCalledWith({
         data: {
@@ -209,6 +225,8 @@ describe('AuthService', () => {
           email: mockUser.email,
           name: mockUser.name,
           role: OrgRole.owner,
+          isSuperAdmin: false,
+          orgId: mockOrg.id,
         },
         organizations: [
           {
@@ -306,6 +324,7 @@ describe('AuthService', () => {
         mockUser.id,
         ownerOrg.id,
         '192.168.1.1',
+        'owner',
       );
       expect(result.user.role).toBe(OrgRole.owner);
       expect(result.organizations).toHaveLength(2);
@@ -342,6 +361,7 @@ describe('AuthService', () => {
         mockUser.id,
         mockOrg.id,
         'unknown',
+        'member',
       );
     });
   });
@@ -371,7 +391,7 @@ describe('AuthService', () => {
       const result = await service.logout(token, ip);
 
       expect(mockPrisma.refreshToken.findUnique).toHaveBeenCalledWith({
-        where: { token },
+        where: { token: expect.any(String) }, // Token is now hashed
         include: {
           user: {
             include: {
@@ -384,7 +404,10 @@ describe('AuthService', () => {
           },
         },
       });
-      expect(mockTokenService.revokeRefreshToken).toHaveBeenCalledWith(token);
+      expect(mockTokenService.revokeRefreshToken).toHaveBeenCalledWith(expect.any(String)); // Token is now hashed
+      expect(mockSessionCleanupService.cleanupSessions).toHaveBeenCalledWith([
+        `user-session:${mockUser.id}`,
+      ]);
       expect(mockPrisma.auditLog.create).toHaveBeenCalledWith({
         data: {
           orgId: mockOrg.id,
@@ -433,7 +456,7 @@ describe('AuthService', () => {
 
       const result = await service.logout(token, ip);
 
-      expect(mockTokenService.revokeRefreshToken).toHaveBeenCalledWith(token);
+      expect(mockTokenService.revokeRefreshToken).toHaveBeenCalledWith(expect.any(String)); // Token is now hashed
       expect(mockPrisma.auditLog.create).not.toHaveBeenCalled();
       expect(result).toEqual({ success: true });
     });
@@ -703,7 +726,41 @@ describe('AuthService', () => {
       // Should still succeed despite audit log failure
       const result = await service.logout(token, ip);
 
-      expect(mockTokenService.revokeRefreshToken).toHaveBeenCalledWith(token);
+      expect(mockTokenService.revokeRefreshToken).toHaveBeenCalledWith(expect.any(String)); // Token is now hashed
+      expect(result).toEqual({ success: true });
+    });
+
+    it('should handle session cleanup errors gracefully during logout', async () => {
+      const token = 'refresh_token';
+      const ip = '192.168.1.1';
+      const mockUser = TestHelpers.createMockUser();
+      const mockOrg = TestHelpers.createMockOrganization();
+      const mockRefreshToken = {
+        id: 'token_id',
+        token,
+        userId: mockUser.id,
+        user: {
+          orgMembers: [
+            {
+              org: mockOrg,
+              status: OrgMemberStatus.active,
+            },
+          ],
+        },
+      };
+
+      mockPrisma.refreshToken.findUnique.mockResolvedValue(mockRefreshToken);
+      mockSessionCleanupService.cleanupSessions.mockRejectedValue(
+        new Error('Session cleanup error'),
+      );
+
+      // Should still succeed despite session cleanup failure
+      const result = await service.logout(token, ip);
+
+      expect(mockTokenService.revokeRefreshToken).toHaveBeenCalledWith(expect.any(String)); // Token is now hashed
+      expect(mockSessionCleanupService.cleanupSessions).toHaveBeenCalledWith([
+        `user-session:${mockUser.id}`,
+      ]);
       expect(result).toEqual({ success: true });
     });
   });

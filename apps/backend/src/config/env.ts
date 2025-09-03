@@ -4,6 +4,7 @@ import { plainToInstance, Transform } from 'class-transformer';
 enum Environment {
   Development = 'development',
   Production = 'production',
+  Staging = 'staging',
   Test = 'test',
 }
 
@@ -25,6 +26,10 @@ export class EnvironmentVariables {
 
   @IsString()
   FRONTEND_URL: string = 'http://localhost:3000';
+
+  @IsOptional()
+  @IsString()
+  BACKEND_URL: string = '';
 
   @IsOptional()
   @IsString()
@@ -93,8 +98,11 @@ export function validate(config: Record<string, unknown>) {
 
 export const envConfig = () => {
   const ngrokUrl = process.env.NGROK_URL;
+  const backendUrl = process.env.BACKEND_URL;
   const baseUrl =
-    ngrokUrl || (process.env.NODE_ENV === 'development' ? 'http://localhost:3001' : '');
+    ngrokUrl ||
+    backendUrl ||
+    (process.env.NODE_ENV === 'development' ? 'http://localhost:3001' : '');
 
   return {
     port: parseInt(process.env.PORT || '3000', 10),
@@ -102,7 +110,8 @@ export const envConfig = () => {
     databaseUrl: process.env.DATABASE_URL,
     jwtSecret: process.env.JWT_SECRET,
     frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
-    // Use NGROK_URL if available, otherwise fallback to default
+    backendUrl: backendUrl || '',
+    // Use NGROK_URL if available, then BACKEND_URL, otherwise fallback to default
     appUrl: baseUrl,
     ngrokUrl: ngrokUrl || '',
     fromEmail: process.env.FROM_EMAIL || 'noreply@asyncstand.com',

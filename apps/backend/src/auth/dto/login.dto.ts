@@ -7,7 +7,7 @@ export class LoginDto {
     example: 'user@example.com',
     type: String,
   })
-  @IsEmail({}, { message: 'Please provide a valid email address' })
+  @IsEmail({}, { message: 'Please provide a valid email address (e.g., user@example.com)' })
   @IsNotEmpty({ message: 'Email is required' })
   email: string;
 

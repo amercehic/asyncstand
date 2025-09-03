@@ -91,6 +91,7 @@ interface AuthContextType extends AuthState {
   signup: (data: SignUpRequest) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (updates: Partial<User>) => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -196,20 +197,38 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const primaryOrg =
           response.organizations.find(org => org.isPrimary) || response.organizations[0];
 
+        // Adjust token expiration based on rememberMe
+        const expirationTime = rememberMe
+          ? 30 * 24 * 60 * 60 * 1000 // 30 days for remember me
+          : response.expiresIn * 1000; // Default expiration from backend
+
+        // Set token in API client FIRST (before making authenticated requests)
+        setAuthToken(response.accessToken);
+
+        // Get the complete user data with actual timestamps from the database
+        let completeUserData;
+        try {
+          completeUserData = await authApi.getCurrentUser();
+        } catch (error) {
+          console.warn('Failed to fetch complete user data, using fallback timestamps:', error);
+          // Fallback to current timestamps if getCurrentUser fails
+          completeUserData = {
+            isSuperAdmin: response.user.isSuperAdmin,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+        }
+
         const user: User = {
           id: response.user.id,
           email: response.user.email,
           name: response.user.name,
           role: (response.user.role as 'owner' | 'admin' | 'member') ?? 'member',
+          isSuperAdmin: completeUserData.isSuperAdmin,
           orgId: primaryOrg?.id,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          createdAt: completeUserData.createdAt,
+          updatedAt: completeUserData.updatedAt,
         };
-
-        // Adjust token expiration based on rememberMe
-        const expirationTime = rememberMe
-          ? 30 * 24 * 60 * 60 * 1000 // 30 days for remember me
-          : response.expiresIn * 1000; // Default expiration from backend
 
         const tokens: AuthTokens = {
           accessToken: response.accessToken,
@@ -217,11 +236,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
           expiresAt: new Date(Date.now() + expirationTime).toISOString(),
         };
 
-        // Set token in API client
-        setAuthToken(response.accessToken);
-
         // Save auth data using helper function
         saveAuthData(user, tokens, response.organizations, rememberMe);
+
+        console.log('[Auth Context] Login completed, rememberMe saved:', {
+          rememberMe,
+          rememberMeInStorage: localStorage.getItem('auth_remember_me'),
+          tokenExpiresAt: tokens.expiresAt,
+        });
 
         dispatch({ type: 'LOGIN_SUCCESS', payload: { user, tokens } });
       } catch (error) {
@@ -256,9 +278,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const logout = useCallback(async () => {
     try {
       await authApi.logout();
-    } catch (error) {
-      // Continue with local logout even if API call fails
-      console.warn('Logout API call failed:', error);
+    } catch {
+      // Continue with local logout even if API call fails (e.g., missing refresh token)
+      console.debug(
+        'Server logout failed, continuing with local logout. This is expected if refresh token cookie is missing.'
+      );
+      // Don't show error to user since local logout will still work
     }
 
     // Clear API token and CSRF token
@@ -288,6 +313,32 @@ export function AuthProvider({ children }: AuthProviderProps) {
     [state.user]
   );
 
+  const refreshUser = useCallback(async () => {
+    if (!state.isAuthenticated || !state.user) return;
+
+    try {
+      // Get fresh user data from the backend
+      const freshUserData = await authApi.getCurrentUser();
+
+      // Update the user data while keeping other fields
+      const updatedUser = {
+        ...state.user,
+        ...freshUserData,
+      };
+
+      dispatch({ type: 'UPDATE_USER', payload: updatedUser });
+
+      // Update storage
+      const rememberMeStr = localStorage.getItem(STORAGE_KEYS.REMEMBER_ME);
+      const rememberMe = rememberMeStr ? JSON.parse(rememberMeStr) : false;
+      const storage = getStorageType(rememberMe);
+      storage.setItem(STORAGE_KEYS.USER, JSON.stringify(updatedUser));
+    } catch (error) {
+      console.error('Failed to refresh user data:', error);
+      // Don't throw error to avoid breaking UI
+    }
+  }, [state.isAuthenticated, state.user]);
+
   const value = useMemo(
     (): AuthContextType => ({
       ...state,
@@ -295,8 +346,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       signup,
       logout,
       updateUser,
+      refreshUser,
     }),
-    [state, login, signup, logout, updateUser]
+    [state, login, signup, logout, updateUser, refreshUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

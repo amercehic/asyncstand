@@ -30,6 +30,13 @@ export class TestHelpers {
   }
 
   /**
+   * Generate a random UUID for testing
+   */
+  static generateId(): string {
+    return faker.string.uuid();
+  }
+
+  /**
    * Generate a random email for testing
    */
   static generateRandomEmail(): string {

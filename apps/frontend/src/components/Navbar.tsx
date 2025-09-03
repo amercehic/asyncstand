@@ -11,13 +11,20 @@ import {
   ChevronDown,
   Menu,
   X,
+  Shield,
 } from 'lucide-react';
 import { useAuth } from '@/contexts';
 import { toast } from '@/components/ui';
+import { useEnabledFeatures } from '@/hooks/useFeatureFlag';
 
 export const Navbar = React.memo(() => {
-  const { user, logout, isAuthenticated } = useAuth();
+  const { user, logout, isAuthenticated, isLoading: authLoading } = useAuth();
   const location = useLocation();
+  const { features: enabledFeatures, loading: featuresLoading } = useEnabledFeatures(
+    isAuthenticated && !user?.isSuperAdmin,
+    authLoading
+  );
+
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
@@ -29,13 +36,29 @@ export const Navbar = React.memo(() => {
     return null;
   }
 
+  // Show loading state while auth is loading or features are loading (except for super admins)
+  if (authLoading || (!user?.isSuperAdmin && featuresLoading)) {
+    return (
+      <header className="bg-card border-b border-border sticky top-0 z-40 backdrop-blur-sm bg-card/80">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="flex items-center justify-between h-16">
+            <div className="text-xl sm:text-2xl font-semibold gradient-text flex-shrink-0">
+              AsyncStand
+            </div>
+            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          </div>
+        </div>
+      </header>
+    );
+  }
+
   const handleLogout = async () => {
     try {
       await logout();
       toast.success('Logged out successfully');
     } catch (error) {
       console.error('Logout error:', error);
-      toast.error('Error logging out', { id: 'logout' });
+      toast.error('Error logging out');
     }
   };
 
@@ -60,21 +83,43 @@ export const Navbar = React.memo(() => {
       label: 'Dashboard',
       icon: Calendar,
       roles: ['owner', 'admin', 'member'] as const,
+      featureKey: 'dashboard',
     },
-    { path: '/teams', label: 'Teams', icon: Users, roles: ['owner', 'admin'] as const },
+    {
+      path: '/teams',
+      label: 'Teams',
+      icon: Users,
+      roles: ['owner', 'admin'] as const,
+      featureKey: 'teams',
+    },
     {
       path: '/standups',
       label: 'Standups',
       icon: Calendar,
       roles: ['owner', 'admin', 'member'] as const,
+      featureKey: 'standups',
     },
-    { path: '/integrations', label: 'Integrations', icon: Zap, roles: ['owner', 'admin'] as const },
+    {
+      path: '/integrations',
+      label: 'Integrations',
+      icon: Zap,
+      roles: ['owner', 'admin'] as const,
+      featureKey: 'integrations',
+    },
     {
       path: '/reports',
       label: 'Reports',
       icon: BarChart3,
       roles: ['owner', 'admin'] as const,
       comingSoon: true,
+      featureKey: 'reports',
+    },
+    {
+      path: '/admin',
+      label: 'Admin',
+      icon: Shield,
+      roles: ['owner', 'admin'] as const,
+      superAdminOnly: true,
     },
   ] as const;
 
@@ -97,7 +142,7 @@ export const Navbar = React.memo(() => {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link
-            to="/dashboard"
+            to={user?.isSuperAdmin ? '/admin' : '/dashboard'}
             className="text-xl sm:text-2xl font-semibold gradient-text flex-shrink-0"
           >
             AsyncStand
@@ -108,7 +153,29 @@ export const Navbar = React.memo(() => {
             {navItems
               .filter(item => {
                 if (!user?.role) return false;
-                return (item.roles as readonly string[]).includes(user.role);
+
+                // If user is super admin, only show admin menu
+                if (user.isSuperAdmin) {
+                  return 'superAdminOnly' in item && item.superAdminOnly;
+                }
+
+                // For regular users, check role permissions
+                const roleAllowed = (item.roles as readonly string[]).includes(user.role);
+                if (!roleAllowed) return false;
+
+                // Super admin pages are only for super admins
+                if ('superAdminOnly' in item && item.superAdminOnly) {
+                  return false;
+                }
+
+                // Check if feature is enabled (skip for super admins)
+                if ('featureKey' in item && item.featureKey && !user.isSuperAdmin) {
+                  if (!enabledFeatures.includes(item.featureKey)) {
+                    return false;
+                  }
+                }
+
+                return true;
               })
               .map(item => {
                 const handleClick = (e: React.MouseEvent) => {
@@ -181,17 +248,17 @@ export const Navbar = React.memo(() => {
                   </div>
 
                   <div className="p-2">
-                    <button
-                      onClick={() => {
-                        toast.info('Settings - Coming soon!');
-                        setIsUserMenuOpen(false);
-                      }}
-                      className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted/50 transition-colors text-left"
-                      data-testid="nav-settings-button"
-                    >
-                      <Settings className="w-4 h-4" />
-                      <span className="text-sm">Settings</span>
-                    </button>
+                    {!user?.isSuperAdmin && enabledFeatures.includes('settings') && (
+                      <Link
+                        to="/settings"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted/50 transition-colors text-left"
+                        data-testid="nav-settings-button"
+                      >
+                        <Settings className="w-4 h-4" />
+                        <span className="text-sm">Settings</span>
+                      </Link>
+                    )}
 
                     <button
                       onClick={() => {
@@ -242,7 +309,29 @@ export const Navbar = React.memo(() => {
               {navItems
                 .filter(item => {
                   if (!user?.role) return false;
-                  return (item.roles as readonly string[]).includes(user.role);
+
+                  // If user is super admin, only show admin menu
+                  if (user.isSuperAdmin) {
+                    return 'superAdminOnly' in item && item.superAdminOnly;
+                  }
+
+                  // For regular users, check role permissions
+                  const roleAllowed = (item.roles as readonly string[]).includes(user.role);
+                  if (!roleAllowed) return false;
+
+                  // Super admin pages are only for super admins
+                  if ('superAdminOnly' in item && item.superAdminOnly) {
+                    return false;
+                  }
+
+                  // Check if feature is enabled (skip for super admins)
+                  if ('featureKey' in item && item.featureKey && !user.isSuperAdmin) {
+                    if (!enabledFeatures.includes(item.featureKey)) {
+                      return false;
+                    }
+                  }
+
+                  return true;
                 })
                 .map(item => {
                   const handleMobileClick = (e: React.MouseEvent) => {
@@ -284,17 +373,17 @@ export const Navbar = React.memo(() => {
                 <p className="text-xs text-muted-foreground capitalize">{user?.role} Account</p>
               </div>
 
-              <button
-                onClick={() => {
-                  toast.info('Settings - Coming soon!');
-                  setIsMobileMenuOpen(false);
-                }}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-muted/50 transition-colors text-left"
-                data-testid="nav-mobile-settings-button"
-              >
-                <Settings className="w-5 h-5" />
-                <span className="font-medium">Settings</span>
-              </button>
+              {!user?.isSuperAdmin && enabledFeatures.includes('settings') && (
+                <Link
+                  to="/settings"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-muted/50 transition-colors text-left"
+                  data-testid="nav-mobile-settings-button"
+                >
+                  <Settings className="w-5 h-5" />
+                  <span className="font-medium">Settings</span>
+                </Link>
+              )}
 
               <button
                 onClick={() => {

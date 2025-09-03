@@ -17,6 +17,7 @@ export interface User {
   name: string;
   avatar?: string;
   role: 'owner' | 'admin' | 'member';
+  isSuperAdmin?: boolean;
   orgId?: string;
   createdAt: string;
   updatedAt: string;
@@ -141,6 +142,7 @@ export interface ActiveStandup {
   id: string;
   teamId: string;
   teamName: string;
+  configName?: string; // Name of the standup configuration
   targetDate: string;
   state: 'pending' | 'collecting' | 'completed' | 'cancelled';
   totalMembers: number;
@@ -249,6 +251,7 @@ export interface AuthResponse {
     email: string;
     name: string;
     role: string;
+    isSuperAdmin: boolean;
   };
   organizations: Array<{
     id: string;

@@ -18,6 +18,8 @@ export class OrganizationFactory {
     return {
       id: overrides.id ?? faker.string.uuid(),
       name: overrides.name ?? faker.company.name(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
     };
   }
 

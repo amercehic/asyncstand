@@ -62,6 +62,12 @@ describe('OrgMembersController', () => {
             role: OrgRole.admin,
             status: OrgMemberStatus.active,
             joinedAt: new Date(),
+            invitedAt: new Date(),
+            invitedBy: {
+              id: 'inviter1',
+              name: 'Inviter 1',
+              email: 'inviter1@example.com',
+            },
           },
           {
             id: 'member2',
@@ -70,6 +76,12 @@ describe('OrgMembersController', () => {
             role: OrgRole.member,
             status: OrgMemberStatus.active,
             joinedAt: new Date(),
+            invitedAt: new Date(),
+            invitedBy: {
+              id: 'inviter2',
+              name: 'Inviter 2',
+              email: 'inviter2@example.com',
+            },
           },
         ],
       };
