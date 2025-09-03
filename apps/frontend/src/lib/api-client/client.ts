@@ -47,7 +47,8 @@ function decodeJWT(token: string) {
     if (parts.length !== 3) return null;
     const payload = JSON.parse(atob(parts[1]));
     return payload;
-  } catch (e) {
+  } catch (error) {
+    console.error('Failed to decode JWT:', error);
     return null;
   }
 }
@@ -168,12 +169,18 @@ api.interceptors.response.use(
           }
         } catch (refreshError) {
           console.error('[Frontend] Token refresh failed:', refreshError);
-          console.error('[Frontend] Refresh error details:', {
-            status: refreshError?.response?.status,
-            statusText: refreshError?.response?.statusText,
-            data: refreshError?.response?.data,
-            message: refreshError?.message,
-          });
+          if (axios.isAxiosError(refreshError)) {
+            console.error('[Frontend] Refresh error details:', {
+              status: refreshError.response?.status,
+              statusText: refreshError.response?.statusText,
+              data: refreshError.response?.data,
+              message: refreshError.message,
+            });
+          } else if (refreshError instanceof Error) {
+            console.error('[Frontend] Refresh error details:', {
+              message: refreshError.message,
+            });
+          }
         } finally {
           isRefreshing = false;
           refreshPromise = null;
