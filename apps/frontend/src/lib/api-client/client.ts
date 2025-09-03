@@ -15,8 +15,6 @@ export const api = axios.create({
 // Token management
 let authToken: string | null = null;
 let csrfToken: string | null = null;
-let isRefreshing = false;
-let refreshPromise: Promise<string | null> | null = null;
 
 // Generate a unique session ID for CSRF token consistency
 const sessionId = `session-${Date.now()}-${Math.random().toString(36).substring(2)}`;
@@ -40,37 +38,12 @@ export const clearCsrfToken = () => {
   csrfToken = null;
 };
 
-// Helper function to decode JWT for debugging
-function decodeJWT(token: string) {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    const payload = JSON.parse(atob(parts[1]));
-    return payload;
-  } catch (error) {
-    console.error('Failed to decode JWT:', error);
-    return null;
-  }
-}
-
 export const setAuthToken = (token: string | null) => {
   authToken = token;
   if (token) {
     api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-
-    // Debug: Log what's in the token
-    const decoded = decodeJWT(token);
-    console.log('[Frontend] Setting auth token with payload:', {
-      sub: decoded?.sub,
-      orgId: decoded?.orgId,
-      orgIdType: typeof decoded?.orgId,
-      role: decoded?.role,
-      exp: decoded?.exp,
-      expiresAt: decoded?.exp ? new Date(decoded.exp * 1000).toISOString() : null,
-    });
   } else {
     delete api.defaults.headers.common['Authorization'];
-    console.log('[Frontend] Clearing auth token');
   }
 };
 
@@ -102,9 +75,7 @@ api.interceptors.request.use(
       }
     }
 
-    // Skip logging logout requests since errors are handled gracefully
-    const isLogoutRequest = config.url?.includes('/auth/logout');
-    if (env.enableDebug && !isLogoutRequest) {
+    if (env.enableDebug) {
       console.log('API Request:', config);
     }
     return config;
@@ -125,72 +96,34 @@ api.interceptors.response.use(
     }
     return response;
   },
-  async error => {
-    // Skip logging logout errors since they're handled gracefully
-    const isLogoutError = error.config?.url?.includes('/auth/logout');
-    if (env.enableDebug && !isLogoutError) {
+  error => {
+    if (env.enableDebug) {
       console.error('API Response Error:', error);
     }
 
-    // Handle 401 Unauthorized - attempt token refresh first
-    if (
-      error.response?.status === 401 &&
-      authToken &&
-      !error.config?.url?.includes('/auth/refresh')
-    ) {
-      // Check if user has "Remember Me" enabled
-      const rememberMeStr = localStorage.getItem('auth_remember_me');
-      const rememberMe = rememberMeStr ? JSON.parse(rememberMeStr) : false;
-
-      console.log('[Frontend Interceptor] 401 error detected:', {
-        rememberMe,
-        url: error.config?.url,
-        hasAuthToken: !!authToken,
-        authTokenLength: authToken?.length,
+    // Handle 401 Unauthorized - token expired or invalid
+    if (error.response?.status === 401 && authToken) {
+      // Clear invalid token and redirect to login
+      setAuthToken(null);
+      clearCsrfToken();
+      // Clear from both localStorage and sessionStorage
+      ['auth_tokens', 'auth_user', 'user_organizations'].forEach(key => {
+        localStorage.removeItem(key);
+        sessionStorage.removeItem(key);
       });
+      localStorage.removeItem('auth_remember_me');
 
-      if (rememberMe) {
-        console.log('Attempting token refresh...');
-        // Attempt to refresh the token
-        if (!isRefreshing) {
-          isRefreshing = true;
-          refreshPromise = attemptTokenRefresh();
-        }
-
-        try {
-          const newToken = await refreshPromise;
-          if (newToken) {
-            console.log('Token refresh successful, retrying original request');
-            // Retry the original request with the new token
-            error.config.headers.Authorization = `Bearer ${newToken}`;
-            return api(error.config);
-          } else {
-            console.log('Token refresh failed - no new token received');
-          }
-        } catch (refreshError) {
-          console.error('[Frontend] Token refresh failed:', refreshError);
-          if (axios.isAxiosError(refreshError)) {
-            console.error('[Frontend] Refresh error details:', {
-              status: refreshError.response?.status,
-              statusText: refreshError.response?.statusText,
-              data: refreshError.response?.data,
-              message: refreshError.message,
-            });
-          } else if (refreshError instanceof Error) {
-            console.error('[Frontend] Refresh error details:', {
-              message: refreshError.message,
-            });
-          }
-        } finally {
-          isRefreshing = false;
-          refreshPromise = null;
-        }
-      } else {
-        console.log('Remember me not enabled, proceeding with logout');
+      // Only show auth error if not already on login/signup pages
+      if (
+        !window.location.pathname.includes('/login') &&
+        !window.location.pathname.includes('/signup')
+      ) {
+        toast.error('Session expired', {
+          description: 'Please log in again',
+        });
+        // Redirect to login page
+        window.location.href = '/login';
       }
-
-      // Token refresh failed or not enabled - clear auth and redirect
-      handleAuthFailure();
       return Promise.reject(error);
     }
 
@@ -245,8 +178,6 @@ api.interceptors.response.use(
       error.config?.url?.includes('/teams'),
       // Integration endpoints - handled by IntegrationsContext
       error.config?.url?.includes('/integrations'),
-      // Organization endpoints - handled by SettingsPage and other components
-      error.config?.url?.includes('/org/'),
       // Missing standup config is expected for new teams
       error.response?.status === 404 && errorCode === 'STANDUP_CONFIG_NOT_FOUND',
       // Standup config conflicts are handled by components
@@ -264,83 +195,3 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-
-// Helper function to attempt token refresh
-async function attemptTokenRefresh(): Promise<string | null> {
-  console.log('[Frontend] attemptTokenRefresh called');
-  try {
-    // Use the same base URL as the API client
-    const baseURL = api.defaults.baseURL || '';
-    const url = `${baseURL}/auth/refresh`;
-    console.log('[Frontend] Attempting refresh at URL:', url);
-
-    const response = await fetch(url, {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    console.log('[Frontend] Refresh response status:', response.status);
-
-    if (response.ok) {
-      const data = await response.json();
-      const newToken = data.accessToken;
-
-      console.log('[Frontend] Refresh successful, new token received');
-
-      // Update the stored token
-      setAuthToken(newToken);
-
-      // Update stored auth data with new token and expiration
-      const rememberMeStr = localStorage.getItem('auth_remember_me');
-      const rememberMe = rememberMeStr ? JSON.parse(rememberMeStr) : false;
-      const storage = rememberMe ? localStorage : sessionStorage;
-
-      const storedTokens = storage.getItem('auth_tokens');
-      if (storedTokens) {
-        const tokens = JSON.parse(storedTokens);
-        tokens.accessToken = newToken;
-        tokens.expiresAt = new Date(Date.now() + data.expiresIn * 1000).toISOString();
-        storage.setItem('auth_tokens', JSON.stringify(tokens));
-        console.log('Updated stored tokens with new expiration');
-      }
-
-      return newToken;
-    } else {
-      console.log('Refresh failed with status:', response.status);
-      const errorText = await response.text();
-      console.log('Refresh error response:', errorText);
-    }
-  } catch (error) {
-    console.error('Token refresh request failed:', error);
-  }
-
-  return null;
-}
-
-// Helper function to handle authentication failures
-function handleAuthFailure() {
-  console.log('[Frontend] handleAuthFailure called - clearing auth and redirecting to login');
-  // Clear invalid token and auth data
-  setAuthToken(null);
-  clearCsrfToken();
-  ['auth_tokens', 'auth_user', 'user_organizations'].forEach(key => {
-    localStorage.removeItem(key);
-    sessionStorage.removeItem(key);
-  });
-  localStorage.removeItem('auth_remember_me');
-
-  // Only show auth error if not already on login/signup pages
-  if (
-    !window.location.pathname.includes('/login') &&
-    !window.location.pathname.includes('/signup')
-  ) {
-    toast.error('Session expired', {
-      description: 'Please log in again',
-    });
-    // Redirect to login page
-    window.location.href = '/login';
-  }
-}

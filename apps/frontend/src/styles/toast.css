@@ -4,7 +4,7 @@
 [data-sonner-toaster] {
   --gap: 12px;
   --offset: 16px;
-  z-index: 99999 !important;
+  z-index: 9999 !important;
 }
 
 [data-sonner-toaster][data-y-position='top-right'] {
@@ -51,7 +51,7 @@
   visibility: visible !important;
   transform: none !important;
   margin: 0 !important;
-  z-index: 99999 !important;
+  z-index: 9999 !important;
 }
 
 /* Success toasts - green accent */

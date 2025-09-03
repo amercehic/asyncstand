@@ -8,6 +8,7 @@ interface ToastContainerProps {
   toasts: ToastData[];
   position?: ToastPosition;
   onRemove: (id: string) => void;
+  maxToasts?: number;
   gap?: number;
   offset?: number;
 }
@@ -25,11 +26,11 @@ export const ToastContainer: React.FC<ToastContainerProps> = ({
   toasts,
   position = 'top-right',
   onRemove,
+  maxToasts = 5,
   gap = 12,
   offset = 16,
 }) => {
-  // Use all toasts passed from context (context handles maxVisible logic)
-  const visibleToasts = toasts;
+  const visibleToasts = toasts.slice(0, maxToasts);
 
   if (visibleToasts.length === 0) {
     return null;
@@ -37,7 +38,7 @@ export const ToastContainer: React.FC<ToastContainerProps> = ({
 
   const container = (
     <div
-      className={cn('fixed z-[99999] flex flex-col pointer-events-none', positionStyles[position])}
+      className={cn('fixed z-[9999] flex flex-col pointer-events-none', positionStyles[position])}
       style={{
         gap: `${gap}px`,
         padding: `${offset}px`,
@@ -53,7 +54,6 @@ export const ToastContainer: React.FC<ToastContainerProps> = ({
           className="pointer-events-auto"
           style={{
             zIndex: index + 1,
-            animationDelay: `${index * 100}ms`, // Staggered entrance animation
           }}
         >
           <ToastComponent toast={toast} onRemove={onRemove} />

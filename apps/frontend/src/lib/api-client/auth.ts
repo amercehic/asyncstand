@@ -1,4 +1,4 @@
-import type { AuthResponse, LoginRequest, SignUpRequest, User } from '@/types';
+import type { AuthResponse, LoginRequest, SignUpRequest } from '@/types';
 import { api } from '@/lib/api-client/client';
 
 export const authApi = {
@@ -33,27 +33,6 @@ export const authApi = {
     email: string
   ): Promise<{ message: string; success: boolean }> {
     const response = await api.post('/auth/reset-password', { token, password, email });
-    return response.data;
-  },
-
-  async updatePassword(
-    currentPassword: string,
-    newPassword: string
-  ): Promise<{ success: boolean; message: string }> {
-    const response = await api.put<{ success: boolean; message: string }>('/auth/password', {
-      currentPassword,
-      newPassword,
-    });
-    return response.data;
-  },
-
-  async getCurrentUser(): Promise<User> {
-    const response = await api.get<{ user: User }>('/auth/me');
-    return response.data.user;
-  },
-
-  async refreshToken(): Promise<{ accessToken: string; expiresIn: number }> {
-    const response = await api.post<{ accessToken: string; expiresIn: number }>('/auth/refresh');
     return response.data;
   },
 };

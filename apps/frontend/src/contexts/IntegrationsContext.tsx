@@ -125,17 +125,16 @@ interface IntegrationsProviderProps {
 
 export function IntegrationsProvider({ children }: IntegrationsProviderProps) {
   const [state, dispatch] = useReducer(integrationsReducer, initialState);
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   // Fetch integrations when user is authenticated
-  // Skip fetching for super admins as they don't need integrations data
   useEffect(() => {
-    if (isAuthenticated && !user?.isSuperAdmin) {
+    if (isAuthenticated) {
       fetchIntegrations();
     } else {
       dispatch({ type: 'CLEAR_STATE' });
     }
-  }, [isAuthenticated, user?.isSuperAdmin]);
+  }, [isAuthenticated]);
 
   const fetchIntegrations = useCallback(async () => {
     if (state.isLoading || state.isRefreshing) return;
@@ -181,7 +180,7 @@ export function IntegrationsProvider({ children }: IntegrationsProviderProps) {
           { id: `sync-${integrationId}` }
         );
 
-        // Update the integration's sync state with actual sync results
+        // Update the integration's sync state
         dispatch({
           type: 'UPDATE_INTEGRATION',
           payload: {
@@ -191,8 +190,6 @@ export function IntegrationsProvider({ children }: IntegrationsProviderProps) {
                 lastUsersSyncAt: new Date().toISOString(),
                 lastChannelsSyncAt: new Date().toISOString(),
                 errorMsg: undefined,
-                userCount: result.usersAdded + (result.usersUpdated || 0),
-                channelCount: result.channelsAdded + (result.channelsUpdated || 0),
               },
             },
           },

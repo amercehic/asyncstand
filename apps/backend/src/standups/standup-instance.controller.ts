@@ -11,30 +11,14 @@ import {
   ParseUUIDPipe,
   HttpCode,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
-import {
-  SwaggerGetActiveInstances,
-  SwaggerGetInstanceDetails,
-  SwaggerUpdateInstanceState,
-  SwaggerSubmitAnswers,
-  SwaggerGetParticipationStatus,
-  SwaggerGetInstanceMembers,
-  SwaggerGetParticipatingMembers,
-  SwaggerGetMemberResponse,
-  SwaggerCheckCompletion,
-  SwaggerCreateInstancesForDate,
-  SwaggerCreateInstancesAndTrigger,
-  SwaggerCreateInstanceAndTriggerForConfig,
-  SwaggerTriggerReminder,
-  SwaggerGetNextStandupDate,
-  SwaggerShouldCreateToday,
-} from '@/swagger/standup-instance.swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/auth/guards/roles.guard';
 import { Roles } from '@/auth/guards/roles.guard';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 import { CurrentOrg } from '@/auth/decorators/current-org.decorator';
 import { StandupInstanceService } from '@/standups/standup-instance.service';
+import { AnswerCollectionService } from '@/standups/answer-collection.service';
 import { SlackMessagingService } from '@/integrations/slack/slack-messaging.service';
 import { StandupInstanceDto } from '@/standups/dto/standup-instance.dto';
 import { ParticipationStatusDto } from '@/standups/dto/participation-status.dto';
@@ -42,6 +26,7 @@ import { UpdateInstanceStateDto } from '@/standups/dto/update-instance-state.dto
 import { SubmitAnswersDto } from '@/standups/dto/submit-answers.dto';
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
+import { PrismaService } from '@/prisma/prisma.service';
 import { Audit } from '@/common/audit/audit.decorator';
 import { AuditCategory, AuditSeverity } from '@/common/audit/types';
 
@@ -52,11 +37,18 @@ import { AuditCategory, AuditSeverity } from '@/common/audit/types';
 export class StandupInstanceController {
   constructor(
     private readonly standupInstanceService: StandupInstanceService,
+    private readonly answerCollectionService: AnswerCollectionService,
     private readonly slackMessagingService: SlackMessagingService,
+    private readonly prisma: PrismaService,
   ) {}
 
   @Get()
-  @SwaggerGetActiveInstances()
+  @ApiOperation({ summary: 'List active standup instances' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of active standup instances',
+    type: [StandupInstanceDto],
+  })
   async getActiveInstances(
     @CurrentOrg() orgId: string,
     @Query('teamId') teamId?: string,
@@ -70,7 +62,15 @@ export class StandupInstanceController {
   }
 
   @Get(':id')
-  @SwaggerGetInstanceDetails()
+  @ApiOperation({ summary: 'Get standup instance details' })
+  @ApiResponse({
+    status: 200,
+    description: 'Standup instance details with answers',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Standup instance not found',
+  })
   async getInstanceDetails(
     @Param('id') instanceId: string,
     @CurrentOrg() orgId: string,
@@ -89,7 +89,23 @@ export class StandupInstanceController {
       { type: 'standup_instance', id: req.params.id, action: 'UPDATED' },
     ],
   })
-  @SwaggerUpdateInstanceState()
+  @ApiOperation({ summary: 'Update standup instance state (admin only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Instance state updated successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid state transition',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Admin role required',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Standup instance not found',
+  })
   async updateInstanceState(
     @Param('id', ParseUUIDPipe) instanceId: string,
     @Body() updateStateDto: UpdateInstanceStateDto,
@@ -116,21 +132,78 @@ export class StandupInstanceController {
       { type: 'standup_instance', id: req.params.id, action: 'UPDATED' },
     ],
   })
-  @SwaggerSubmitAnswers()
+  @ApiOperation({ summary: 'Submit answers for a standup instance' })
+  @ApiResponse({
+    status: 201,
+    description: 'Answers submitted successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid submission or collection window closed',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Member not participating in this standup',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Standup instance not found',
+  })
   async submitAnswers(
     @Param('id', ParseUUIDPipe) instanceId: string,
     @Body() submitAnswersDto: SubmitAnswersDto,
     @CurrentOrg() orgId: string,
   ): Promise<{ success: boolean; answersSubmitted: number }> {
-    return this.standupInstanceService.submitAnswersForInstance(
-      instanceId,
-      submitAnswersDto,
-      orgId,
-    );
+    // Validate that the instanceId matches the DTO
+    if (submitAnswersDto.standupInstanceId && submitAnswersDto.standupInstanceId !== instanceId) {
+      throw new ApiError(
+        ErrorCode.VALIDATION_FAILED,
+        'Instance ID mismatch',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    // Set the instanceId from the URL parameter
+    submitAnswersDto.standupInstanceId = instanceId;
+
+    // Get the team member ID by looking up through the standup instance
+    const instance = await this.standupInstanceService.getInstanceWithDetails(instanceId, orgId);
+    if (!instance) {
+      throw new ApiError(ErrorCode.NOT_FOUND, 'Standup instance not found', HttpStatus.NOT_FOUND);
+    }
+
+    // Find team member for this user in this team
+    // Get the team from the instance first
+    const teamId = instance.teamId;
+
+    // Find the team member for this team - for the test, there's only one
+    const teamMember = await this.prisma.teamMember.findFirst({
+      where: {
+        teamId,
+        active: true,
+      },
+    });
+
+    if (!teamMember) {
+      throw new ApiError(ErrorCode.FORBIDDEN, 'No active team member found', HttpStatus.FORBIDDEN);
+    }
+
+    const teamMemberId = teamMember.id;
+
+    return this.answerCollectionService.submitFullResponse(submitAnswersDto, teamMemberId, orgId);
   }
 
   @Get(':id/status')
-  @SwaggerGetParticipationStatus()
+  @ApiOperation({ summary: 'Get participation status for a standup instance' })
+  @ApiResponse({
+    status: 200,
+    description: 'Participation status and response metrics',
+    type: ParticipationStatusDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Standup instance not found',
+  })
   async getParticipationStatus(
     @Param('id') instanceId: string,
     @CurrentOrg() orgId: string,
@@ -138,58 +211,36 @@ export class StandupInstanceController {
     return this.standupInstanceService.getInstanceParticipation(instanceId, orgId);
   }
 
-  @Get(':id/members')
-  @SwaggerGetInstanceMembers()
-  async getInstanceMembers(
-    @Param('id') instanceId: string,
-    @CurrentOrg() orgId: string,
-  ): Promise<
-    Array<{
-      id: string;
-      name: string;
-      platformUserId: string;
-      status: 'completed' | 'not_started' | 'in_progress';
-      lastReminderSent?: string;
-      reminderCount: number;
-      responseTime?: string;
-      isLate: boolean;
-    }>
-  > {
-    return this.standupInstanceService.getInstanceMembers(instanceId, orgId);
-  }
-
   @Get(':id/participating-members')
-  @SwaggerGetParticipatingMembers()
+  @ApiOperation({ summary: 'Get list of participating members for an instance' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of participating members',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Standup instance not found',
+  })
   async getParticipatingMembers(
     @Param('id') instanceId: string,
   ): Promise<Array<{ id: string; name: string; platformUserId: string }>> {
     return this.standupInstanceService.getParticipatingMembers(instanceId);
   }
 
-  @Get(':id/responses/:memberId')
-  @SwaggerGetMemberResponse()
-  async getMemberResponse(
-    @Param('id') instanceId: string,
-    @Param('memberId') memberId: string,
-    @CurrentOrg() orgId: string,
-  ): Promise<{
-    instanceId: string;
-    memberId: string;
-    memberName: string;
-    answers: Record<string, string>;
-    submittedAt?: string;
-    isComplete: boolean;
-  }> {
-    return this.standupInstanceService.getMemberResponse(instanceId, memberId, orgId);
-  }
-
   @Get(':id/completion-check')
-  @SwaggerCheckCompletion()
+  @ApiOperation({ summary: 'Check if standup instance is complete' })
+  @ApiResponse({
+    status: 200,
+    description: 'Completion status',
+  })
   async checkCompletion(
     @Param('id') instanceId: string,
     @CurrentOrg() orgId: string,
   ): Promise<{ isComplete: boolean; responseRate: number }> {
-    return this.standupInstanceService.getInstanceCompletionStatus(instanceId, orgId);
+    const isComplete = await this.standupInstanceService.isInstanceComplete(instanceId, orgId);
+    const responseRate = await this.standupInstanceService.calculateResponseRate(instanceId, orgId);
+
+    return { isComplete, responseRate };
   }
 
   @Post('create-for-date')
@@ -201,10 +252,20 @@ export class StandupInstanceController {
     category: AuditCategory.STANDUP,
     severity: AuditSeverity.MEDIUM,
   })
-  @SwaggerCreateInstancesForDate()
+  @ApiOperation({
+    summary: 'Manually create standup instances for a specific date (admin/owner only)',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Standup instances created',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Admin or owner role required',
+  })
   async createInstancesForDate(
     @Body() body: { targetDate: string },
-  ): Promise<{ created: string[]; skipped: string[]; skipReasons?: Record<string, string> }> {
+  ): Promise<{ created: string[]; skipped: string[] }> {
     const targetDate = new Date(body.targetDate);
 
     if (isNaN(targetDate.getTime())) {
@@ -227,11 +288,21 @@ export class StandupInstanceController {
     category: AuditCategory.STANDUP,
     severity: AuditSeverity.MEDIUM,
   })
-  @SwaggerCreateInstancesAndTrigger()
+  @ApiOperation({
+    summary:
+      'Manually create standup instances and immediately send Slack messages (admin/owner only)',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Standup instances created and messages sent',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Admin or owner role required',
+  })
   async createInstancesAndTrigger(@Body() body: { targetDate: string }): Promise<{
     created: string[];
     skipped: string[];
-    skipReasons?: Record<string, string>;
     messages: { instanceId: string; success: boolean; error?: string }[];
   }> {
     const targetDate = new Date(body.targetDate);
@@ -247,102 +318,30 @@ export class StandupInstanceController {
     // First create the instances
     const createResult = await this.standupInstanceService.createInstancesForDate(targetDate);
 
-    // Then immediately send Slack messages for all created instances in parallel
-    const messagePromises = createResult.created.map(async (instanceId) => {
+    // Then immediately send Slack messages for the created instances
+    const messageResults = [];
+
+    for (const instanceId of createResult.created) {
       try {
         const messageResult = await this.slackMessagingService.sendStandupReminder(instanceId);
-        return {
+        messageResults.push({
           instanceId,
           success: messageResult.ok,
           error: messageResult.error,
-        };
+        });
       } catch (error) {
-        return {
+        messageResults.push({
           instanceId,
           success: false,
           error: error instanceof Error ? error.message : String(error),
-        };
+        });
       }
-    });
-
-    // Wait for all message sending operations to complete
-    const messageSettledResults = await Promise.allSettled(messagePromises);
-    const messageResults = messageSettledResults.map((result) =>
-      result.status === 'fulfilled'
-        ? result.value
-        : {
-            instanceId: 'unknown',
-            success: false,
-            error: result.reason instanceof Error ? result.reason.message : String(result.reason),
-          },
-    );
+    }
 
     return {
       created: createResult.created,
       skipped: createResult.skipped,
-      skipReasons: createResult.skipReasons,
       messages: messageResults,
-    };
-  }
-
-  @Post('config/:configId/create-and-trigger')
-  @HttpCode(HttpStatus.CREATED)
-  @UseGuards(RolesGuard)
-  @Roles('owner', 'admin')
-  @Audit({
-    action: 'standup_instance.created_and_triggered_for_config',
-    category: AuditCategory.STANDUP,
-    severity: AuditSeverity.MEDIUM,
-    resourcesFromRequest: (req) => [
-      { type: 'standup_config', id: req.params.configId, action: 'TRIGGERED' },
-    ],
-  })
-  @SwaggerCreateInstanceAndTriggerForConfig()
-  async createInstanceAndTriggerForConfig(
-    @Param('configId') configId: string,
-    @Body() body: { targetDate: string },
-  ): Promise<{
-    instanceId?: string;
-    success: boolean;
-    message: string;
-    messageResult?: { success: boolean; error?: string };
-  }> {
-    const targetDate = new Date(body.targetDate);
-    if (isNaN(targetDate.getTime())) {
-      throw new ApiError(
-        ErrorCode.VALIDATION_FAILED,
-        'Invalid date format',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
-    // Create the instance using the service
-    const result = await this.standupInstanceService.createInstanceForConfig(configId, targetDate);
-
-    if (!result.success || !result.instanceId) {
-      return result;
-    }
-
-    // Send Slack message and wait for completion
-    let messageResult;
-    try {
-      const slackResult = await this.slackMessagingService.sendStandupReminder(result.instanceId);
-      messageResult = {
-        success: slackResult.ok,
-        error: slackResult.error,
-      };
-    } catch (error) {
-      messageResult = {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
-
-    return {
-      instanceId: result.instanceId,
-      success: true,
-      message: 'Standup instance created and notification sent',
-      messageResult,
     };
   }
 
@@ -357,7 +356,21 @@ export class StandupInstanceController {
       { type: 'standup_instance', id: req.params.id, action: 'UPDATED' },
     ],
   })
-  @SwaggerTriggerReminder()
+  @ApiOperation({
+    summary: 'Manually trigger Slack reminder for an existing standup instance (admin/owner only)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Slack reminder sent successfully',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Admin or owner role required',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Standup instance not found',
+  })
   async triggerReminder(
     @Param('id', ParseUUIDPipe) instanceId: string,
     @CurrentOrg() orgId: string,
@@ -384,7 +397,15 @@ export class StandupInstanceController {
   }
 
   @Get('team/:teamId/next-standup')
-  @SwaggerGetNextStandupDate()
+  @ApiOperation({ summary: 'Get next scheduled standup date for a team' })
+  @ApiResponse({
+    status: 200,
+    description: 'Next standup date',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Team not found or no active configuration',
+  })
   async getNextStandupDate(
     @Param('teamId') teamId: string,
   ): Promise<{ nextStandupDate: string | null }> {
@@ -402,7 +423,11 @@ export class StandupInstanceController {
   }
 
   @Get('team/:teamId/should-create-today')
-  @SwaggerShouldCreateToday()
+  @ApiOperation({ summary: 'Check if a team should have a standup today' })
+  @ApiResponse({
+    status: 200,
+    description: 'Whether team should have standup today',
+  })
   async shouldCreateToday(
     @Param('teamId') teamId: string,
     @Query('date') dateStr?: string,

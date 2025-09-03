@@ -133,18 +133,17 @@ interface TeamsProviderProps {
 
 export function TeamsProvider({ children }: TeamsProviderProps) {
   const [state, dispatch] = useReducer(teamsReducer, initialState);
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
   const { integrations } = useIntegrations();
 
   // Fetch teams when user is authenticated or integrations change
-  // Skip fetching for super admins as they don't need teams data
   useEffect(() => {
-    if (isAuthenticated && !user?.isSuperAdmin) {
+    if (isAuthenticated) {
       fetchTeams();
     } else {
       dispatch({ type: 'CLEAR_STATE' });
     }
-  }, [isAuthenticated, user?.isSuperAdmin, integrations.length]); // Refresh when integrations count changes
+  }, [isAuthenticated, integrations.length]); // Refresh when integrations count changes
 
   const fetchTeams = useCallback(async () => {
     if (state.isLoading || state.isRefreshing) return;
@@ -179,24 +178,19 @@ export function TeamsProvider({ children }: TeamsProviderProps) {
   const createTeam = useCallback(async (data: CreateTeamRequest): Promise<Team> => {
     dispatch({ type: 'SET_CREATING', payload: true });
 
-    let createTeamToastId: string | undefined;
     try {
-      createTeamToastId = toast.loading('Creating team...');
+      toast.loading('Creating team...', { id: 'create-team' });
       const newTeam = await teamsApi.createTeam(data);
 
       // Dismiss the loading toast - let the calling component handle success feedback
-      toast.dismiss(createTeamToastId);
+      toast.dismiss('create-team');
       dispatch({ type: 'ADD_TEAM', payload: newTeam });
 
       return newTeam;
     } catch (error) {
-      // Dismiss the loading toast if it exists
-      if (createTeamToastId) {
-        toast.dismiss(createTeamToastId);
-      }
       const { message } = normalizeApiError(error, 'Failed to create team');
       dispatch({ type: 'SET_CREATING', payload: false });
-      toast.error(message);
+      toast.error(message, { id: 'create-team' });
       throw error;
     }
   }, []);

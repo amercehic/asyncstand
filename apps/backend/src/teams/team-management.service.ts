@@ -290,7 +290,6 @@ export class TeamManagementService {
           select: { externalTeamId: true },
         },
         members: {
-          where: { active: true }, // Only include active members
           include: {
             addedBy: {
               select: { name: true },
@@ -534,125 +533,6 @@ export class TeamManagementService {
     });
 
     this.logger.info('Team member added successfully', { teamId, slackUserId });
-  }
-
-  async bulkAddTeamMembers(
-    teamId: string,
-    slackUserIds: string[],
-    addedByUserId: string,
-  ): Promise<{ success: boolean; added: number; errors: string[] }> {
-    this.logger.info('Bulk adding team members', {
-      teamId,
-      count: slackUserIds.length,
-      addedByUserId,
-    });
-
-    const team = await this.prisma.team.findUnique({
-      where: { id: teamId },
-      include: { integration: true },
-    });
-
-    if (!team) {
-      throw new ApiError(ErrorCode.NOT_FOUND, 'Team not found', HttpStatus.NOT_FOUND);
-    }
-
-    const results = {
-      success: true,
-      added: 0,
-      errors: [] as string[],
-    };
-
-    // Check existing memberships first to avoid conflicts
-    const existingMemberships = await this.prisma.teamMember.findMany({
-      where: {
-        teamId,
-        platformUserId: { in: slackUserIds },
-      },
-      select: { platformUserId: true },
-    });
-
-    const existingUserIds = new Set(existingMemberships.map((m) => m.platformUserId));
-    const newUserIds = slackUserIds.filter((id) => !existingUserIds.has(id));
-
-    // Skip already existing members and log them
-    const skippedCount = slackUserIds.length - newUserIds.length;
-    if (skippedCount > 0) {
-      results.errors.push(`${skippedCount} members were already in the team and were skipped`);
-    }
-
-    if (newUserIds.length === 0) {
-      this.logger.info('No new members to add', { teamId });
-      return results;
-    }
-
-    // Process new members in parallel with controlled concurrency
-    const concurrentLimit = 10; // Process 10 at a time to avoid overwhelming Slack API
-    const chunks = [];
-    for (let i = 0; i < newUserIds.length; i += concurrentLimit) {
-      chunks.push(newUserIds.slice(i, i + concurrentLimit));
-    }
-
-    for (const chunk of chunks) {
-      const chunkPromises = chunk.map(async (slackUserId) => {
-        try {
-          // Get user info from Slack API
-          let userName = 'Unknown';
-          try {
-            const userResponse = await this.slackApiService.callSlackApi<SlackUserInfo>(
-              team.integrationId,
-              'users.info',
-              { user: slackUserId },
-            );
-
-            if (userResponse.user) {
-              userName =
-                userResponse.user.profile.display_name ||
-                userResponse.user.profile.real_name ||
-                userResponse.user.name ||
-                'Unknown';
-            }
-          } catch (error) {
-            this.logger.warn('Failed to get user info from Slack during bulk add', {
-              slackUserId,
-              error: error instanceof Error ? error.message : 'Unknown error',
-            });
-          }
-
-          // Create team membership
-          await this.prisma.teamMember.create({
-            data: {
-              teamId,
-              platformUserId: slackUserId,
-              name: userName,
-              addedByUserId,
-            },
-          });
-
-          results.added++;
-          this.logger.debug('Bulk team member added', { teamId, slackUserId });
-        } catch (error) {
-          const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-          results.errors.push(`Failed to add user ${slackUserId}: ${errorMsg}`);
-          this.logger.warn('Failed to add team member during bulk operation', {
-            teamId,
-            slackUserId,
-            error: errorMsg,
-          });
-        }
-      });
-
-      // Wait for current chunk to complete before processing next
-      await Promise.all(chunkPromises);
-    }
-
-    this.logger.info('Bulk team member addition completed', {
-      teamId,
-      requested: slackUserIds.length,
-      added: results.added,
-      errors: results.errors.length,
-    });
-
-    return results;
   }
 
   async removeTeamMember(teamId: string, memberId: string): Promise<void> {

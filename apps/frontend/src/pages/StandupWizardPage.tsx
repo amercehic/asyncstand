@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { StandupWizard } from '@/components/StandupWizard';
 import { standupsApi, teamsApi } from '@/lib/api';
 import { toast } from '@/components/ui';
@@ -8,7 +8,6 @@ import type { CreateStandupConfigRequest, Team } from '@/types/api';
 export const StandupWizardPage: React.FC = () => {
   const { teamId } = useParams<{ teamId: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
   const [availableChannels, setAvailableChannels] = useState<Array<{ id: string; name: string }>>(
     []
   );
@@ -58,16 +57,7 @@ export const StandupWizardPage: React.FC = () => {
   };
 
   const handleCancel = () => {
-    // Check if user came from the teams listing page
-    const referrer = location.state?.from || document.referrer;
-    const cameFromTeamsListing =
-      referrer?.includes('/teams') && !referrer?.includes(`/teams/${teamId}`);
-
-    if (cameFromTeamsListing || location.state?.from === '/teams') {
-      navigate('/teams');
-    } else {
-      navigate(`/teams/${teamId || ''}`);
-    }
+    navigate(`/teams/${teamId || ''}`);
   };
 
   if (!teamId) {

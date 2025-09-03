@@ -6,9 +6,8 @@ import path from 'path';
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
-  // Load env file from root directory (two levels up from apps/frontend)
-  const rootDir = path.resolve(__dirname, '../..');
-  const env = loadEnv(mode, rootDir, '');
+  // Load env file based on mode in the current working directory
+  const env = loadEnv(mode, process.cwd(), '');
   const isProduction = mode === 'production';
 
   return {
@@ -229,7 +228,7 @@ export default defineConfig(({ mode }) => {
         'tailwind-merge',
       ],
     },
-    envDir: rootDir, // Look for .env files in the root directory
+    envDir: '.', // Look for .env files in the app directory
     envPrefix: 'VITE_', // Only variables with VITE_ prefix will be exposed
     test: {
       globals: true,

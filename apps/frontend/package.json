@@ -23,7 +23,6 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "dev": "vite",
-    "dev:ngrok": "cp .env.ngrok .env.local && vite",
     "build": "vite build",
     "preview": "vite preview",
     "env:setup": "cp -n .env.example .env || true",

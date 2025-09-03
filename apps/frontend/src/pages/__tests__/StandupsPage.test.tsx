@@ -69,17 +69,11 @@ interface StandupCardProps {
   isFavorite?: boolean;
   onToggleFavorite?: () => void;
   onViewResponses: () => void;
-  onSendToChannel?: () => void;
-  onMemberReminders?: () => void;
+  onSendReminder?: () => void;
 }
 
 vi.mock('@/components/StandupCard', () => ({
-  StandupCard: ({
-    standup,
-    onViewResponses,
-    onSendToChannel,
-    onMemberReminders,
-  }: StandupCardProps) => (
+  StandupCard: ({ standup, onViewResponses, onSendReminder }: StandupCardProps) => (
     <div data-testid="standup-card">
       <div>{standup.teamName}</div>
       <div>
@@ -88,16 +82,9 @@ vi.mock('@/components/StandupCard', () => ({
       <button onClick={() => onViewResponses()} data-testid="view-responses">
         View Responses
       </button>
-      {onSendToChannel && (
-        <button onClick={() => onSendToChannel()} data-testid="send-to-channel">
-          Send to Channel
-        </button>
-      )}
-      {onMemberReminders && (
-        <button onClick={() => onMemberReminders()} data-testid="member-reminders">
-          Member Reminders
-        </button>
-      )}
+      <button onClick={() => onSendReminder?.()} data-testid="send-reminder">
+        Send Reminder
+      </button>
     </div>
   ),
 }));
@@ -226,7 +213,6 @@ describe('StandupsPage', () => {
 
     (standupsApi.getActiveStandups as Mock).mockResolvedValue(mockActiveInstances);
     (standupsApi.getActiveStandupsDetailed as Mock).mockResolvedValue(mockActiveInstances);
-    (standupsApi.getTeamStandups as Mock).mockResolvedValue(mockStandups);
     (standupsApi.triggerStandupAndSend as Mock).mockResolvedValue({
       created: ['instance3'],
       skipped: [],
@@ -266,8 +252,8 @@ describe('StandupsPage', () => {
     it('should render quick action buttons', async () => {
       await renderStandupsPage();
 
-      // Setup Standup button should exist (there may be multiple - in header and empty state)
-      expect(screen.getAllByText('Setup Standup').length).toBeGreaterThan(0);
+      expect(screen.getByText('Setup Standup')).toBeInTheDocument();
+      expect(screen.getByText('Trigger All')).toBeInTheDocument();
     });
 
     it('should have Setup Standup button available in header', async () => {
@@ -414,15 +400,15 @@ describe('StandupsPage', () => {
   });
 
   describe('Standup Cards Display', () => {
-    it('should render standup configurations with hierarchical structure', async () => {
+    it('should render standup cards for instances', async () => {
       await renderStandupsPage();
 
       await waitFor(
         () => {
-          // Check that the page loads and shows either configurations or empty state
-          // Due to async loading complexities in tests, we'll check for basic page structure
-          const teamElements = screen.getAllByText('Engineering Team');
-          expect(teamElements.length).toBeGreaterThan(0);
+          expect(screen.getAllByTestId('standup-card')).toHaveLength(2);
+          const engineeringTeamElements = screen.getAllByText('Engineering Team');
+          expect(engineeringTeamElements.length).toBeGreaterThan(0);
+          expect(screen.getByText('7/10 responded')).toBeInTheDocument();
         },
         { timeout: 3000 }
       );
@@ -449,49 +435,72 @@ describe('StandupsPage', () => {
       );
     });
 
-    it('should display reminder functionality when available', async () => {
+    it('should handle send reminder action', async () => {
+      const user = userEvent.setup();
       await renderStandupsPage();
 
       await waitFor(
-        () => {
-          // Just verify that the page loads successfully
-          // Check for page header which is always present
-          expect(screen.getByText('Standups Overview')).toBeInTheDocument();
+        async () => {
+          const sendReminderButton = screen.getAllByTestId('send-reminder')[0];
+          await user.click(sendReminderButton);
         },
         { timeout: 3000 }
       );
+
+      expect(standupsApi.triggerReminderForInstance).toHaveBeenCalledWith('instance1');
+      expect(toast.success).toHaveBeenCalledWith('Reminder sent successfully!', expect.any(Object));
     });
 
-    it('should handle view responses through hierarchical navigation', async () => {
+    it('should handle view responses action', async () => {
+      const user = userEvent.setup();
       await renderStandupsPage();
 
       await waitFor(
-        () => {
-          // Verify the page loads and shows basic navigation structure
-          // Check for reliable elements like team selector or page headers
-          const teamElements = screen.getAllByText('Engineering Team');
-          expect(teamElements.length).toBeGreaterThan(0);
+        async () => {
+          const viewResponsesButton = screen.getAllByTestId('view-responses')[0];
+          await user.click(viewResponsesButton);
         },
         { timeout: 3000 }
       );
+
+      // Check that navigation or modal opens (depends on implementation)
+      // This would need to be updated based on actual implementation
     });
   });
 
   describe('Quick Actions', () => {
-    it('should handle setup standup action', async () => {
+    it('should handle trigger all standups', async () => {
+      const user = userEvent.setup();
       await renderStandupsPage();
 
-      // Verify Setup Standup button is available (may be multiple)
-      expect(screen.getAllByText('Setup Standup').length).toBeGreaterThan(0);
+      const triggerAllButton = screen.getByText('Trigger All');
+      await user.click(triggerAllButton);
 
-      // Note: Navigation testing would require mocking useNavigate
+      await waitFor(() => {
+        expect(standupsApi.triggerStandupAndSend).toHaveBeenCalled();
+        expect(toast.success).toHaveBeenCalledWith('Created 1 standup!', expect.any(Object));
+      });
     });
 
-    it('should not show trigger all button (functionality removed)', async () => {
+    it('should show info when all standups are already triggered', async () => {
+      (standupsApi.triggerStandupAndSend as Mock).mockResolvedValue({
+        created: [],
+        skipped: ['instance1'],
+        messages: [],
+      });
+
+      const user = userEvent.setup();
       await renderStandupsPage();
 
-      // Trigger All button should not exist
-      expect(screen.queryByText('Trigger All')).not.toBeInTheDocument();
+      const triggerAllButton = screen.getByText('Trigger All');
+      await user.click(triggerAllButton);
+
+      await waitFor(() => {
+        expect(toast.info).toHaveBeenCalledWith(
+          'All standups are already triggered for today',
+          expect.any(Object)
+        );
+      });
     });
 
     it('should handle refresh action', async () => {
@@ -597,25 +606,34 @@ describe('StandupsPage', () => {
       );
     });
 
-    it('should handle error states gracefully (trigger all functionality removed)', async () => {
+    it('should show error toast when trigger all fails', async () => {
+      (standupsApi.triggerStandupAndSend as Mock).mockRejectedValue(new Error('Network error'));
+
+      const user = userEvent.setup();
       await renderStandupsPage();
 
-      // Verify page loads successfully even with error conditions
+      const triggerAllButton = screen.getByText('Trigger All');
+      await user.click(triggerAllButton);
+
       await waitFor(() => {
-        expect(screen.getByText('Standups Overview')).toBeInTheDocument();
-        expect(screen.queryByText('Trigger All')).not.toBeInTheDocument();
+        expect(toast.error).toHaveBeenCalledWith('Failed to trigger standups', expect.any(Object));
       });
     });
 
-    it('should handle general error states gracefully', async () => {
-      // Since member reminders functionality is not implemented,
-      // just test that the page handles general errors gracefully
+    it('should show error toast when send reminder fails', async () => {
+      (standupsApi.triggerReminderForInstance as Mock).mockRejectedValue(
+        new Error('Network error')
+      );
+
+      const user = userEvent.setup();
       await renderStandupsPage();
 
-      await waitFor(() => {
-        // Verify page loads without crashes even if some features are not implemented
-        expect(screen.getByText('Standups Overview')).toBeInTheDocument();
+      await waitFor(async () => {
+        const sendReminderButton = screen.getAllByTestId('send-reminder')[0];
+        await user.click(sendReminderButton);
       });
+
+      expect(toast.error).toHaveBeenCalledWith('Failed to send reminder', expect.any(Object));
     });
   });
 });

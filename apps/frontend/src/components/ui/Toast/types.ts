@@ -1,9 +1,5 @@
 export type ToastType = 'success' | 'error' | 'warning' | 'info' | 'loading' | 'custom';
 
-export type ToastPriority = 'low' | 'normal' | 'high' | 'urgent';
-
-export type DuplicateStrategy = 'ignore' | 'replace' | 'stack' | 'count';
-
 export type ToastPosition =
   | 'top-left'
   | 'top-center'
@@ -42,9 +38,6 @@ export interface ToastData {
   progress?: number;
   className?: string;
   createdAt: number;
-  priority?: ToastPriority;
-  group?: string;
-  duplicateCount?: number;
   promise?: {
     loading: string;
     success: string | ((data: unknown) => string);
@@ -65,38 +58,23 @@ export interface ToastOptions {
   progress?: number;
   className?: string;
   description?: string;
-  priority?: ToastPriority;
-  group?: string;
-  allowDuplicates?: boolean;
-  duplicateStrategy?: DuplicateStrategy;
-  duplicateCheckFields?: ('message' | 'title' | 'type')[];
 }
 
 export interface ToastManagerState {
   toasts: ToastData[];
-  queue: ToastData[];
   position: ToastPosition;
-  isProcessingQueue: boolean;
-  maxVisibleToasts: number;
 }
 
-export interface CreateToastData extends Omit<ToastData, 'id' | 'createdAt' | 'duplicateCount'> {
+export interface CreateToastData extends Omit<ToastData, 'id' | 'createdAt'> {
   id?: string;
-  allowDuplicates?: boolean;
-  duplicateStrategy?: DuplicateStrategy;
-  duplicateCheckFields?: ('message' | 'title' | 'type')[];
 }
 
 export interface ToastContextValue {
   toasts: ToastData[];
-  queue: ToastData[];
   addToast: (toast: CreateToastData) => string;
   removeToast: (id: string) => void;
   updateToast: (id: string, updates: Partial<ToastData>) => void;
   clearToasts: () => void;
-  clearQueue: () => void;
   position: ToastPosition;
   setPosition: (position: ToastPosition) => void;
-  maxVisibleToasts: number;
-  setMaxVisibleToasts: (max: number) => void;
 }

@@ -175,26 +175,6 @@ export const createMockCsrfService = () => ({
   validateToken: jest.fn().mockResolvedValue(true),
   getTokenFromRequest: jest.fn().mockReturnValue('mock_csrf_token'),
   invalidateToken: jest.fn().mockResolvedValue(undefined),
-  invalidateSession: jest.fn().mockResolvedValue(undefined),
-});
-
-// Mock SessionIdentifierService
-export const createMockSessionIdentifierService = () => ({
-  extractSessionId: jest.fn().mockReturnValue('test-session-id'),
-  generateFallbackSessionId: jest.fn().mockReturnValue('fallback-session-id'),
-  getSessionContext: jest.fn().mockReturnValue({
-    sessionId: 'test-session-id',
-    source: 'test',
-    isAuthenticated: false,
-  }),
-  getAllSessionIds: jest.fn().mockReturnValue(['test-session-id']),
-});
-
-// Mock SessionCleanupService
-export const createMockSessionCleanupService = () => ({
-  cleanupSession: jest.fn().mockResolvedValue(undefined),
-  cleanupSessions: jest.fn().mockResolvedValue(undefined),
-  cleanupExpiredSessions: jest.fn().mockResolvedValue({ cleaned: 0, errors: 0 }),
 });
 
 // Helper to reset all mocks

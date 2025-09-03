@@ -8,7 +8,7 @@ export interface LoggerConfig {
 }
 
 export const getLoggerConfig = (): LoggerConfig => {
-  const isProduction = ['production', 'staging'].includes(process.env.NODE_ENV || '');
+  const isProduction = process.env.NODE_ENV === 'production';
   const isTest = process.env.NODE_ENV === 'test';
 
   return {

@@ -4,7 +4,6 @@ import { Layout } from '@/router/Layout';
 import { ErrorPage } from '@/pages/ErrorPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { FeatureProtectedRoute } from '@/components/FeatureProtectedRoute';
 
 // Lazy load pages with preloading hints for better performance
 const LandingPage = React.lazy(() =>
@@ -62,12 +61,6 @@ const IntegrationsPage = React.lazy(() =>
     default: module.IntegrationsPage,
   }))
 );
-const SettingsPage = React.lazy(() =>
-  import(/* webpackChunkName: "settings" */ '@/pages/SettingsPage').then(module => ({
-    default: module.SettingsPage,
-  }))
-);
-
 const IntegrationDetailsPage = React.lazy(() =>
   import(/* webpackChunkName: "integrations" */ '@/pages/IntegrationDetailsPage').then(module => ({
     default: module.IntegrationDetailsPage,
@@ -76,11 +69,6 @@ const IntegrationDetailsPage = React.lazy(() =>
 const StandupDetailsPage = React.lazy(() =>
   import(/* webpackChunkName: "standups" */ '@/pages/StandupDetailsPage').then(module => ({
     default: module.StandupDetailsPage,
-  }))
-);
-const StandupConfigDetailsPage = React.lazy(() =>
-  import(/* webpackChunkName: "standups" */ '@/pages/StandupConfigDetailsPage').then(module => ({
-    default: module.StandupConfigDetailsPage,
   }))
 );
 const StandupResponsesPage = React.lazy(() =>
@@ -101,16 +89,6 @@ const ForgotPasswordPage = React.lazy(() =>
 const ResetPasswordPage = React.lazy(() =>
   import(/* webpackChunkName: "auth" */ '@/pages/ResetPasswordPage').then(module => ({
     default: module.ResetPasswordPage,
-  }))
-);
-const AdminPage = React.lazy(() =>
-  import(/* webpackChunkName: "admin" */ '@/pages/AdminPage').then(module => ({
-    default: module.AdminPage,
-  }))
-);
-const AdminFeaturesPage = React.lazy(() =>
-  import(/* webpackChunkName: "admin" */ '@/pages/AdminFeaturesPage').then(module => ({
-    default: module.AdminFeaturesPage,
   }))
 );
 
@@ -179,11 +157,9 @@ const router = createBrowserRouter([
         path: 'dashboard',
         element: (
           <ProtectedRoute>
-            <FeatureProtectedRoute featureKey="dashboard">
-              <Suspense fallback={<PageLoader />}>
-                <DashboardPage />
-              </Suspense>
-            </FeatureProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <DashboardPage />
+            </Suspense>
           </ProtectedRoute>
         ),
         errorElement: <ErrorPage />,
@@ -192,11 +168,9 @@ const router = createBrowserRouter([
         path: 'teams',
         element: (
           <ProtectedRoute allowedRoles={['owner', 'admin']}>
-            <FeatureProtectedRoute featureKey="teams">
-              <Suspense fallback={<PageLoader />}>
-                <TeamsPage />
-              </Suspense>
-            </FeatureProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <TeamsPage />
+            </Suspense>
           </ProtectedRoute>
         ),
         errorElement: <ErrorPage />,
@@ -205,11 +179,9 @@ const router = createBrowserRouter([
         path: 'teams/:teamId',
         element: (
           <ProtectedRoute>
-            <FeatureProtectedRoute featureKey="teams">
-              <Suspense fallback={<PageLoader />}>
-                <TeamDetailPage />
-              </Suspense>
-            </FeatureProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <TeamDetailPage />
+            </Suspense>
           </ProtectedRoute>
         ),
         errorElement: <ErrorPage />,
@@ -218,11 +190,9 @@ const router = createBrowserRouter([
         path: 'standups',
         element: (
           <ProtectedRoute>
-            <FeatureProtectedRoute featureKey="standups">
-              <Suspense fallback={<PageLoader />}>
-                <StandupsPage />
-              </Suspense>
-            </FeatureProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <StandupsPage />
+            </Suspense>
           </ProtectedRoute>
         ),
         errorElement: <ErrorPage />,
@@ -231,11 +201,9 @@ const router = createBrowserRouter([
         path: 'teams/:teamId/standups/create',
         element: (
           <ProtectedRoute>
-            <FeatureProtectedRoute featureKey="standups">
-              <Suspense fallback={<PageLoader />}>
-                <StandupConfigPage />
-              </Suspense>
-            </FeatureProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <StandupConfigPage />
+            </Suspense>
           </ProtectedRoute>
         ),
         errorElement: <ErrorPage />,
@@ -244,11 +212,9 @@ const router = createBrowserRouter([
         path: 'teams/:teamId/standups/wizard',
         element: (
           <ProtectedRoute>
-            <FeatureProtectedRoute featureKey="standups">
-              <Suspense fallback={<PageLoader />}>
-                <StandupWizardPage />
-              </Suspense>
-            </FeatureProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <StandupWizardPage />
+            </Suspense>
           </ProtectedRoute>
         ),
         errorElement: <ErrorPage />,
@@ -257,11 +223,9 @@ const router = createBrowserRouter([
         path: 'standups/:instanceId/respond',
         element: (
           <ProtectedRoute>
-            <FeatureProtectedRoute featureKey="standups">
-              <Suspense fallback={<PageLoader />}>
-                <StandupResponsePage />
-              </Suspense>
-            </FeatureProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <StandupResponsePage />
+            </Suspense>
           </ProtectedRoute>
         ),
         errorElement: <ErrorPage />,
@@ -270,11 +234,9 @@ const router = createBrowserRouter([
         path: 'standups/:standupId/responses',
         element: (
           <ProtectedRoute>
-            <FeatureProtectedRoute featureKey="standups">
-              <Suspense fallback={<PageLoader />}>
-                <StandupResponsesPage />
-              </Suspense>
-            </FeatureProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <StandupResponsesPage />
+            </Suspense>
           </ProtectedRoute>
         ),
         errorElement: <ErrorPage />,
@@ -283,11 +245,9 @@ const router = createBrowserRouter([
         path: 'integrations',
         element: (
           <ProtectedRoute allowedRoles={['owner', 'admin']}>
-            <FeatureProtectedRoute featureKey="integrations">
-              <Suspense fallback={<PageLoader />}>
-                <IntegrationsPage />
-              </Suspense>
-            </FeatureProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <IntegrationsPage />
+            </Suspense>
           </ProtectedRoute>
         ),
         errorElement: <ErrorPage />,
@@ -296,24 +256,9 @@ const router = createBrowserRouter([
         path: 'integrations/:integrationId',
         element: (
           <ProtectedRoute allowedRoles={['owner', 'admin']}>
-            <FeatureProtectedRoute featureKey="integrations">
-              <Suspense fallback={<PageLoader />}>
-                <IntegrationDetailsPage />
-              </Suspense>
-            </FeatureProtectedRoute>
-          </ProtectedRoute>
-        ),
-        errorElement: <ErrorPage />,
-      },
-      {
-        path: 'settings',
-        element: (
-          <ProtectedRoute>
-            <FeatureProtectedRoute featureKey="settings">
-              <Suspense fallback={<PageLoader />}>
-                <SettingsPage />
-              </Suspense>
-            </FeatureProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <IntegrationDetailsPage />
+            </Suspense>
           </ProtectedRoute>
         ),
         errorElement: <ErrorPage />,
@@ -322,11 +267,9 @@ const router = createBrowserRouter([
         path: 'standups/:standupId',
         element: (
           <ProtectedRoute>
-            <FeatureProtectedRoute featureKey="standups">
-              <Suspense fallback={<PageLoader />}>
-                <StandupDetailsPage />
-              </Suspense>
-            </FeatureProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <StandupDetailsPage />
+            </Suspense>
           </ProtectedRoute>
         ),
         errorElement: <ErrorPage />,
@@ -335,24 +278,9 @@ const router = createBrowserRouter([
         path: 'standups/:standupId/edit',
         element: (
           <ProtectedRoute>
-            <FeatureProtectedRoute featureKey="standups">
-              <Suspense fallback={<PageLoader />}>
-                <StandupConfigPage />
-              </Suspense>
-            </FeatureProtectedRoute>
-          </ProtectedRoute>
-        ),
-        errorElement: <ErrorPage />,
-      },
-      {
-        path: 'standups/:standupId/details',
-        element: (
-          <ProtectedRoute>
-            <FeatureProtectedRoute featureKey="standups">
-              <Suspense fallback={<PageLoader />}>
-                <StandupConfigDetailsPage />
-              </Suspense>
-            </FeatureProtectedRoute>
+            <Suspense fallback={<PageLoader />}>
+              <StandupConfigPage />
+            </Suspense>
           </ProtectedRoute>
         ),
         errorElement: <ErrorPage />,
@@ -362,24 +290,6 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<PageLoader />}>
             <MagicTokenStandupPage />
-          </Suspense>
-        ),
-        errorElement: <ErrorPage />,
-      },
-      {
-        path: 'admin',
-        element: (
-          <Suspense fallback={<PageLoader />}>
-            <AdminPage />
-          </Suspense>
-        ),
-        errorElement: <ErrorPage />,
-      },
-      {
-        path: 'admin/features',
-        element: (
-          <Suspense fallback={<PageLoader />}>
-            <AdminFeaturesPage />
           </Suspense>
         ),
         errorElement: <ErrorPage />,

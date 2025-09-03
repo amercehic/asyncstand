@@ -44,16 +44,16 @@ const StatCard = React.memo<StatCardProps>(({ value, label, index }) => (
 
 export const LandingPage = React.memo(() => {
   const navigate = useNavigate();
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const isNavigatingRef = useRef(false);
   usePerformanceMonitor('LandingPage');
 
-  // Redirect authenticated users to appropriate dashboard
+  // Redirect authenticated users to dashboard
   useEffect(() => {
-    if (!isLoading && isAuthenticated && user) {
+    if (!isLoading && isAuthenticated) {
       navigate('/dashboard', { replace: true });
     }
-  }, [isAuthenticated, isLoading, user, navigate]);
+  }, [isAuthenticated, isLoading, navigate]);
 
   const handleNavigation = useCallback(
     (path: string) => {

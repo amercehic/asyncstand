@@ -26,7 +26,7 @@ export class CorsConfig {
     }
 
     // Frontend URL from environment
-    const frontendUrl = this.configService.get<string>('frontendUrl');
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
     if (frontendUrl) {
       origins.add(frontendUrl.replace(/\/$/, ''));
     }
@@ -41,11 +41,28 @@ export class CorsConfig {
         .forEach((origin) => origins.add(origin.replace(/\/$/, '')));
     }
 
+    // Production/staging specific origins
+    if (!this.isDevelopment) {
+      const productionOrigins = [
+        'https://asyncstand-frontend-prod.onrender.com',
+        'https://asyncstand-frontend-staging.onrender.com',
+        'https://asyncstand-backend-prod.onrender.com', // For Swagger UI
+        'https://asyncstand-backend-staging.onrender.com', // For Swagger UI
+      ];
+      productionOrigins.forEach((origin) => origins.add(origin));
+    }
+
     return Array.from(origins);
   }
 
   private parseAllowedPatterns(): RegExp[] {
     const patterns: RegExp[] = [];
+
+    // Default patterns for Render preview deployments
+    patterns.push(
+      /^https:\/\/asyncstand-frontend[\w-]*\.onrender\.com$/,
+      /^https:\/\/asyncstand-backend[\w-]*\.onrender\.com$/, // For Swagger UI
+    );
 
     // Additional patterns from environment
     const envPatterns = this.configService.get<string>('CORS_ALLOWED_PATTERNS', '');
@@ -57,7 +74,7 @@ export class CorsConfig {
         .forEach((pattern) => {
           try {
             patterns.push(new RegExp(pattern));
-          } catch {
+          } catch (error) {
             this.logger.warn(`Invalid CORS pattern ignored: ${pattern}`);
           }
         });

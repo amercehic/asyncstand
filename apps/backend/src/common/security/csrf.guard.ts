@@ -9,7 +9,6 @@ import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 import { CsrfService } from '@/common/security/csrf.service';
 import { ConfigService } from '@nestjs/config';
-import { SessionIdentifierService } from '@/common/session/session-identifier.service';
 
 interface RequestWithUser extends Request {
   user?: {
@@ -34,21 +33,17 @@ export class CsrfGuard implements CanActivate {
     private readonly reflector: Reflector,
     private readonly logger: LoggerService,
     private readonly configService: ConfigService,
-    private readonly sessionIdentifierService: SessionIdentifierService,
   ) {
     this.logger.setContext(CsrfGuard.name);
-
+    
     // Parse public auth endpoints from environment variables
     const envEndpoints = this.configService.get<string>('CSRF_PUBLIC_ENDPOINTS', '');
     const defaultEndpoints = ['/auth/signup', '/auth/forgot-password', '/auth/reset-password'];
-
+    
     this.publicAuthEndpoints = envEndpoints
-      ? envEndpoints
-          .split(',')
-          .map((path) => path.trim())
-          .filter(Boolean)
+      ? envEndpoints.split(',').map(path => path.trim()).filter(Boolean)
       : defaultEndpoints;
-
+      
     this.logger.debug(`CSRF public endpoints configured: ${this.publicAuthEndpoints.join(', ')}`);
   }
 
@@ -97,8 +92,8 @@ export class CsrfGuard implements CanActivate {
       return true;
     }
 
-    // Get session ID using the centralized service
-    const sessionId = this.sessionIdentifierService.extractSessionId(request);
+    // Get session ID from various sources
+    const sessionId = this.extractSessionId(request);
     if (!sessionId) {
       this.logger.warn('CSRF check failed: no session ID', {
         method: request.method,
@@ -184,6 +179,37 @@ export class CsrfGuard implements CanActivate {
   }
 
   /**
+   * Extract session ID from various sources
+   */
+  private extractSessionId(request: Request): string | null {
+    // Try to get session ID from different sources:
+    // 1. Express session
+    // 2. Custom session header
+    // 3. JWT payload (if using JWT sessions)
+    // 4. User ID as fallback
+
+    // Express session
+    if ((request as RequestWithUser).session?.id) {
+      return (request as RequestWithUser).session.id;
+    }
+
+    // Custom session header
+    if (request.headers['x-session-id']) {
+      return request.headers['x-session-id'] as string;
+    }
+
+    // User ID as fallback (for JWT-based auth without sessions)
+    const user = (request as RequestWithUser).user;
+    if (user?.id) {
+      return `user-session:${user.id}`;
+    }
+
+    // Request fingerprint as last resort
+    const fingerprint = this.generateRequestFingerprint(request);
+    return `fingerprint:${fingerprint}`;
+  }
+
+  /**
    * Extract CSRF token from various sources
    */
   private extractCsrfToken(request: Request): string | null {
@@ -201,5 +227,18 @@ export class CsrfGuard implements CanActivate {
       request.query?.csrf_token;
 
     return typeof token === 'string' ? token : null;
+  }
+
+  /**
+   * Generate a request fingerprint for session-less scenarios
+   */
+  private generateRequestFingerprint(request: Request): string {
+    const components = [
+      request.ip || 'unknown-ip',
+      request.get('user-agent') || 'unknown-ua',
+      // Note: Be careful with fingerprinting for privacy reasons
+    ];
+
+    return Buffer.from(components.join('|')).toString('base64');
   }
 }

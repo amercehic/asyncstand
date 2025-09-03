@@ -6,7 +6,7 @@ export class ForgotPasswordDto {
     description: 'Email address of the user requesting password reset',
     example: 'user@example.com',
   })
-  @IsEmail({}, { message: 'Please provide a valid email address (e.g., user@example.com)' })
+  @IsEmail({}, { message: 'Please provide a valid email address' })
   @IsNotEmpty({ message: 'Email is required' })
   email: string;
 }

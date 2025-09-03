@@ -11,7 +11,9 @@ import {
   Settings,
   ChevronRight,
   Building2,
+  Link2,
   Calendar,
+  Slack,
   Search,
   Filter,
   SortAsc,
@@ -245,19 +247,24 @@ const TeamCard = React.memo<TeamCardProps>(
         <div className="px-5 pb-3">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              {standups.length > 0 ? (
+              {activeStandups.some(s => s.deliveryType === 'channel') ? (
                 <>
-                  <div className="w-6 h-6 bg-primary rounded flex items-center justify-center">
-                    <Calendar className="w-3.5 h-3.5 text-white" />
+                  <div className="w-6 h-6 bg-green-500 rounded flex items-center justify-center">
+                    <Slack className="w-3.5 h-3.5 text-white" />
                   </div>
-                  <span className="text-xs font-medium text-primary">
-                    {standups.length} standup{standups.length !== 1 ? 's' : ''}
-                  </span>
+                  <span className="text-xs font-medium text-green-600">Channel delivery</span>
+                </>
+              ) : activeStandups.some(s => s.deliveryType === 'direct_message') ? (
+                <>
+                  <div className="w-6 h-6 bg-blue-500 rounded flex items-center justify-center">
+                    <Inbox className="w-3.5 h-3.5 text-white" />
+                  </div>
+                  <span className="text-xs font-medium text-blue-600">Direct messages</span>
                 </>
               ) : (
                 <>
                   <div className="w-6 h-6 bg-muted border border-dashed border-muted-foreground/30 rounded flex items-center justify-center">
-                    <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+                    <Link2 className="w-3.5 h-3.5 text-muted-foreground" />
                   </div>
                   <span className="text-xs text-muted-foreground">No standups</span>
                 </>
@@ -583,10 +590,10 @@ export const TeamsPage = React.memo(() => {
     toast.favorite(wasFavorited ? 'Removed from favorites' : 'Added to favorites', !wasFavorited);
   };
 
-  const handleCreateSuccess = async (teamName?: string, team?: Team) => {
+  const handleCreateSuccess = async (teamName?: string) => {
     await refreshTeams();
-    if (teamName && team) {
-      toast.teamCreated(teamName, team.id, navigate);
+    if (teamName) {
+      toast.teamCreated(teamName);
     } else {
       toast.success('Team created successfully!');
     }
@@ -936,9 +943,7 @@ export const TeamsPage = React.memo(() => {
                         setSelectedTeamForSettings(team);
                         setIsSettingsModalOpen(true);
                       }}
-                      onCreateStandup={() =>
-                        navigate(`/teams/${team.id}/standups/wizard`, { state: { from: '/teams' } })
-                      }
+                      onCreateStandup={() => navigate(`/teams/${team.id}/standups/wizard`)}
                       index={index}
                     />
                   ))}

@@ -3,21 +3,22 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast, ModernButton } from '@/components/ui';
 import { Textarea, Label } from '@/components/ui';
 import { FormField } from '@/components/form';
-import { X, Building2, Globe, Clock } from 'lucide-react';
-import { integrationsApi } from '@/lib/api';
+import { X, Building2, Hash, Globe, Clock } from 'lucide-react';
+import { teamsApi, integrationsApi } from '@/lib/api';
 import { useTeams, useModal } from '@/contexts';
-import type { CreateTeamRequest, Team } from '@/types';
+import type { CreateTeamRequest } from '@/types';
 
 interface CreateTeamModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (teamName?: string, team?: Team) => void;
+  onSuccess: (teamName?: string) => void;
 }
 
 interface CreateTeamFormData {
   name: string;
   description: string;
   integrationId: string;
+  channelId?: string;
   timezone: string;
 }
 
@@ -47,9 +48,13 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
       name: '',
       description: '',
       integrationId: '',
+      channelId: '',
       timezone: 'America/New_York', // Default timezone
     });
     const [errors, setErrors] = useState<FormFieldError>({});
+    const [availableChannels, setAvailableChannels] = useState<
+      Array<{ id: string; name: string; isAssigned: boolean }>
+    >([]);
     const [availableIntegrations, setAvailableIntegrations] = useState<
       Array<{ id: string; teamName: string; isActive: boolean; platform: string }>
     >([]);
@@ -59,12 +64,17 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
       if (dataLoaded || !isOpen) return;
 
       try {
-        const integrationsResponse = await integrationsApi.getSlackIntegrationsForTeamCreation();
+        const [channelsResponse, integrationsResponse] = await Promise.all([
+          teamsApi.getAvailableChannels(),
+          integrationsApi.getSlackIntegrationsForTeamCreation(),
+        ]);
+
+        setAvailableChannels(channelsResponse.channels);
         setAvailableIntegrations(integrationsResponse);
         setDataLoaded(true);
       } catch (error) {
         console.error('Error loading form data:', error);
-        toast.error('Failed to load team creation data');
+        toast.error('Failed to load team creation data', { id: 'load-team-data' });
       }
     }, [isOpen, dataLoaded]);
 
@@ -132,6 +142,7 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
         name: '',
         description: '',
         integrationId: '',
+        channelId: '',
         timezone: 'America/New_York',
       });
       setErrors({});
@@ -144,7 +155,7 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
         e.preventDefault();
 
         if (!validateForm()) {
-          toast.error('Please fix the errors below');
+          toast.error('Please fix the errors below', { id: 'form-validation' });
           return;
         }
 
@@ -152,12 +163,13 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
           const createTeamData: CreateTeamRequest = {
             name: formData.name.trim(),
             integrationId: formData.integrationId,
+            channelId: formData.channelId || undefined,
             timezone: formData.timezone,
             description: formData.description.trim() || undefined,
           };
 
           const newTeam = await createTeam(createTeamData);
-          onSuccess(newTeam.name, newTeam);
+          onSuccess(newTeam.name);
           handleClose();
         } catch (error) {
           // Error handling is done in the context
@@ -302,6 +314,39 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
                 {errors.integrationId && (
                   <p className="text-sm text-destructive">{errors.integrationId}</p>
                 )}
+              </div>
+
+              {/* Slack Channel (Optional) */}
+              <div className="space-y-2">
+                <Label htmlFor="channelId">
+                  <Hash className="w-4 h-4 inline mr-2" />
+                  Default Channel (Optional)
+                </Label>
+                <select
+                  id="channelId"
+                  value={formData.channelId || ''}
+                  onChange={e => handleInputChange('channelId', e.target.value)}
+                  className="w-full h-12 px-3 rounded-lg border border-border bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  data-testid="channel-select"
+                  disabled={
+                    !formData.integrationId ||
+                    isCreating ||
+                    (dataLoaded && availableChannels.filter(c => !c.isAssigned).length === 0)
+                  }
+                >
+                  <option value="">No default channel</option>
+                  {availableChannels
+                    .filter(channel => !channel.isAssigned)
+                    .map(channel => (
+                      <option key={channel.id} value={channel.id}>
+                        #{channel.name}
+                      </option>
+                    ))}
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  You can configure specific channels for each standup later.
+                </p>
+                {errors.channelId && <p className="text-sm text-destructive">{errors.channelId}</p>}
               </div>
 
               {/* Timezone */}

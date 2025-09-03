@@ -4,7 +4,6 @@ import { StandupConfigService } from '@/standups/standup-config.service';
 import { PrismaService } from '@/prisma/prisma.service';
 import { AuditLogService } from '@/common/audit/audit-log.service';
 import { LoggerService } from '@/common/logger.service';
-import { SlackApiService } from '@/integrations/slack/slack-api.service';
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
 import { createMockPrismaService } from '@/test/utils/mocks/prisma.mock';
@@ -22,15 +21,11 @@ describe('StandupConfigService', () => {
   let mockPrisma: ReturnType<typeof createMockPrismaService>;
   let mockAuditLog: ReturnType<typeof createMockAuditLogService>;
   let mockLogger: ReturnType<typeof createMockLoggerService>;
-  let mockSlackApi: jest.Mocked<SlackApiService>;
 
   beforeEach(async () => {
     mockPrisma = createMockPrismaService();
     mockAuditLog = createMockAuditLogService();
     mockLogger = createMockLoggerService();
-    mockSlackApi = {
-      syncWorkspaceData: jest.fn(),
-    } as unknown as jest.Mocked<SlackApiService>;
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -38,7 +33,6 @@ describe('StandupConfigService', () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: AuditLogService, useValue: mockAuditLog },
         { provide: LoggerService, useValue: mockLogger },
-        { provide: SlackApiService, useValue: mockSlackApi },
       ],
     }).compile();
 

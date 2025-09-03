@@ -9,7 +9,6 @@ import { CorrelationIdMiddleware } from '@/common/middleware/correlation-id.midd
 import { LoggingInterceptor } from '@/common/interceptors/logging.interceptor';
 import { CorsConfig } from '@/config/cors.config';
 import * as express from 'express';
-import cookieParser from 'cookie-parser';
 
 function setupSwagger(app: INestApplication) {
   const config = new DocumentBuilder()
@@ -79,9 +78,6 @@ async function bootstrap() {
 
   // Apply correlation ID middleware first (before any other middleware)
   app.use(new CorrelationIdMiddleware().use.bind(new CorrelationIdMiddleware()));
-
-  // Enable cookie parsing for all routes
-  app.use(cookieParser());
 
   // Get config service
   const configService = app.get(ConfigService);

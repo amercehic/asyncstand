@@ -5,6 +5,6 @@ import { LoggerService } from '@/common/logger.service';
 
 @Module({
   providers: [CacheService, RedisService, LoggerService],
-  exports: [CacheService, LoggerService],
+  exports: [CacheService],
 })
 export class CacheModule {}

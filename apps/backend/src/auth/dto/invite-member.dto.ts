@@ -7,8 +7,8 @@ export class InviteMemberDto {
     description: 'Email address of the person to invite',
     example: 'john.doe@example.com',
   })
-  @IsEmail({}, { message: 'Please provide a valid email address (e.g., john.doe@example.com)' })
-  @IsNotEmpty({ message: 'Email is required' })
+  @IsEmail()
+  @IsNotEmpty()
   email: string;
 
   @ApiProperty({

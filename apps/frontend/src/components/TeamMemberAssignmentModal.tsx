@@ -206,7 +206,6 @@ export const TeamMemberAssignmentModal: React.FC<TeamMemberAssignmentModalProps>
         );
       }
 
-      console.log('TeamMemberAssignmentModal: Operations completed, calling onSuccess');
       onSuccess();
       setShowConfirmDialog(false);
       onClose();

@@ -83,6 +83,11 @@ const main = () => {
   const mjmlPath = path.join(outputDir, 'password-reset-email.mjml');
   const mjmlContent = generatePasswordResetEmail(email, token, userName);
   fs.writeFileSync(mjmlPath, mjmlContent.html);
+
+  console.log('Email preview generated!');
+  console.log(`HTML: ${htmlPath}`);
+  console.log(`MJML: ${mjmlPath}`);
+  console.log('\nYou can open the HTML file in your browser to preview the email.');
 };
 
 main();

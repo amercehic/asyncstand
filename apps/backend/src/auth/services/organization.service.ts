@@ -90,8 +90,6 @@ export class OrganizationService {
     return {
       id: updatedOrg.id,
       name: updatedOrg.name,
-      createdAt: updatedOrg.createdAt,
-      updatedAt: updatedOrg.updatedAt,
     };
   }
 
@@ -110,8 +108,6 @@ export class OrganizationService {
     return {
       id: member.org.id,
       name: member.org.name,
-      createdAt: member.org.createdAt,
-      updatedAt: member.org.updatedAt,
     };
   }
 

@@ -8,7 +8,6 @@ import { AnswerCollectionController } from '@/standups/answer-collection.control
 import { MagicTokenController } from '@/standups/controllers/magic-token.controller';
 import { StandupConfigService } from '@/standups/standup-config.service';
 import { StandupInstanceService } from '@/standups/standup-instance.service';
-import { StandupMetricsService } from '@/standups/standup-metrics.service';
 import { AnswerCollectionService } from '@/standups/answer-collection.service';
 import { StandupSchedulerService } from '@/standups/standup-scheduler.service';
 import { StandupReminderService } from '@/standups/standup-reminder.service';
@@ -58,7 +57,6 @@ import { LoggerService } from '@/common/logger.service';
   providers: [
     StandupConfigService,
     StandupInstanceService,
-    StandupMetricsService,
     AnswerCollectionService,
     StandupSchedulerService,
     StandupReminderService,
@@ -72,7 +70,6 @@ import { LoggerService } from '@/common/logger.service';
   exports: [
     StandupConfigService,
     StandupInstanceService,
-    StandupMetricsService,
     AnswerCollectionService,
     StandupSchedulerService,
     StandupReminderService,

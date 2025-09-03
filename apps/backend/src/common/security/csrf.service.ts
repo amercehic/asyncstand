@@ -218,16 +218,11 @@ export class CsrfService {
         this.cacheService.del(this.buildTokenKey(tokenHash)),
       );
 
-      // Also clean up any distributed lock for this session
-      const lockKey = this.cacheService.buildKey('distributed-lock', `csrf-session-${sessionId}`);
-      const lockCleanupPromise = this.cacheService.del(lockKey);
+      await Promise.all([...deletePromises, this.cacheService.del(sessionKey)]);
 
-      await Promise.all([...deletePromises, this.cacheService.del(sessionKey), lockCleanupPromise]);
-
-      this.logger.debug('All CSRF tokens and locks invalidated for session', {
+      this.logger.debug('All CSRF tokens invalidated for session', {
         sessionId,
         tokenCount: sessionTokens.length,
-        lockKey,
       });
     } catch (error) {
       this.logger.error('Error invalidating session tokens', {

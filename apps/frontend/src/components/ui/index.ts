@@ -5,7 +5,6 @@ export { Tooltip } from '@/components/ui/Tooltip';
 export { SkipLinks } from '@/components/ui/SkipLinks';
 export { Dropdown } from '@/components/ui/Dropdown';
 export { ConfirmationModal } from '@/components/ui/ConfirmationModal';
-export { Avatar } from '@/components/ui/Avatar';
 export { Input } from '@/components/ui/input';
 export { Label } from '@/components/ui/label';
 export { Textarea } from '@/components/ui/textarea';
@@ -37,6 +36,3 @@ export { LazyImage } from '@/components/ui/LazyImage';
 export { VirtualizedList, VirtualListItem } from '@/components/ui/VirtualizedList';
 export { OptimizedLazyImage } from '@/components/ui/OptimizedLazyImage';
 export { OptimizedVirtualList, useDynamicVirtualList } from '@/components/ui/OptimizedVirtualList';
-
-// Feature flags components
-export { FeatureToggle } from '@/components/ui/FeatureToggle';

@@ -12,6 +12,7 @@ import { teamsApi, integrationsApi } from '@/lib/api';
 vi.mock('@/lib/api', () => ({
   teamsApi: {
     createTeam: vi.fn(),
+    getAvailableChannels: vi.fn(),
     getTeams: vi.fn(),
     getTeam: vi.fn(),
     updateTeam: vi.fn(),
@@ -89,6 +90,12 @@ describe('CreateTeamModal', () => {
     onSuccess: vi.fn(),
   };
 
+  const mockChannels = [
+    { id: 'channel1', name: 'general', isAssigned: false },
+    { id: 'channel2', name: 'dev-team', isAssigned: false },
+    { id: 'channel3', name: 'assigned-channel', isAssigned: true },
+  ];
+
   const mockIntegrations = [
     { id: 'integration1', teamName: 'Test Workspace', isActive: true, platform: 'Slack' },
     { id: 'integration2', teamName: 'Another Workspace', isActive: true, platform: 'Discord' },
@@ -96,6 +103,7 @@ describe('CreateTeamModal', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(teamsApi.getAvailableChannels).mockResolvedValue({ channels: mockChannels });
     vi.mocked(integrationsApi.getSlackIntegrations).mockResolvedValue([]);
     vi.mocked(integrationsApi.getSlackIntegrationsForTeamCreation).mockResolvedValue(
       mockIntegrations
@@ -114,6 +122,7 @@ describe('CreateTeamModal', () => {
     expect(screen.getByTestId('team-name-input')).toBeInTheDocument();
     expect(screen.getByTestId('team-description-input')).toBeInTheDocument();
     expect(screen.getByTestId('integration-select')).toBeInTheDocument();
+    expect(screen.getByTestId('channel-select')).toBeInTheDocument();
   });
 
   it('does not render when closed', async () => {
@@ -123,10 +132,11 @@ describe('CreateTeamModal', () => {
     expect(screen.queryByText('Create Team')).not.toBeInTheDocument();
   });
 
-  it('loads and displays available integrations', async () => {
+  it('loads and displays available integrations and channels', async () => {
     renderWithProviders(<CreateTeamModal {...mockProps} />);
 
     await waitFor(() => {
+      expect(teamsApi.getAvailableChannels).toHaveBeenCalled();
       expect(integrationsApi.getSlackIntegrationsForTeamCreation).toHaveBeenCalled();
     });
 
@@ -139,8 +149,16 @@ describe('CreateTeamModal', () => {
     expect(integrationSelect).toHaveTextContent('Slack: Test Workspace');
     expect(integrationSelect).toHaveTextContent('Discord: Another Workspace');
 
-    // Select an integration
+    // Select an integration to enable channel selection
     fireEvent.change(integrationSelect, { target: { value: 'integration1' } });
+
+    const channelSelect = screen.getByTestId('channel-select');
+    await waitFor(() => {
+      expect(channelSelect).toHaveTextContent('#general');
+      expect(channelSelect).toHaveTextContent('#dev-team');
+      // Should not show assigned channels
+      expect(channelSelect).not.toHaveTextContent('#assigned-channel');
+    });
   });
 
   it('has basic form validation structure and disables submit when invalid', async () => {
@@ -153,8 +171,8 @@ describe('CreateTeamModal', () => {
     // Check that required fields have the required attribute
     expect(screen.getByTestId('team-name-input')).toHaveAttribute('required');
     expect(screen.getByTestId('integration-select')).toHaveAttribute('required');
-    // Timezone select should be visible
-    expect(screen.getByTestId('timezone-select')).toBeInTheDocument();
+    // Channel is now optional
+    expect(screen.getByTestId('channel-select')).toBeInTheDocument();
 
     // Check that submit button is disabled when form is invalid
     const submitButton = screen.getByTestId('create-team-submit-button');
@@ -166,6 +184,9 @@ describe('CreateTeamModal', () => {
     });
     fireEvent.change(screen.getByTestId('integration-select'), {
       target: { value: 'integration1' },
+    });
+    fireEvent.change(screen.getByTestId('channel-select'), {
+      target: { value: 'channel1' },
     });
 
     await waitFor(() => {
@@ -199,6 +220,9 @@ describe('CreateTeamModal', () => {
     fireEvent.change(screen.getByTestId('integration-select'), {
       target: { value: 'integration1' },
     });
+    fireEvent.change(screen.getByTestId('channel-select'), {
+      target: { value: 'channel1' },
+    });
 
     // Submit the form
     fireEvent.click(screen.getByTestId('create-team-submit-button'));
@@ -207,14 +231,15 @@ describe('CreateTeamModal', () => {
       expect(teamsApi.createTeam).toHaveBeenCalledWith({
         name: 'Test Team',
         integrationId: 'integration1',
+        channelId: 'channel1',
         description: 'Test Description',
         timezone: 'America/New_York',
       });
     });
 
-    expect(toast.loading).toHaveBeenCalledWith('Creating team...');
-    expect(toast.dismiss).toHaveBeenCalled();
-    expect(mockProps.onSuccess).toHaveBeenCalledWith('Test Team', mockTeam);
+    expect(toast.loading).toHaveBeenCalledWith('Creating team...', { id: 'create-team' });
+    expect(toast.dismiss).toHaveBeenCalledWith('create-team');
+    expect(mockProps.onSuccess).toHaveBeenCalledWith('Test Team');
   });
 
   it('closes modal when close button is clicked', async () => {
@@ -260,11 +285,14 @@ describe('CreateTeamModal', () => {
     fireEvent.change(screen.getByTestId('integration-select'), {
       target: { value: 'integration1' },
     });
+    fireEvent.change(screen.getByTestId('channel-select'), {
+      target: { value: 'channel1' },
+    });
 
     fireEvent.click(screen.getByTestId('create-team-submit-button'));
 
     await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith('Test error message');
+      expect(toast.error).toHaveBeenCalledWith('Test error message', { id: 'create-team' });
     });
 
     expect(mockProps.onSuccess).not.toHaveBeenCalled();

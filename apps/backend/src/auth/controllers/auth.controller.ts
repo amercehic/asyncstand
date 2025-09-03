@@ -5,33 +5,27 @@ import {
   Req,
   Res,
   HttpCode,
+  HttpStatus,
   UseGuards,
   Get,
-  Put,
-  HttpStatus,
 } from '@nestjs/common';
 import { ThrottlerGuard } from '@nestjs/throttler';
-import {
-  CsrfProtected,
-  CsrfTokenEndpoint,
-  SkipCsrf,
-} from '@/common/decorators/csrf-protected.decorator';
+import { CsrfProtected, CsrfTokenEndpoint } from '@/common/decorators/csrf-protected.decorator';
 import { AuthService } from '@/auth/services/auth.service';
 import { PasswordResetService } from '@/auth/services/password-reset.service';
 import { SignupDto } from '@/auth/dto/signup.dto';
 import { LoginDto } from '@/auth/dto/login.dto';
 import { ForgotPasswordDto } from '@/auth/dto/forgot-password.dto';
 import { ResetPasswordDto } from '@/auth/dto/reset-password.dto';
-import { UpdatePasswordDto } from '@/auth/dto/update-password.dto';
 import { Request, Response } from 'express';
-import { SessionIdentifierService } from '@/common/session/session-identifier.service';
-import { SessionCleanupService } from '@/common/session/session-cleanup.service';
 
 interface RequestWithSession extends Request {
   session?: { id: string };
   user?: { id: string };
 }
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiError } from '@/common/api-error';
+import { ErrorCode } from 'shared';
+import { ApiTags } from '@nestjs/swagger';
 import {
   SwaggerSignup,
   SwaggerLogin,
@@ -39,16 +33,10 @@ import {
   SwaggerForgotPassword,
   SwaggerResetPassword,
 } from '@/swagger/auth.swagger';
-import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Audit } from '@/common/audit/audit.decorator';
 import { getClientIp } from '@/common/http/ip.util';
 import { AuditCategory, AuditSeverity } from '@/common/audit/types';
-import { ApiError } from '@/common/api-error';
-import { ErrorCode } from 'shared';
 import { CsrfService } from '@/common/security/csrf.service';
-import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
-import { CurrentUser } from '@/auth/decorators/current-user.decorator';
-import { LoggerService } from '@/common/logger.service';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -57,19 +45,48 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly passwordResetService: PasswordResetService,
     private readonly csrfService: CsrfService,
-    private readonly sessionIdentifierService: SessionIdentifierService,
-    private readonly sessionCleanupService: SessionCleanupService,
-    private readonly logger: LoggerService,
-  ) {
-    this.logger.setContext(AuthController.name);
-  }
+  ) {}
 
   @Get('csrf-token')
   @CsrfTokenEndpoint()
   async getCsrfToken(@Req() req: RequestWithSession) {
-    const sessionId = this.sessionIdentifierService.extractSessionId(req);
+    // Extract session ID using the same approach as CSRF guard
+    const sessionId = this.extractSessionId(req);
     const token = await this.csrfService.generateToken(sessionId);
     return { csrfToken: token };
+  }
+
+  /**
+   * Extract session ID using the same logic as CSRF guard
+   */
+  private extractSessionId(request: RequestWithSession): string {
+    // Express session
+    if (request.session?.id) {
+      return request.session.id;
+    }
+
+    // Custom session header
+    if (request.headers['x-session-id']) {
+      return request.headers['x-session-id'] as string;
+    }
+
+    // User ID as fallback (for JWT-based auth without sessions)
+    const user = request.user;
+    if (user?.id) {
+      return `user-session:${user.id}`;
+    }
+
+    // Request fingerprint as last resort
+    const fingerprint = this.generateRequestFingerprint(request);
+    return `fingerprint:${fingerprint}`;
+  }
+
+  /**
+   * Generate a request fingerprint for session-less scenarios
+   */
+  private generateRequestFingerprint(request: RequestWithSession): string {
+    const components = [request.ip || 'unknown-ip', request.get('user-agent') || 'unknown-ua'];
+    return Buffer.from(components.join('|')).toString('base64');
   }
 
   @Post('signup')
@@ -105,40 +122,13 @@ export class AuthController {
   ) {
     const loginResponse = await this.authService.login(dto.email, dto.password, req);
 
-    // Determine if we should use secure cookies
-    // Use secure if in production/staging OR if request came via HTTPS (e.g., ngrok)
-    const isSecure =
-      ['production', 'staging'].includes(process.env.NODE_ENV || '') ||
-      req.get('x-forwarded-proto') === 'https' ||
-      req.protocol === 'https';
-
-    this.logger.debug('Login cookie security check', {
-      nodeEnv: process.env.NODE_ENV,
-      forwardedProto: req.get('x-forwarded-proto'),
-      protocol: req.protocol,
-      isSecure,
-      origin: req.get('origin'),
-    });
-
-    const cookieOptions = {
+    res.cookie('refreshToken', loginResponse.refreshToken, {
       httpOnly: true,
-      secure: isSecure,
-      sameSite: 'lax' as const,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
       path: '/',
       maxAge: 7 * 24 * 60 * 60 * 1000,
-    };
-
-    this.logger.debug('Setting refresh token cookie with options', {
-      isSecure,
-      maxAge: cookieOptions.maxAge,
-      hasRefreshToken: !!loginResponse.refreshToken,
-      cookieOptions,
-      refreshTokenLength: loginResponse.refreshToken?.length,
     });
-
-    res.cookie('refreshToken', loginResponse.refreshToken, cookieOptions);
-
-    this.logger.debug('Refresh token cookie set successfully');
 
     const { refreshToken: _, ...response } = loginResponse;
     return response;
@@ -159,98 +149,20 @@ export class AuthController {
   ) {
     const token = req.cookies?.refreshToken || bodyToken;
 
-    // If no refresh token is provided, still perform a local logout
-    // This handles cases where cookies aren't available (cross-origin with ngrok)
-    // or the refresh token has already been cleared
     if (!token) {
-      // Clear any existing refresh token cookie just in case
-      res.clearCookie('refreshToken');
-
-      // Also try to clean up any active session data
-      try {
-        const sessionId = this.sessionIdentifierService.extractSessionId(req as RequestWithSession);
-        await this.sessionCleanupService.cleanupSession(sessionId);
-      } catch {
-        // Ignore errors during session cleanup for local logout
-      }
-
-      // Return success response for local logout
-      return {
-        success: true,
-        message: 'Logged out successfully',
-      };
-    }
-
-    const ip = getClientIp(req);
-    const result = await this.authService.logout(token, ip, req);
-
-    res.clearCookie('refreshToken');
-
-    return result;
-  }
-
-  @Post('refresh')
-  @SkipCsrf()
-  @ApiOperation({
-    summary: 'Refresh access token',
-    description:
-      'Refresh an expired access token using a valid refresh token from HTTP-only cookie',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Token refreshed successfully',
-    schema: {
-      type: 'object',
-      properties: {
-        accessToken: { type: 'string' },
-        expiresIn: { type: 'number' },
-      },
-    },
-  })
-  @ApiResponse({ status: 401, description: 'Invalid or expired refresh token' })
-  async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    this.logger.debug('Refresh endpoint called');
-    this.logger.debug('All cookies received', { cookies: req.cookies });
-    this.logger.debug('Cookie header', { cookieHeader: req.headers.cookie });
-
-    const refreshToken = req.cookies?.refreshToken;
-
-    if (!refreshToken) {
-      this.logger.error('No refresh token in cookies');
-      this.logger.error('Available cookies', {
-        availableCookies: Object.keys(req.cookies || {}),
-      });
       throw new ApiError(
-        ErrorCode.UNAUTHENTICATED,
+        ErrorCode.VALIDATION_FAILED,
         'Refresh token is required',
         HttpStatus.BAD_REQUEST,
       );
     }
 
-    this.logger.debug('Found refresh token in cookies');
     const ip = getClientIp(req);
-    const tokens = await this.authService.refreshToken(refreshToken, ip);
-    this.logger.debug('New tokens generated successfully');
+    const result = await this.authService.logout(token, ip);
 
-    // Set new refresh token cookie with consistent settings
-    const isSecure =
-      ['production', 'staging'].includes(process.env.NODE_ENV || '') ||
-      req.get('x-forwarded-proto') === 'https' ||
-      req.protocol === 'https';
+    res.clearCookie('refreshToken');
 
-    const cookieOptions = {
-      httpOnly: true,
-      secure: isSecure,
-      sameSite: 'lax' as const,
-      path: '/',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    };
-
-    res.cookie('refreshToken', tokens.refreshToken, cookieOptions);
-
-    // Return only access token (refresh token is in HTTP-only cookie)
-    const { refreshToken: _, ...response } = tokens;
-    return response;
+    return result;
   }
 
   @Post('forgot-password')
@@ -285,43 +197,6 @@ export class AuthController {
 
     return {
       message: 'Password has been successfully reset.',
-      success: true,
-    };
-  }
-
-  @Get('me')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
-  async getCurrentUser(
-    @CurrentUser('userId') userId: string,
-    @CurrentUser('orgId') orgId: string | null,
-  ) {
-    const userData = await this.authService.getCurrentUser(userId, orgId);
-    return { user: userData };
-  }
-
-  @Put('password')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
-  @HttpCode(200)
-  @CsrfProtected()
-  @Audit({
-    action: 'password.updated',
-    category: AuditCategory.AUTH,
-    severity: AuditSeverity.MEDIUM,
-    redactRequestBodyPaths: ['currentPassword', 'newPassword'],
-    resourcesFromRequest: (req) => [{ type: 'user', id: req.user?.userId, action: 'UPDATED' }],
-  })
-  async updatePassword(
-    @Body() dto: UpdatePasswordDto,
-    @CurrentUser('userId') userId: string,
-    @Req() req: Request,
-  ) {
-    const ip = getClientIp(req);
-    await this.authService.updatePassword(userId, dto.currentPassword, dto.newPassword, ip);
-
-    return {
-      message: 'Password has been successfully updated.',
       success: true,
     };
   }

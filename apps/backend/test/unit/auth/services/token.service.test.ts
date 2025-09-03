@@ -3,27 +3,23 @@ import { JwtService } from '@nestjs/jwt';
 import { TokenService } from '@/auth/services/token.service';
 import { PrismaService } from '@/prisma/prisma.service';
 import { createMockPrismaService } from '@/test/utils/mocks/prisma.mock';
-import { createMockJwtService, createMockLoggerService } from '@/test/utils/mocks/services.mock';
+import { createMockJwtService } from '@/test/utils/mocks/services.mock';
 import { TestHelpers } from '@/test/utils/test-helpers';
-import { LoggerService } from '@/common/logger.service';
 
 describe('TokenService', () => {
   let service: TokenService;
   let mockJwtService: ReturnType<typeof createMockJwtService>;
   let mockPrisma: ReturnType<typeof createMockPrismaService>;
-  let mockLoggerService: ReturnType<typeof createMockLoggerService>;
 
   beforeEach(async () => {
     mockJwtService = createMockJwtService();
     mockPrisma = createMockPrismaService();
-    mockLoggerService = createMockLoggerService();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TokenService,
         { provide: JwtService, useValue: mockJwtService },
         { provide: PrismaService, useValue: mockPrisma },
-        { provide: LoggerService, useValue: mockLoggerService },
       ],
     }).compile();
 
@@ -51,7 +47,7 @@ describe('TokenService', () => {
       // Check access token generation
       expect(mockJwtService.sign).toHaveBeenNthCalledWith(
         1,
-        { sub: userId, orgId, role: 'member' },
+        { sub: userId, orgId },
         { expiresIn: '15m' },
       );
 
@@ -80,7 +76,7 @@ describe('TokenService', () => {
 
       expect(mockPrisma.refreshToken.create).toHaveBeenCalledWith({
         data: {
-          token: expect.any(String), // Token is now hashed
+          token: 'mock_refresh_token',
           user: { connect: { id: userId } },
           ipAddress,
           fingerprint: '1234567890',
@@ -98,7 +94,7 @@ describe('TokenService', () => {
 
       expect(mockPrisma.refreshToken.create).toHaveBeenCalledWith({
         data: {
-          token: expect.any(String), // Token is now hashed
+          token: 'mock_refresh_token',
           user: { connect: { id: userId } },
           ipAddress: 'unknown',
           fingerprint: '1234567890',
@@ -227,7 +223,7 @@ describe('TokenService', () => {
 
       expect(mockJwtService.sign).toHaveBeenNthCalledWith(
         1,
-        { sub: userId, orgId, role: 'member' },
+        { sub: userId, orgId },
         { expiresIn: '15m' },
       );
     });

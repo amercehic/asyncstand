@@ -19,9 +19,9 @@ import { createLoggerModule } from '@/config/logger.config';
         // Override default config based on environment
         enabled: process.env.AUDIT_ENABLED !== 'false',
         compliance: {
-          encryption: ['production', 'staging'].includes(process.env.NODE_ENV || ''),
-          tamperDetection: ['production', 'staging'].includes(process.env.NODE_ENV || ''),
-          immutable: ['production', 'staging'].includes(process.env.NODE_ENV || ''),
+          encryption: process.env.NODE_ENV === 'production',
+          tamperDetection: process.env.NODE_ENV === 'production',
+          immutable: process.env.NODE_ENV === 'production',
         },
         capture: {
           ...DEFAULT_AUDIT_CONFIG.capture,

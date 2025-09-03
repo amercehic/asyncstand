@@ -3,7 +3,7 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '@/app.module';
 import { PrismaService } from '@/prisma/prisma.service';
-import { OrgRole, OrgMemberStatus } from '@prisma/client';
+import { OrgRole } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
 import { randomBytes, createHash } from 'crypto';
 import { hash } from '@node-rs/argon2';
@@ -62,7 +62,7 @@ describe('Organization Members (e2e)', () => {
         orgId: org.id,
         userId: adminUser.id,
         role: OrgRole.admin,
-        status: OrgMemberStatus.active,
+        status: 'active',
       },
     });
 
@@ -82,7 +82,7 @@ describe('Organization Members (e2e)', () => {
         orgId: org.id,
         userId: memberUser.id,
         role: OrgRole.member,
-        status: OrgMemberStatus.active,
+        status: 'active',
       },
     });
 
@@ -233,7 +233,7 @@ describe('Organization Members (e2e)', () => {
           orgId: testData.orgId,
           userId: inviteeUser.id,
           role: OrgRole.member,
-          status: OrgMemberStatus.invited,
+          status: 'invited',
           inviteToken: inviteTokenHash,
           invitedAt: new Date(),
         },
@@ -304,7 +304,7 @@ describe('Organization Members (e2e)', () => {
           orgId: testData.orgId,
           userId: existingUser.id,
           role: OrgRole.member,
-          status: OrgMemberStatus.invited,
+          status: 'invited',
           inviteToken: inviteTokenHash,
           invitedAt: new Date(),
         },

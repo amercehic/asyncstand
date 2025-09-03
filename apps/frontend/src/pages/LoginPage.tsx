@@ -48,23 +48,17 @@ export const LoginPage = React.memo(() => {
         return;
       }
 
-      let loginToastId: string | undefined;
       try {
-        loginToastId = toast.loading('Signing you in...');
+        toast.loading('Signing you in...', { id: 'login' });
         await login(formData.email, formData.password, formData.rememberMe);
-        toast.dismiss(loginToastId);
-        toast.success('Welcome back!');
+        toast.success('Welcome back!', { id: 'login' });
 
         // Redirect to intended page or dashboard
         const from = location.state?.from?.pathname ?? '/dashboard';
         navigate(from, { replace: true });
       } catch (error) {
-        // Dismiss the loading toast if it exists
-        if (loginToastId) {
-          toast.dismiss(loginToastId);
-        }
         const { message } = normalizeApiError(error, 'Invalid email or password');
-        toast.error(message);
+        toast.error(message, { id: 'login' });
       }
     },
     [

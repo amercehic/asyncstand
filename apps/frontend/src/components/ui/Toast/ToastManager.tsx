@@ -13,9 +13,10 @@ interface ToastManagerProps {
 }
 
 const ToastRenderer: React.FC<{
+  maxToasts?: number;
   gap?: number;
   offset?: number;
-}> = ({ gap, offset }) => {
+}> = ({ maxToasts, gap, offset }) => {
   const { toasts, position, removeToast } = useToast();
 
   return (
@@ -23,6 +24,7 @@ const ToastRenderer: React.FC<{
       toasts={toasts}
       position={position}
       onRemove={removeToast}
+      maxToasts={maxToasts}
       gap={gap}
       offset={offset}
     />
@@ -37,9 +39,9 @@ export const ToastManager: React.FC<ToastManagerProps> = ({
   offset = 16,
 }) => {
   return (
-    <ToastProvider defaultPosition={position} defaultMaxVisible={maxToasts}>
+    <ToastProvider defaultPosition={position}>
       {children}
-      <ToastRenderer gap={gap} offset={offset} />
+      <ToastRenderer maxToasts={maxToasts} gap={gap} offset={offset} />
     </ToastProvider>
   );
 };

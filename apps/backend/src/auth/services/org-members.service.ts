@@ -33,13 +33,6 @@ export class OrgMembersService {
             name: true,
           },
         },
-        invitedBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
       },
       orderBy: { acceptedAt: 'asc' },
     });
@@ -52,14 +45,6 @@ export class OrgMembersService {
         role: member.role,
         status: member.status,
         joinedAt: member.acceptedAt,
-        invitedAt: member.invitedAt,
-        invitedBy: member.invitedBy
-          ? {
-              id: member.invitedBy.id,
-              name: member.invitedBy.name,
-              email: member.invitedBy.email,
-            }
-          : null,
       })),
     };
   }
@@ -131,7 +116,6 @@ export class OrgMembersService {
           status: OrgMemberStatus.invited,
           inviteToken: inviteTokenHash,
           invitedAt: new Date(),
-          invitedById: actorUserId,
         },
         create: {
           orgId,
@@ -140,7 +124,6 @@ export class OrgMembersService {
           status: OrgMemberStatus.invited,
           inviteToken: inviteTokenHash,
           invitedAt: new Date(),
-          invitedById: actorUserId,
         },
       });
     } else {
@@ -153,7 +136,6 @@ export class OrgMembersService {
         status: OrgMemberStatus.invited,
         inviteToken: inviteTokenHash,
         invitedAt: new Date(),
-        invitedById: actorUserId,
       });
     }
 

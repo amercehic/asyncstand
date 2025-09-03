@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { StandupConfigController } from '@/standups/standup-config.controller';
 import { StandupConfigService } from '@/standups/standup-config.service';
-import { StandupMetricsService } from '@/standups/standup-metrics.service';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/auth/guards/roles.guard';
 import { CreateStandupConfigDto } from '@/standups/dto/create-standup-config.dto';
@@ -46,23 +45,12 @@ describe('StandupConfigController', () => {
       listTeamsWithStandups: jest.fn(),
     } as unknown as jest.Mocked<StandupConfigService>;
 
-    const mockStandupMetricsServiceMethods = {
-      getStandupMetrics: jest.fn(),
-      getMemberStats: jest.fn(),
-      getRecentInstances: jest.fn(),
-      getStandupDetails: jest.fn(),
-    } as unknown as jest.Mocked<StandupMetricsService>;
-
     const module: TestingModule = await Test.createTestingModule({
       controllers: [StandupConfigController],
       providers: [
         {
           provide: StandupConfigService,
           useValue: mockStandupConfigServiceMethods,
-        },
-        {
-          provide: StandupMetricsService,
-          useValue: mockStandupMetricsServiceMethods,
         },
       ],
     })
@@ -122,8 +110,8 @@ describe('StandupConfigController', () => {
         updatedAt: new Date(),
         memberParticipation: [],
       };
-      mockStandupConfigService.createStandupConfig.mockResolvedValue({ id: mockConfigId });
-      mockStandupConfigService.getStandupConfigById.mockResolvedValue(expectedConfig);
+      mockStandupConfigService.createStandupConfig.mockResolvedValue(undefined);
+      mockStandupConfigService.getStandupConfig.mockResolvedValue(expectedConfig);
 
       const createData = { ...createDto, teamId: mockTeamId };
       const result = await controller.createStandupConfigFromBody(
@@ -139,10 +127,7 @@ describe('StandupConfigController', () => {
         mockUserId,
         createData,
       );
-      expect(mockStandupConfigService.getStandupConfigById).toHaveBeenCalledWith(
-        mockConfigId,
-        mockOrgId,
-      );
+      expect(mockStandupConfigService.getStandupConfig).toHaveBeenCalledWith(mockTeamId, mockOrgId);
     });
 
     it('should pass through service errors', async () => {

@@ -61,7 +61,6 @@ describe('SlackMessagingService', () => {
           useValue: {
             formatStandupReminder: jest.fn(),
             formatStandupReminderWithMagicLinks: jest.fn(),
-            formatStandupReminderForChannel: jest.fn(),
             formatStandupSummary: jest.fn(),
             formatFollowupReminder: jest.fn(),
             formatFollowupReminderWithMagicLinks: jest.fn(),
@@ -402,7 +401,7 @@ describe('SlackMessagingService', () => {
           };
         },
       );
-      mockFormatter.formatStandupReminderForChannel.mockReturnValue({
+      mockFormatter.formatStandupReminderWithMagicLinks.mockResolvedValue({
         text: 'Standup reminder',
         blocks: [],
       });
@@ -452,7 +451,7 @@ describe('SlackMessagingService', () => {
         },
       });
       expect(validateChannelAccessSpy).toHaveBeenCalledWith(mockIntegrationId, mockChannelId);
-      expect(mockFormatter.formatStandupReminderForChannel).toHaveBeenCalled();
+      expect(mockFormatter.formatStandupReminderWithMagicLinks).toHaveBeenCalled();
       expect(mockPrisma.standupInstance.update).toHaveBeenCalledWith({
         where: { id: 'instance-123' },
         data: { reminderMessageTs: '1234567890.123456' },

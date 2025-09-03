@@ -27,7 +27,6 @@ export type MockPrismaService = {
     upsert: jest.Mock;
     delete: jest.Mock;
     deleteMany: jest.Mock;
-    count: jest.Mock;
   };
   refreshToken: {
     create: jest.Mock;
@@ -54,7 +53,6 @@ export type MockPrismaService = {
     update: jest.Mock;
     delete: jest.Mock;
     deleteMany: jest.Mock;
-    count: jest.Mock;
   };
   auditLog: {
     create: jest.Mock;
@@ -94,17 +92,6 @@ export type MockPrismaService = {
     delete: jest.Mock;
     deleteMany: jest.Mock;
   };
-  standupInstance: {
-    create: jest.Mock;
-    findFirst: jest.Mock;
-    findUnique: jest.Mock;
-    findMany: jest.Mock;
-    update: jest.Mock;
-    updateMany: jest.Mock;
-    delete: jest.Mock;
-    deleteMany: jest.Mock;
-    count: jest.Mock;
-  };
   standupConfigMember: {
     create: jest.Mock;
     findUnique: jest.Mock;
@@ -142,30 +129,6 @@ export type MockPrismaService = {
     update: jest.Mock;
     delete: jest.Mock;
     deleteMany: jest.Mock;
-  };
-  feature: {
-    create: jest.Mock;
-    findUnique: jest.Mock;
-    findMany: jest.Mock;
-    update: jest.Mock;
-    delete: jest.Mock;
-    deleteMany: jest.Mock;
-  };
-  featureOverride: {
-    create: jest.Mock;
-    findUnique: jest.Mock;
-    findMany: jest.Mock;
-    upsert: jest.Mock;
-    update: jest.Mock;
-    delete: jest.Mock;
-    deleteMany: jest.Mock;
-  };
-  planFeature: {
-    findUnique: jest.Mock;
-    findMany: jest.Mock;
-  };
-  billingAccount: {
-    findUnique: jest.Mock;
   };
   $transaction: jest.Mock;
   $disconnect: jest.Mock;
@@ -229,7 +192,6 @@ export const createMockPrismaService = (): MockPrismaService => {
       upsert: jest.fn().mockResolvedValue({}),
       delete: jest.fn().mockResolvedValue({}),
       deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
-      count: jest.fn().mockResolvedValue(0),
     },
     refreshToken: {
       create: jest.fn().mockResolvedValue({
@@ -281,7 +243,6 @@ export const createMockPrismaService = (): MockPrismaService => {
       update: jest.fn().mockResolvedValue({}),
       delete: jest.fn().mockResolvedValue({}),
       deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
-      count: jest.fn().mockResolvedValue(0),
     },
     auditLog: {
       create: jest.fn().mockResolvedValue({
@@ -370,25 +331,6 @@ export const createMockPrismaService = (): MockPrismaService => {
       delete: jest.fn().mockResolvedValue({}),
       deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
-    standupInstance: {
-      create: jest.fn().mockResolvedValue({
-        id: TestHelpers.generateRandomString(),
-        teamId: TestHelpers.generateRandomString(),
-        targetDate: new Date(),
-        state: 'pending',
-        configSnapshot: {},
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }),
-      findFirst: jest.fn().mockResolvedValue(null),
-      findUnique: jest.fn().mockResolvedValue(null),
-      findMany: jest.fn().mockResolvedValue([]),
-      update: jest.fn().mockResolvedValue({}),
-      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
-      delete: jest.fn().mockResolvedValue({}),
-      deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
-      count: jest.fn().mockResolvedValue(0),
-    },
     standupConfigMember: {
       create: jest.fn().mockResolvedValue({
         standupConfigId: TestHelpers.generateRandomString(),
@@ -467,54 +409,6 @@ export const createMockPrismaService = (): MockPrismaService => {
       update: jest.fn().mockResolvedValue({}),
       delete: jest.fn().mockResolvedValue({}),
       deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
-    },
-    feature: {
-      create: jest.fn().mockResolvedValue({
-        id: TestHelpers.generateRandomString(),
-        key: 'test-feature',
-        name: 'Test Feature',
-        description: 'A test feature',
-        isEnabled: true,
-        environment: ['development'],
-        category: 'test',
-        isPlanBased: false,
-        requiresAdmin: false,
-        rolloutType: null,
-        rolloutValue: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }),
-      findUnique: jest.fn().mockResolvedValue(null),
-      findMany: jest.fn().mockResolvedValue([]),
-      update: jest.fn().mockResolvedValue({}),
-      delete: jest.fn().mockResolvedValue({}),
-      deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
-    },
-    featureOverride: {
-      create: jest.fn().mockResolvedValue({
-        id: TestHelpers.generateRandomString(),
-        orgId: mockOrg.id,
-        featureKey: 'test-feature',
-        enabled: true,
-        value: null,
-        reason: null,
-        expiresAt: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }),
-      findUnique: jest.fn().mockResolvedValue(null),
-      findMany: jest.fn().mockResolvedValue([]),
-      upsert: jest.fn().mockResolvedValue({}),
-      update: jest.fn().mockResolvedValue({}),
-      delete: jest.fn().mockResolvedValue({}),
-      deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
-    },
-    planFeature: {
-      findUnique: jest.fn().mockResolvedValue(null),
-      findMany: jest.fn().mockResolvedValue([]),
-    },
-    billingAccount: {
-      findUnique: jest.fn().mockResolvedValue(null),
     },
     $transaction: jest.fn().mockImplementation(async (callback) => {
       if (typeof callback === 'function') {

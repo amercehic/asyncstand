@@ -18,7 +18,6 @@ export interface CreateUserWithOrgOptions extends CreateUserOptions {
   status: OrgMemberStatus;
   inviteToken?: string;
   invitedAt?: Date;
-  invitedById?: string;
 }
 
 @Injectable()
@@ -33,18 +32,8 @@ export class UserService {
    * Create a user with optional organization membership
    */
   async createUserWithOrganization(options: CreateUserWithOrgOptions): Promise<User> {
-    const {
-      email,
-      name,
-      password,
-      isTemporary,
-      orgId,
-      role,
-      status,
-      inviteToken,
-      invitedAt,
-      invitedById,
-    } = options;
+    const { email, name, password, isTemporary, orgId, role, status, inviteToken, invitedAt } =
+      options;
 
     let passwordHash: string;
     if (isTemporary) {
@@ -76,7 +65,6 @@ export class UserService {
           status,
           inviteToken,
           invitedAt,
-          invitedById,
         },
       });
 

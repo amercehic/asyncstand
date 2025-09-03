@@ -131,7 +131,7 @@ describe('Standup Configuration (e2e)', () => {
         name: 'Standup Test Team',
         integrationId: integration.id,
         timezone: 'America/New_York',
-        createdByUserId: testData.adminUserId,
+        createdByUserId: adminUser.id,
       },
     });
     testData.teamId = team.id;

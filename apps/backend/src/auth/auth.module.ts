@@ -22,14 +22,12 @@ import { LoggerService } from '@/common/logger.service';
 import { AuditLogService } from '@/common/audit/audit-log.service';
 import { CacheModule } from '@/common/cache/cache.module';
 import { SecurityModule } from '@/common/security/security.module';
-import { SessionModule } from '@/common/session/session.module';
 
 @Module({
   imports: [
     PassportModule,
     CacheModule,
     SecurityModule,
-    SessionModule,
     ThrottlerModule.forRoot([
       {
         ttl: 60000, // 1 minute for tests

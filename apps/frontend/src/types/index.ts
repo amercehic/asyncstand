@@ -1,7 +1,6 @@
 // Re-export all types for easier imports
 export * from '@/types/common';
 export * from '@/types/api';
-export * from '@/types/standup-metrics';
 
 // Utility types
 export type Nullable<T> = T | null;
