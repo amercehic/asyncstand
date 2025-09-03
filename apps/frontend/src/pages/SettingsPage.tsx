@@ -1198,9 +1198,27 @@ export const SettingsPage = React.memo(() => {
                         Last updated:{' '}
                         {user?.updatedAt
                           ? (() => {
+                              // Debug: Log the actual timestamp value
+                              console.log('Raw updatedAt from user:', user.updatedAt);
+
                               // Ensure the timestamp is properly treated as UTC
                               const utcDate = new Date(
                                 user.updatedAt.endsWith('Z') ? user.updatedAt : user.updatedAt + 'Z'
+                              );
+
+                              console.log(user);
+
+                              console.log('Parsed UTC date:', utcDate.toString());
+                              console.log(
+                                'Formatted result:',
+                                utcDate.toLocaleDateString('en-US', {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  timeZoneName: 'short',
+                                })
                               );
                               return utcDate.toLocaleDateString('en-US', {
                                 year: 'numeric',

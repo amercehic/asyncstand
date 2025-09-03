@@ -199,7 +199,7 @@ describe('FeatureGuard', () => {
 
       const featureCheckResult = {
         enabled: true,
-        source: 'override' as const,
+        source: 'plan' as const,
         value: 'custom-value',
       };
 

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { FeatureService } from '@/features/feature.service';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
@@ -6,7 +6,6 @@ import { SuperAdminGuard } from '@/auth/guards/super-admin.guard';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 import { CreateFeatureDto } from '@/features/dto/create-feature.dto';
 import { UpdateFeatureDto } from '@/features/dto/update-feature.dto';
-import { CreateFeatureOverrideDto } from '@/features/dto/feature-override.dto';
 import {
   SwaggerGetEnabledFeatures,
   SwaggerCheckFeature,
@@ -14,9 +13,6 @@ import {
   SwaggerListFeatures,
   SwaggerCreateFeature,
   SwaggerUpdateFeature,
-  SwaggerSetOverride,
-  SwaggerRemoveOverride,
-  SwaggerListOverrides,
 } from '@/swagger/features.swagger';
 
 interface AuthenticatedUser {
@@ -88,45 +84,5 @@ export class FeatureController {
   ) {
     const feature = await this.featureService.updateFeature(featureKey, updateFeatureDto);
     return { feature };
-  }
-
-  @Post('admin/override')
-  @UseGuards(SuperAdminGuard)
-  @SwaggerSetOverride()
-  async setOverride(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() overrideDto: CreateFeatureOverrideDto,
-  ) {
-    // Use current org if not specified
-    const targetOrgId = overrideDto.orgId || user.orgId;
-
-    const override = await this.featureService.createFeatureOverride(
-      targetOrgId,
-      overrideDto.featureKey,
-      overrideDto.enabled,
-      {
-        value: overrideDto.value,
-        reason: overrideDto.reason,
-        expiresAt: overrideDto.expiresAt ? new Date(overrideDto.expiresAt) : undefined,
-      },
-    );
-
-    return { override };
-  }
-
-  @Delete('admin/override/:orgId/:featureKey')
-  @UseGuards(SuperAdminGuard)
-  @SwaggerRemoveOverride()
-  async removeOverride(@Param('orgId') orgId: string, @Param('featureKey') featureKey: string) {
-    await this.featureService.removeFeatureOverride(orgId, featureKey);
-    return { message: 'Override removed successfully' };
-  }
-
-  @Get('admin/overrides')
-  @UseGuards(SuperAdminGuard)
-  @SwaggerListOverrides()
-  async listOverrides(@CurrentUser() user: AuthenticatedUser) {
-    const overrides = await this.featureService.listFeatureOverrides(user.orgId);
-    return { overrides };
   }
 }

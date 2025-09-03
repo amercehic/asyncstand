@@ -1,6 +1,6 @@
 import React from 'react';
 import { Star, Zap, Sparkles, Heart, Mail, Trash2 } from 'lucide-react';
-import { ToastData, ToastOptions, CreateToastData } from '@/components/ui/Toast/types';
+import { ToastData, ToastOptions, CreateToastData, ToastType } from '@/components/ui/Toast/types';
 
 type ToastFunction = (message: string, options?: ToastOptions) => string;
 type ToastPromiseFunction = <T>(
@@ -24,6 +24,23 @@ export function setToastManager(manager: typeof toastManager) {
   toastManager = manager;
 }
 
+function getDefaultDuration(type: ToastType): number {
+  const durations = {
+    success: 4000,
+    error: 6000, // Longer for errors
+    warning: 5000, // Longer for warnings
+    info: 4000,
+    loading: 0, // Loading toasts should not auto-dismiss
+    custom: 4000,
+  };
+  return durations[type];
+}
+
+function getDefaultPersistent(type: ToastType): boolean {
+  // Only loading toasts should be persistent by default
+  return type === 'loading';
+}
+
 function createToast(type: ToastData['type'], message: string, options: ToastOptions = {}): string {
   if (!toastManager) {
     console.warn('Toast manager not initialized. Make sure ToastManager is rendered in your app.');
@@ -32,9 +49,13 @@ function createToast(type: ToastData['type'], message: string, options: ToastOpt
 
   const {
     id,
-    duration = type === 'loading' ? 0 : 4000,
-    persistent = type === 'loading',
+    duration = getDefaultDuration(type),
+    persistent = getDefaultPersistent(type),
     dismissible = true,
+    priority = 'normal',
+    allowDuplicates = false,
+    duplicateStrategy = 'ignore',
+    duplicateCheckFields = ['message', 'type'],
     ...otherOptions
   } = options;
 
@@ -44,6 +65,10 @@ function createToast(type: ToastData['type'], message: string, options: ToastOpt
     duration,
     persistent,
     dismissible,
+    priority,
+    allowDuplicates,
+    duplicateStrategy,
+    duplicateCheckFields,
     ...otherOptions,
   };
 
@@ -382,6 +407,44 @@ const multipleSequentialToasts = (messages: string[]) => {
   });
 };
 
+// Enhanced API methods
+const batch = (
+  toasts: Array<{ type: ToastData['type']; message: string; options?: ToastOptions }>
+) => {
+  return toasts.map(({ type, message, options }) => createToast(type, message, options));
+};
+
+const successIf = (condition: boolean, message: string, options?: ToastOptions) => {
+  return condition ? success(message, options) : '';
+};
+
+const errorIf = (condition: boolean, message: string, options?: ToastOptions) => {
+  return condition ? error(message, options) : '';
+};
+
+const sequence = async (
+  toasts: Array<{
+    message: string;
+    type: ToastData['type'];
+    delay?: number;
+    options?: ToastOptions;
+  }>
+) => {
+  for (const [index, toastConfig] of toasts.entries()) {
+    if (index > 0 && toastConfig.delay) {
+      await new Promise(resolve => setTimeout(resolve, toastConfig.delay));
+    }
+    createToast(toastConfig.type, toastConfig.message, toastConfig.options);
+  }
+};
+
+const withPriority = (priority: 'low' | 'normal' | 'high' | 'urgent') => ({
+  success: (message: string, options?: ToastOptions) => success(message, { ...options, priority }),
+  error: (message: string, options?: ToastOptions) => error(message, { ...options, priority }),
+  warning: (message: string, options?: ToastOptions) => warning(message, { ...options, priority }),
+  info: (message: string, options?: ToastOptions) => info(message, { ...options, priority }),
+});
+
 export const toast = {
   success,
   error,
@@ -394,6 +457,14 @@ export const toast = {
   dismissAll,
   update,
 
+  // Enhanced methods
+  batch,
+  successIf,
+  errorIf,
+  sequence,
+  withPriority,
+
+  // Existing specialized methods
   favorite,
   teamCreated,
   memberAdded,

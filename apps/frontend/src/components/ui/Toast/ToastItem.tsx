@@ -170,11 +170,16 @@ export const ToastComponent: React.FC<ToastProps> = ({ toast, onRemove }) => {
         {toast.title && (
           <h4
             className={cn(
-              'font-semibold text-sm',
+              'font-semibold text-sm flex items-center gap-2',
               isModalOpen ? 'text-gray-900' : 'text-card-foreground'
             )}
           >
             {toast.title}
+            {toast.duplicateCount && toast.duplicateCount > 1 && (
+              <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full">
+                {toast.duplicateCount}
+              </span>
+            )}
           </h4>
         )}
 

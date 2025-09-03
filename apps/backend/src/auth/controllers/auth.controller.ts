@@ -1,6 +1,21 @@
-import { Controller, Post, Body, Req, Res, HttpCode, UseGuards, Get, Put } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Req,
+  Res,
+  HttpCode,
+  UseGuards,
+  Get,
+  Put,
+  HttpStatus,
+} from '@nestjs/common';
 import { ThrottlerGuard } from '@nestjs/throttler';
-import { CsrfProtected, CsrfTokenEndpoint } from '@/common/decorators/csrf-protected.decorator';
+import {
+  CsrfProtected,
+  CsrfTokenEndpoint,
+  SkipCsrf,
+} from '@/common/decorators/csrf-protected.decorator';
 import { AuthService } from '@/auth/services/auth.service';
 import { PasswordResetService } from '@/auth/services/password-reset.service';
 import { SignupDto } from '@/auth/dto/signup.dto';
@@ -24,12 +39,16 @@ import {
   SwaggerForgotPassword,
   SwaggerResetPassword,
 } from '@/swagger/auth.swagger';
+import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Audit } from '@/common/audit/audit.decorator';
 import { getClientIp } from '@/common/http/ip.util';
 import { AuditCategory, AuditSeverity } from '@/common/audit/types';
+import { ApiError } from '@/common/api-error';
+import { ErrorCode } from 'shared';
 import { CsrfService } from '@/common/security/csrf.service';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
+import { LoggerService } from '@/common/logger.service';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -40,7 +59,10 @@ export class AuthController {
     private readonly csrfService: CsrfService,
     private readonly sessionIdentifierService: SessionIdentifierService,
     private readonly sessionCleanupService: SessionCleanupService,
-  ) {}
+    private readonly logger: LoggerService,
+  ) {
+    this.logger.setContext(AuthController.name);
+  }
 
   @Get('csrf-token')
   @CsrfTokenEndpoint()
@@ -90,6 +112,14 @@ export class AuthController {
       req.get('x-forwarded-proto') === 'https' ||
       req.protocol === 'https';
 
+    this.logger.debug('Login cookie security check', {
+      nodeEnv: process.env.NODE_ENV,
+      forwardedProto: req.get('x-forwarded-proto'),
+      protocol: req.protocol,
+      isSecure,
+      origin: req.get('origin'),
+    });
+
     const cookieOptions = {
       httpOnly: true,
       secure: isSecure,
@@ -98,7 +128,17 @@ export class AuthController {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     };
 
+    this.logger.debug('Setting refresh token cookie with options', {
+      isSecure,
+      maxAge: cookieOptions.maxAge,
+      hasRefreshToken: !!loginResponse.refreshToken,
+      cookieOptions,
+      refreshTokenLength: loginResponse.refreshToken?.length,
+    });
+
     res.cookie('refreshToken', loginResponse.refreshToken, cookieOptions);
+
+    this.logger.debug('Refresh token cookie set successfully');
 
     const { refreshToken: _, ...response } = loginResponse;
     return response;
@@ -149,6 +189,70 @@ export class AuthController {
     return result;
   }
 
+  @Post('refresh')
+  @SkipCsrf()
+  @ApiOperation({
+    summary: 'Refresh access token',
+    description:
+      'Refresh an expired access token using a valid refresh token from HTTP-only cookie',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Token refreshed successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        accessToken: { type: 'string' },
+        expiresIn: { type: 'number' },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Invalid or expired refresh token' })
+  async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    this.logger.debug('Refresh endpoint called');
+    this.logger.debug('All cookies received', { cookies: req.cookies });
+    this.logger.debug('Cookie header', { cookieHeader: req.headers.cookie });
+
+    const refreshToken = req.cookies?.refreshToken;
+
+    if (!refreshToken) {
+      this.logger.error('No refresh token in cookies');
+      this.logger.error('Available cookies', {
+        availableCookies: Object.keys(req.cookies || {}),
+      });
+      throw new ApiError(
+        ErrorCode.UNAUTHENTICATED,
+        'Refresh token is required',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    this.logger.debug('Found refresh token in cookies');
+    const ip = getClientIp(req);
+    const tokens = await this.authService.refreshToken(refreshToken, ip);
+    this.logger.debug('New tokens generated successfully');
+
+    // Set new refresh token cookie with consistent settings
+    const isSecure =
+      ['production', 'staging'].includes(process.env.NODE_ENV || '') ||
+      req.get('x-forwarded-proto') === 'https' ||
+      req.protocol === 'https';
+
+    const cookieOptions = {
+      httpOnly: true,
+      secure: isSecure,
+      sameSite: 'lax' as const,
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    };
+
+    res.cookie('refreshToken', tokens.refreshToken, cookieOptions);
+
+    // Return only access token (refresh token is in HTTP-only cookie)
+    const { refreshToken: _, ...response } = tokens;
+    return response;
+  }
+
   @Post('forgot-password')
   @UseGuards(ThrottlerGuard)
   @SwaggerForgotPassword()
@@ -188,7 +292,10 @@ export class AuthController {
   @Get('me')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
-  async getCurrentUser(@CurrentUser('userId') userId: string, @CurrentUser('orgId') orgId: string) {
+  async getCurrentUser(
+    @CurrentUser('userId') userId: string,
+    @CurrentUser('orgId') orgId: string | null,
+  ) {
     const userData = await this.authService.getCurrentUser(userId, orgId);
     return { user: userData };
   }

@@ -51,4 +51,9 @@ export const authApi = {
     const response = await api.get<{ user: User }>('/auth/me');
     return response.data.user;
   },
+
+  async refreshToken(): Promise<{ accessToken: string; expiresIn: number }> {
+    const response = await api.post<{ accessToken: string; expiresIn: number }>('/auth/refresh');
+    return response.data;
+  },
 };

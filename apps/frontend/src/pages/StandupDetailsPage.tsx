@@ -103,20 +103,24 @@ export const StandupDetailsPage = React.memo(() => {
   const handleTriggerReminder = async () => {
     if (!standupId) return;
 
+    let reminderToastId: string | undefined;
     try {
-      toast.loading('Sending Slack reminder...', { id: 'trigger-reminder' });
+      reminderToastId = toast.loading('Sending Slack reminder...');
       const result = await standupsApi.triggerReminderForInstance(standupId);
 
+      toast.dismiss(reminderToastId);
       if (result.success) {
-        toast.success('Slack reminder sent successfully!', { id: 'trigger-reminder' });
+        toast.success('Slack reminder sent successfully!');
       } else {
-        toast.error(`Failed to send reminder: ${result.error || 'Unknown error'}`, {
-          id: 'trigger-reminder',
-        });
+        toast.error(`Failed to send reminder: ${result.error || 'Unknown error'}`);
       }
     } catch (error) {
+      // Dismiss the loading toast if it exists
+      if (reminderToastId) {
+        toast.dismiss(reminderToastId);
+      }
       console.error('Error triggering reminder:', error);
-      toast.error('Failed to send reminder. Please try again.', { id: 'trigger-reminder' });
+      toast.error('Failed to send reminder. Please try again.');
     }
   };
 

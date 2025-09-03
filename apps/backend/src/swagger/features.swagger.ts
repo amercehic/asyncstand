@@ -2,7 +2,6 @@ import { applyDecorators } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiBody, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { CreateFeatureDto } from '@/features/dto/create-feature.dto';
 import { UpdateFeatureDto } from '@/features/dto/update-feature.dto';
-import { CreateFeatureOverrideDto } from '@/features/dto/feature-override.dto';
 
 export const SwaggerGetEnabledFeatures = () =>
   applyDecorators(
@@ -10,7 +9,7 @@ export const SwaggerGetEnabledFeatures = () =>
       summary: 'Get all enabled features for the current organization',
       description:
         "Retrieves a list of all feature flags that are currently enabled for the authenticated user's organization. " +
-        'This takes into account global feature settings, environment restrictions, plan-based features, organization-specific overrides, and rollout configurations.',
+        'This takes into account global feature settings, environment restrictions, plan-based features, and rollout configurations.',
     }),
     ApiResponse({
       status: 200,
@@ -41,7 +40,7 @@ export const SwaggerCheckFeature = () =>
       summary: 'Check if a specific feature is enabled',
       description:
         "Checks whether a specific feature flag is enabled for the authenticated user's organization. " +
-        'Returns detailed information about the feature status including the source of the decision (global, environment, plan, override, or rollout).',
+        'Returns detailed information about the feature status including the source of the decision (global, environment, plan, or rollout).',
     }),
     ApiParam({
       name: 'featureKey',
@@ -60,7 +59,7 @@ export const SwaggerCheckFeature = () =>
           },
           source: {
             type: 'string',
-            enum: ['global', 'environment', 'plan', 'override', 'rollout'],
+            enum: ['global', 'environment', 'plan', 'rollout'],
             description: 'The source that determined the feature status',
           },
           value: {
@@ -184,12 +183,6 @@ export const SwaggerListFeatures = () =>
                     properties: {
                       plan: { type: 'object' },
                     },
-                  },
-                },
-                _count: {
-                  type: 'object',
-                  properties: {
-                    orgOverrides: { type: 'number' },
                   },
                 },
               },
@@ -318,152 +311,5 @@ export const SwaggerUpdateFeature = () =>
     ApiResponse({
       status: 404,
       description: 'Not found - feature does not exist',
-    }),
-  );
-
-export const SwaggerSetOverride = () =>
-  applyDecorators(
-    ApiOperation({
-      summary: 'Set a feature override for an organization (super admin only)',
-      description:
-        'Creates or updates a feature override for a specific organization, allowing you to enable or disable features ' +
-        'regardless of their global settings or plan restrictions. This endpoint is restricted to super administrators only.',
-    }),
-    ApiBody({ type: CreateFeatureOverrideDto }),
-    ApiResponse({
-      status: 201,
-      description: 'Feature override created successfully',
-      schema: {
-        type: 'object',
-        properties: {
-          override: {
-            type: 'object',
-            properties: {
-              id: { type: 'string' },
-              orgId: { type: 'string' },
-              featureKey: { type: 'string' },
-              enabled: { type: 'boolean' },
-              value: { type: 'string', nullable: true },
-              reason: { type: 'string', nullable: true },
-              expiresAt: { type: 'string', format: 'date-time', nullable: true },
-              createdAt: { type: 'string', format: 'date-time' },
-              updatedAt: { type: 'string', format: 'date-time' },
-            },
-          },
-        },
-      },
-    }),
-    ApiResponse({
-      status: 400,
-      description: 'Bad request - validation failed',
-    }),
-    ApiResponse({
-      status: 401,
-      description: 'Unauthorized - invalid or missing authentication token',
-    }),
-    ApiResponse({
-      status: 403,
-      description: 'Forbidden - requires super admin role',
-    }),
-    ApiResponse({
-      status: 404,
-      description: 'Not found - feature does not exist',
-    }),
-  );
-
-export const SwaggerRemoveOverride = () =>
-  applyDecorators(
-    ApiOperation({
-      summary: 'Remove a feature override (super admin only)',
-      description:
-        'Removes an existing feature override for an organization, causing the feature to fall back to its default behavior. ' +
-        'This endpoint is restricted to super administrators only.',
-    }),
-    ApiParam({
-      name: 'orgId',
-      description: 'The organization ID from which to remove the override',
-      example: 'org_123456789',
-    }),
-    ApiParam({
-      name: 'featureKey',
-      description: 'The feature key for which to remove the override',
-      example: 'advanced-analytics',
-    }),
-    ApiResponse({
-      status: 200,
-      description: 'Feature override removed successfully',
-      schema: {
-        type: 'object',
-        properties: {
-          message: {
-            type: 'string',
-            example: 'Override removed successfully',
-          },
-        },
-      },
-    }),
-    ApiResponse({
-      status: 401,
-      description: 'Unauthorized - invalid or missing authentication token',
-    }),
-    ApiResponse({
-      status: 403,
-      description: 'Forbidden - requires super admin role',
-    }),
-    ApiResponse({
-      status: 404,
-      description: 'Not found - override does not exist',
-    }),
-  );
-
-export const SwaggerListOverrides = () =>
-  applyDecorators(
-    ApiOperation({
-      summary: 'List all feature overrides for the current organization (super admin only)',
-      description:
-        "Retrieves all feature overrides that have been set for the authenticated user's organization. " +
-        'This endpoint is restricted to super administrators only.',
-    }),
-    ApiResponse({
-      status: 200,
-      description: 'Feature overrides list returned successfully',
-      schema: {
-        type: 'object',
-        properties: {
-          overrides: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                id: { type: 'string' },
-                orgId: { type: 'string' },
-                featureKey: { type: 'string' },
-                enabled: { type: 'boolean' },
-                value: { type: 'string', nullable: true },
-                reason: { type: 'string', nullable: true },
-                expiresAt: { type: 'string', format: 'date-time', nullable: true },
-                createdAt: { type: 'string', format: 'date-time' },
-                updatedAt: { type: 'string', format: 'date-time' },
-                feature: {
-                  type: 'object',
-                  properties: {
-                    key: { type: 'string' },
-                    name: { type: 'string' },
-                    description: { type: 'string', nullable: true },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    }),
-    ApiResponse({
-      status: 401,
-      description: 'Unauthorized - invalid or missing authentication token',
-    }),
-    ApiResponse({
-      status: 403,
-      description: 'Forbidden - requires super admin role',
     }),
   );

@@ -12,6 +12,8 @@ import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
 import { AuthFactory } from '@/test/utils/factories';
 import { createMockAuthService } from '@/test/utils/mocks/typed-mocks';
+import { LoggerService } from '@/common/logger.service';
+import { createMockLoggerService } from '@/test/utils/mocks/services.mock';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -20,11 +22,13 @@ describe('AuthController', () => {
   let mockCsrfService: jest.Mocked<CsrfService>;
   let mockSessionIdentifierService: jest.Mocked<SessionIdentifierService>;
   let mockSessionCleanupService: jest.Mocked<SessionCleanupService>;
+  let mockLoggerService: ReturnType<typeof createMockLoggerService>;
   let mockRequest: Partial<Request>;
   let mockResponse: Partial<Response>;
 
   beforeEach(async () => {
     mockAuthService = createMockAuthService();
+    mockLoggerService = createMockLoggerService();
     mockPasswordResetService = {
       createPasswordResetToken: jest.fn(),
       resetPassword: jest.fn(),
@@ -67,6 +71,7 @@ describe('AuthController', () => {
         { provide: CsrfService, useValue: mockCsrfService },
         { provide: SessionIdentifierService, useValue: mockSessionIdentifierService },
         { provide: SessionCleanupService, useValue: mockSessionCleanupService },
+        { provide: LoggerService, useValue: mockLoggerService },
       ],
       imports: [
         ThrottlerModule.forRoot([

@@ -275,20 +275,15 @@ export const StandupsPage = () => {
     instance: ActiveStandup,
     configName: string
   ) => {
-    console.log('handleViewMemberResponse called:', { member, instance, configName });
-
     try {
       // Find the standup config for questions
       const config = standupConfigs.find(c => c.name === configName);
-      console.log('Found config:', config);
 
       if (!config) {
         console.error('Standup configuration not found for:', configName);
         toast.error('Standup configuration not found');
         return;
       }
-
-      console.log('Setting modal state...');
 
       // Use React.startTransition to ensure state is set properly
       React.startTransition(() => {
@@ -299,15 +294,8 @@ export const StandupsPage = () => {
 
       // Always try to fetch detailed response data for completed members
       if (member.status === 'completed') {
-        console.log('Member is completed, fetching response...');
-
         try {
-          console.log('Calling getMemberResponse with:', {
-            instanceId: instance.id,
-            memberId: member.id,
-          });
           const detailedResponse = await standupsApi.getMemberResponse(instance.id, member.id);
-          console.log('Got response:', detailedResponse);
 
           setMemberResponse(detailedResponse);
         } catch (error) {
@@ -318,7 +306,6 @@ export const StandupsPage = () => {
           setMemberResponse(null);
         }
       } else {
-        console.log('Member not completed, setting null response');
         setMemberResponse(null);
       }
     } catch (error) {
@@ -328,7 +315,6 @@ export const StandupsPage = () => {
   };
 
   const handleCloseResponseModal = () => {
-    console.log('Closing response modal');
     setIsResponseModalOpen(false);
     setSelectedMember(null);
     setMemberResponse(null);
@@ -769,7 +755,6 @@ export const StandupsPage = () => {
                       onClick={e => {
                         e.preventDefault();
                         e.stopPropagation();
-                        console.log('View Response button clicked');
                         handleViewMemberResponse(member, instance, configName);
                       }}
                       className="flex items-center gap-1 hover:bg-blue-50 dark:hover:bg-blue-900/20"
@@ -839,11 +824,8 @@ export const StandupsPage = () => {
         id: `trigger-${config.id}`,
       });
 
-      console.log(`Checking if team ${selectedTeam.id} should create standup today`);
-
       try {
         const shouldCreateCheck = await standupsApi.shouldCreateStandupToday(selectedTeam.id);
-        console.log('Should create standup today:', shouldCreateCheck);
 
         if (!shouldCreateCheck.shouldCreate) {
           toast.error(
@@ -871,8 +853,6 @@ export const StandupsPage = () => {
       // Use the targeted API to create instance for this specific config
       const result = await standupsApi.triggerStandupForConfig(config.id);
 
-      console.log('triggerStandupForConfig result:', result);
-
       // Check results and provide appropriate feedback
       if (result.success && result.instanceId) {
         toast.success(`Successfully created standup instance and sent notifications!`, {
@@ -881,7 +861,6 @@ export const StandupsPage = () => {
 
         // Log message results for debugging
         if (result.messageResult) {
-          console.log('Slack message result:', result.messageResult);
           if (!result.messageResult.success) {
             console.warn('Slack message failed:', result.messageResult.error);
           }
