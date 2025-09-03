@@ -197,6 +197,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const primaryOrg =
           response.organizations.find(org => org.isPrimary) || response.organizations[0];
 
+        // Adjust token expiration based on rememberMe
+        const expirationTime = rememberMe
+          ? 30 * 24 * 60 * 60 * 1000 // 30 days for remember me
+          : response.expiresIn * 1000; // Default expiration from backend
+
+        // Set token in API client FIRST (before making authenticated requests)
+        setAuthToken(response.accessToken);
+
         // Get the complete user data with actual timestamps from the database
         let completeUserData;
         try {
@@ -205,6 +213,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           console.warn('Failed to fetch complete user data, using fallback timestamps:', error);
           // Fallback to current timestamps if getCurrentUser fails
           completeUserData = {
+            isSuperAdmin: response.user.isSuperAdmin,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           };
@@ -215,15 +224,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
           email: response.user.email,
           name: response.user.name,
           role: (response.user.role as 'owner' | 'admin' | 'member') ?? 'member',
+          isSuperAdmin: completeUserData.isSuperAdmin,
           orgId: primaryOrg?.id,
           createdAt: completeUserData.createdAt,
           updatedAt: completeUserData.updatedAt,
         };
-
-        // Adjust token expiration based on rememberMe
-        const expirationTime = rememberMe
-          ? 30 * 24 * 60 * 60 * 1000 // 30 days for remember me
-          : response.expiresIn * 1000; // Default expiration from backend
 
         const tokens: AuthTokens = {
           accessToken: response.accessToken,
@@ -231,11 +236,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
           expiresAt: new Date(Date.now() + expirationTime).toISOString(),
         };
 
-        // Set token in API client
-        setAuthToken(response.accessToken);
-
         // Save auth data using helper function
         saveAuthData(user, tokens, response.organizations, rememberMe);
+
+        console.log('[Auth Context] Login completed, rememberMe saved:', {
+          rememberMe,
+          rememberMeInStorage: localStorage.getItem('auth_remember_me'),
+          tokenExpiresAt: tokens.expiresAt,
+        });
 
         dispatch({ type: 'LOGIN_SUCCESS', payload: { user, tokens } });
       } catch (error) {

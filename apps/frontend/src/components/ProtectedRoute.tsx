@@ -35,6 +35,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to={redirectTo} state={{ from: location }} replace />;
   }
 
+  // If user is super admin, redirect to admin page (they should only access admin features)
+  if (user?.isSuperAdmin && !location.pathname.startsWith('/admin')) {
+    return <Navigate to="/admin" replace />;
+  }
+
   // Optional role guard
   if (allowedRoles && user && !allowedRoles.includes(user.role as Role)) {
     return <Navigate to="/dashboard" replace />;

@@ -263,18 +263,24 @@ export function StandupsProvider({ children }: StandupsProviderProps) {
     async (teamId: string, data: Partial<Standup>): Promise<Standup> => {
       dispatch({ type: 'SET_CREATING', payload: true });
 
+      let createStandupToastId: string | undefined;
       try {
-        toast.loading('Creating standup...', { id: 'create-standup' });
+        createStandupToastId = toast.loading('Creating standup...');
         const newStandup = await standupsApi.createStandup(teamId, data);
 
-        toast.success('Standup created successfully!', { id: 'create-standup' });
+        toast.dismiss(createStandupToastId);
+        toast.success('Standup created successfully!');
         dispatch({ type: 'ADD_STANDUP', payload: newStandup });
 
         return newStandup;
       } catch (error) {
+        // Dismiss the loading toast if it exists
+        if (createStandupToastId) {
+          toast.dismiss(createStandupToastId);
+        }
         const { message } = normalizeApiError(error, 'Failed to create standup');
         dispatch({ type: 'SET_CREATING', payload: false });
-        toast.error(message, { id: 'create-standup' });
+        toast.error(message);
         throw error;
       }
     },

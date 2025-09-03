@@ -40,8 +40,9 @@ export const FeatureProvider: React.FC<FeatureProviderProps> = ({ children }) =>
   const [quotaCache] = useState<Map<string, QuotaCheckResult>>(new Map());
 
   // Load enabled features when user logs in or organization changes
+  // Skip loading for super admins as they don't use feature flags
   const loadFeatures = useCallback(async () => {
-    if (!isAuthenticated || !user?.orgId) {
+    if (!isAuthenticated || !user?.orgId || user?.isSuperAdmin) {
       setEnabledFeatures(new Set());
       return;
     }
@@ -56,7 +57,7 @@ export const FeatureProvider: React.FC<FeatureProviderProps> = ({ children }) =>
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated, user?.orgId]);
+  }, [isAuthenticated, user?.orgId, user?.isSuperAdmin]);
 
   useEffect(() => {
     loadFeatures();

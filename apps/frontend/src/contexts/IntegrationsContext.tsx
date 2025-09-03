@@ -125,16 +125,17 @@ interface IntegrationsProviderProps {
 
 export function IntegrationsProvider({ children }: IntegrationsProviderProps) {
   const [state, dispatch] = useReducer(integrationsReducer, initialState);
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   // Fetch integrations when user is authenticated
+  // Skip fetching for super admins as they don't need integrations data
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !user?.isSuperAdmin) {
       fetchIntegrations();
     } else {
       dispatch({ type: 'CLEAR_STATE' });
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user?.isSuperAdmin]);
 
   const fetchIntegrations = useCallback(async () => {
     if (state.isLoading || state.isRefreshing) return;

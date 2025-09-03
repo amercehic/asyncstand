@@ -72,18 +72,24 @@ export const SignUpPage = React.memo(() => {
       return;
     }
 
+    let signupToastId: string | undefined;
     try {
-      toast.loading('Creating your account...', { id: 'signup' });
+      signupToastId = toast.loading('Creating your account...');
       await signup({
         name: formData.name,
         email: formData.email,
         password: formData.password,
       });
-      toast.success('Account created successfully! Welcome to AsyncStand!', { id: 'signup' });
+      toast.dismiss(signupToastId);
+      toast.success('Account created successfully! Welcome to AsyncStand!');
       navigate('/dashboard');
     } catch (error) {
+      // Dismiss the loading toast if it exists
+      if (signupToastId) {
+        toast.dismiss(signupToastId);
+      }
       const { message } = normalizeApiError(error, 'Something went wrong. Please try again.');
-      toast.error(message, { id: 'signup' });
+      toast.error(message);
     }
   };
 

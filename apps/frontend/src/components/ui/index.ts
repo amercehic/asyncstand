@@ -37,3 +37,6 @@ export { LazyImage } from '@/components/ui/LazyImage';
 export { VirtualizedList, VirtualListItem } from '@/components/ui/VirtualizedList';
 export { OptimizedLazyImage } from '@/components/ui/OptimizedLazyImage';
 export { OptimizedVirtualList, useDynamicVirtualList } from '@/components/ui/OptimizedVirtualList';
+
+// Feature flags components
+export { FeatureToggle } from '@/components/ui/FeatureToggle';

@@ -19,6 +19,7 @@ import {
 import { toast } from '@/components/ui';
 import { integrationsApi, type SlackIntegration } from '@/lib/api';
 import { useAuth, useIntegrations } from '@/contexts';
+import { useFeatureFlag } from '@/hooks';
 import {
   SlackIcon,
   TeamsOutlineIcon,
@@ -39,6 +40,7 @@ export const IntegrationsPage = React.memo(() => {
     isIntegrationSyncing,
     refreshIntegrations,
   } = useIntegrations();
+  const { isEnabled: isSlackIntegrationEnabled } = useFeatureFlag('slack_integration');
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [integrationToDelete, setIntegrationToDelete] = useState<SlackIntegration | null>(null);
@@ -356,34 +358,38 @@ export const IntegrationsPage = React.memo(() => {
           <p className="text-muted-foreground mb-6 text-sm">
             Workspace tools you can connect to AsyncStand.
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {/* Slack Card */}
-            <motion.div
-              whileHover={{ y: -2 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-              className={`bg-card rounded-xl border border-border p-4 relative overflow-hidden transition-all ${
-                integrations.length > 0 ? '' : 'hover:bg-accent/5 cursor-pointer'
-              }`}
-              onClick={() =>
-                integrations.length === 0 ? handleConnectIntegration('slack') : undefined
-              }
-            >
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-[#4A154B] rounded-lg flex items-center justify-center">
-                    <SlackIcon className="text-white" size={20} />
+          <div
+            className={`grid grid-cols-1 ${isSlackIntegrationEnabled ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-4`}
+          >
+            {/* Slack Card - only show if feature is enabled */}
+            {isSlackIntegrationEnabled && (
+              <motion.div
+                whileHover={{ y: -2 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                className={`bg-card rounded-xl border border-border p-4 relative overflow-hidden transition-all ${
+                  integrations.length > 0 ? '' : 'hover:bg-accent/5 cursor-pointer'
+                }`}
+                onClick={() =>
+                  integrations.length === 0 ? handleConnectIntegration('slack') : undefined
+                }
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-[#4A154B] rounded-lg flex items-center justify-center">
+                      <SlackIcon className="text-white" size={20} />
+                    </div>
+                    <div>
+                      <p className="font-medium text-foreground">Slack</p>
+                      <p className="text-xs text-muted-foreground">Team messaging</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium text-foreground">Slack</p>
-                    <p className="text-xs text-muted-foreground">Team messaging</p>
-                  </div>
+                  {integrations.length > 0 && <CheckCircle2 className="w-4 h-4 text-green-500" />}
                 </div>
-                {integrations.length > 0 && <CheckCircle2 className="w-4 h-4 text-green-500" />}
-              </div>
-              <div className="text-xs text-muted-foreground">
-                {integrations.length > 0 ? 'Connected workspace' : 'Available to connect'}
-              </div>
-            </motion.div>
+                <div className="text-xs text-muted-foreground">
+                  {integrations.length > 0 ? 'Connected workspace' : 'Available to connect'}
+                </div>
+              </motion.div>
+            )}
 
             {/* Microsoft Teams Card */}
             <Tooltip content="Microsoft Teams integration coming soon!" position="top">
@@ -434,7 +440,7 @@ export const IntegrationsPage = React.memo(() => {
         </motion.div>
 
         {/* Connected Integrations Section */}
-        {integrations.length > 0 && (
+        {integrations.length > 0 && isSlackIntegrationEnabled && (
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -622,7 +628,7 @@ export const IntegrationsPage = React.memo(() => {
           </motion.div>
         )}
 
-        {integrations.length === 0 && (
+        {integrations.length === 0 && isSlackIntegrationEnabled && (
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -636,6 +642,24 @@ export const IntegrationsPage = React.memo(() => {
             <p className="text-muted-foreground max-w-md mx-auto">
               Use the connection buttons above to integrate with your workspace tools and start
               managing async standups.
+            </p>
+          </motion.div>
+        )}
+
+        {!isSlackIntegrationEnabled && (
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="bg-card rounded-2xl p-12 border border-border text-center"
+          >
+            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-6">
+              <Settings className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <h3 className="text-xl font-semibold mb-3">Integrations Not Available</h3>
+            <p className="text-muted-foreground max-w-md mx-auto">
+              Integration features are currently disabled for your organization. Contact your
+              administrator for access.
             </p>
           </motion.div>
         )}

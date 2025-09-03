@@ -198,6 +198,7 @@ describe('AuthService', () => {
         mockUser.id,
         mockOrg.id,
         '192.168.1.1',
+        'owner',
       );
       expect(mockPrisma.auditLog.create).toHaveBeenCalledWith({
         data: {
@@ -323,6 +324,7 @@ describe('AuthService', () => {
         mockUser.id,
         ownerOrg.id,
         '192.168.1.1',
+        'owner',
       );
       expect(result.user.role).toBe(OrgRole.owner);
       expect(result.organizations).toHaveLength(2);
@@ -359,6 +361,7 @@ describe('AuthService', () => {
         mockUser.id,
         mockOrg.id,
         'unknown',
+        'member',
       );
     });
   });
@@ -388,7 +391,7 @@ describe('AuthService', () => {
       const result = await service.logout(token, ip);
 
       expect(mockPrisma.refreshToken.findUnique).toHaveBeenCalledWith({
-        where: { token },
+        where: { token: expect.any(String) }, // Token is now hashed
         include: {
           user: {
             include: {
@@ -401,7 +404,7 @@ describe('AuthService', () => {
           },
         },
       });
-      expect(mockTokenService.revokeRefreshToken).toHaveBeenCalledWith(token);
+      expect(mockTokenService.revokeRefreshToken).toHaveBeenCalledWith(expect.any(String)); // Token is now hashed
       expect(mockSessionCleanupService.cleanupSessions).toHaveBeenCalledWith([
         `user-session:${mockUser.id}`,
       ]);
@@ -453,7 +456,7 @@ describe('AuthService', () => {
 
       const result = await service.logout(token, ip);
 
-      expect(mockTokenService.revokeRefreshToken).toHaveBeenCalledWith(token);
+      expect(mockTokenService.revokeRefreshToken).toHaveBeenCalledWith(expect.any(String)); // Token is now hashed
       expect(mockPrisma.auditLog.create).not.toHaveBeenCalled();
       expect(result).toEqual({ success: true });
     });
@@ -723,7 +726,7 @@ describe('AuthService', () => {
       // Should still succeed despite audit log failure
       const result = await service.logout(token, ip);
 
-      expect(mockTokenService.revokeRefreshToken).toHaveBeenCalledWith(token);
+      expect(mockTokenService.revokeRefreshToken).toHaveBeenCalledWith(expect.any(String)); // Token is now hashed
       expect(result).toEqual({ success: true });
     });
 
@@ -754,7 +757,7 @@ describe('AuthService', () => {
       // Should still succeed despite session cleanup failure
       const result = await service.logout(token, ip);
 
-      expect(mockTokenService.revokeRefreshToken).toHaveBeenCalledWith(token);
+      expect(mockTokenService.revokeRefreshToken).toHaveBeenCalledWith(expect.any(String)); // Token is now hashed
       expect(mockSessionCleanupService.cleanupSessions).toHaveBeenCalledWith([
         `user-session:${mockUser.id}`,
       ]);

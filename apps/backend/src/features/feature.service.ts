@@ -1,16 +1,14 @@
-import { Injectable, HttpStatus } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
 import { LoggerService } from '@/common/logger.service';
 import { Cacheable } from '@/common/cache/decorators/cacheable.decorator';
-import { ApiError } from '@/common/api-error';
-import { ErrorCode } from 'shared';
-import { Feature, FeatureOverride, PlanFeature } from '@prisma/client';
+import { Feature, PlanFeature } from '@prisma/client';
 import { CreateFeatureDto } from '@/features/dto/create-feature.dto';
 import { UpdateFeatureDto } from '@/features/dto/update-feature.dto';
 
 export interface FeatureCheckResult {
   enabled: boolean;
-  source: 'global' | 'environment' | 'plan' | 'override' | 'rollout';
+  source: 'global' | 'environment' | 'plan' | 'rollout';
   value?: string;
   reason?: string;
 }
@@ -36,11 +34,10 @@ export class FeatureService {
   /**
    * Check if a feature is enabled for an organization
    * Priority order:
-   * 1. Organization override (if exists)
-   * 2. Plan-based feature (if applicable)
-   * 3. Rollout configuration
-   * 4. Environment check
-   * 5. Global enable flag
+   * 1. Plan-based feature (if applicable)
+   * 2. Rollout configuration
+   * 3. Environment check
+   * 4. Global enable flag
    */
   async isFeatureEnabled(
     featureKey: string,
@@ -70,23 +67,7 @@ export class FeatureService {
         };
       }
 
-      // Check organization-specific override
       if (orgId) {
-        const override = await this.getOrgOverride(orgId, featureKey);
-        if (override) {
-          // Check if override has expired
-          if (override.expiresAt && override.expiresAt < new Date()) {
-            await this.prisma.featureOverride.delete({ where: { id: override.id } });
-          } else {
-            return {
-              enabled: override.enabled,
-              source: 'override',
-              value: override.value || undefined,
-              reason: override.reason || undefined,
-            };
-          }
-        }
-
         // Check plan-based features
         if (feature.isPlanBased) {
           const planFeature = await this.getPlanFeature(orgId, featureKey);
@@ -198,61 +179,12 @@ export class FeatureService {
     };
   }
 
-  /**
-   * Enable a feature override for an organization
-   */
-  async setFeatureOverride(
-    orgId: string,
-    featureKey: string,
-    enabled: boolean,
-    options?: {
-      value?: string;
-      reason?: string;
-      expiresAt?: Date;
-    },
-  ): Promise<FeatureOverride> {
-    return this.prisma.featureOverride.upsert({
-      where: {
-        orgId_featureKey: { orgId, featureKey },
-      },
-      create: {
-        orgId,
-        featureKey,
-        enabled,
-        ...options,
-      },
-      update: {
-        enabled,
-        ...options,
-      },
-    });
-  }
-
-  /**
-   * Remove a feature override
-   */
-  async removeFeatureOverride(orgId: string, featureKey: string): Promise<void> {
-    await this.prisma.featureOverride.delete({
-      where: {
-        orgId_featureKey: { orgId, featureKey },
-      },
-    });
-  }
-
   // Private helper methods
 
   @Cacheable('feature') // Cache for 5 minutes
   private async getFeatureWithCache(featureKey: string): Promise<Feature | null> {
     return this.prisma.feature.findUnique({
       where: { key: featureKey },
-    });
-  }
-
-  private async getOrgOverride(orgId: string, featureKey: string): Promise<FeatureOverride | null> {
-    return this.prisma.featureOverride.findUnique({
-      where: {
-        orgId_featureKey: { orgId, featureKey },
-      },
     });
   }
 
@@ -343,9 +275,6 @@ export class FeatureService {
         planFeatures: {
           include: { plan: true },
         },
-        _count: {
-          select: { orgOverrides: true },
-        },
       },
       orderBy: { key: 'asc' },
     });
@@ -361,35 +290,6 @@ export class FeatureService {
     return this.prisma.feature.update({
       where: { key: featureKey },
       data: updateFeatureDto,
-    });
-  }
-
-  async createFeatureOverride(
-    orgId: string,
-    featureKey: string,
-    enabled: boolean,
-    options?: {
-      value?: string;
-      reason?: string;
-      expiresAt?: Date;
-    },
-  ) {
-    // Verify the feature exists
-    const feature = await this.prisma.feature.findUnique({
-      where: { key: featureKey },
-    });
-
-    if (!feature) {
-      throw new ApiError(ErrorCode.NOT_FOUND, 'Feature not found', HttpStatus.NOT_FOUND);
-    }
-
-    return this.setFeatureOverride(orgId, featureKey, enabled, options);
-  }
-
-  async listFeatureOverrides(orgId: string) {
-    return this.prisma.featureOverride.findMany({
-      where: { orgId },
-      include: { feature: true },
     });
   }
 }

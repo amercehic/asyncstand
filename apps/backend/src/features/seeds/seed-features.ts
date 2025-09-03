@@ -23,10 +23,14 @@ async function seedFeatures() {
         category: feature.category,
         isPlanBased: feature.isPlanBased,
         requiresAdmin: feature.requiresAdmin,
-        rolloutType: feature.rolloutType || 'boolean',
-        rolloutValue: feature.rolloutValue || null,
+        rolloutType: 'boolean',
+        rolloutValue: null,
       },
-      create: feature,
+      create: {
+        ...feature,
+        rolloutType: 'boolean',
+        rolloutValue: null,
+      },
     });
     console.log(`  ✅ Feature: ${feature.key}`);
   }
