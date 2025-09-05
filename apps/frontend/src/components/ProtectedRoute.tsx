@@ -10,7 +10,34 @@ interface ProtectedRouteProps {
   allowedRoles?: Role[];
 }
 
-export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
+// Error boundary component
+class AuthErrorBoundary extends React.Component<
+  { children: React.ReactNode; fallback: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode; fallback: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error) {
+    console.warn('AuthProvider error in ProtectedRoute:', error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+    return this.props.children;
+  }
+}
+
+// Inner component that safely uses useAuth
+const ProtectedRouteContent: React.FC<ProtectedRouteProps> = ({
   children,
   redirectTo = '/login',
   allowedRoles,
@@ -46,4 +73,17 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   return <>{children}</>;
+};
+
+// Main ProtectedRoute wrapper with error boundary
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = props => {
+  const location = useLocation();
+
+  return (
+    <AuthErrorBoundary
+      fallback={<Navigate to={props.redirectTo || '/login'} state={{ from: location }} replace />}
+    >
+      <ProtectedRouteContent {...props} />
+    </AuthErrorBoundary>
+  );
 };

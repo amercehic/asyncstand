@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Shield } from 'lucide-react';
+import { Shield, Layers, Sparkles } from 'lucide-react';
 // import { ModernButton } from '@/components/ui'; // Removed - not used after UI refactor
 import { SuperAdminRoute } from '@/components/SuperAdminRoute';
 
@@ -17,6 +17,14 @@ const AdminPageContent: React.FC = () => {
       color: 'from-blue-500 to-blue-600',
       hoverColor: 'hover:from-blue-600 hover:to-blue-700',
     },
+    {
+      title: 'Plan Management',
+      description: 'Create and manage subscription plans and pricing',
+      icon: Layers,
+      path: '/admin/plans',
+      color: 'from-purple-500 to-pink-500',
+      hoverColor: 'hover:from-purple-600 hover:to-pink-600',
+    },
   ];
 
   const handleSectionClick = (section: (typeof adminSections)[0]) => {
@@ -28,8 +36,8 @@ const AdminPageContent: React.FC = () => {
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
         <div className="flex items-center gap-3 mb-4">
-          <div className="p-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg">
-            <Shield className="h-8 w-8 text-white" />
+          <div className="p-3 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-lg shadow-lg">
+            <Sparkles className="h-8 w-8 text-white" />
           </div>
           <div>
             <h1 className="text-3xl font-bold text-foreground">Administration</h1>
@@ -43,7 +51,7 @@ const AdminPageContent: React.FC = () => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.2 }}
-        className="flex justify-center"
+        className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto"
       >
         {adminSections.map((section, index) => (
           <motion.div
@@ -51,7 +59,7 @@ const AdminPageContent: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 * index }}
-            className="group relative overflow-hidden bg-card rounded-xl border border-border shadow-sm hover:shadow-lg hover:border-primary/20 transition-all duration-300 cursor-pointer w-full max-w-md transform hover:-translate-y-1"
+            className="group relative overflow-hidden bg-card rounded-xl border border-border shadow-sm hover:shadow-lg hover:border-primary/20 transition-all duration-300 cursor-pointer w-full transform hover:-translate-y-1"
             onClick={() => handleSectionClick(section)}
           >
             <div className="p-6">

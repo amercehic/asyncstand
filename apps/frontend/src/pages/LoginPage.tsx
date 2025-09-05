@@ -11,8 +11,10 @@ import { normalizeApiError } from '@/utils';
 export const LoginPage = React.memo(() => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, isLoading: authLoading } = useAuth();
+  const authContext = useAuth();
+
   const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<LoginFormData>({
     email: '',
     password: '',
@@ -48,10 +50,14 @@ export const LoginPage = React.memo(() => {
         return;
       }
 
+      // authContext is now guaranteed to exist since useAuth() would throw if not available
+
+      setIsSubmitting(true);
       let loginToastId: string | undefined;
+
       try {
         loginToastId = toast.loading('Signing you in...');
-        await login(formData.email, formData.password, formData.rememberMe);
+        await authContext.login(formData.email, formData.password, formData.rememberMe);
         toast.dismiss(loginToastId);
         toast.success('Welcome back!');
 
@@ -65,11 +71,13 @@ export const LoginPage = React.memo(() => {
         }
         const { message } = normalizeApiError(error, 'Invalid email or password');
         toast.error(message);
+      } finally {
+        setIsSubmitting(false);
       }
     },
     [
       validateForm,
-      login,
+      authContext,
       formData.email,
       formData.password,
       formData.rememberMe,
@@ -226,10 +234,10 @@ export const LoginPage = React.memo(() => {
               type="submit"
               className="w-full"
               size="lg"
-              isLoading={authLoading}
+              isLoading={isSubmitting || authContext.isLoading}
               data-testid="sign-in-submit-button"
             >
-              {authLoading ? 'Signing In...' : 'Sign In'}
+              {isSubmitting ? 'Signing In...' : 'Sign In'}
             </ModernButton>
           </form>
 

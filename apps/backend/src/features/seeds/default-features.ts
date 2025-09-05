@@ -77,6 +77,7 @@ export const DEFAULT_PLANS = [
     sortOrder: 0,
     memberLimit: 5,
     teamLimit: 2,
+    standupConfigLimit: 5,
     standupLimit: 50, // per month
     storageLimit: 100, // MB
     integrationLimit: 1,
@@ -99,6 +100,7 @@ export const DEFAULT_PLANS = [
     sortOrder: 1,
     memberLimit: 25,
     teamLimit: 10,
+    standupConfigLimit: 20,
     standupLimit: 500,
     storageLimit: 1000,
     integrationLimit: 3,
@@ -122,6 +124,7 @@ export const DEFAULT_PLANS = [
     sortOrder: 2,
     memberLimit: 100,
     teamLimit: 50,
+    standupConfigLimit: null, // unlimited
     standupLimit: 2000,
     storageLimit: 5000,
     integrationLimit: 10,
@@ -146,6 +149,7 @@ export const DEFAULT_PLANS = [
     sortOrder: 3,
     memberLimit: null, // unlimited
     teamLimit: null,
+    standupConfigLimit: null, // unlimited
     standupLimit: null,
     storageLimit: null,
     integrationLimit: null,

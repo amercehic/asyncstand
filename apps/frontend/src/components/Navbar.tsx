@@ -17,9 +17,26 @@ import { useAuth } from '@/contexts';
 import { toast } from '@/components/ui';
 import { useEnabledFeatures } from '@/hooks/useFeatureFlag';
 
-export const Navbar = React.memo(() => {
-  const { user, logout, isAuthenticated, isLoading: authLoading } = useAuth();
-  const location = useLocation();
+// Safe auth hook that handles context errors
+function useSafeAuth() {
+  try {
+    return useAuth();
+  } catch {
+    console.warn('Auth context not available in Navbar, using fallback');
+    return {
+      user: null,
+      logout: async () => {
+        throw new Error('Auth context not available');
+      },
+      isAuthenticated: false,
+      isLoading: false,
+    };
+  }
+}
+
+// Helper component that only renders when not on auth pages
+const NavbarContentSafe = React.memo(() => {
+  const { user, logout, isAuthenticated, isLoading: authLoading } = useSafeAuth();
   const { features: enabledFeatures, loading: featuresLoading } = useEnabledFeatures(
     isAuthenticated && !user?.isSuperAdmin,
     authLoading
@@ -29,10 +46,7 @@ export const Navbar = React.memo(() => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
 
-  // Don't show navbar on auth pages
-  const isAuthPage = ['/login', '/signup', '/'].includes(location.pathname);
-
-  if (!isAuthenticated || isAuthPage) {
+  if (!isAuthenticated) {
     return null;
   }
 
@@ -402,4 +416,18 @@ export const Navbar = React.memo(() => {
       </div>
     </motion.header>
   );
+});
+
+// Updated navbar with forced cache invalidation - v4 - 2025-09-04T07:35:00
+export const Navbar = React.memo(() => {
+  const location = useLocation();
+
+  // Don't show navbar on auth pages - early return to avoid useAuth hook calls
+  const isAuthPage = ['/login', '/signup', '/', '/auth'].includes(location.pathname);
+
+  if (isAuthPage) {
+    return null;
+  }
+
+  return <NavbarContentSafe />;
 });
