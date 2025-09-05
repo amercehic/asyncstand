@@ -1,6 +1,17 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CreditCard, Check, Plus, ArrowLeft, ArrowRight, Lock } from 'lucide-react';
+import {
+  X,
+  CreditCard,
+  Check,
+  Plus,
+  ArrowLeft,
+  ArrowRight,
+  Lock,
+  AlertCircle,
+  Calendar,
+} from 'lucide-react';
+import { format } from 'date-fns';
 import { ModernButton, toast } from '@/components/ui';
 import { AddPaymentMethodModal } from '@/components/billing/AddPaymentMethodModal';
 import { cn } from '@/components/ui/utils';
@@ -38,7 +49,24 @@ export const UpgradePaymentModal: React.FC<UpgradePaymentModalProps> = ({
 
   // Check if user has existing subscription
   const hasActiveSubscription = !!subscriptionData?.subscription;
-  const isUpgrade = hasActiveSubscription;
+  const currentPlanKey = subscriptionData?.subscription?.planKey || subscriptionData?.plan;
+
+  // Determine if this is an upgrade or downgrade
+  const planHierarchy = [
+    'free',
+    'starter',
+    'basic',
+    'professional',
+    'pro',
+    'enterprise',
+    'premium',
+  ];
+  const currentPlanIndex = planHierarchy.findIndex(p => currentPlanKey?.toLowerCase().includes(p));
+  const targetPlanIndex = planHierarchy.findIndex(p => selectedPlan.name.toLowerCase().includes(p));
+
+  const isDowngrade = hasActiveSubscription && currentPlanIndex > targetPlanIndex;
+  const isChangingPlan = hasActiveSubscription; // Any change to existing subscription
+  const periodEndDate = subscriptionData?.subscription?.currentPeriodEnd;
 
   // Reset state when modal opens/closes
   React.useEffect(() => {
@@ -48,7 +76,7 @@ export const UpgradePaymentModal: React.FC<UpgradePaymentModalProps> = ({
       setSelectedPaymentMethodId('');
       setShowAddPaymentModal(false);
     }
-  }, [isOpen, isUpgrade]);
+  }, [isOpen]);
 
   // Auto-select default payment method if available
   React.useEffect(() => {
@@ -85,70 +113,38 @@ export const UpgradePaymentModal: React.FC<UpgradePaymentModalProps> = ({
   };
 
   const handleUpgrade = async () => {
-    console.log('🔄 UpgradePaymentModal: Starting upgrade process', {
-      selectedPlan: {
-        id: selectedPlan.id,
-        key: selectedPlan.key,
-        name: selectedPlan.name,
-        price: selectedPlan.price,
-      },
-      selectedPaymentMethodId,
-      isUpgrade,
-      hasActiveSubscription,
-      currentSubscription: subscriptionData?.subscription
-        ? {
-            id: subscriptionData.subscription.id,
-            planId: subscriptionData.subscription.planId,
-            planKey: subscriptionData.subscription.planKey,
-            status: subscriptionData.subscription.status,
-          }
-        : null,
-    });
-
-    if (!selectedPaymentMethodId && !isUpgrade) {
-      console.log('❌ UpgradePaymentModal: No payment method selected for new subscription');
+    if (!selectedPaymentMethodId && !isChangingPlan) {
       toast.error('Please select a payment method');
       return;
     }
 
     try {
-      if (isUpgrade) {
-        console.log('🔼 UpgradePaymentModal: Updating existing subscription', {
-          planId: selectedPlan.id,
-          planKey: selectedPlan.key,
-        });
-
+      if (isChangingPlan) {
+        // Update existing subscription (for both upgrades and downgrades)
         await updateSubscription.mutateAsync({
           planId: selectedPlan.id,
         });
 
-        console.log('✅ UpgradePaymentModal: Subscription updated successfully');
-        toast.success(`Successfully upgraded to ${selectedPlan.name}!`);
+        if (isDowngrade) {
+          toast.success(
+            `Your plan will change to ${selectedPlan.name} on ${periodEndDate ? format(new Date(periodEndDate), 'MMMM d, yyyy') : 'the next billing date'}. You'll continue using your current plan until then.`
+          );
+        } else {
+          toast.success(`Successfully upgraded to ${selectedPlan.name}!`);
+        }
       } else {
-        console.log('🆕 UpgradePaymentModal: Creating new subscription', {
-          planId: selectedPlan.id,
-          planKey: selectedPlan.key,
-          paymentMethodId: selectedPaymentMethodId,
-        });
-
         await createSubscription.mutateAsync({
           planId: selectedPlan.id,
           paymentMethodId: selectedPaymentMethodId,
         });
 
-        console.log('✅ UpgradePaymentModal: New subscription created successfully');
         toast.success(`Successfully subscribed to ${selectedPlan.name}!`);
       }
 
       onSuccess();
       onClose();
-    } catch (error) {
-      console.error('❌ UpgradePaymentModal: Upgrade/subscription failed', {
-        error,
-        isUpgrade,
-        selectedPlan: selectedPlan.key,
-      });
-      toast.error(`Failed to ${isUpgrade ? 'upgrade' : 'create'} plan. Please try again.`);
+    } catch {
+      toast.error(`Failed to ${isChangingPlan ? 'change' : 'create'} plan. Please try again.`);
     }
   };
 
@@ -189,14 +185,14 @@ export const UpgradePaymentModal: React.FC<UpgradePaymentModalProps> = ({
                 )}
                 <div>
                   <h2 className="text-xl font-semibold">
-                    {isUpgrade
-                      ? `Upgrade to ${selectedPlan.name}`
+                    {isChangingPlan
+                      ? `${isDowngrade ? 'Downgrade' : 'Upgrade'} to ${selectedPlan.name}`
                       : `Subscribe to ${selectedPlan.name}`}
                   </h2>
                   <p className="text-sm text-muted-foreground">
                     {currentStep === 'select-payment' && 'Choose your payment method'}
                     {currentStep === 'confirm' &&
-                      `Review and confirm your ${isUpgrade ? 'upgrade' : 'subscription'}`}
+                      `Review and confirm your ${isChangingPlan ? (isDowngrade ? 'downgrade' : 'upgrade') : 'subscription'}`}
                   </p>
                 </div>
               </div>
@@ -329,16 +325,52 @@ export const UpgradePaymentModal: React.FC<UpgradePaymentModalProps> = ({
                   animate={{ opacity: 1, x: 0 }}
                   className="space-y-6"
                 >
+                  {/* Downgrade Notice */}
+                  {isDowngrade && periodEndDate && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                      <div className="flex gap-3">
+                        <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <h4 className="font-semibold text-amber-900 mb-1">
+                            Important: Downgrade Information
+                          </h4>
+                          <p className="text-sm text-amber-800">
+                            Your current plan will remain active until{' '}
+                            <strong>{format(new Date(periodEndDate), 'MMMM d, yyyy')}</strong>. The
+                            downgrade to {selectedPlan.name} will take effect on your next billing
+                            cycle.
+                          </p>
+                          <p className="text-sm text-amber-800 mt-2">
+                            You've already paid for your current billing period, so you'll continue
+                            to enjoy all features of your current plan until then.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Order Summary */}
                   <div className="bg-card border border-border rounded-xl p-6">
-                    <h3 className="text-lg font-semibold mb-4">Order Summary</h3>
+                    <h3 className="text-lg font-semibold mb-4">
+                      {isDowngrade ? 'Plan Change Summary' : 'Order Summary'}
+                    </h3>
 
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <div>
                           <div className="font-medium">{selectedPlan.name} Plan</div>
                           <div className="text-sm text-muted-foreground">
-                            Billed {selectedPlan.interval}ly
+                            {isDowngrade ? (
+                              <>
+                                <Calendar className="w-3 h-3 inline mr-1" />
+                                Starts{' '}
+                                {periodEndDate
+                                  ? format(new Date(periodEndDate), 'MMM d, yyyy')
+                                  : 'next billing cycle'}
+                              </>
+                            ) : (
+                              `Billed ${selectedPlan.interval}ly`
+                            )}
                           </div>
                         </div>
                         <div className="text-right">
@@ -354,18 +386,25 @@ export const UpgradePaymentModal: React.FC<UpgradePaymentModalProps> = ({
                       <hr className="border-border" />
 
                       <div className="flex items-center justify-between font-semibold">
-                        <span>Total</span>
+                        <span>{isDowngrade ? 'New Price (from next cycle)' : 'Total'}</span>
                         <span>€{(selectedPlan.price / 100).toFixed(2)}</span>
                       </div>
+
+                      {isDowngrade && (
+                        <div className="text-sm text-muted-foreground bg-gray-50 p-3 rounded-lg">
+                          <Check className="w-4 h-4 inline mr-1 text-green-600" />
+                          No charges today - changes apply at the end of your current billing period
+                        </div>
+                      )}
                     </div>
                   </div>
 
                   {/* Payment Method Summary */}
-                  {((selectedPaymentMethodId && paymentMethods) || isUpgrade) && (
+                  {((selectedPaymentMethodId && paymentMethods) || isChangingPlan) && (
                     <div className="bg-card border border-border rounded-xl p-6">
                       <h3 className="text-lg font-semibold mb-4">Payment Method</h3>
                       {(() => {
-                        if (isUpgrade) {
+                        if (isChangingPlan) {
                           // For upgrades, show existing subscription payment method
                           const defaultMethod = paymentMethods?.find(pm => pm.isDefault);
                           return defaultMethod ? (
@@ -480,7 +519,7 @@ export const UpgradePaymentModal: React.FC<UpgradePaymentModalProps> = ({
                     ) : (
                       <>
                         <Lock className="w-4 h-4" />
-                        Upgrade Now
+                        {isDowngrade ? 'Schedule Downgrade' : 'Upgrade Now'}
                       </>
                     )}
                   </ModernButton>

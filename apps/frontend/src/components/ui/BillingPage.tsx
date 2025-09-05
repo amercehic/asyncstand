@@ -86,83 +86,37 @@ export function BillingPage({ className = '' }: BillingPageProps) {
   };
 
   const handleSelectPlan = (plan: BillingPlan) => {
-    console.log('🎯 BillingPage: Plan selected', {
-      selectedPlan: {
-        id: plan.id,
-        name: plan.name,
-        price: plan.price,
-        key: (plan as BillingPlan & { key?: string }).key, // Type assertion to access key if it exists
-      },
-      currentPlan: currentPlanDetails
-        ? {
-            id: currentPlanDetails.id,
-            name: currentPlanDetails.name,
-            price: currentPlanDetails.price,
-            key: (currentPlanDetails as BillingPlan & { key?: string }).key,
-          }
-        : null,
-      currentSubscription: subscription
-        ? {
-            id: subscription.id,
-            planId: subscription.planId,
-            planKey: subscription.planKey,
-            status: subscription.status,
-          }
-        : null,
-      isUpgradeCheck: isUpgrade(plan),
-    });
-
     if (currentPlanDetails?.id === plan.id) {
-      console.log('⚠️ BillingPage: Selected same plan, ignoring');
       return;
     }
     setSelectedPlan(plan);
 
     // If it's a downgrade or plan change, show confirmation modal
     if (!isUpgrade(plan)) {
-      console.log('⬇️ BillingPage: Showing downgrade confirmation modal');
       setShowDowngradeModal(true);
     } else {
-      console.log('⬆️ BillingPage: Showing payment flow for upgrade');
       setShowPaymentFlow(true);
     }
   };
 
   const handleDowngradeConfirm = async () => {
     if (!selectedPlan) {
-      console.log('❌ BillingPage: No selected plan for downgrade confirm');
       return;
     }
 
-    console.log('🔄 BillingPage: Starting plan change confirmation', {
-      selectedPlan: {
-        id: selectedPlan.id,
-        name: selectedPlan.name,
-        price: selectedPlan.price,
-        key: (selectedPlan as BillingPlan & { key?: string }).key,
-      },
-      isFree: selectedPlan.price === 0,
-    });
-
     try {
       if (selectedPlan.price === 0) {
-        console.log('🆓 BillingPage: Canceling subscription (downgrade to free)');
         // Free plan - cancel current subscription (downgrade to free)
         await cancelSubscription(false); // Cancel at period end
       } else {
-        console.log('💰 BillingPage: Updating subscription to paid plan', {
-          planId: selectedPlan.id,
-        });
         // Paid plan - update subscription to new plan
         await updateSubscription({ planId: selectedPlan.id });
       }
 
-      console.log('✅ BillingPage: Plan change successful');
       toast.success(`Successfully changed to ${selectedPlan.name}!`);
       setShowDowngradeModal(false);
       setSelectedPlan(null);
-    } catch (error) {
-      console.error('❌ BillingPage: Plan change failed', error);
+    } catch {
       toast.error('Failed to change plan. Please try again.');
     }
   };

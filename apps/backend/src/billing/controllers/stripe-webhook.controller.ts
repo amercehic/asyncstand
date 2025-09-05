@@ -13,6 +13,7 @@ import { Request } from 'express';
 import { LoggerService } from '@/common/logger.service';
 import { StripeService } from '@/billing/services/stripe.service';
 import { BillingService } from '@/billing/services/billing.service';
+import { CacheService } from '@/common/cache/cache.service';
 import Stripe from 'stripe';
 
 @ApiTags('Webhooks')
@@ -21,6 +22,7 @@ export class StripeWebhookController {
   constructor(
     private readonly stripeService: StripeService,
     private readonly billingService: BillingService,
+    private readonly cacheService: CacheService,
     private readonly logger: LoggerService,
   ) {
     this.logger.setContext(StripeWebhookController.name);
@@ -79,6 +81,23 @@ export class StripeWebhookController {
     try {
       // Process the webhook event
       await this.billingService.handleWebhookEvent(event);
+
+      // Invalidate invoice caches for affected customer/organization
+      try {
+        const obj = event.data.object as { customer?: string };
+        const customerId = obj?.customer as string | undefined;
+
+        if (customerId) {
+          // We don't have orgId here; clear generic invoice cache patterns
+          await this.cacheService.invalidate('billing-invoices:*');
+          await this.cacheService.invalidate('billing-invoices-cursor:*');
+        }
+      } catch (err) {
+        this.logger.warn('Failed to invalidate invoice caches after webhook', {
+          eventType: event.type,
+          error: err instanceof Error ? err.message : 'Unknown error',
+        });
+      }
 
       this.logger.debug('Webhook event processed successfully', {
         eventId: event.id,

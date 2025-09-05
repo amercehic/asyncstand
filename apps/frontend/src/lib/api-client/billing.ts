@@ -65,6 +65,14 @@ export interface Invoice {
   amount: number;
   status: 'paid' | 'failed' | 'pending' | 'refunded';
   invoiceUrl?: string;
+  downloadUrl?: string;
+}
+
+export interface InvoicePagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
 }
 
 export interface AddPaymentMethodData {
@@ -111,12 +119,7 @@ export const billingApi = {
    * Get current subscription
    */
   async getCurrentSubscription(): Promise<{ subscription: Subscription | null; plan: string }> {
-    console.log('🔍 billingApi: Getting current subscription request:', {
-      url: '/billing/subscription',
-      method: 'GET',
-    });
     const response = await api.get('/billing/subscription');
-    console.log('📄 billingApi: Current subscription response:', response.data);
     return response.data;
   },
 
@@ -124,13 +127,7 @@ export const billingApi = {
    * Create a new subscription
    */
   async createSubscription(data: CreateSubscriptionData): Promise<{ subscription: Subscription }> {
-    console.log('🚀 billingApi: Creating subscription request:', {
-      url: '/billing/subscription',
-      method: 'POST',
-      data,
-    });
     const response = await api.post('/billing/subscription', data);
-    console.log('✅ billingApi: Create subscription response:', response.data);
     return response.data;
   },
 
@@ -138,13 +135,7 @@ export const billingApi = {
    * Update subscription
    */
   async updateSubscription(data: UpdateSubscriptionData): Promise<{ subscription: Subscription }> {
-    console.log('🔄 billingApi: Updating subscription request:', {
-      url: '/billing/subscription',
-      method: 'PUT',
-      data,
-    });
     const response = await api.put('/billing/subscription', data);
-    console.log('✅ billingApi: Update subscription response:', response.data);
     return response.data;
   },
 
@@ -157,15 +148,18 @@ export const billingApi = {
   },
 
   /**
+   * Reactivate canceled subscription
+   */
+  async reactivateSubscription(): Promise<{ subscription: Subscription }> {
+    const response = await api.post('/billing/subscription/reactivate');
+    return response.data;
+  },
+
+  /**
    * Get available plans
    */
   async getAvailablePlans(): Promise<{ plans: BillingPlan[] }> {
-    console.log('📋 billingApi: Getting available plans request:', {
-      url: '/billing/plans',
-      method: 'GET',
-    });
     const response = await api.get('/billing/plans');
-    console.log('📋 billingApi: Available plans response:', response.data);
     return response.data;
   },
 
@@ -253,10 +247,18 @@ export const billingApi = {
   },
 
   /**
-   * Get invoices
+   * Get invoices with pagination
    */
-  async getInvoices(): Promise<{ invoices: Invoice[] }> {
-    const response = await api.get('/billing/invoices');
+  async getInvoices(
+    page: number = 1,
+    limit: number = 5
+  ): Promise<{
+    invoices: Invoice[];
+    pagination?: InvoicePagination;
+  }> {
+    const response = await api.get('/billing/invoices', {
+      params: { page, limit },
+    });
     return response.data;
   },
 
@@ -290,6 +292,30 @@ export const billingApi = {
    */
   async retryPayment(invoiceId: string): Promise<{ success: boolean }> {
     const response = await api.post(`/billing/invoices/${invoiceId}/retry`);
+    return response.data;
+  },
+
+  /**
+   * Get debug subscription info (development only)
+   */
+  async getDebugInfo(): Promise<unknown> {
+    const response = await api.get('/billing/subscription/debug');
+    return response.data;
+  },
+
+  /**
+   * Process pending invoices
+   */
+  async processPendingInvoices(): Promise<{
+    message: string;
+    processed: {
+      pendingItems: number;
+      draftInvoices: unknown[];
+      openInvoices: unknown[];
+      errors: unknown[];
+    };
+  }> {
+    const response = await api.post('/billing/process-pending-invoices');
     return response.data;
   },
 };

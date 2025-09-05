@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { billingApi, type CreateSubscriptionData, type UpdateSubscriptionData } from '@/lib/api';
 import { toast } from '@/components/ui';
@@ -19,7 +19,7 @@ export const billingQueryKeys = {
 const CACHE_TIMES = {
   subscription: 5 * 60 * 1000, // 5 minutes
   usage: 60 * 1000, // 1 minute
-  invoices: 10 * 60 * 1000, // 10 minutes
+  invoices: 5 * 60 * 1000, // 5 minutes (shorter cache for perceived speed)
   paymentMethods: 5 * 60 * 1000, // 5 minutes
   plans: 30 * 60 * 1000, // 30 minutes
   warnings: 60 * 1000, // 1 minute
@@ -64,16 +64,58 @@ export const useBillingUsage = (enabled = true) => {
   });
 };
 
-export const useBillingInvoices = (enabled = true) => {
+// New hook that fetches all invoices at once and handles pagination client-side
+export const useAllInvoices = (enabled = true) => {
   return useQuery({
-    queryKey: billingQueryKeys.invoices(),
+    queryKey: [...billingQueryKeys.invoices(), 'all'],
     queryFn: async () => {
-      const response = await billingApi.getInvoices();
+      const response = await billingApi.getInvoices(1, 50); // Fetch first 50 invoices at once
       return response.invoices || [];
     },
     enabled,
     staleTime: CACHE_TIMES.invoices,
   });
+};
+
+export const useBillingInvoices = (page = 1, limit = 5, enabled = true) => {
+  const allInvoicesQuery = useAllInvoices(enabled);
+
+  return useMemo(() => {
+    const baseReturn = {
+      refetch: allInvoicesQuery.refetch,
+      error: allInvoicesQuery.error,
+      isSuccess: allInvoicesQuery.isSuccess,
+      isFetching: allInvoicesQuery.isFetching,
+    };
+
+    if (!allInvoicesQuery.data) {
+      return {
+        ...baseReturn,
+        data: null,
+        isLoading: allInvoicesQuery.isLoading,
+      };
+    }
+
+    const allInvoices = allInvoicesQuery.data;
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const pageInvoices = allInvoices.slice(startIndex, endIndex);
+    const totalPages = Math.ceil(allInvoices.length / limit);
+
+    return {
+      ...baseReturn,
+      data: {
+        invoices: pageInvoices,
+        pagination: {
+          page,
+          limit,
+          total: allInvoices.length,
+          totalPages,
+        },
+      },
+      isLoading: false, // Client-side pagination is instant
+    };
+  }, [allInvoicesQuery, page, limit]);
 };
 
 export const useBillingPlans = (enabled = true) => {
@@ -119,13 +161,9 @@ export const useCreateSubscription = () => {
 
   return useMutation({
     mutationFn: async (data: CreateSubscriptionData) => {
-      console.log('🚀 useBillingData: Creating subscription with data:', data);
-      const result = await billingApi.createSubscription(data);
-      console.log('✅ useBillingData: Create subscription API response:', result);
-      return result;
+      return await billingApi.createSubscription(data);
     },
-    onSuccess: data => {
-      console.log('✅ useBillingData: Create subscription mutation success:', data);
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: billingQueryKeys.subscription() });
       queryClient.invalidateQueries({ queryKey: billingQueryKeys.usage() });
       queryClient.invalidateQueries({ queryKey: billingQueryKeys.invoices() });
@@ -145,13 +183,9 @@ export const useUpdateSubscription = () => {
 
   return useMutation({
     mutationFn: async (data: UpdateSubscriptionData) => {
-      console.log('🔄 useBillingData: Updating subscription with data:', data);
-      const result = await billingApi.updateSubscription(data);
-      console.log('✅ useBillingData: Update subscription API response:', result);
-      return result;
+      return await billingApi.updateSubscription(data);
     },
-    onSuccess: data => {
-      console.log('✅ useBillingData: Update subscription mutation success:', data);
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: billingQueryKeys.subscription() });
       queryClient.invalidateQueries({ queryKey: billingQueryKeys.usage() });
       queryClient.invalidateQueries({ queryKey: billingQueryKeys.invoices() });
@@ -182,6 +216,23 @@ export const useCancelSubscription = () => {
     onError: error => {
       const { message } = normalizeApiError(error);
       toast.error(`Failed to cancel subscription: ${message}`);
+    },
+  });
+};
+
+export const useReactivateSubscription = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => billingApi.reactivateSubscription(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: billingQueryKeys.subscription() });
+      queryClient.invalidateQueries({ queryKey: billingQueryKeys.usage() });
+      toast.success('Subscription reactivated successfully!');
+    },
+    onError: error => {
+      const { message } = normalizeApiError(error);
+      toast.error(`Failed to reactivate subscription: ${message}`);
     },
   });
 };
@@ -323,10 +374,10 @@ export const useRealTimeUsage = () => {
 };
 
 // Custom hook for comprehensive billing data
-export const useBillingData = (enabled = true) => {
+export const useBillingData = (enabled = true, invoicePage = 1, invoiceLimit = 5) => {
   const subscription = useBillingSubscription(enabled);
   const usage = useBillingUsage(enabled);
-  const invoices = useBillingInvoices(enabled);
+  const invoices = useBillingInvoices(invoicePage, invoiceLimit, enabled);
   const plans = useBillingPlans(enabled);
   const warnings = useBillingWarnings(enabled);
   const paymentMethods = usePaymentMethods(enabled);

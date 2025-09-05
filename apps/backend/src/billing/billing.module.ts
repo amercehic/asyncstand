@@ -11,9 +11,10 @@ import { DowngradeValidationService } from '@/billing/services/downgrade-validat
 import { PrismaModule } from '@/prisma/prisma.module';
 import { LoggerService } from '@/common/logger.service';
 import { AuditModule } from '@/common/audit/audit.module';
+import { CacheModule } from '@/common/cache/cache.module';
 
 @Module({
-  imports: [ConfigModule, PrismaModule, AuditModule],
+  imports: [ConfigModule, PrismaModule, AuditModule, CacheModule],
   controllers: [BillingController, StripeWebhookController, UsageController],
   providers: [
     BillingService,

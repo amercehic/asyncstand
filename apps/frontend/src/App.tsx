@@ -1,3 +1,4 @@
+import React from 'react';
 import { Router } from '@/router';
 import { SkipLinks } from '@/components/ui';
 import { PasswordProtection } from '@/components/PasswordProtection';

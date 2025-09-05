@@ -5,7 +5,7 @@ import Stripe from 'stripe';
 
 @Injectable()
 export class StripeService {
-  private readonly stripe: Stripe;
+  public readonly stripe: Stripe;
 
   constructor(
     private readonly configService: ConfigService,
@@ -18,8 +18,10 @@ export class StripeService {
       throw new Error('STRIPE_SECRET_KEY is required');
     }
 
+    // Use keep-alive HTTP client to reduce latency on repeated calls
     this.stripe = new Stripe(secretKey, {
-      apiVersion: '2025-08-27.basil',
+      httpClient: Stripe.createNodeHttpClient(),
+      timeout: 15000,
     });
   }
 
@@ -147,31 +149,137 @@ export class StripeService {
     return subscription;
   }
 
-  /**
-   * Update a subscription (change plan, cancel, etc.)
-   */
+  // src/billing/services/stripe.service.ts
   async updateSubscription(
     subscriptionId: string,
     updates: Stripe.SubscriptionUpdateParams,
   ): Promise<Stripe.Subscription> {
-    this.logger.debug('Updating Stripe subscription', {
-      subscriptionId,
-      updates,
-    });
+    this.logger.debug('Updating Stripe subscription', { subscriptionId, updates });
 
-    // Always expand latest_invoice to get invoice details for upgrades
-    const subscription = await this.stripe.subscriptions.update(subscriptionId, {
+    // Capture timestamp to find any invoices created by this update call
+    const updateStartedAt = Math.floor(Date.now() / 1000);
+
+    // Keep caller’s proration_behavior exactly as sent (e.g., 'always_invoice' for upgrades).
+    const sub = await this.stripe.subscriptions.update(subscriptionId, {
       ...updates,
       expand: ['latest_invoice', 'latest_invoice.payment_intent'],
     });
 
-    this.logger.debug('Updated Stripe subscription', {
-      subscriptionId: subscription.id,
-      status: subscription.status,
-      latestInvoice: subscription.latest_invoice,
+    this.logger.debug('Stripe updated subscription', {
+      subscriptionId: sub.id,
+      status: sub.status,
+      latestInvoiceId:
+        typeof sub.latest_invoice === 'string' ? sub.latest_invoice : sub.latest_invoice?.id,
     });
 
-    return subscription;
+    // If caller asked for 'always_invoice', Stripe should have created an invoice with prorations.
+    const isAlwaysInvoice = updates.proration_behavior === 'always_invoice';
+    if (isAlwaysInvoice && sub.latest_invoice) {
+      // Normalize invoice object
+      let invoice: Stripe.Invoice =
+        typeof sub.latest_invoice === 'string'
+          ? await this.stripe.invoices.retrieve(sub.latest_invoice, { expand: ['payment_intent'] })
+          : (sub.latest_invoice as Stripe.Invoice);
+
+      // Finalize if Stripe left it as draft
+      if (invoice.status === 'draft' && invoice.amount_due > 0) {
+        try {
+          invoice = await this.stripe.invoices.finalizeInvoice(invoice.id, {
+            expand: ['payment_intent'],
+          });
+          this.logger.debug('Finalized invoice after upgrade', {
+            invoiceId: invoice.id,
+            status: invoice.status,
+          });
+        } catch (err) {
+          this.logger.error('Failed to finalize upgrade invoice', {
+            invoiceId: invoice.id,
+            error: err instanceof Error ? err.message : 'Unknown error',
+          });
+        }
+      }
+
+      // If it’s open and there’s money due, try to pay it (uses the customer’s default PM)
+      if (invoice.status === 'open' && invoice.amount_due > 0) {
+        try {
+          const paid = await this.stripe.invoices.pay(invoice.id);
+          this.logger.debug('Paid upgrade invoice', {
+            invoiceId: paid.id,
+            status: paid.status,
+            amountPaid: paid.amount_paid,
+          });
+        } catch (err) {
+          // Non-fatal — Stripe will retry, and your webhooks will update state
+          this.logger.warn('Could not auto-pay upgrade invoice', {
+            invoiceId: invoice.id,
+            error: err instanceof Error ? err.message : 'Unknown error',
+          });
+        }
+      }
+    }
+
+    // Fallback: Stripe sometimes doesn't attach the new proration invoice to latest_invoice immediately.
+    // Search for a recent subscription_update invoice for this subscription and finalize/pay it if needed.
+    if (isAlwaysInvoice) {
+      try {
+        const recentInvoices = await this.stripe.invoices.list({
+          subscription: subscriptionId,
+          limit: 5,
+          created: { gte: updateStartedAt - 120 },
+          expand: ['data.payment_intent'],
+        });
+
+        const candidate = recentInvoices.data.find(
+          (inv) => inv.billing_reason === 'subscription_update',
+        );
+
+        if (candidate && candidate.amount_due > 0) {
+          let invoice = candidate;
+          if (invoice.status === 'draft') {
+            try {
+              invoice = await this.stripe.invoices.finalizeInvoice(invoice.id, {
+                expand: ['payment_intent'],
+              });
+              this.logger.debug('Finalized proration invoice (fallback)', {
+                invoiceId: invoice.id,
+                status: invoice.status,
+              });
+            } catch (err) {
+              this.logger.error('Failed to finalize proration invoice (fallback)', {
+                invoiceId: invoice.id,
+                error: err instanceof Error ? err.message : 'Unknown error',
+              });
+            }
+          }
+
+          if (invoice.status === 'open') {
+            try {
+              const paid = await this.stripe.invoices.pay(invoice.id);
+              this.logger.debug('Paid proration invoice (fallback)', {
+                invoiceId: paid.id,
+                status: paid.status,
+                amountPaid: paid.amount_paid,
+              });
+            } catch (err) {
+              this.logger.warn('Could not auto-pay proration invoice (fallback)', {
+                invoiceId: invoice.id,
+                error: err instanceof Error ? err.message : 'Unknown error',
+              });
+            }
+          }
+        }
+      } catch (err) {
+        this.logger.warn('Failed to search/pay proration invoice (fallback)', {
+          subscriptionId,
+          error: err instanceof Error ? err.message : 'Unknown error',
+        });
+      }
+    }
+
+    // Return a fresh subscription snapshot (with expanded latest invoice/PI)
+    return await this.stripe.subscriptions.retrieve(subscriptionId, {
+      expand: ['latest_invoice', 'latest_invoice.payment_intent'],
+    });
   }
 
   /**
@@ -214,8 +322,36 @@ export class StripeService {
 
   /**
    * Get customer's payment methods
+   * @param customerId - The Stripe customer ID
+   * @param organizationId - The organization ID for verification (optional but recommended)
    */
-  async getPaymentMethods(customerId: string): Promise<Stripe.PaymentMethod[]> {
+  async getPaymentMethods(
+    customerId: string,
+    organizationId?: string,
+  ): Promise<Stripe.PaymentMethod[]> {
+    // If organizationId provided, verify the customer belongs to it
+    if (organizationId) {
+      const customer = await this.stripe.customers.retrieve(customerId);
+      if (customer.deleted) {
+        this.logger.error('Customer is deleted', {
+          customerId,
+          organizationId,
+        });
+        return [];
+      }
+
+      // Type guard to ensure customer is not deleted
+      const activeCustomer = customer as Stripe.Customer;
+      if (!activeCustomer.metadata || activeCustomer.metadata.organizationId !== organizationId) {
+        this.logger.error('Customer organization mismatch', {
+          customerId,
+          expectedOrgId: organizationId,
+          actualOrgId: activeCustomer.metadata?.organizationId,
+        });
+        return [];
+      }
+    }
+
     const paymentMethods = await this.stripe.paymentMethods.list({
       customer: customerId,
       type: 'card',
@@ -265,9 +401,39 @@ export class StripeService {
 
   /**
    * Get invoices for a customer
+   * @param customerId - The Stripe customer ID
+   * @param limit - Maximum number of invoices to return
+   * @param organizationId - The organization ID for verification (optional but recommended)
    */
-  async getInvoices(customerId: string, limit: number = 10): Promise<Stripe.Invoice[]> {
-    this.logger.debug('Fetching invoices for customer', { customerId, limit });
+  async getInvoices(
+    customerId: string,
+    limit: number = 10,
+    organizationId?: string,
+  ): Promise<Stripe.Invoice[]> {
+    this.logger.debug('Fetching invoices for customer', { customerId, limit, organizationId });
+
+    // If organizationId provided, verify the customer belongs to it
+    if (organizationId) {
+      const customer = await this.stripe.customers.retrieve(customerId);
+      if (customer.deleted) {
+        this.logger.error('Customer is deleted', {
+          customerId,
+          organizationId,
+        });
+        return [];
+      }
+
+      // Type guard to ensure customer is not deleted
+      const activeCustomer = customer as Stripe.Customer;
+      if (!activeCustomer.metadata || activeCustomer.metadata.organizationId !== organizationId) {
+        this.logger.error('Customer organization mismatch', {
+          customerId,
+          expectedOrgId: organizationId,
+          actualOrgId: activeCustomer.metadata?.organizationId,
+        });
+        return [];
+      }
+    }
 
     const invoices = await this.stripe.invoices.list({
       customer: customerId,
@@ -276,6 +442,98 @@ export class StripeService {
     });
 
     return invoices.data;
+  }
+
+  /**
+   * Get invoices with pagination
+   * @param customerId - The Stripe customer ID
+   * @param page - Page number (1-based)
+   * @param limit - Number of invoices per page
+   * @param organizationId - The organization ID for verification (optional)
+   */
+  async getInvoicesWithPagination(
+    customerId: string,
+    page: number = 1,
+    limit: number = 5,
+    organizationId?: string,
+  ): Promise<{ invoices: Stripe.Invoice[]; total: number }> {
+    this.logger.debug('Fetching invoices with pagination', {
+      customerId,
+      page,
+      limit,
+      organizationId,
+    });
+
+    // Fetch only what we need to render the requested page to minimize latency
+    // Page 1: exactly `limit` invoices; Page N: up to N*limit (capped at 100)
+    let fetchLimit: number = Math.min(page * limit, 100);
+    if (fetchLimit < limit) fetchLimit = limit;
+
+    const invoicesResult = await this.stripe.invoices.list({
+      customer: customerId,
+      limit: fetchLimit,
+      // Don't expand lines since we don't need them for the listing
+    });
+
+    const allInvoices = invoicesResult.data;
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+
+    const pageInvoices = allInvoices.slice(startIndex, endIndex);
+
+    // Use has_more from Stripe to determine if there are more invoices beyond what we fetched
+    let total = allInvoices.length;
+    if (invoicesResult.has_more) {
+      // If Stripe says there are more, estimate total based on what we know
+      total = Math.max(allInvoices.length + 1, page * limit + 1);
+    }
+
+    return {
+      invoices: pageInvoices,
+      total,
+    };
+  }
+
+  /**
+   * Get invoices using cursor-based pagination for optimal performance
+   */
+  async getInvoicesByCursor(
+    customerId: string,
+    limit: number = 5,
+    options?: { startingAfter?: string; endingBefore?: string },
+  ): Promise<{
+    invoices: Stripe.Invoice[];
+    hasMore: boolean;
+    nextCursor?: string;
+    prevCursor?: string;
+  }> {
+    this.logger.debug('Fetching invoices by cursor', {
+      customerId,
+      limit,
+      startingAfter: options?.startingAfter,
+      endingBefore: options?.endingBefore,
+    });
+
+    const listParams: Stripe.InvoiceListParams = {
+      customer: customerId,
+      limit,
+    };
+
+    if (options?.startingAfter) listParams.starting_after = options.startingAfter;
+    if (options?.endingBefore) listParams.ending_before = options.endingBefore;
+
+    const result = await this.stripe.invoices.list(listParams);
+    const data = result.data;
+
+    const nextCursor = result.has_more && data.length > 0 ? data[data.length - 1].id : undefined;
+    const prevCursor = data.length > 0 ? data[0].id : undefined;
+
+    return {
+      invoices: data,
+      hasMore: result.has_more,
+      nextCursor,
+      prevCursor,
+    };
   }
 
   /**

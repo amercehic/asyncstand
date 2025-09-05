@@ -76,8 +76,9 @@ const comparisonFeatures = [
 const PlanCard: React.FC<{
   plan: BillingPlan;
   isCurrentPlan?: boolean;
+  currentPlanName?: string;
   onUpgrade: (plan: BillingPlan) => void;
-}> = ({ plan, isCurrentPlan = false, onUpgrade }) => {
+}> = ({ plan, isCurrentPlan = false, currentPlanName, onUpgrade }) => {
   return (
     <motion.div
       variants={fadeInUp}
@@ -175,7 +176,39 @@ const PlanCard: React.FC<{
         disabled={isCurrentPlan}
         onClick={() => onUpgrade(plan)}
       >
-        {isCurrentPlan ? 'Current Plan' : `Upgrade to ${plan.name}`}
+        {(() => {
+          if (isCurrentPlan) return 'Current Plan';
+
+          // Determine if this is an upgrade or downgrade based on plan hierarchy
+          const planHierarchy = [
+            'free',
+            'starter',
+            'basic',
+            'professional',
+            'pro',
+            'enterprise',
+            'premium',
+          ];
+          const currentPlanIndex = planHierarchy.findIndex(p =>
+            currentPlanName?.toLowerCase().includes(p)
+          );
+          const targetPlanIndex = planHierarchy.findIndex(p => plan.name.toLowerCase().includes(p));
+
+          // If current plan is enterprise/premium, anything else is a downgrade
+          if (
+            currentPlanName?.toLowerCase().includes('enterprise') ||
+            currentPlanName?.toLowerCase().includes('premium')
+          ) {
+            return targetPlanIndex < currentPlanIndex
+              ? `Downgrade to ${plan.name}`
+              : `Change to ${plan.name}`;
+          }
+
+          // Otherwise check based on price or hierarchy
+          return targetPlanIndex > currentPlanIndex
+            ? `Upgrade to ${plan.name}`
+            : `Downgrade to ${plan.name}`;
+        })()}
       </ModernButton>
     </motion.div>
   );
@@ -292,7 +325,11 @@ export const UpgradePlanPage: React.FC = () => {
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div>
-              <h1 className="text-2xl font-bold">Upgrade Your Plan</h1>
+              <h1 className="text-2xl font-bold">
+                {currentPlan?.toLowerCase().includes('enterprise')
+                  ? 'Change Your Plan'
+                  : 'Upgrade Your Plan'}
+              </h1>
               <p className="text-muted-foreground">Choose the perfect plan for your team's needs</p>
             </div>
           </div>
@@ -330,6 +367,7 @@ export const UpgradePlanPage: React.FC = () => {
                       key={plan.id}
                       plan={plan}
                       isCurrentPlan={plan.id === currentPlan}
+                      currentPlanName={currentPlan || undefined}
                       onUpgrade={handleUpgrade}
                     />
                   ))}

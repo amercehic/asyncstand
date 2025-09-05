@@ -29,15 +29,26 @@ import {
   TrendingUp,
   Plus,
   ArrowUp,
+  ArrowDown,
   FileText,
   Download,
+  XCircle,
+  RefreshCw,
+  AlertCircle,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ModernButton, toast, ConfirmationModal } from '@/components/ui';
 import { useAuth, useModal } from '@/contexts';
 import { organizationApi, authApi } from '@/lib/api';
 import type { Organization, OrgMember, OrgRole } from '@/lib/api';
-import { useBillingData, useDownloadInvoice, useRemovePaymentMethod } from '@/hooks/useBillingData';
+import {
+  useBillingData,
+  useAllInvoices,
+  useDownloadInvoice,
+  useRemovePaymentMethod,
+  useCancelSubscription,
+  useReactivateSubscription,
+} from '@/hooks/useBillingData';
 import type { BillingPlan } from '@/lib/api-client/billing';
 import { AddPaymentMethodModal } from '@/components/billing/AddPaymentMethodModal';
 import { PaymentMethodCard, AddPaymentMethodCard } from '@/components/billing/PaymentMethodCard';
@@ -126,6 +137,8 @@ export const SettingsPage = React.memo(() => {
 
   // Billing state
   const [showAddPayment, setShowAddPayment] = useState(false);
+  const [invoicePage, setInvoicePage] = useState(1);
+  const invoiceLimit = 3; // Smaller page size for faster loading
 
   // Billing hooks (only when user is authenticated and billing tab is active)
   const {
@@ -136,13 +149,19 @@ export const SettingsPage = React.memo(() => {
     plans,
     isLoading: isBillingLoading,
     queries: billingQueries,
-  } = useBillingData(!!user && activeTab === 'billing');
+  } = useBillingData(!!user && activeTab === 'billing', invoicePage, invoiceLimit);
+
+  // Preload invoices as soon as user is authenticated (for faster billing tab access)
+  useAllInvoices(!!user);
 
   const downloadInvoice = useDownloadInvoice();
   const removePaymentMethod = useRemovePaymentMethod();
+  const cancelSubscription = useCancelSubscription();
+  const reactivateSubscription = useReactivateSubscription();
 
   // Track which payment method is being deleted
   const [deletingPaymentMethodId, setDeletingPaymentMethodId] = useState<string | null>(null);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
 
   // Reset deleting state when mutation completes
   useEffect(() => {
@@ -1420,13 +1439,86 @@ export const SettingsPage = React.memo(() => {
                             </div>
                           )}
 
-                          <ModernButton
-                            className="w-full gap-2"
-                            onClick={() => navigate('/upgrade-plan')}
-                          >
-                            <ArrowUp className="w-4 h-4" />
-                            Upgrade Plan
-                          </ModernButton>
+                          {/* Action Buttons */}
+                          {(() => {
+                            const isActiveSubscription =
+                              subscription?.subscription?.status === 'active';
+                            const isCanceled =
+                              subscription?.subscription?.cancelAtPeriodEnd || false;
+                            const planKey =
+                              subscription?.subscription?.planKey || subscription?.plan || 'free';
+                            const isEnterprisePlan = planKey?.toLowerCase() === 'enterprise';
+
+                            if (isActiveSubscription && !isCanceled) {
+                              return (
+                                <div className="space-y-2">
+                                  <ModernButton
+                                    className="w-full gap-2"
+                                    onClick={() => navigate('/upgrade-plan')}
+                                  >
+                                    {isEnterprisePlan ? (
+                                      <>
+                                        <ArrowDown className="w-4 h-4" />
+                                        Downgrade to Starter Plan
+                                      </>
+                                    ) : (
+                                      <>
+                                        <ArrowUp className="w-4 h-4" />
+                                        Upgrade Plan
+                                      </>
+                                    )}
+                                  </ModernButton>
+                                  <ModernButton
+                                    variant="outline"
+                                    className="w-full gap-2 border-gray-300 hover:bg-gray-50 text-gray-700 hover:text-gray-900"
+                                    onClick={() => setShowCancelDialog(true)}
+                                    disabled={cancelSubscription.isPending}
+                                  >
+                                    <XCircle className="w-4 h-4" />
+                                    Cancel Subscription
+                                  </ModernButton>
+                                </div>
+                              );
+                            } else if (isCanceled && isActiveSubscription) {
+                              return (
+                                <div className="space-y-3">
+                                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                                    <p className="text-sm text-amber-800 font-medium flex items-center gap-2">
+                                      <AlertCircle className="w-4 h-4" />
+                                      Subscription ends on{' '}
+                                      {subscription?.subscription?.currentPeriodEnd &&
+                                        format(
+                                          new Date(subscription.subscription.currentPeriodEnd),
+                                          'MMMM d, yyyy'
+                                        )}
+                                    </p>
+                                  </div>
+                                  <ModernButton
+                                    className="w-full gap-2"
+                                    onClick={() => reactivateSubscription.mutate()}
+                                    disabled={reactivateSubscription.isPending}
+                                  >
+                                    <RefreshCw
+                                      className={`w-4 h-4 ${reactivateSubscription.isPending ? 'animate-spin' : ''}`}
+                                    />
+                                    {reactivateSubscription.isPending
+                                      ? 'Reactivating...'
+                                      : 'Reactivate Subscription'}
+                                  </ModernButton>
+                                </div>
+                              );
+                            } else {
+                              return (
+                                <ModernButton
+                                  className="w-full gap-2"
+                                  onClick={() => navigate('/upgrade-plan')}
+                                >
+                                  <ArrowUp className="w-4 h-4" />
+                                  Upgrade from Free Plan
+                                </ModernButton>
+                              );
+                            }
+                          })()}
                         </div>
                       </div>
 
@@ -1583,82 +1675,198 @@ export const SettingsPage = React.memo(() => {
                         Billing History
                       </h3>
 
-                      {billingQueries?.invoices?.isLoading ? (
+                      {billingQueries?.invoices?.isLoading && invoicePage === 1 ? (
                         <div className="flex items-center justify-center py-8">
                           <Loader2 className="w-6 h-6 animate-spin text-primary" />
                         </div>
-                      ) : invoices && invoices.length > 0 ? (
-                        <div className="overflow-x-auto">
-                          <table className="w-full">
-                            <thead>
-                              <tr className="border-b border-border text-sm text-muted-foreground">
-                                <th className="text-left py-2">Date</th>
-                                <th className="text-left py-2">Description</th>
-                                <th className="text-left py-2">Amount</th>
-                                <th className="text-left py-2">Status</th>
-                                <th className="text-center py-2">Actions</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-border">
-                              {invoices.slice(0, 5).map(invoice => (
-                                <tr key={invoice.id} className="text-sm">
-                                  <td className="py-3">
-                                    {format(new Date(invoice.date), 'MMM dd, yyyy')}
-                                  </td>
-                                  <td className="py-3">
-                                    {(() => {
-                                      // Clean up description by removing unwanted patterns
-                                      let desc = invoice.description || '';
-                                      // Remove quantity prefix like "1 × "
-                                      desc = desc.replace(/^\d+ × /, '');
-                                      // Remove date patterns like " - 9/4/2025" or " - Sep 4, 2025" or similar date suffixes
-                                      desc = desc.replace(/ - \d{1,2}\/\d{1,2}\/\d{4}$/, '');
-                                      desc = desc.replace(/ - \w{3} \d{1,2}, \d{4}$/, '');
-                                      desc = desc.replace(/ - \d{4}-\d{2}-\d{2}$/, '');
-                                      return desc;
-                                    })()}
-                                  </td>
-                                  <td className="py-3 font-medium">
-                                    {new Intl.NumberFormat('de-DE', {
-                                      style: 'currency',
-                                      currency: 'EUR',
-                                    }).format(invoice.amount / 100)}
-                                  </td>
-                                  <td className="py-3">
-                                    <span
-                                      className={`px-2 py-1 rounded text-xs font-medium ${
-                                        invoice.status === 'paid'
-                                          ? 'bg-green-100 text-green-800'
-                                          : invoice.status === 'failed'
-                                            ? 'bg-red-100 text-red-800'
-                                            : 'bg-yellow-100 text-yellow-800'
-                                      }`}
-                                    >
-                                      {invoice.status?.charAt(0).toUpperCase() +
-                                        invoice.status?.slice(1)}
-                                    </span>
-                                  </td>
-                                  <td className="py-3 text-center">
-                                    {invoice.status === 'paid' && (
-                                      <button
-                                        onClick={() =>
-                                          downloadInvoice.mutate({
-                                            invoiceId: invoice.id,
-                                            invoiceUrl: invoice.invoiceUrl,
-                                          })
-                                        }
-                                        className="inline-flex items-center justify-center w-8 h-8 text-primary hover:text-primary/80 hover:bg-primary/10 rounded-lg transition-colors"
-                                        disabled={downloadInvoice.isPending}
-                                        title="Download Invoice"
-                                      >
-                                        <Download className="w-4 h-4" />
-                                      </button>
-                                    )}
-                                  </td>
+                      ) : invoices && invoices.invoices && invoices.invoices.length > 0 ? (
+                        <div className="relative">
+                          {billingQueries?.invoices?.isFetching && invoicePage > 1 && (
+                            <div className="absolute inset-0 bg-background/50 rounded-lg flex items-center justify-center z-10">
+                              <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                            </div>
+                          )}
+                          <div className="overflow-x-auto">
+                            <table className="w-full">
+                              <thead>
+                                <tr className="border-b border-border text-sm text-muted-foreground">
+                                  <th className="text-left py-2">Date</th>
+                                  <th className="text-left py-2">Description</th>
+                                  <th className="text-left py-2">Amount</th>
+                                  <th className="text-left py-2">Status</th>
+                                  <th className="text-center py-2">Actions</th>
                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                              </thead>
+                              <tbody className="divide-y divide-border">
+                                {invoices.invoices.map(invoice => (
+                                  <tr key={invoice.id} className="text-sm">
+                                    <td className="py-3">
+                                      {format(new Date(invoice.date), 'MMM dd, yyyy')}
+                                    </td>
+                                    <td className="py-3">
+                                      {(() => {
+                                        // Clean up description by removing unwanted patterns
+                                        let desc = invoice.description || '';
+                                        // Remove quantity prefix like "1 × "
+                                        desc = desc.replace(/^\d+ × /, '');
+                                        // Remove date patterns like " - 9/4/2025" or " - Sep 4, 2025" or similar date suffixes
+                                        desc = desc.replace(/ - \d{1,2}\/\d{1,2}\/\d{4}$/, '');
+                                        desc = desc.replace(/ - \w{3} \d{1,2}, \d{4}$/, '');
+                                        desc = desc.replace(/ - \d{4}-\d{2}-\d{2}$/, '');
+                                        return desc;
+                                      })()}
+                                    </td>
+                                    <td className="py-3 font-medium">
+                                      {new Intl.NumberFormat('de-DE', {
+                                        style: 'currency',
+                                        currency: 'EUR',
+                                      }).format(invoice.amount / 100)}
+                                    </td>
+                                    <td className="py-3">
+                                      <span
+                                        className={`px-2 py-1 rounded text-xs font-medium ${
+                                          invoice.status === 'paid'
+                                            ? 'bg-green-100 text-green-800'
+                                            : invoice.status === 'failed'
+                                              ? 'bg-red-100 text-red-800'
+                                              : 'bg-yellow-100 text-yellow-800'
+                                        }`}
+                                      >
+                                        {invoice.status?.charAt(0).toUpperCase() +
+                                          invoice.status?.slice(1)}
+                                      </span>
+                                    </td>
+                                    <td className="py-3 text-center">
+                                      {invoice.status === 'paid' && (
+                                        <button
+                                          onClick={() =>
+                                            downloadInvoice.mutate({
+                                              invoiceId: invoice.id,
+                                              invoiceUrl: invoice.invoiceUrl,
+                                            })
+                                          }
+                                          className="inline-flex items-center justify-center w-8 h-8 text-primary hover:text-primary/80 hover:bg-primary/10 rounded-lg transition-colors"
+                                          disabled={downloadInvoice.isPending}
+                                          title="Download Invoice"
+                                        >
+                                          <Download className="w-4 h-4" />
+                                        </button>
+                                      )}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          {/* Pagination Controls */}
+                          {invoices.pagination && invoices.pagination.totalPages > 1 && (
+                            <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+                              <div className="text-sm text-muted-foreground">
+                                Showing {(invoicePage - 1) * invoiceLimit + 1}-
+                                {Math.min(invoicePage * invoiceLimit, invoices.pagination.total)} of{' '}
+                                {invoices.pagination.total} invoices
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <ModernButton
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setInvoicePage(prev => Math.max(1, prev - 1))}
+                                  disabled={
+                                    invoicePage === 1 || billingQueries?.invoices?.isFetching
+                                  }
+                                  className="gap-1"
+                                >
+                                  <ChevronLeft className="w-4 h-4" />
+                                  Previous
+                                </ModernButton>
+
+                                <div className="flex items-center gap-1">
+                                  {(() => {
+                                    const totalPages = invoices.pagination.totalPages;
+                                    const current = invoicePage;
+                                    const pages: (number | string)[] = [];
+
+                                    if (totalPages <= 7) {
+                                      // Show all pages if 7 or fewer
+                                      for (let i = 1; i <= totalPages; i++) {
+                                        pages.push(i);
+                                      }
+                                    } else {
+                                      // Always show first page
+                                      pages.push(1);
+
+                                      if (current <= 4) {
+                                        // Near beginning: 1 2 3 4 5 ... last
+                                        for (let i = 2; i <= 5; i++) {
+                                          pages.push(i);
+                                        }
+                                        pages.push('ellipsis1');
+                                        pages.push(totalPages);
+                                      } else if (current >= totalPages - 3) {
+                                        // Near end: 1 ... (last-4) (last-3) (last-2) (last-1) last
+                                        pages.push('ellipsis1');
+                                        for (let i = totalPages - 4; i <= totalPages; i++) {
+                                          pages.push(i);
+                                        }
+                                      } else {
+                                        // Middle: 1 ... (current-1) current (current+1) ... last
+                                        pages.push('ellipsis1');
+                                        for (let i = current - 1; i <= current + 1; i++) {
+                                          pages.push(i);
+                                        }
+                                        pages.push('ellipsis2');
+                                        pages.push(totalPages);
+                                      }
+                                    }
+
+                                    return pages.map(page => {
+                                      if (typeof page === 'string') {
+                                        return (
+                                          <span key={page} className="px-2 text-muted-foreground">
+                                            ...
+                                          </span>
+                                        );
+                                      }
+
+                                      return (
+                                        <button
+                                          key={page}
+                                          onClick={() => setInvoicePage(page)}
+                                          disabled={billingQueries?.invoices?.isFetching}
+                                          className={`w-8 h-8 rounded text-sm font-medium transition-colors ${
+                                            page === current
+                                              ? 'bg-primary text-primary-foreground'
+                                              : 'hover:bg-accent'
+                                          }`}
+                                        >
+                                          {page}
+                                        </button>
+                                      );
+                                    });
+                                  })()}
+                                </div>
+
+                                <ModernButton
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    setInvoicePage(prev =>
+                                      Math.min(invoices.pagination.totalPages, prev + 1)
+                                    )
+                                  }
+                                  disabled={
+                                    invoicePage === invoices.pagination.totalPages ||
+                                    billingQueries?.invoices?.isFetching
+                                  }
+                                  className="gap-1"
+                                >
+                                  Next
+                                  <ChevronRight className="w-4 h-4" />
+                                </ModernButton>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <div className="text-center py-8 text-muted-foreground">
@@ -1674,6 +1882,41 @@ export const SettingsPage = React.memo(() => {
           </AnimatePresence>
         </div>
       </div>
+
+      {/* Cancel Subscription Confirmation Dialog */}
+      {showCancelDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-2">Cancel Subscription?</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Your subscription will remain active until{' '}
+              {subscription?.subscription?.currentPeriodEnd &&
+                format(new Date(subscription.subscription.currentPeriodEnd), 'MMMM d, yyyy')}
+              . After that, you'll be downgraded to the free plan.
+            </p>
+            <div className="flex gap-3">
+              <ModernButton
+                variant="secondary"
+                className="flex-1"
+                onClick={() => setShowCancelDialog(false)}
+              >
+                Keep Subscription
+              </ModernButton>
+              <ModernButton
+                variant="outline"
+                className="flex-1 border-red-300 hover:bg-red-50 text-red-700 hover:text-red-800"
+                onClick={() => {
+                  cancelSubscription.mutate({ immediate: false });
+                  setShowCancelDialog(false);
+                }}
+                disabled={cancelSubscription.isPending}
+              >
+                {cancelSubscription.isPending ? 'Canceling...' : 'Yes, Cancel'}
+              </ModernButton>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Invite Member Modal */}
       <AnimatePresence>

@@ -219,18 +219,21 @@ export class BillingService {
           throw new BadRequestException(`Plan ${newPlan.name} is not available for subscription`);
         }
 
+        const currentPriceCents = Number(currentPlan.price);
+        const newPriceCents = Number(newPlan.price);
+
         this.logger.debug('Processing plan change', {
           orgId,
           currentPlan: currentPlan.key,
           newPlan: newPlan.key,
-          currentPrice: currentPlan.price,
-          newPrice: newPlan.price,
-          isUpgrade: newPlan.price > currentPlan.price,
+          currentPrice: currentPriceCents,
+          newPrice: newPriceCents,
+          isUpgrade: newPriceCents > currentPriceCents,
           subscriptionId: subscription.stripeSubscriptionId,
         });
 
         // If it's a downgrade, validate it's allowed
-        if (newPlan.price < currentPlan.price) {
+        if (Number(newPlan.price) < Number(currentPlan.price)) {
           const validation = await this.downgradeValidation.validateDowngrade(orgId, newPlan);
           if (!validation.canDowngrade) {
             throw new BadRequestException({
@@ -262,17 +265,33 @@ export class BillingService {
           proration: 'create_prorations',
         });
 
+        // Determine if this is an upgrade or downgrade
+        const isUpgrade = Number(newPlan.price) > Number(currentPlan.price);
+
+        // For upgrades, we want to charge immediately with prorations
+        // For downgrades, we apply at the end of the billing period
+        const updateParams: Stripe.SubscriptionUpdateParams = {
+          items: [
+            {
+              id: stripeSubscription.items.data[0].id,
+              price: newPlan.stripePriceId,
+            },
+          ],
+          // always_invoice: Creates an invoice immediately for any prorations
+          // create_prorations: Creates prorations but doesn't invoice until next cycle
+          proration_behavior: isUpgrade ? 'always_invoice' : 'create_prorations',
+          ...(isUpgrade ? { proration_date: Math.floor(Date.now() / 1000) } : {}),
+        };
+
+        // For upgrades, omit payment_behavior to let Stripe collect automatically
+        // For downgrades, allow incomplete to prevent payment failures from blocking the change
+        if (!isUpgrade) {
+          updateParams.payment_behavior = 'allow_incomplete';
+        }
+
         const updatedStripeSubscription = await this.stripeService.updateSubscription(
           subscription.stripeSubscriptionId,
-          {
-            items: [
-              {
-                id: stripeSubscription.items.data[0].id,
-                price: newPlan.stripePriceId,
-              },
-            ],
-            proration_behavior: 'create_prorations',
-          },
+          updateParams,
         );
 
         const currentPeriodStart = (updatedStripeSubscription as { current_period_start?: number })
@@ -293,6 +312,11 @@ export class BillingService {
         });
 
         updates.planId = newPlan.id;
+
+        // Update status from Stripe response
+        if (updatedStripeSubscription.status) {
+          updates.status = updatedStripeSubscription.status;
+        }
 
         // If subscription was cancelled but user is upgrading, reactivate it
         if (subscription.cancelAtPeriodEnd) {

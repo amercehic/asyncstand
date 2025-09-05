@@ -22,8 +22,8 @@ import {
   FileText,
   Settings,
   ArrowUp,
+  ArrowDown,
   Trash2,
-  // ArrowDown,
   // Wifi,
 } from 'lucide-react';
 import { ModernButton, toast } from '@/components/ui';
@@ -40,6 +40,8 @@ import {
   useDownloadInvoice,
   useRetryPayment,
   useRemovePaymentMethod,
+  useCancelSubscription,
+  useReactivateSubscription,
 } from '@/hooks/useBillingData';
 import {
   BillingPageSkeleton,
@@ -142,6 +144,9 @@ const PlanCard: React.FC<{
   usage?: { usage: CurrentUsage; billingPeriod: BillingPeriod } | null;
 }> = ({ subscription, plans, usage }) => {
   const navigate = useNavigate();
+  const cancelSubscription = useCancelSubscription();
+  const reactivateSubscription = useReactivateSubscription();
+  const [showCancelDialog, setShowCancelDialog] = React.useState(false);
 
   const currentPlan = plans?.find(p => p.id === subscription?.subscription?.planId) || {
     name: subscription?.plan || 'Starter Plan',
@@ -182,8 +187,16 @@ const PlanCard: React.FC<{
     },
   ];
 
-  const isFreePlan = usage?.usage?.isFreePlan ?? true;
-  const planName = usage?.usage?.planName || currentPlan.name;
+  // Get the actual subscription data
+  const subscriptionData = subscription?.subscription;
+  const planKey = subscriptionData?.planKey || subscription?.plan || 'free';
+
+  const isFreePlan = usage?.usage?.isFreePlan ?? !subscriptionData;
+  const planName = usage?.usage?.planName || currentPlan.name || planKey;
+  const isActiveSubscription = subscriptionData?.status === 'active';
+  const isCanceled = subscriptionData?.cancelAtPeriodEnd || false;
+  const isEnterprisePlan =
+    planKey?.toLowerCase() === 'enterprise' || planName?.toLowerCase().includes('enterprise');
 
   return (
     <motion.div
@@ -249,18 +262,103 @@ const PlanCard: React.FC<{
       </div>
 
       <div className="flex gap-2">
-        <ModernButton
-          className="flex-1"
-          variant="primary"
-          onClick={() => navigate('/settings/billing/upgrade')}
-        >
-          <ArrowUp className="w-4 h-4" />
-          Upgrade Plan
-        </ModernButton>
-        <ModernButton variant="secondary" onClick={() => toast.info('Manage plan')}>
-          <MoreVertical className="w-4 h-4" />
-        </ModernButton>
+        {isActiveSubscription && !isCanceled ? (
+          <>
+            <ModernButton
+              className="flex-1"
+              variant="primary"
+              onClick={() => navigate('/settings/billing/upgrade')}
+            >
+              {isEnterprisePlan ? (
+                <>
+                  <ArrowDown className="w-4 h-4" />
+                  Downgrade to Starter Plan
+                </>
+              ) : (
+                <>
+                  <ArrowUp className="w-4 h-4" />
+                  Upgrade Plan
+                </>
+              )}
+            </ModernButton>
+            <ModernButton
+              variant="outline"
+              className="border-gray-300 hover:bg-gray-50 text-gray-700 hover:text-gray-900"
+              onClick={() => setShowCancelDialog(true)}
+              disabled={cancelSubscription.isPending}
+            >
+              <XCircle className="w-4 h-4" />
+              Cancel
+            </ModernButton>
+          </>
+        ) : isCanceled && isActiveSubscription ? (
+          <div className="w-full">
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg mb-3">
+              <p className="text-sm text-amber-800 font-medium flex items-center gap-2">
+                <AlertCircle className="w-4 h-4" />
+                Subscription will end on{' '}
+                {subscriptionData?.currentPeriodEnd &&
+                  format(new Date(subscriptionData.currentPeriodEnd), 'MMMM d, yyyy')}
+              </p>
+            </div>
+            <ModernButton
+              className="w-full"
+              variant="primary"
+              onClick={() => reactivateSubscription.mutate()}
+              disabled={reactivateSubscription.isPending}
+            >
+              <RefreshCw
+                className={cn('w-4 h-4', reactivateSubscription.isPending && 'animate-spin')}
+              />
+              {reactivateSubscription.isPending ? 'Reactivating...' : 'Reactivate Subscription'}
+            </ModernButton>
+          </div>
+        ) : (
+          <ModernButton
+            className="w-full"
+            variant="primary"
+            onClick={() => navigate('/settings/billing/upgrade')}
+          >
+            <ArrowUp className="w-4 h-4" />
+            Upgrade from Free Plan
+          </ModernButton>
+        )}
       </div>
+
+      {/* Cancel Subscription Confirmation Dialog */}
+      {showCancelDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-2">Cancel Subscription?</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Your subscription will remain active until{' '}
+              {subscriptionData?.currentPeriodEnd &&
+                format(new Date(subscriptionData.currentPeriodEnd), 'MMMM d, yyyy')}
+              . After that, you'll be downgraded to the free plan.
+            </p>
+            <div className="flex gap-3">
+              <ModernButton
+                variant="secondary"
+                className="flex-1"
+                onClick={() => setShowCancelDialog(false)}
+              >
+                Keep Subscription
+              </ModernButton>
+              <ModernButton
+                variant="outline"
+                className="flex-1 border-red-300 hover:bg-red-50 text-red-700 hover:text-red-800"
+                onClick={() => {
+                  cancelSubscription.mutate({ immediate: false });
+                  setShowCancelDialog(false);
+                }}
+                disabled={cancelSubscription.isPending}
+              >
+                {cancelSubscription.isPending ? 'Canceling...' : 'Yes, Cancel'}
+              </ModernButton>
+            </div>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 };
@@ -902,7 +1000,7 @@ export const BillingPage: React.FC = () => {
                 </div>
               ) : (
                 <BillingHistoryTable
-                  invoices={invoices || []}
+                  invoices={invoices?.invoices || []}
                   onDownload={invoice =>
                     downloadInvoice.mutate({
                       invoiceId: invoice.id,

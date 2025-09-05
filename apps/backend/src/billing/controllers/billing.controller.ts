@@ -8,11 +8,13 @@ import {
   UseGuards,
   HttpStatus,
   Param,
+  Query,
   NotFoundException,
   Res,
+  Req,
   BadRequestException,
 } from '@nestjs/common';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '@/auth/guards/roles.guard';
@@ -31,6 +33,7 @@ import {
 import { OrgRole } from '@prisma/client';
 import { Audit } from '@/common/audit/audit.decorator';
 import { AuditCategory, AuditSeverity } from '@/common/audit/types';
+import { CacheService } from '@/common/cache/cache.service';
 
 @ApiTags('Billing')
 @ApiBearerAuth('JWT-auth')
@@ -42,9 +45,76 @@ export class BillingController {
     private readonly stripeService: StripeService,
     private readonly downgradeValidation: DowngradeValidationService,
     private readonly prisma: PrismaService,
+    private readonly cacheService: CacheService,
     private readonly logger: LoggerService,
   ) {
     this.logger.setContext(BillingController.name);
+  }
+
+  @Get('subscription/debug')
+  @Roles(OrgRole.owner, OrgRole.admin)
+  @ApiOperation({
+    summary: 'Debug - Get full Stripe subscription details',
+    description: 'Get complete Stripe subscription data including invoices for debugging',
+  })
+  async debugSubscription(@CurrentOrg() orgId: string) {
+    try {
+      const billingAccount = await this.billingService.getBillingAccount(orgId);
+      if (!billingAccount) {
+        return { message: 'No billing account found' };
+      }
+
+      const subscription = await this.prisma.subscription.findFirst({
+        where: {
+          billingAccount: {
+            orgId,
+          },
+          status: {
+            in: ['active', 'trialing', 'past_due', 'canceled'],
+          },
+        },
+        include: {
+          plan: true,
+        },
+      });
+
+      if (!subscription) {
+        return { message: 'No subscription found' };
+      }
+
+      // Get full Stripe subscription with expanded data
+      const stripeSubscription = await this.stripeService.stripe.subscriptions.retrieve(
+        subscription.stripeSubscriptionId,
+        {
+          expand: ['latest_invoice', 'latest_invoice.payment_intent', 'items.data.price'],
+        },
+      );
+
+      // Get recent invoices
+      const invoices = await this.stripeService.stripe.invoices.list({
+        customer: billingAccount.stripeCustomerId,
+        subscription: subscription.stripeSubscriptionId,
+        limit: 10,
+      });
+
+      return {
+        database: {
+          subscription,
+          billingAccount,
+        },
+        stripe: {
+          subscription: stripeSubscription,
+          invoices: invoices.data,
+        },
+      };
+    } catch (error) {
+      this.logger.error('Debug subscription failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      return {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
   }
 
   @Get('subscription')
@@ -262,8 +332,14 @@ export class BillingController {
       userName || 'Organization Owner',
     );
 
+    // CRITICAL: Verify the billing account belongs to this organization
+    if (billingAccount.orgId !== orgId) {
+      throw new BadRequestException('Billing account does not belong to this organization');
+    }
+
     const paymentMethods = await this.stripeService.getPaymentMethods(
       billingAccount.stripeCustomerId,
+      orgId, // Pass orgId for additional verification
     );
 
     return {
@@ -415,43 +491,146 @@ export class BillingController {
   })
   async getInvoices(
     @CurrentOrg() orgId: string,
-    @CurrentUser('email') userEmail: string,
-    @CurrentUser('name') userName: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '5',
+    @Query('startingAfter') startingAfter?: string,
+    @Query('endingBefore') endingBefore?: string,
+    @Req() req?: Request,
+    @Res({ passthrough: true }) res?: Response,
   ) {
     try {
-      // Initialize billing if it doesn't exist
-      await this.billingService.initializeBillingForOrganization(
-        orgId,
-        userEmail,
-        userName || 'Organization Owner',
-      );
+      // Parse pagination parameters
+      const pageNum = Math.max(1, parseInt(page, 10) || 1);
+      const limitNum = Math.min(50, Math.max(1, parseInt(limit, 10) || 5));
 
+      // Get billing account - don't auto-initialize for performance
       const billingAccount = await this.billingService.getBillingAccount(orgId);
+
       if (!billingAccount?.stripeCustomerId) {
         return {
           message: 'No billing history found',
           invoices: [],
+          pagination: {
+            page: pageNum,
+            limit: limitNum,
+            total: 0,
+            totalPages: 0,
+          },
         };
       }
 
-      const invoices = await this.stripeService.getInvoices(billingAccount.stripeCustomerId);
+      // CRITICAL: Verify the billing account belongs to this organization
+      if (billingAccount.orgId !== orgId) {
+        throw new BadRequestException('Billing account does not belong to this organization');
+      }
 
-      return {
+      // Cursor-based path if cursors provided; else use page/limit strategy
+      const useCursor = Boolean(startingAfter || endingBefore);
+      const cacheKey = useCursor
+        ? this.cacheService.buildKey(
+            'billing-invoices-cursor',
+            orgId,
+            limitNum,
+            startingAfter || 'none',
+            endingBefore || 'none',
+          )
+        : this.cacheService.buildKey('billing-invoices', orgId, pageNum, limitNum);
+
+      const invoicesResult = await this.cacheService.getOrSet(
+        cacheKey,
+        async () => {
+          if (useCursor) {
+            const cursorResult = await this.stripeService.getInvoicesByCursor(
+              billingAccount.stripeCustomerId,
+              limitNum,
+              { startingAfter, endingBefore },
+            );
+            return {
+              invoices: cursorResult.invoices,
+              total: cursorResult.hasMore ? limitNum + 1 : cursorResult.invoices.length,
+            };
+          } else {
+            return this.stripeService.getInvoicesWithPagination(
+              billingAccount.stripeCustomerId,
+              pageNum,
+              limitNum,
+            );
+          }
+        },
+        120,
+      );
+
+      // Build response payload
+      const payload = {
         message: 'Invoices retrieved successfully',
-        invoices: invoices.map((invoice) => ({
+        invoices: invoicesResult.invoices.map((invoice) => ({
           id: invoice.id,
           date: new Date(invoice.created * 1000).toISOString(),
-          description: `${invoice.lines.data[0]?.description || 'Subscription'} - ${invoice.lines.data[0]?.period?.start ? new Date(invoice.lines.data[0].period.start * 1000).toLocaleDateString() : ''}`,
+          description: `${
+            (invoice as { description?: string })?.description ||
+            (
+              invoice as {
+                lines?: { data?: Array<{ description?: string; period?: { start?: number } }> };
+              }
+            )?.lines?.data?.[0]?.description ||
+            'Subscription'
+          }${
+            (invoice as { lines?: { data?: Array<{ period?: { start?: number } }> } })?.lines
+              ?.data?.[0]?.period?.start
+              ? ` - ${new Date(
+                  ((invoice as { lines?: { data?: Array<{ period?: { start?: number } }> } })?.lines
+                    ?.data?.[0]?.period?.start as number) * 1000,
+                )
+                  .toISOString()
+                  .slice(0, 10)}`
+              : ''
+          }`,
           amount: invoice.amount_paid || invoice.amount_due,
           status: this.mapInvoiceStatus(invoice.status, invoice.status === 'paid'),
           invoiceUrl: invoice.hosted_invoice_url,
           downloadUrl: invoice.invoice_pdf,
         })),
+        pagination: useCursor
+          ? undefined
+          : {
+              page: pageNum,
+              limit: limitNum,
+              total: invoicesResult.total,
+              totalPages: Math.ceil(invoicesResult.total / limitNum),
+            },
       };
+
+      // Lightweight ETag based on IDs and total
+      try {
+        const firstId = payload.invoices[0]?.id || 'none';
+        const lastId = payload.invoices[payload.invoices.length - 1]?.id || 'none';
+        const totalMarker = useCursor ? payload.invoices.length : payload.pagination?.total || 0;
+        const etag = `W/"${orgId}:${useCursor ? 'cursor' : pageNum}:${limitNum}:${firstId}:${lastId}:${totalMarker}"`;
+
+        if (res) {
+          res.setHeader('Cache-Control', 'private, max-age=120');
+          res.setHeader('ETag', etag);
+        }
+
+        if (req && req.headers['if-none-match'] === etag && res) {
+          res.status(HttpStatus.NOT_MODIFIED);
+          return;
+        }
+      } catch {
+        // Ignore ETag parsing errors
+      }
+
+      return payload;
     } catch {
       return {
         message: 'No billing history found',
         invoices: [],
+        pagination: {
+          page: 1,
+          limit: parseInt(limit, 10) || 5,
+          total: 0,
+          totalPages: 0,
+        },
       };
     }
   }
@@ -486,7 +665,17 @@ export class BillingController {
         throw new NotFoundException('No billing account found');
       }
 
+      // CRITICAL: Verify the billing account belongs to this organization
+      if (billingAccount.orgId !== orgId) {
+        throw new BadRequestException('Billing account does not belong to this organization');
+      }
+
       const invoice = await this.stripeService.getInvoice(invoiceId);
+
+      // Verify the invoice belongs to this customer
+      if (invoice.customer !== billingAccount.stripeCustomerId) {
+        throw new NotFoundException('Invoice not found');
+      }
 
       if (!invoice.invoice_pdf) {
         throw new BadRequestException('Invoice PDF not available');
@@ -526,6 +715,17 @@ export class BillingController {
       const billingAccount = await this.billingService.getBillingAccount(orgId);
       if (!billingAccount?.stripeCustomerId) {
         throw new NotFoundException('No billing account found');
+      }
+
+      // CRITICAL: Verify the billing account belongs to this organization
+      if (billingAccount.orgId !== orgId) {
+        throw new BadRequestException('Billing account does not belong to this organization');
+      }
+
+      // Verify the invoice belongs to this customer
+      const invoice = await this.stripeService.getInvoice(invoiceId);
+      if (invoice.customer !== billingAccount.stripeCustomerId) {
+        throw new NotFoundException('Invoice not found');
       }
 
       // Attempt to pay the invoice
@@ -570,6 +770,11 @@ export class BillingController {
       const billingAccount = await this.billingService.getBillingAccount(orgId);
       if (!billingAccount?.stripeCustomerId) {
         throw new NotFoundException('No billing account found');
+      }
+
+      // CRITICAL: Verify the billing account belongs to this organization
+      if (billingAccount.orgId !== orgId) {
+        throw new BadRequestException('Billing account does not belong to this organization');
       }
 
       // Attach payment method to customer
@@ -658,6 +863,159 @@ export class BillingController {
       ],
     };
     return featureMap[planKey] || [];
+  }
+
+  @Post('process-pending-invoices')
+  @Roles(OrgRole.owner)
+  @ApiOperation({ summary: 'Process any pending invoices for the organization' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Pending invoices processed',
+  })
+  async processPendingInvoices(
+    @CurrentOrg() orgId: string,
+    @CurrentUser('email') userEmail: string,
+    @CurrentUser('name') userName: string,
+  ) {
+    try {
+      // Initialize billing if it doesn't exist
+      await this.billingService.initializeBillingForOrganization(
+        orgId,
+        userEmail,
+        userName || 'Organization Owner',
+      );
+
+      const billingAccount = await this.billingService.getBillingAccount(orgId);
+      if (!billingAccount?.stripeCustomerId) {
+        throw new NotFoundException('No billing account found');
+      }
+
+      // CRITICAL: Verify the billing account belongs to this organization
+      if (billingAccount.orgId !== orgId) {
+        throw new BadRequestException('Billing account does not belong to this organization');
+      }
+
+      // Get all pending invoice items
+      const pendingItems = await this.stripeService.stripe.invoiceItems.list({
+        customer: billingAccount.stripeCustomerId,
+        pending: true,
+        limit: 100,
+      });
+
+      // Get all draft invoices
+      const draftInvoices = await this.stripeService.stripe.invoices.list({
+        customer: billingAccount.stripeCustomerId,
+        status: 'draft',
+        limit: 10,
+      });
+
+      // Get all open invoices
+      const openInvoices = await this.stripeService.stripe.invoices.list({
+        customer: billingAccount.stripeCustomerId,
+        status: 'open',
+        limit: 10,
+      });
+
+      const processed = {
+        pendingItems: pendingItems.data.length,
+        draftInvoices: [],
+        openInvoices: [],
+        errors: [],
+      };
+
+      // Process draft invoices
+      for (const invoice of draftInvoices.data) {
+        try {
+          if (invoice.amount_due > 0) {
+            // Finalize the invoice
+            const finalized = await this.stripeService.stripe.invoices.finalizeInvoice(invoice.id, {
+              auto_advance: true,
+            });
+
+            processed.draftInvoices.push({
+              id: finalized.id,
+              amount: finalized.amount_due,
+              status: finalized.status,
+            });
+
+            // Try to pay if still open
+            if (finalized.status === 'open' && finalized.amount_due > 0) {
+              try {
+                const paid = await this.stripeService.stripe.invoices.pay(finalized.id);
+                processed.draftInvoices[processed.draftInvoices.length - 1].status = paid.status;
+              } catch (payError) {
+                processed.errors.push({
+                  invoice: finalized.id,
+                  error: payError instanceof Error ? payError.message : 'Payment failed',
+                });
+              }
+            }
+          }
+        } catch (error) {
+          processed.errors.push({
+            invoice: invoice.id,
+            error: error instanceof Error ? error.message : 'Processing failed',
+          });
+        }
+      }
+
+      // Process open invoices
+      for (const invoice of openInvoices.data) {
+        try {
+          // Safely detect if payment_intent exists without relying on Stripe's type expansion
+          const invoiceObj: unknown = invoice as unknown;
+          const hasPaymentIntent =
+            typeof invoiceObj === 'object' &&
+            invoiceObj !== null &&
+            'payment_intent' in invoiceObj &&
+            Boolean((invoiceObj as { payment_intent?: unknown }).payment_intent);
+          if (invoice.amount_due > 0 && !hasPaymentIntent) {
+            const paid = await this.stripeService.stripe.invoices.pay(invoice.id);
+            processed.openInvoices.push({
+              id: paid.id,
+              amount: paid.amount_paid,
+              status: paid.status,
+            });
+          }
+        } catch (error) {
+          processed.errors.push({
+            invoice: invoice.id,
+            error: error instanceof Error ? error.message : 'Payment failed',
+          });
+        }
+      }
+
+      // If there are pending items but no invoices, create one
+      if (pendingItems.data.length > 0 && draftInvoices.data.length === 0) {
+        try {
+          const newInvoice = await this.stripeService.stripe.invoices.create({
+            customer: billingAccount.stripeCustomerId,
+            auto_advance: true,
+          });
+
+          processed.draftInvoices.push({
+            id: newInvoice.id,
+            amount: newInvoice.amount_due,
+            status: newInvoice.status,
+            created: true,
+          });
+        } catch (error) {
+          processed.errors.push({
+            action: 'create_invoice',
+            error: error instanceof Error ? error.message : 'Failed to create invoice',
+          });
+        }
+      }
+
+      return {
+        message: 'Processed pending invoices',
+        processed,
+      };
+    } catch (error) {
+      throw new BadRequestException(
+        `Failed to process pending invoices: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    }
   }
 
   private mapInvoiceStatus(

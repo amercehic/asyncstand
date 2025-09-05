@@ -5,6 +5,7 @@ import { AppModule } from '@/app.module';
 import { OrgMemberStatus } from '@prisma/client';
 
 import { PrismaService } from '@/prisma/prisma.service';
+import { DatabaseHelpers } from '@/test/utils/database-helpers';
 
 // Type for organization response from login endpoint
 type OrganizationResponse = {
@@ -43,20 +44,8 @@ describe('AuthController (e2e)', () => {
 
     prisma = app.get(PrismaService);
 
-    // Clean up any existing test data for this specific test user
-    await prisma.orgMember.deleteMany({ where: { user: { email: testUser.email } } });
-    await prisma.user.deleteMany({ where: { email: testUser.email } });
-    await prisma.organization.deleteMany({ where: { name: 'Test Org' } });
-
-    // Clean up password reset test data
-    await prisma.passwordResetToken.deleteMany({
-      where: { user: { email: passwordResetUser.email } },
-    });
-    await prisma.orgMember.deleteMany({ where: { user: { email: passwordResetUser.email } } });
-    await prisma.user.deleteMany({ where: { email: passwordResetUser.email } });
-
-    // Clean up any existing refresh tokens to avoid unique constraint violations
-    await prisma.refreshToken.deleteMany({});
+    // Clean up database using proper dependency order
+    await DatabaseHelpers.cleanDatabase(prisma);
 
     // Create a test organization
     const org = await prisma.organization.create({
@@ -66,15 +55,8 @@ describe('AuthController (e2e)', () => {
   });
 
   afterAll(async () => {
-    // Clean up only the test data we created
-    if (userId) {
-      await prisma.orgMember.deleteMany({ where: { userId } });
-    }
-    await prisma.user.deleteMany({ where: { email: testUser.email } });
-    await prisma.user.deleteMany({ where: { email: passwordResetUser.email } });
-    if (orgId) {
-      await prisma.organization.deleteMany({ where: { id: orgId } });
-    }
+    // Clean up database using proper dependency order
+    await DatabaseHelpers.cleanDatabase(prisma);
 
     // Close Prisma connection
     await prisma.$disconnect();

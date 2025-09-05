@@ -3,7 +3,8 @@ import { PrismaClient } from '@prisma/client';
 
 // The environment variables should already be loaded when running with pnpm
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-08-27.basil' as any,
+  // Use SDK default API version to avoid invalid custom strings
+  // apiVersion intentionally omitted
 });
 
 const prisma = new PrismaClient();
@@ -78,6 +79,11 @@ async function setupStripeProductsEUR() {
       if (existingProducts.data.length > 0) {
         product = existingProducts.data[0];
         console.log(`  ✓ Found existing product: ${product.id}`);
+        // Reactivate inactive product to allow new subscriptions
+        if (product.active === false) {
+          product = await stripe.products.update(product.id, { active: true });
+          console.log(`  ✓ Reactivated inactive product: ${product.id}`);
+        }
       } else {
         // Create product
         product = await stripe.products.create({
