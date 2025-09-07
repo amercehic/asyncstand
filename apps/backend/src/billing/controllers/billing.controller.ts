@@ -11,11 +11,11 @@ import {
   Query,
   NotFoundException,
   Res,
-  Req,
   BadRequestException,
 } from '@nestjs/common';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import Stripe from 'stripe';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '@/auth/guards/roles.guard';
 import { CurrentOrg } from '@/auth/decorators/current-org.decorator';
@@ -33,7 +33,6 @@ import {
 import { OrgRole } from '@prisma/client';
 import { Audit } from '@/common/audit/audit.decorator';
 import { AuditCategory, AuditSeverity } from '@/common/audit/types';
-import { CacheService } from '@/common/cache/cache.service';
 
 @ApiTags('Billing')
 @ApiBearerAuth('JWT-auth')
@@ -45,7 +44,6 @@ export class BillingController {
     private readonly stripeService: StripeService,
     private readonly downgradeValidation: DowngradeValidationService,
     private readonly prisma: PrismaService,
-    private readonly cacheService: CacheService,
     private readonly logger: LoggerService,
   ) {
     this.logger.setContext(BillingController.name);
@@ -495,7 +493,6 @@ export class BillingController {
     @Query('limit') limit: string = '5',
     @Query('startingAfter') startingAfter?: string,
     @Query('endingBefore') endingBefore?: string,
-    @Req() req?: Request,
     @Res({ passthrough: true }) res?: Response,
   ) {
     try {
@@ -524,41 +521,26 @@ export class BillingController {
         throw new BadRequestException('Billing account does not belong to this organization');
       }
 
-      // Cursor-based path if cursors provided; else use page/limit strategy
+      // Cursor-based path if cursors provided; else use page/limit strategy (no server-side caching)
       const useCursor = Boolean(startingAfter || endingBefore);
-      const cacheKey = useCursor
-        ? this.cacheService.buildKey(
-            'billing-invoices-cursor',
-            orgId,
-            limitNum,
-            startingAfter || 'none',
-            endingBefore || 'none',
-          )
-        : this.cacheService.buildKey('billing-invoices', orgId, pageNum, limitNum);
-
-      const invoicesResult = await this.cacheService.getOrSet(
-        cacheKey,
-        async () => {
-          if (useCursor) {
-            const cursorResult = await this.stripeService.getInvoicesByCursor(
-              billingAccount.stripeCustomerId,
-              limitNum,
-              { startingAfter, endingBefore },
-            );
-            return {
-              invoices: cursorResult.invoices,
-              total: cursorResult.hasMore ? limitNum + 1 : cursorResult.invoices.length,
-            };
-          } else {
-            return this.stripeService.getInvoicesWithPagination(
-              billingAccount.stripeCustomerId,
-              pageNum,
-              limitNum,
-            );
-          }
-        },
-        120,
-      );
+      let invoicesResult: { invoices: Stripe.Invoice[]; total: number };
+      if (useCursor) {
+        const cursorResult = await this.stripeService.getInvoicesByCursor(
+          billingAccount.stripeCustomerId,
+          limitNum,
+          { startingAfter, endingBefore },
+        );
+        invoicesResult = {
+          invoices: cursorResult.invoices,
+          total: cursorResult.hasMore ? limitNum + 1 : cursorResult.invoices.length,
+        };
+      } else {
+        invoicesResult = await this.stripeService.getInvoicesWithPagination(
+          billingAccount.stripeCustomerId,
+          pageNum,
+          limitNum,
+        );
+      }
 
       // Build response payload
       const payload = {
@@ -600,24 +582,9 @@ export class BillingController {
             },
       };
 
-      // Lightweight ETag based on IDs and total
-      try {
-        const firstId = payload.invoices[0]?.id || 'none';
-        const lastId = payload.invoices[payload.invoices.length - 1]?.id || 'none';
-        const totalMarker = useCursor ? payload.invoices.length : payload.pagination?.total || 0;
-        const etag = `W/"${orgId}:${useCursor ? 'cursor' : pageNum}:${limitNum}:${firstId}:${lastId}:${totalMarker}"`;
-
-        if (res) {
-          res.setHeader('Cache-Control', 'private, max-age=120');
-          res.setHeader('ETag', etag);
-        }
-
-        if (req && req.headers['if-none-match'] === etag && res) {
-          res.status(HttpStatus.NOT_MODIFIED);
-          return;
-        }
-      } catch {
-        // Ignore ETag parsing errors
+      // Ensure clients do not cache invoices; always fetch fresh after purchase
+      if (res) {
+        res.setHeader('Cache-Control', 'no-store');
       }
 
       return payload;

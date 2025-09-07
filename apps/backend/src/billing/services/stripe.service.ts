@@ -88,7 +88,6 @@ export class StripeService {
     const subscriptionData: Stripe.SubscriptionCreateParams = {
       customer: customerId,
       items: [{ price: priceId }],
-      payment_behavior: 'default_incomplete',
       payment_settings: {
         save_default_payment_method: 'on_subscription',
         payment_method_types: ['card'],
@@ -98,8 +97,10 @@ export class StripeService {
 
     if (paymentMethodId) {
       subscriptionData.default_payment_method = paymentMethodId;
-      // If we have a payment method, attempt to immediately process payment
-      subscriptionData.payment_behavior = 'allow_incomplete';
+      // Use error_if_incomplete to fail fast if payment can't be processed
+      subscriptionData.payment_behavior = 'error_if_incomplete';
+    } else {
+      subscriptionData.payment_behavior = 'default_incomplete';
     }
 
     const subscription = await this.stripe.subscriptions.create(subscriptionData);
@@ -109,42 +110,6 @@ export class StripeService {
       customerId,
       status: subscription.status,
     });
-
-    // If subscription is incomplete and we have a payment method, try to confirm the payment
-    if (subscription.status === 'incomplete' && paymentMethodId) {
-      const invoice = subscription.latest_invoice as Stripe.Invoice;
-      // Using type assertion as Stripe's Invoice type definition may not include expanded payment_intent
-      const invoiceWithIntent = invoice as Stripe.Invoice & {
-        payment_intent?: Stripe.PaymentIntent;
-      };
-      const paymentIntent = invoiceWithIntent?.payment_intent;
-
-      if (paymentIntent && paymentIntent.status === 'requires_payment_method') {
-        try {
-          // Attach payment method to the payment intent and confirm
-          await this.stripe.paymentIntents.confirm(paymentIntent.id, {
-            payment_method: paymentMethodId,
-          });
-
-          // Retrieve the updated subscription
-          const updatedSubscription = await this.stripe.subscriptions.retrieve(subscription.id, {
-            expand: ['latest_invoice.payment_intent'],
-          });
-
-          this.logger.debug('Payment confirmed for subscription', {
-            subscriptionId: updatedSubscription.id,
-            status: updatedSubscription.status,
-          });
-
-          return updatedSubscription;
-        } catch (error) {
-          this.logger.warn('Failed to confirm payment for subscription', {
-            subscriptionId: subscription.id,
-            error: error instanceof Error ? error.message : 'Unknown error',
-          });
-        }
-      }
-    }
 
     return subscription;
   }

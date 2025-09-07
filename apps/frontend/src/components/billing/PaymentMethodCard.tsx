@@ -81,7 +81,7 @@ export const PaymentMethodCard: React.FC<PaymentMethodCardProps> = ({
     <div ref={cardRef} className="relative group w-full max-w-md mx-auto h-60">
       <motion.div
         className={cn(
-          'relative w-full h-full rounded-2xl p-6 shadow-xl',
+          'relative w-full h-full rounded-2xl p-6 shadow-xl cursor-pointer',
           'bg-gradient-to-br border border-white/20 overflow-hidden transition-all duration-300',
           getCardGradient(brand)
         )}

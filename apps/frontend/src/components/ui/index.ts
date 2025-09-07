@@ -45,6 +45,5 @@ export { FeatureToggle } from '@/components/ui/FeatureToggle';
 export { UsageDisplay } from '@/components/ui/UsageDisplay';
 export { SubscriptionManager } from '@/components/ui/SubscriptionManager';
 export { UsageWarnings } from '@/components/ui/UsageWarnings';
-export { BillingPage } from '@/components/ui/BillingPage';
 export { StripePaymentForm } from '@/components/ui/StripePaymentForm';
 export { DowngradeConfirmationModal } from '@/components/ui/DowngradeConfirmationModal';

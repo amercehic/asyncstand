@@ -46,11 +46,19 @@ export class BillingService {
       return existingAccount;
     }
 
+    // Get organization name for Stripe customer
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: orgId },
+      select: { name: true },
+    });
+
+    const customerName = organization?.name || ownerName || 'Organization';
+
     // Create Stripe customer
     const stripeCustomer = await this.stripeService.createOrGetCustomer(
       orgId,
       ownerEmail,
-      ownerName,
+      customerName,
     );
 
     // Create billing account
@@ -80,13 +88,13 @@ export class BillingService {
   ): Promise<SubscriptionResponseDto> {
     this.logger.debug('Creating subscription', { orgId, planId: createDto.planId });
 
-    // Get billing account
-    const billingAccount = await this.getBillingAccountInternal(orgId);
-
-    // Get the plan - planId is actually the plan key (e.g., "starter", "professional")
-    const plan = await this.prisma.plan.findUnique({
-      where: { key: createDto.planId },
-    });
+    // Run billing account and plan lookup in parallel
+    const [billingAccount, plan] = await Promise.all([
+      this.getBillingAccountInternal(orgId),
+      this.prisma.plan.findUnique({
+        where: { key: createDto.planId },
+      }),
+    ]);
 
     if (!plan) {
       throw new NotFoundException(`Plan ${createDto.planId} not found`);
@@ -154,7 +162,7 @@ export class BillingService {
       });
     }
 
-    return await this.formatSubscriptionResponse(subscription, plan);
+    return await this.formatSubscriptionResponse(subscription, plan, billingAccount);
   }
 
   /**
@@ -179,6 +187,7 @@ export class BillingService {
     return await this.formatSubscriptionResponse(
       billingAccount.subscription,
       billingAccount.subscription.plan,
+      billingAccount,
     );
   }
 
@@ -510,11 +519,14 @@ export class BillingService {
   private async formatSubscriptionResponse(
     subscription: Subscription,
     plan?: Plan,
+    billingAccount?: BillingAccount,
   ): Promise<SubscriptionResponseDto> {
-    // Get the billing account if we need the org ID
-    const billingAccount = await this.prisma.billingAccount.findUnique({
-      where: { id: subscription.billingAccountId },
-    });
+    // Get the billing account if not provided
+    if (!billingAccount) {
+      billingAccount = await this.prisma.billingAccount.findUnique({
+        where: { id: subscription.billingAccountId },
+      });
+    }
 
     // Get the plan if not provided
     if (!plan) {

@@ -515,9 +515,35 @@ export const SettingsPage = React.memo(() => {
         <p className="text-muted-foreground">Manage your organization and account settings</p>
       </div>
 
-      <div className="flex gap-8">
-        {/* Sidebar */}
-        <div className="w-64 flex-shrink-0">
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-8">
+        {/* Mobile Tab Navigation */}
+        <div className="lg:hidden">
+          <nav className="flex overflow-x-auto scrollbar-hide space-x-2 pb-2">
+            {tabs.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => !tab.comingSoon && handleTabChange(tab.id)}
+                disabled={tab.comingSoon}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors min-h-[44px] touch-manipulation ${
+                  activeTab === tab.id
+                    ? 'bg-primary/10 text-primary'
+                    : tab.comingSoon
+                      ? 'text-muted-foreground/50 cursor-not-allowed'
+                      : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                }`}
+              >
+                <tab.icon className="w-4 h-4 flex-shrink-0" />
+                <span>{tab.label}</span>
+                {tab.comingSoon && (
+                  <span className="text-xs bg-muted px-2 py-0.5 rounded">Soon</span>
+                )}
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        {/* Desktop Sidebar */}
+        <div className="hidden lg:block w-64 flex-shrink-0">
           <nav className="space-y-1">
             {tabs.map(tab => (
               <button
@@ -543,7 +569,7 @@ export const SettingsPage = React.memo(() => {
         </div>
 
         {/* Content */}
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <AnimatePresence mode="wait">
             {activeTab === 'organization' && (
               <motion.div
@@ -570,13 +596,13 @@ export const SettingsPage = React.memo(() => {
                             type="text"
                             value={orgName}
                             onChange={e => setOrgName(e.target.value)}
-                            className="flex-1 px-3 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            className="flex-1 px-3 py-3 sm:py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 min-h-[44px] touch-manipulation"
                             placeholder="Enter organization name"
                           />
                           <ModernButton
                             onClick={handleSaveOrgName}
                             disabled={isSaving}
-                            className="gap-2"
+                            className="gap-2 min-h-[44px] touch-manipulation"
                           >
                             {isSaving ? (
                               <Loader2 className="w-4 h-4 animate-spin" />
@@ -591,6 +617,7 @@ export const SettingsPage = React.memo(() => {
                               setIsEditingOrg(false);
                               setOrgName(organization?.name || '');
                             }}
+                            className="min-h-[44px] touch-manipulation"
                           >
                             <X className="w-4 h-4" />
                           </ModernButton>
@@ -1514,7 +1541,7 @@ export const SettingsPage = React.memo(() => {
                                   onClick={() => navigate('/upgrade-plan')}
                                 >
                                   <ArrowUp className="w-4 h-4" />
-                                  Upgrade from Free Plan
+                                  Upgrade to Starter Plan
                                 </ModernButton>
                               );
                             }

@@ -10,6 +10,7 @@ import {
   Lock,
   AlertCircle,
   Calendar,
+  RefreshCw,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ModernButton, toast } from '@/components/ui';
@@ -42,7 +43,11 @@ export const UpgradePaymentModal: React.FC<UpgradePaymentModalProps> = ({
   const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string>('');
   const [showAddPaymentModal, setShowAddPaymentModal] = useState(false);
 
-  const { data: paymentMethods, refetch: refetchPaymentMethods } = usePaymentMethods();
+  const {
+    data: paymentMethods,
+    refetch: refetchPaymentMethods,
+    isFetching: isPaymentMethodsLoading,
+  } = usePaymentMethods();
   const { data: subscriptionData } = useBillingSubscription();
   const createSubscription = useCreateSubscription();
   const updateSubscription = useUpdateSubscription();
@@ -89,6 +94,34 @@ export const UpgradePaymentModal: React.FC<UpgradePaymentModalProps> = ({
       }
     }
   }, [paymentMethods]);
+
+  // Handle Esc key and prevent body scroll
+  React.useEffect(() => {
+    if (!isOpen) return;
+
+    // Prevent body scroll
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    // Handle Esc key
+    const handleEsc = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleEsc);
+
+    return () => {
+      // Restore body scroll - remove the style attribute entirely to reset to default
+      if (originalOverflow) {
+        document.body.style.overflow = originalOverflow;
+      } else {
+        document.body.style.removeProperty('overflow');
+      }
+      document.removeEventListener('keydown', handleEsc);
+    };
+  }, [isOpen, onClose]);
 
   const handleNext = () => {
     if (currentStep === 'select-payment') {
@@ -148,14 +181,15 @@ export const UpgradePaymentModal: React.FC<UpgradePaymentModalProps> = ({
     }
   };
 
-  const isLoading = createSubscription.isPending || updateSubscription.isPending;
+  const isLoading =
+    createSubscription.isPending || updateSubscription.isPending || isPaymentMethodsLoading;
 
   if (!isOpen) return null;
 
   return (
     <>
       <AnimatePresence>
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -236,7 +270,29 @@ export const UpgradePaymentModal: React.FC<UpgradePaymentModalProps> = ({
                   <div>
                     <h3 className="text-lg font-semibold mb-4">Payment Method</h3>
 
-                    {paymentMethods && paymentMethods.length > 0 ? (
+                    {isPaymentMethodsLoading ? (
+                      <div className="space-y-3">
+                        {/* Loading skeletons */}
+                        {[1, 2].map(i => (
+                          <div key={i} className="border border-border rounded-xl p-4">
+                            <div className="flex items-center gap-4 animate-pulse">
+                              <div className="w-5 h-5 rounded-full bg-muted"></div>
+                              <div className="w-8 h-8 rounded bg-muted"></div>
+                              <div className="flex-1">
+                                <div className="h-4 bg-muted rounded w-32 mb-2"></div>
+                                <div className="h-3 bg-muted rounded w-24"></div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        <div className="flex items-center justify-center py-4">
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                            Loading payment methods...
+                          </div>
+                        </div>
+                      </div>
+                    ) : paymentMethods && paymentMethods.length > 0 ? (
                       <div className="space-y-3">
                         {paymentMethods.map(method => (
                           <motion.div
@@ -475,9 +531,14 @@ export const UpgradePaymentModal: React.FC<UpgradePaymentModalProps> = ({
             <div className="flex items-center justify-between p-6 border-t border-border bg-card">
               <div className="text-sm text-muted-foreground">
                 {currentStep === 'select-payment' &&
+                  isPaymentMethodsLoading &&
+                  'Loading payment methods...'}
+                {currentStep === 'select-payment' &&
+                  !isPaymentMethodsLoading &&
                   (!paymentMethods || paymentMethods.length === 0) &&
                   'Add a payment method to continue'}
                 {currentStep === 'select-payment' &&
+                  !isPaymentMethodsLoading &&
                   paymentMethods &&
                   paymentMethods.length > 0 &&
                   `${paymentMethods.length} payment method${paymentMethods.length > 1 ? 's' : ''} available`}
@@ -492,11 +553,14 @@ export const UpgradePaymentModal: React.FC<UpgradePaymentModalProps> = ({
                 {currentStep === 'select-payment' && (
                   <ModernButton
                     onClick={handleNext}
-                    disabled={!paymentMethods?.length || !selectedPaymentMethodId}
+                    disabled={
+                      isPaymentMethodsLoading || !paymentMethods?.length || !selectedPaymentMethodId
+                    }
+                    isLoading={isPaymentMethodsLoading}
                     className="gap-2"
                   >
-                    Continue
-                    <ArrowRight className="w-4 h-4" />
+                    {isPaymentMethodsLoading ? 'Loading...' : 'Continue'}
+                    {!isPaymentMethodsLoading && <ArrowRight className="w-4 h-4" />}
                   </ModernButton>
                 )}
 

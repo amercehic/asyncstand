@@ -97,11 +97,6 @@ const ForgotPasswordPage = React.lazy(() =>
     default: module.ForgotPasswordPage,
   }))
 );
-// const BillingPage = React.lazy(() =>
-//   import(/* webpackChunkName: "billing" */ '@/pages/BillingPage').then(module => ({
-//     default: module.BillingPage,
-//   }))
-// );
 const ResetPasswordPage = React.lazy(() =>
   import(/* webpackChunkName: "auth" */ '@/pages/ResetPasswordPage').then(module => ({
     default: module.ResetPasswordPage,

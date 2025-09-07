@@ -80,9 +80,15 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
         fontSize: '16px',
         color: 'hsl(var(--foreground))',
         fontFamily: 'system-ui, -apple-system, sans-serif',
+        lineHeight: '24px',
         '::placeholder': {
-          color: 'hsl(var(--muted-foreground))',
+          color: '#9ca3af', // More muted placeholder color
+          opacity: '0.7',
         },
+      },
+      empty: {
+        color: '#9ca3af', // Muted color for empty state
+        opacity: '0.7',
       },
       invalid: {
         color: 'hsl(var(--destructive))',
@@ -142,6 +148,34 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
       });
     }
   }, [isOpen, reset]);
+
+  // Handle Esc key and prevent body scroll
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // Prevent body scroll
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    // Handle Esc key
+    const handleEsc = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleEsc);
+
+    return () => {
+      // Restore body scroll - remove the style attribute entirely to reset to default
+      if (originalOverflow) {
+        document.body.style.overflow = originalOverflow;
+      } else {
+        document.body.style.removeProperty('overflow');
+      }
+      document.removeEventListener('keydown', handleEsc);
+    };
+  }, [isOpen, onClose]);
 
   const handleNext = () => {
     if (currentStep < steps.length) {
@@ -240,7 +274,7 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
         {/* Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -255,7 +289,7 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative w-full max-w-4xl bg-card rounded-2xl shadow-2xl overflow-hidden"
+          className="relative w-full max-w-4xl mx-4 sm:mx-0 max-h-[90vh] bg-card rounded-2xl shadow-2xl overflow-hidden flex flex-col"
         >
           {/* Header */}
           <div className="bg-gradient-to-r from-primary/10 to-primary/5 border-b border-border p-6">
@@ -276,21 +310,21 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
                   <div className="flex items-center">
                     <div
                       className={cn(
-                        'w-10 h-10 rounded-full flex items-center justify-center transition-colors',
+                        'w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-colors touch-manipulation',
                         currentStep >= step.id
                           ? 'bg-primary text-primary-foreground'
                           : 'bg-accent text-muted-foreground'
                       )}
                     >
                       {currentStep > step.id ? (
-                        <Check className="w-5 h-5" />
+                        <Check className="w-4 h-4 sm:w-5 sm:h-5" />
                       ) : (
-                        <step.icon className="w-5 h-5" />
+                        <step.icon className="w-4 h-4 sm:w-5 sm:h-5" />
                       )}
                     </div>
                     <span
                       className={cn(
-                        'ml-3 text-sm font-medium',
+                        'ml-2 sm:ml-3 text-xs sm:text-sm font-medium hidden sm:inline',
                         currentStep >= step.id ? 'text-foreground' : 'text-muted-foreground'
                       )}
                     >
@@ -300,7 +334,7 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
                   {idx < steps.length - 1 && (
                     <div
                       className={cn(
-                        'flex-1 h-0.5 mx-4 transition-colors',
+                        'flex-1 h-0.5 mx-2 sm:mx-4 transition-colors',
                         currentStep > step.id ? 'bg-primary' : 'bg-border'
                       )}
                     />
@@ -308,376 +342,403 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
                 </div>
               ))}
             </div>
+
+            {/* Mobile step indicator */}
+            <div className="block sm:hidden mt-3 text-center">
+              <span className="text-sm font-medium text-muted-foreground">
+                Step {currentStep} of {steps.length}: {steps[currentStep - 1]?.title}
+              </span>
+            </div>
           </div>
 
           {/* Content */}
-          <form onSubmit={handleSubmit(onSubmit)} className="p-6">
-            <div className="grid lg:grid-cols-2 gap-6">
-              {/* Form Fields */}
-              <div className="space-y-4">
-                {/* Hidden Stripe Elements - Keep mounted throughout entire process */}
-                <div className={cn('space-y-4', currentStep !== 1 && 'hidden')}>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Card Number</label>
-                    <div className="w-full px-4 py-2 bg-background border border-border rounded-lg focus-within:ring-2 focus-within:ring-primary">
-                      <CardNumberElement
-                        options={elementOptions}
-                        onChange={event => {
-                          if (event.brand) {
-                            setCardType(
-                              event.brand as 'visa' | 'mastercard' | 'amex' | 'discover' | 'unknown'
-                            );
-                          }
-                          if (event.complete) {
-                            setCardDisplay(prev => ({
-                              ...prev,
-                              brand: event.brand || '',
-                            }));
-                          }
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Cardholder Name</label>
-                    <Controller
-                      name="cardHolder"
-                      control={control}
-                      rules={{ required: 'Cardholder name is required' }}
-                      render={({ field }) => (
-                        <input
-                          {...field}
-                          type="text"
-                          placeholder="JOHN DOE"
-                          className={cn(
-                            'w-full px-4 py-2 bg-background border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary uppercase',
-                            errors.cardHolder ? 'border-destructive' : 'border-border'
-                          )}
-                        />
-                      )}
-                    />
-                    {errors.cardHolder && (
-                      <p className="text-destructive text-sm mt-1">{errors.cardHolder.message}</p>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="flex-1 overflow-hidden flex flex-col">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+              <div className="grid lg:grid-cols-2 gap-6">
+                {/* Form Fields */}
+                <div className="space-y-4">
+                  {/* Hidden Stripe Elements - Keep mounted throughout entire process */}
+                  <div className={cn('space-y-4', currentStep !== 1 && 'hidden')}>
                     <div>
-                      <label className="block text-sm font-medium mb-2">Expiry Date</label>
-                      <div className="w-full px-4 py-2 bg-background border border-border rounded-lg focus-within:ring-2 focus-within:ring-primary">
-                        <CardExpiryElement
-                          options={elementOptions}
-                          onChange={event => {
-                            // Stripe Elements don't expose the actual values for security
-                            // We'll get the values from the payment method after creation
-                            if (event.complete) {
-                              setCardDisplay(prev => ({
-                                ...prev,
-                                expMonth: 'MM',
-                                expYear: 'YY',
-                              }));
-                            }
-                          }}
-                        />
+                      <label className="block text-sm font-medium mb-2">Card Number</label>
+                      <div className="w-full px-4 py-3 sm:py-2 bg-background border border-border rounded-lg focus-within:ring-2 focus-within:ring-primary min-h-[44px] touch-manipulation flex items-center">
+                        <div className="w-full">
+                          <CardNumberElement
+                            options={elementOptions}
+                            onChange={event => {
+                              if (event.brand) {
+                                setCardType(
+                                  event.brand as
+                                    | 'visa'
+                                    | 'mastercard'
+                                    | 'amex'
+                                    | 'discover'
+                                    | 'unknown'
+                                );
+                              }
+                              if (event.complete) {
+                                setCardDisplay(prev => ({
+                                  ...prev,
+                                  brand: event.brand || '',
+                                }));
+                              }
+                            }}
+                          />
+                        </div>
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">CVV</label>
-                      <div className="w-full px-4 py-2 bg-background border border-border rounded-lg focus-within:ring-2 focus-within:ring-primary">
-                        <CardCvcElement
-                          options={elementOptions}
-                          onFocus={() => setIsCardFlipped(true)}
-                          onBlur={() => setIsCardFlipped(false)}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {currentStep === 2 && (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Address Line 1</label>
+                      <label className="block text-sm font-medium mb-2">Cardholder Name</label>
                       <Controller
-                        name="addressLine1"
+                        name="cardHolder"
                         control={control}
-                        rules={{ required: 'Address is required' }}
+                        rules={{ required: 'Cardholder name is required' }}
                         render={({ field }) => (
                           <input
                             {...field}
                             type="text"
-                            placeholder="123 Main St"
+                            placeholder="JOHN DOE"
                             className={cn(
-                              'w-full px-4 py-2 bg-background border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary',
-                              errors.addressLine1 ? 'border-destructive' : 'border-border'
+                              'w-full px-4 py-3 sm:py-2 bg-background border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary uppercase min-h-[44px] touch-manipulation placeholder:text-muted-foreground placeholder:opacity-70',
+                              errors.cardHolder ? 'border-destructive' : 'border-border'
                             )}
                           />
                         )}
                       />
-                      {errors.addressLine1 && (
-                        <p className="text-destructive text-sm mt-1">
-                          {errors.addressLine1.message}
-                        </p>
+                      {errors.cardHolder && (
+                        <p className="text-destructive text-sm mt-1">{errors.cardHolder.message}</p>
                       )}
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium mb-2">
-                        Address Line 2 (Optional)
-                      </label>
-                      <Controller
-                        name="addressLine2"
-                        control={control}
-                        render={({ field }) => (
-                          <input
-                            {...field}
-                            type="text"
-                            placeholder="Apt 4B"
-                            className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                          />
-                        )}
-                      />
-                    </div>
-
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium mb-2">City</label>
-                        <Controller
-                          name="city"
-                          control={control}
-                          rules={{ required: 'City is required' }}
-                          render={({ field }) => (
-                            <input
-                              {...field}
-                              type="text"
-                              placeholder="New York"
-                              className={cn(
-                                'w-full px-4 py-2 bg-background border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary',
-                                errors.city ? 'border-destructive' : 'border-border'
-                              )}
+                        <label className="block text-sm font-medium mb-2">Expiry Date</label>
+                        <div className="w-full px-4 py-3 sm:py-2 bg-background border border-border rounded-lg focus-within:ring-2 focus-within:ring-primary min-h-[44px] touch-manipulation flex items-center">
+                          <div className="w-full">
+                            <CardExpiryElement
+                              options={elementOptions}
+                              onChange={event => {
+                                // Stripe Elements don't expose the actual values for security
+                                // We'll get the values from the payment method after creation
+                                if (event.complete) {
+                                  setCardDisplay(prev => ({
+                                    ...prev,
+                                    expMonth: 'MM',
+                                    expYear: 'YY',
+                                  }));
+                                }
+                              }}
                             />
-                          )}
-                        />
-                        {errors.city && (
-                          <p className="text-destructive text-sm mt-1">{errors.city.message}</p>
-                        )}
+                          </div>
+                        </div>
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium mb-2">State</label>
-                        <Controller
-                          name="state"
-                          control={control}
-                          rules={{ required: 'State is required' }}
-                          render={({ field }) => (
-                            <input
-                              {...field}
-                              type="text"
-                              placeholder="NY"
-                              maxLength={2}
-                              className={cn(
-                                'w-full px-4 py-2 bg-background border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary uppercase',
-                                errors.state ? 'border-destructive' : 'border-border'
-                              )}
+                        <label className="block text-sm font-medium mb-2">CVV</label>
+                        <div className="w-full px-4 py-3 sm:py-2 bg-background border border-border rounded-lg focus-within:ring-2 focus-within:ring-primary min-h-[44px] touch-manipulation flex items-center">
+                          <div className="w-full">
+                            <CardCvcElement
+                              options={elementOptions}
+                              onFocus={() => setIsCardFlipped(true)}
+                              onBlur={() => setIsCardFlipped(false)}
                             />
-                          )}
-                        />
-                        {errors.state && (
-                          <p className="text-destructive text-sm mt-1">{errors.state.message}</p>
-                        )}
+                          </div>
+                        </div>
                       </div>
                     </div>
+                  </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                  {currentStep === 2 && (
+                    <>
                       <div>
-                        <label className="block text-sm font-medium mb-2">ZIP Code</label>
+                        <label className="block text-sm font-medium mb-2">Address Line 1</label>
                         <Controller
-                          name="postalCode"
+                          name="addressLine1"
                           control={control}
-                          rules={{ required: 'ZIP code is required' }}
+                          rules={{ required: 'Address is required' }}
                           render={({ field }) => (
                             <input
                               {...field}
                               type="text"
-                              placeholder="10001"
-                              maxLength={10}
+                              placeholder="123 Main St"
                               className={cn(
-                                'w-full px-4 py-2 bg-background border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary',
-                                errors.postalCode ? 'border-destructive' : 'border-border'
+                                'w-full px-4 py-2 bg-background border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-muted-foreground placeholder:opacity-70',
+                                errors.addressLine1 ? 'border-destructive' : 'border-border'
                               )}
                             />
                           )}
                         />
-                        {errors.postalCode && (
+                        {errors.addressLine1 && (
                           <p className="text-destructive text-sm mt-1">
-                            {errors.postalCode.message}
+                            {errors.addressLine1.message}
                           </p>
                         )}
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium mb-2">Country</label>
+                        <label className="block text-sm font-medium mb-2">
+                          Address Line 2 (Optional)
+                        </label>
                         <Controller
-                          name="country"
+                          name="addressLine2"
                           control={control}
                           render={({ field }) => (
-                            <select
+                            <input
                               {...field}
-                              className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                            >
-                              <option value="US">United States</option>
-                              <option value="CA">Canada</option>
-                              <option value="GB">United Kingdom</option>
-                              <option value="AU">Australia</option>
-                            </select>
+                              type="text"
+                              placeholder="Apt 4B"
+                              className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-muted-foreground placeholder:opacity-70"
+                            />
                           )}
                         />
                       </div>
-                    </div>
-                  </>
-                )}
 
-                {currentStep === 3 && (
-                  <div className="space-y-4">
-                    <div className="bg-accent/50 rounded-lg p-4 space-y-3">
-                      <h4 className="font-medium">Payment Summary</h4>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Card</span>
-                          <span>•••• {cardDisplay.last4 || '••••'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Name</span>
-                          <span>{watchedFields.cardHolder || 'Not entered'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Expires</span>
-                          <span>
-                            {cardDisplay.expMonth && cardDisplay.expYear
-                              ? `${cardDisplay.expMonth}/${cardDisplay.expYear}`
-                              : 'Not entered'}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Billing Address</span>
-                          <span className="text-right">
-                            {watchedFields.addressLine1 || 'Not entered'}
-                            {watchedFields.addressLine2 && `, ${watchedFields.addressLine2}`}
-                            <br />
-                            {watchedFields.city || 'Not entered'},{' '}
-                            {watchedFields.state || 'Not entered'}{' '}
-                            {watchedFields.postalCode || 'Not entered'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 flex items-start gap-3">
-                      <Lock className="w-5 h-5 text-primary mt-0.5" />
-                      <div className="text-sm">
-                        <p className="font-medium mb-1">Secure Payment</p>
-                        <p className="text-muted-foreground">
-                          Your payment information is encrypted and secure. We never store your full
-                          card details.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <Controller
-                        name="saveAsDefault"
-                        control={control}
-                        render={({ field: { onChange, value, ...field } }) => (
-                          <input
-                            {...field}
-                            type="checkbox"
-                            id="saveAsDefault"
-                            checked={value}
-                            onChange={onChange}
-                            className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary focus:ring-2"
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-2">City</label>
+                          <Controller
+                            name="city"
+                            control={control}
+                            rules={{ required: 'City is required' }}
+                            render={({ field }) => (
+                              <input
+                                {...field}
+                                type="text"
+                                placeholder="New York"
+                                className={cn(
+                                  'w-full px-4 py-2 bg-background border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-muted-foreground placeholder:opacity-70',
+                                  errors.city ? 'border-destructive' : 'border-border'
+                                )}
+                              />
+                            )}
                           />
-                        )}
-                      />
-                      <label htmlFor="saveAsDefault" className="text-sm">
-                        Set as default payment method
-                      </label>
-                    </div>
-                  </div>
-                )}
-              </div>
+                          {errors.city && (
+                            <p className="text-destructive text-sm mt-1">{errors.city.message}</p>
+                          )}
+                        </div>
 
-              {/* Card Preview */}
-              <div className="lg:sticky lg:top-6">
-                <InteractiveCreditCard
-                  cardNumber={cardDisplay.last4 ? `•••• •••• •••• ${cardDisplay.last4}` : ''}
-                  cardHolder={watchedFields.cardHolder || ''}
-                  expiryMonth={cardDisplay.expMonth || ''}
-                  expiryYear={cardDisplay.expYear || ''}
-                  cvv={''}
-                  isFlipped={isCardFlipped}
-                  cardType={cardType}
-                />
+                        <div>
+                          <label className="block text-sm font-medium mb-2">State</label>
+                          <Controller
+                            name="state"
+                            control={control}
+                            rules={{ required: 'State is required' }}
+                            render={({ field }) => (
+                              <input
+                                {...field}
+                                type="text"
+                                placeholder="NY"
+                                maxLength={2}
+                                className={cn(
+                                  'w-full px-4 py-2 bg-background border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary uppercase placeholder:text-muted-foreground placeholder:opacity-70',
+                                  errors.state ? 'border-destructive' : 'border-border'
+                                )}
+                              />
+                            )}
+                          />
+                          {errors.state && (
+                            <p className="text-destructive text-sm mt-1">{errors.state.message}</p>
+                          )}
+                        </div>
+                      </div>
 
-                {currentStep === 1 && (
-                  <div className="mt-6 space-y-3">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Lock className="w-4 h-4" />
-                      <span>Your payment information is secure</span>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-2">ZIP Code</label>
+                          <Controller
+                            name="postalCode"
+                            control={control}
+                            rules={{ required: 'ZIP code is required' }}
+                            render={({ field }) => (
+                              <input
+                                {...field}
+                                type="text"
+                                placeholder="10001"
+                                maxLength={10}
+                                className={cn(
+                                  'w-full px-4 py-2 bg-background border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-muted-foreground placeholder:opacity-70',
+                                  errors.postalCode ? 'border-destructive' : 'border-border'
+                                )}
+                              />
+                            )}
+                          />
+                          {errors.postalCode && (
+                            <p className="text-destructive text-sm mt-1">
+                              {errors.postalCode.message}
+                            </p>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Country</label>
+                          <Controller
+                            name="country"
+                            control={control}
+                            render={({ field }) => (
+                              <select
+                                {...field}
+                                className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                              >
+                                <option value="US">United States</option>
+                                <option value="CA">Canada</option>
+                                <option value="GB">United Kingdom</option>
+                                <option value="AU">Australia</option>
+                              </select>
+                            )}
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {currentStep === 3 && (
+                    <div className="space-y-4">
+                      <div className="bg-accent/50 rounded-lg p-4 space-y-3">
+                        <h4 className="font-medium">Payment Summary</h4>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Card</span>
+                            <span>•••• {cardDisplay.last4 || '••••'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Name</span>
+                            <span>{watchedFields.cardHolder || 'Not entered'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Expires</span>
+                            <span>
+                              {cardDisplay.expMonth && cardDisplay.expYear
+                                ? `${cardDisplay.expMonth}/${cardDisplay.expYear}`
+                                : 'Not entered'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Billing Address</span>
+                            <span className="text-right">
+                              {watchedFields.addressLine1 || 'Not entered'}
+                              {watchedFields.addressLine2 && `, ${watchedFields.addressLine2}`}
+                              <br />
+                              {watchedFields.city || 'Not entered'},{' '}
+                              {watchedFields.state || 'Not entered'}{' '}
+                              {watchedFields.postalCode || 'Not entered'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 flex items-start gap-3">
+                        <Lock className="w-5 h-5 text-primary mt-0.5" />
+                        <div className="text-sm">
+                          <p className="font-medium mb-1">Secure Payment</p>
+                          <p className="text-muted-foreground">
+                            Your payment information is encrypted and secure. We never store your
+                            full card details.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Controller
+                          name="saveAsDefault"
+                          control={control}
+                          render={({ field: { onChange, value, ...field } }) => (
+                            <input
+                              {...field}
+                              type="checkbox"
+                              id="saveAsDefault"
+                              checked={value}
+                              onChange={onChange}
+                              className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary focus:ring-2"
+                            />
+                          )}
+                        />
+                        <label htmlFor="saveAsDefault" className="text-sm">
+                          Set as default payment method
+                        </label>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <AlertCircle className="w-4 h-4" />
-                      <span>We accept all major credit cards</span>
-                    </div>
+                  )}
+                </div>
+
+                {/* Card Preview */}
+                <div className="order-first lg:order-last lg:sticky lg:top-6">
+                  <div className="mx-auto max-w-sm lg:max-w-none">
+                    <InteractiveCreditCard
+                      cardNumber={cardDisplay.last4 ? `•••• •••• •••• ${cardDisplay.last4}` : ''}
+                      cardHolder={watchedFields.cardHolder || ''}
+                      expiryMonth={cardDisplay.expMonth || ''}
+                      expiryYear={cardDisplay.expYear || ''}
+                      cvv={''}
+                      isFlipped={isCardFlipped}
+                      cardType={cardType}
+                    />
+
+                    {currentStep === 1 && (
+                      <div className="mt-4 sm:mt-6 space-y-2 sm:space-y-3">
+                        <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
+                          <Lock className="w-4 h-4" />
+                          <span>Your payment information is secure</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
+                          <AlertCircle className="w-4 h-4" />
+                          <span>We accept all major credit cards</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
             </div>
 
             {/* Footer Actions */}
-            <div className="flex items-center justify-between mt-8 pt-6 border-t border-border">
-              <div>
-                {currentStep > 1 && (
+            <div className="border-t border-border p-4 sm:p-6 bg-card">
+              <div className="flex flex-col-reverse sm:flex-row items-center justify-between gap-3 sm:gap-0">
+                <div>
+                  {currentStep > 1 && (
+                    <ModernButton
+                      type="button"
+                      variant="secondary"
+                      onClick={handlePrevious}
+                      disabled={isSubmitting || addPaymentMethodMutation.isPending}
+                      className="w-full sm:w-auto min-h-[44px] touch-manipulation"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                      Previous
+                    </ModernButton>
+                  )}
+                </div>
+
+                <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2 sm:gap-3">
                   <ModernButton
                     type="button"
                     variant="secondary"
-                    onClick={handlePrevious}
+                    onClick={onClose}
                     disabled={isSubmitting || addPaymentMethodMutation.isPending}
+                    className="w-full sm:w-auto min-h-[44px] touch-manipulation order-2 sm:order-1"
                   >
-                    <ArrowLeft className="w-4 h-4" />
-                    Previous
+                    Cancel
                   </ModernButton>
-                )}
-              </div>
-
-              <div className="flex gap-3">
-                <ModernButton
-                  type="button"
-                  variant="secondary"
-                  onClick={onClose}
-                  disabled={isSubmitting || addPaymentMethodMutation.isPending}
-                >
-                  Cancel
-                </ModernButton>
-                <ModernButton
-                  type="submit"
-                  variant="primary"
-                  isLoading={isSubmitting || addPaymentMethodMutation.isPending}
-                  disabled={isSubmitting || addPaymentMethodMutation.isPending}
-                >
-                  {currentStep === steps.length ? (
-                    <>
-                      <Lock className="w-4 h-4" />
-                      Add Payment Method
-                    </>
-                  ) : (
-                    <>
-                      Next
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
-                </ModernButton>
+                  <ModernButton
+                    type="submit"
+                    variant="primary"
+                    isLoading={isSubmitting || addPaymentMethodMutation.isPending}
+                    disabled={isSubmitting || addPaymentMethodMutation.isPending}
+                    className="w-full sm:w-auto min-h-[44px] touch-manipulation order-1 sm:order-2"
+                  >
+                    {currentStep === steps.length ? (
+                      <>
+                        <Lock className="w-4 h-4" />
+                        Add Payment Method
+                      </>
+                    ) : (
+                      <>
+                        Next
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </ModernButton>
+                </div>
               </div>
             </div>
           </form>
