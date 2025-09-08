@@ -13,6 +13,15 @@ export function useDebounce<T extends unknown[]>(
 ): (...args: T) => void {
   const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
+  // Cleanup timeout on unmount
+  React.useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
   return useCallback(
     (...args: T) => {
       clearTimeout(timeoutRef.current);
