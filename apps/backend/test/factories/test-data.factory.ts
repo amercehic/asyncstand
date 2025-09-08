@@ -47,7 +47,8 @@ export class TestDataFactory {
       role?: 'owner' | 'admin' | 'member';
     } = {},
   ): Promise<TestUser> {
-    const email = options.email || this.isolation.generateEmail();
+    const email =
+      options.email || this.isolation.generateEmail(`user-${Date.now()}-${Math.random()}`);
     const name = options.name || this.isolation.prefix('Test User');
     const password = options.password || 'TestPassword123!';
     const passwordHash = await hash(password);
@@ -116,7 +117,8 @@ export class TestDataFactory {
 
     // Create owner user
     const owner = await this.createUser({
-      email: options.ownerEmail || this.isolation.generateEmail('owner'),
+      email:
+        options.ownerEmail || this.isolation.generateEmail(`owner-${Date.now()}-${Math.random()}`),
       name: this.isolation.prefix('Owner'),
       password: options.ownerPassword || 'OwnerPassword123!',
       orgId: org.id,
@@ -145,14 +147,14 @@ export class TestDataFactory {
     const { org, owner } = await this.createOrganization();
 
     const admin = await this.createUser({
-      email: this.isolation.generateEmail('admin'),
+      email: this.isolation.generateEmail(`admin-${Date.now()}-${Math.random()}`),
       name: this.isolation.prefix('Admin User'),
       orgId: org.id,
       role: 'admin',
     });
 
     const member = await this.createUser({
-      email: this.isolation.generateEmail('member'),
+      email: this.isolation.generateEmail(`member-${Date.now()}-${Math.random()}`),
       name: this.isolation.prefix('Member User'),
       orgId: org.id,
       role: 'member',
@@ -232,7 +234,8 @@ export class TestDataFactory {
         externalUserId: options.externalUserId || this.isolation.generateExternalId('U'),
         name: options.name || this.isolation.prefix('Slack User'),
         displayName: this.isolation.prefix('slack-user'),
-        email: options.email || this.isolation.generateEmail('slack'),
+        email:
+          options.email || this.isolation.generateEmail(`slack-${Date.now()}-${Math.random()}`),
         isBot: false,
         isDeleted: false,
         profileImage: 'https://example.com/avatar.jpg',
@@ -258,7 +261,10 @@ export class TestDataFactory {
       data: {
         orgId,
         integrationId,
-        name: options.name || this.isolation.generateTeamName(),
+        name:
+          options.name ||
+          this.isolation.generateTeamName() +
+            `-${Date.now()}-${Math.random().toString(36).slice(2)}`,
         timezone: options.timezone || 'America/New_York',
         createdByUserId,
       },
@@ -310,6 +316,87 @@ export class TestDataFactory {
       sub: userId,
       email,
       orgId,
+    });
+  }
+
+  /**
+   * Create an org member directly
+   */
+  async createOrgMember(options: {
+    orgId: string;
+    role?: 'owner' | 'admin' | 'member';
+    email?: string;
+    name?: string;
+  }) {
+    const user = await this.createUser({
+      email:
+        options.email || this.isolation.generateEmail(`org-member-${Date.now()}-${Math.random()}`), // Ensure unique email
+      name: options.name,
+      orgId: options.orgId,
+      role: options.role || 'member',
+    });
+
+    const orgMember = await this.prisma.orgMember.findFirst({
+      where: {
+        userId: user.id,
+        orgId: options.orgId,
+      },
+    });
+
+    if (!orgMember) {
+      throw new Error('Failed to create org member');
+    }
+
+    return {
+      ...orgMember,
+      userId: user.id,
+      user,
+    };
+  }
+
+  /**
+   * Create a billing account
+   */
+  async createBillingAccount(options: {
+    orgId: string;
+    stripeCustomerId?: string;
+    billingEmail?: string;
+  }) {
+    return this.prisma.billingAccount.create({
+      data: {
+        orgId: options.orgId,
+        stripeCustomerId: options.stripeCustomerId || this.isolation.prefix('cus_test'),
+        billingEmail:
+          options.billingEmail ||
+          this.isolation.generateEmail(`billing-${Date.now()}-${Math.random()}`),
+        defaultPaymentMethod: null,
+        taxId: null,
+        country: null,
+      },
+    });
+  }
+
+  /**
+   * Create a simple team for billing tests with minimal integration setup
+   */
+  async createSimpleTeam(options: { orgId: string; name?: string; createdByUserId?: string }) {
+    // Create a dummy user if not provided, ensuring unique email
+    let createdByUserId = options.createdByUserId;
+    if (!createdByUserId) {
+      const dummyUser = await this.createUser({
+        orgId: options.orgId,
+        email: this.isolation.generateEmail(`team-creator-${Date.now()}-${Math.random()}`), // Ensure unique email
+      });
+      createdByUserId = dummyUser.id;
+    }
+
+    // Create a minimal integration for the team (teams require integrations)
+    const integration = await this.createSlackIntegration(options.orgId, createdByUserId);
+
+    return this.createTeam(options.orgId, integration.id, createdByUserId, {
+      name:
+        options.name ||
+        this.isolation.prefix(`Test Team ${Date.now()}-${Math.random().toString(36).slice(2)}`),
     });
   }
 }
