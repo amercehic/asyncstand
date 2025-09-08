@@ -171,6 +171,19 @@ export class DataIsolation {
         await tx.organization.deleteMany({
           where: { name: { contains: this.testId } },
         });
+
+        // Clean up billing-related tables
+        await tx.subscription.deleteMany({
+          where: { plan: { key: { contains: this.testId } } },
+        });
+
+        await tx.planFeature.deleteMany({
+          where: { plan: { key: { contains: this.testId } } },
+        });
+
+        await tx.plan.deleteMany({
+          where: { key: { contains: this.testId } },
+        });
       });
     } catch (error) {
       console.warn(`Cleanup failed for test ${this.testId}:`, error);

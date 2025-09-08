@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, ControllerRenderProps } from 'react-hook-form';
 import { loadStripe } from '@stripe/stripe-js';
 import {
   Elements,
@@ -24,6 +24,7 @@ import { ModernButton } from '@/components/ui';
 import { InteractiveCreditCard } from '@/components/billing/InteractiveCreditCard';
 import { cn } from '@/components/ui/utils';
 import { useAddPaymentMethod } from '@/hooks/useBillingData';
+import { getCountriesWithPopularFirst } from '@/utils/countries';
 
 // Initialize Stripe
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '');
@@ -43,6 +44,12 @@ interface PaymentFormData {
   postalCode: string;
   country: string;
   saveAsDefault: boolean;
+}
+
+interface Country {
+  code: string;
+  name: string;
+  disabled?: boolean;
 }
 
 const steps = [
@@ -108,6 +115,8 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
     expMonth: '',
     expYear: '',
   });
+  const [selectedCountry, setSelectedCountry] = useState('US');
+  const [countries] = useState(() => getCountriesWithPopularFirst());
 
   const addPaymentMethodMutation = useAddPaymentMethod();
 
@@ -132,6 +141,86 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
 
   // Watch form fields for card preview
   const watchedFields = watch();
+
+  // Update selected country when form country changes
+  React.useEffect(() => {
+    setSelectedCountry(watchedFields.country);
+  }, [watchedFields.country]);
+
+  // Check if country uses states/provinces
+  const countryUsesStates = ['US', 'CA', 'AU'].includes(selectedCountry);
+
+  // Get appropriate labels for the selected country
+  const getStateLabel = () => {
+    switch (selectedCountry) {
+      case 'US':
+        return 'State';
+      case 'CA':
+        return 'Province';
+      case 'AU':
+        return 'State';
+      default:
+        return 'State/Province/Region';
+    }
+  };
+
+  const getPostalCodeLabel = () => {
+    switch (selectedCountry) {
+      case 'US':
+        return 'ZIP Code';
+      case 'CA':
+        return 'Postal Code';
+      case 'GB':
+        return 'Postcode';
+      default:
+        return 'Postal Code';
+    }
+  };
+
+  const getPostalCodePlaceholder = () => {
+    switch (selectedCountry) {
+      case 'US':
+        return '10001';
+      case 'CA':
+        return 'K1A 0A9';
+      case 'GB':
+        return 'SW1A 1AA';
+      default:
+        return 'Enter postal code';
+    }
+  };
+
+  const getCityPlaceholder = () => {
+    switch (selectedCountry) {
+      case 'US':
+        return 'New York';
+      case 'CA':
+        return 'Toronto';
+      case 'GB':
+        return 'London';
+      case 'AU':
+        return 'Sydney';
+      case 'DE':
+        return 'Berlin';
+      case 'FR':
+        return 'Paris';
+      default:
+        return 'Enter city';
+    }
+  };
+
+  const getStatePlaceholder = () => {
+    switch (selectedCountry) {
+      case 'US':
+        return 'NY';
+      case 'CA':
+        return 'ON';
+      case 'AU':
+        return 'NSW';
+      default:
+        return 'Enter state/region';
+    }
+  };
 
   // Reset form when modal closes
   useEffect(() => {
@@ -394,7 +483,11 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
                         name="cardHolder"
                         control={control}
                         rules={{ required: 'Cardholder name is required' }}
-                        render={({ field }) => (
+                        render={({
+                          field,
+                        }: {
+                          field: ControllerRenderProps<PaymentFormData, 'cardHolder'>;
+                        }) => (
                           <input
                             {...field}
                             type="text"
@@ -457,7 +550,11 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
                           name="addressLine1"
                           control={control}
                           rules={{ required: 'Address is required' }}
-                          render={({ field }) => (
+                          render={({
+                            field,
+                          }: {
+                            field: ControllerRenderProps<PaymentFormData, 'addressLine1'>;
+                          }) => (
                             <input
                               {...field}
                               type="text"
@@ -483,7 +580,11 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
                         <Controller
                           name="addressLine2"
                           control={control}
-                          render={({ field }) => (
+                          render={({
+                            field,
+                          }: {
+                            field: ControllerRenderProps<PaymentFormData, 'addressLine2'>;
+                          }) => (
                             <input
                               {...field}
                               type="text"
@@ -501,11 +602,15 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
                             name="city"
                             control={control}
                             rules={{ required: 'City is required' }}
-                            render={({ field }) => (
+                            render={({
+                              field,
+                            }: {
+                              field: ControllerRenderProps<PaymentFormData, 'city'>;
+                            }) => (
                               <input
                                 {...field}
                                 type="text"
-                                placeholder="New York"
+                                placeholder={getCityPlaceholder()}
                                 className={cn(
                                   'w-full px-4 py-2 bg-background border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-muted-foreground placeholder:opacity-70',
                                   errors.city ? 'border-destructive' : 'border-border'
@@ -519,19 +624,30 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
                         </div>
 
                         <div>
-                          <label className="block text-sm font-medium mb-2">State</label>
+                          <label className="block text-sm font-medium mb-2">
+                            {getStateLabel()}
+                          </label>
                           <Controller
                             name="state"
                             control={control}
-                            rules={{ required: 'State is required' }}
-                            render={({ field }) => (
+                            rules={{
+                              required: countryUsesStates
+                                ? `${getStateLabel()} is required`
+                                : false,
+                            }}
+                            render={({
+                              field,
+                            }: {
+                              field: ControllerRenderProps<PaymentFormData, 'state'>;
+                            }) => (
                               <input
                                 {...field}
                                 type="text"
-                                placeholder="NY"
-                                maxLength={2}
+                                placeholder={getStatePlaceholder()}
+                                maxLength={countryUsesStates ? 10 : 50}
                                 className={cn(
-                                  'w-full px-4 py-2 bg-background border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary uppercase placeholder:text-muted-foreground placeholder:opacity-70',
+                                  'w-full px-4 py-2 bg-background border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-muted-foreground placeholder:opacity-70',
+                                  countryUsesStates ? 'uppercase' : '',
                                   errors.state ? 'border-destructive' : 'border-border'
                                 )}
                               />
@@ -545,17 +661,23 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
 
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-medium mb-2">ZIP Code</label>
+                          <label className="block text-sm font-medium mb-2">
+                            {getPostalCodeLabel()}
+                          </label>
                           <Controller
                             name="postalCode"
                             control={control}
-                            rules={{ required: 'ZIP code is required' }}
-                            render={({ field }) => (
+                            rules={{ required: `${getPostalCodeLabel()} is required` }}
+                            render={({
+                              field,
+                            }: {
+                              field: ControllerRenderProps<PaymentFormData, 'postalCode'>;
+                            }) => (
                               <input
                                 {...field}
                                 type="text"
-                                placeholder="10001"
-                                maxLength={10}
+                                placeholder={getPostalCodePlaceholder()}
+                                maxLength={20}
                                 className={cn(
                                   'w-full px-4 py-2 bg-background border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-muted-foreground placeholder:opacity-70',
                                   errors.postalCode ? 'border-destructive' : 'border-border'
@@ -575,15 +697,27 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
                           <Controller
                             name="country"
                             control={control}
-                            render={({ field }) => (
+                            render={({
+                              field,
+                            }: {
+                              field: ControllerRenderProps<PaymentFormData, 'country'>;
+                            }) => (
                               <select
                                 {...field}
                                 className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                               >
-                                <option value="US">United States</option>
-                                <option value="CA">Canada</option>
-                                <option value="GB">United Kingdom</option>
-                                <option value="AU">Australia</option>
+                                {countries.map((country: Country) => (
+                                  <option
+                                    key={country.code}
+                                    value={country.code}
+                                    disabled={country.disabled}
+                                    className={
+                                      country.disabled ? 'text-muted-foreground font-bold' : ''
+                                    }
+                                  >
+                                    {country.name}
+                                  </option>
+                                ))}
                               </select>
                             )}
                           />
@@ -642,7 +776,11 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
                         <Controller
                           name="saveAsDefault"
                           control={control}
-                          render={({ field: { onChange, value, ...field } }) => (
+                          render={({
+                            field: { onChange, value, ...field },
+                          }: {
+                            field: ControllerRenderProps<PaymentFormData, 'saveAsDefault'>;
+                          }) => (
                             <input
                               {...field}
                               type="checkbox"
