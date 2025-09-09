@@ -117,6 +117,9 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
   });
   const [selectedCountry, setSelectedCountry] = useState('US');
   const [countries] = useState(() => getCountriesWithPopularFirst());
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showConfirmClose, setShowConfirmClose] = useState(false);
+  const [hasCardInput, setHasCardInput] = useState(false);
 
   const addPaymentMethodMutation = useAddPaymentMethod();
 
@@ -222,6 +225,41 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
     }
   };
 
+  // Check if form has any meaningful data that would be lost
+  const hasFormData = () => {
+    return (
+      hasCardInput || // User has entered card number
+      watchedFields.cardHolder ||
+      watchedFields.addressLine1 ||
+      watchedFields.addressLine2 ||
+      watchedFields.city ||
+      watchedFields.state ||
+      watchedFields.postalCode ||
+      (watchedFields.country && watchedFields.country !== 'US') ||
+      currentStep > 1 // User has progressed beyond first step
+    );
+  };
+
+  // Handle close with confirmation if needed
+  const handleClose = () => {
+    if (hasFormData() && !isSubmitting) {
+      setShowConfirmClose(true);
+    } else {
+      onClose();
+    }
+  };
+
+  // Confirm and close without saving
+  const confirmClose = () => {
+    setShowConfirmClose(false);
+    onClose();
+  };
+
+  // Cancel the close confirmation
+  const cancelClose = () => {
+    setShowConfirmClose(false);
+  };
+
   // Reset form when modal closes
   useEffect(() => {
     if (!isOpen) {
@@ -229,6 +267,9 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
       setCurrentStep(1);
       setIsCardFlipped(false);
       setCardType('unknown');
+      setErrorMessage(null);
+      setShowConfirmClose(false);
+      setHasCardInput(false);
       setCardDisplay({
         last4: '',
         brand: '',
@@ -249,7 +290,7 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
     // Handle Esc key
     const handleEsc = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        onClose();
+        handleClose();
       }
     };
 
@@ -268,28 +309,32 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
 
   const handleNext = () => {
     if (currentStep < steps.length) {
+      setErrorMessage(null); // Clear errors when moving to next step
       setCurrentStep(currentStep + 1);
     }
   };
 
   const handlePrevious = () => {
     if (currentStep > 1) {
+      setErrorMessage(null); // Clear errors when going back
       setCurrentStep(currentStep - 1);
     }
   };
 
   const onSubmit = async (data: PaymentFormData) => {
     if (currentStep < steps.length) {
+      setErrorMessage(null); // Clear any previous errors
       handleNext();
       return;
     }
 
     if (!stripe || !elements) {
-      console.error('Stripe not loaded');
+      setErrorMessage('Payment system is not ready. Please try again.');
       return;
     }
 
     setIsSubmitting(true);
+    setErrorMessage(null); // Clear any previous errors
     try {
       const cardNumberElement = elements.getElement(CardNumberElement);
       const cardExpiryElement = elements.getElement(CardExpiryElement);
@@ -324,11 +369,16 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
       });
 
       if (error) {
-        throw new Error(error.message);
+        setErrorMessage(
+          error.message ||
+            'There was an error with your card information. Please check and try again.'
+        );
+        return;
       }
 
       if (!paymentMethod) {
-        throw new Error('Failed to create payment method');
+        setErrorMessage('Failed to create payment method. Please try again.');
+        return;
       }
 
       // Update card display with actual card info from Stripe
@@ -353,7 +403,12 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
       onClose();
     } catch (error) {
       console.error('Failed to add payment method:', error);
-      // Error is already handled by the mutation hook
+      // Handle backend/network errors
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage('An unexpected error occurred. Please try again.');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -369,7 +424,7 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          onClick={onClose}
+          onClick={handleClose}
           className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         />
 
@@ -385,7 +440,7 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-semibold">Add Payment Method</h2>
               <button
-                onClick={onClose}
+                onClick={handleClose}
                 className="p-2 hover:bg-accent rounded-lg transition-colors"
               >
                 <X className="w-5 h-5" />
@@ -455,6 +510,9 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
                           <CardNumberElement
                             options={elementOptions}
                             onChange={event => {
+                              // Track if user has started entering card info
+                              setHasCardInput(!event.empty);
+                              
                               if (event.brand) {
                                 setCardType(
                                   event.brand as
@@ -829,6 +887,19 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
               </div>
             </div>
 
+            {/* Error Message */}
+            {errorMessage && (
+              <div className="px-4 sm:px-6 pb-4">
+                <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-destructive mt-0.5 flex-shrink-0" />
+                  <div className="text-sm">
+                    <p className="font-medium text-destructive mb-1">Payment Error</p>
+                    <p className="text-destructive/80">{errorMessage}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Footer Actions */}
             <div className="border-t border-border p-4 sm:p-6 bg-card">
               <div className="flex flex-col-reverse sm:flex-row items-center justify-between gap-3 sm:gap-0">
@@ -851,7 +922,7 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
                   <ModernButton
                     type="button"
                     variant="secondary"
-                    onClick={onClose}
+                    onClick={handleClose}
                     disabled={isSubmitting || addPaymentMethodMutation.isPending}
                     className="w-full sm:w-auto min-h-[44px] touch-manipulation order-2 sm:order-1"
                   >
@@ -866,7 +937,7 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
                   >
                     {currentStep === steps.length ? (
                       <>
-                        <Lock className="w-4 h-4" />
+                        <Lock className="w-4 h-4 mr-2" />
                         Add Payment Method
                       </>
                     ) : (
@@ -881,6 +952,49 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
             </div>
           </form>
         </motion.div>
+
+        {/* Confirmation Dialog */}
+        {showConfirmClose && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-card rounded-lg shadow-2xl p-6 max-w-md mx-4 border border-border"
+            >
+              <div className="flex items-start gap-3 mb-4">
+                <AlertCircle className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h3 className="font-semibold text-lg mb-2">Discard Changes?</h3>
+                  <p className="text-muted-foreground text-sm">
+                    You have unsaved payment information. Are you sure you want to close without saving?
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-3 justify-end">
+                <ModernButton
+                  variant="secondary"
+                  onClick={cancelClose}
+                  className="min-h-[44px] touch-manipulation"
+                >
+                  Keep Editing
+                </ModernButton>
+                <ModernButton
+                  variant="destructive"
+                  onClick={confirmClose}
+                  className="min-h-[44px] touch-manipulation"
+                >
+                  Discard & Close
+                </ModernButton>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
       </div>
     </AnimatePresence>
   );
