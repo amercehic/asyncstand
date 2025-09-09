@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ExecutionContext, HttpStatus } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { FeatureGuard } from '@/features/guards/feature.guard';
-import { FeatureService } from '@/features/feature.service';
+import { FeatureService, FeatureCheckResult } from '@/features/feature.service';
 import { FEATURE_KEY } from '@/features/decorators/require-feature.decorator';
 import { ApiError } from '@/common/api-error';
 import { ErrorCode } from 'shared';
@@ -44,6 +44,16 @@ describe('FeatureGuard', () => {
       email: 'test@example.com',
       name: 'Test User',
       role: 'member',
+      isSuperAdmin: false,
+    };
+
+    const mockSuperAdmin = {
+      id: TestHelpers.generateRandomString(),
+      orgId: TestHelpers.generateRandomString(),
+      email: 'admin@example.com',
+      name: 'Super Admin',
+      role: 'admin',
+      isSuperAdmin: true,
     };
 
     const createMockExecutionContext = (
@@ -51,7 +61,7 @@ describe('FeatureGuard', () => {
       requiredFeature?: string,
     ): ExecutionContext => {
       const mockRequest = {
-        user: user === undefined ? undefined : user || mockUser,
+        user: user === undefined ? undefined : user === null ? null : user || mockUser,
       };
 
       mockReflector.getAllAndOverride.mockReturnValue(requiredFeature);
@@ -238,6 +248,215 @@ describe('FeatureGuard', () => {
       await guard.canActivate(mockExecutionContext);
 
       expect(mockRequest).toHaveProperty('featureCheck', featureCheckResult);
+    });
+
+    it('should handle null user gracefully', async () => {
+      const mockExecutionContext = createMockExecutionContext(null, 'test-feature');
+
+      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
+        new ApiError(
+          ErrorCode.UNAUTHENTICATED,
+          'User authentication required',
+          HttpStatus.UNAUTHORIZED,
+        ),
+      );
+    });
+
+    it('should handle user with null orgId', async () => {
+      const userWithNullOrgId = { ...mockUser, orgId: null };
+      const mockExecutionContext = createMockExecutionContext(userWithNullOrgId, 'test-feature');
+
+      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
+        new ApiError(
+          ErrorCode.UNAUTHENTICATED,
+          'User authentication required',
+          HttpStatus.UNAUTHORIZED,
+        ),
+      );
+    });
+
+    it('should handle user with empty string orgId', async () => {
+      const userWithEmptyOrgId = { ...mockUser, orgId: '' };
+      const mockExecutionContext = createMockExecutionContext(userWithEmptyOrgId, 'test-feature');
+
+      await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
+        new ApiError(
+          ErrorCode.UNAUTHENTICATED,
+          'User authentication required',
+          HttpStatus.UNAUTHORIZED,
+        ),
+      );
+    });
+
+    it('should work with super admin users', async () => {
+      const mockExecutionContext = createMockExecutionContext(mockSuperAdmin, 'admin-feature');
+
+      const featureCheckResult: FeatureCheckResult = {
+        enabled: true,
+        source: 'global',
+      };
+
+      mockFeatureService.isFeatureEnabled.mockResolvedValue(featureCheckResult);
+
+      const result = await guard.canActivate(mockExecutionContext);
+
+      expect(result).toBe(true);
+      expect(mockFeatureService.isFeatureEnabled).toHaveBeenCalledWith(
+        'admin-feature',
+        mockSuperAdmin.orgId,
+        mockSuperAdmin.id,
+      );
+    });
+
+    it('should handle various feature check sources', async () => {
+      const sources: Array<FeatureCheckResult['source']> = [
+        'global',
+        'environment',
+        'plan',
+        'rollout',
+      ];
+
+      for (const source of sources) {
+        const mockExecutionContext = createMockExecutionContext(mockUser, 'test-feature');
+        const featureCheckResult: FeatureCheckResult = {
+          enabled: true,
+          source,
+        };
+
+        mockFeatureService.isFeatureEnabled.mockResolvedValue(featureCheckResult);
+
+        const result = await guard.canActivate(mockExecutionContext);
+
+        expect(result).toBe(true);
+
+        // Clear mocks for next iteration
+        jest.clearAllMocks();
+        mockReflector.getAllAndOverride.mockReturnValue('test-feature');
+      }
+    });
+
+    it('should handle feature service returning different error reasons', async () => {
+      const errorReasons = [
+        'Feature globally disabled',
+        'Not available in current environment',
+        'Plan limit exceeded',
+        'Rollout not active',
+      ];
+
+      for (const reason of errorReasons) {
+        const mockExecutionContext = createMockExecutionContext(mockUser, 'disabled-feature');
+        const featureCheckResult: FeatureCheckResult = {
+          enabled: false,
+          source: 'global',
+          reason,
+        };
+
+        mockFeatureService.isFeatureEnabled.mockResolvedValue(featureCheckResult);
+
+        await expect(guard.canActivate(mockExecutionContext)).rejects.toThrow(
+          new ApiError(
+            ErrorCode.FEATURE_DISABLED,
+            `Feature 'disabled-feature' is not available. ${reason}`,
+            HttpStatus.FORBIDDEN,
+          ),
+        );
+
+        // Clear mocks for next iteration
+        jest.clearAllMocks();
+        mockReflector.getAllAndOverride.mockReturnValue('disabled-feature');
+      }
+    });
+
+    it('should handle empty feature key as no feature required', async () => {
+      const mockExecutionContext = createMockExecutionContext(mockUser, '');
+
+      const result = await guard.canActivate(mockExecutionContext);
+
+      expect(result).toBe(true);
+      // Feature service should not be called for empty feature key
+      expect(mockFeatureService.isFeatureEnabled).not.toHaveBeenCalled();
+    });
+
+    it('should handle async operation timing', async () => {
+      const mockExecutionContext = createMockExecutionContext(mockUser, 'slow-feature');
+      const featureCheckResult: FeatureCheckResult = {
+        enabled: true,
+        source: 'global',
+      };
+
+      // Simulate slow feature service response
+      mockFeatureService.isFeatureEnabled.mockImplementation(
+        () => new Promise((resolve) => setTimeout(() => resolve(featureCheckResult), 100)),
+      );
+
+      const startTime = Date.now();
+      const result = await guard.canActivate(mockExecutionContext);
+      const endTime = Date.now();
+
+      expect(result).toBe(true);
+      expect(endTime - startTime).toBeGreaterThanOrEqual(100);
+    });
+
+    it('should preserve request object modifications', async () => {
+      const mockRequest = {
+        user: mockUser,
+        existingProperty: 'should be preserved',
+      };
+      const mockExecutionContext = {
+        switchToHttp: () => ({
+          getRequest: () => mockRequest,
+        }),
+        getHandler: jest.fn(),
+        getClass: jest.fn(),
+      } as unknown as ExecutionContext;
+
+      mockReflector.getAllAndOverride.mockReturnValue('test-feature');
+
+      const featureCheckResult: FeatureCheckResult = {
+        enabled: true,
+        source: 'plan',
+        value: 'custom-value',
+      };
+
+      mockFeatureService.isFeatureEnabled.mockResolvedValue(featureCheckResult);
+
+      await guard.canActivate(mockExecutionContext);
+
+      expect(mockRequest.existingProperty).toBe('should be preserved');
+      expect(mockRequest).toHaveProperty('featureCheck', featureCheckResult);
+    });
+
+    it('should handle concurrent feature checks', async () => {
+      const mockExecutionContext1 = createMockExecutionContext(mockUser, 'feature-1');
+      const mockExecutionContext2 = createMockExecutionContext(mockUser, 'feature-2');
+
+      const featureCheckResult1: FeatureCheckResult = {
+        enabled: true,
+        source: 'global',
+      };
+      const featureCheckResult2: FeatureCheckResult = {
+        enabled: false,
+        source: 'plan',
+        reason: 'Plan limit exceeded',
+      };
+
+      mockFeatureService.isFeatureEnabled
+        .mockResolvedValueOnce(featureCheckResult1)
+        .mockResolvedValueOnce(featureCheckResult2);
+
+      mockReflector.getAllAndOverride
+        .mockReturnValueOnce('feature-1')
+        .mockReturnValueOnce('feature-2');
+
+      const promise1 = guard.canActivate(mockExecutionContext1);
+      const promise2 = guard.canActivate(mockExecutionContext2);
+
+      const [result1] = await Promise.allSettled([promise1, promise2]);
+
+      expect(result1.status).toBe('fulfilled');
+      if (result1.status === 'fulfilled') {
+        expect(result1.value).toBe(true);
+      }
     });
   });
 });
