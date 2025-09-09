@@ -14,15 +14,23 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [
       react({
-        // Use the modern automatic JSX runtime (React 17+)
-        // This avoids legacy interop paths that can trigger odd React globals
-        jsxRuntime: 'automatic',
+        // Use classic JSX runtime for better React 18 compatibility in production builds
+        jsxRuntime: 'classic',
+        // Ensure React is properly imported in all files
+        jsxImportSource: undefined,
         // Enable React optimization for production
         babel: isProduction
           ? {
               plugins: [['babel-plugin-react-remove-properties', { properties: ['data-testid'] }]],
+              presets: [
+                ['@babel/preset-react', { runtime: 'classic' }]
+              ],
             }
-          : undefined,
+          : {
+              presets: [
+                ['@babel/preset-react', { runtime: 'classic' }]
+              ],
+            },
       }),
       // Bundle analyzer (only in production)
       ...(isProduction
@@ -101,8 +109,8 @@ export default defineConfig(({ mode }) => {
           manualChunks: id => {
             // Vendor chunks - more granular splitting
             if (id.includes('node_modules')) {
-              // React core
-              if (id.includes('react') || id.includes('react-dom')) {
+              // React core - keep together to avoid cross-chunk issues
+              if (id.includes('react') || id.includes('react-dom') || id.includes('react-is')) {
                 return 'react-vendor';
               }
               // Router
