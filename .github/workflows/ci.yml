@@ -8,6 +8,7 @@ on:
 
 env:
   NODE_VERSION: '20.x'
+  NODE_OPTIONS: '--disable-warning=DEP0040'
 
 permissions:
   contents: read
