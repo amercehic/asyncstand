@@ -320,7 +320,7 @@ describe('Organization (e2e)', () => {
         .post('/org/members/invite')
         .set('Authorization', `Bearer ${testContext.admin.token}`)
         .send(inviteData)
-        .expect(400);
+        .expect(403);
     });
   });
 

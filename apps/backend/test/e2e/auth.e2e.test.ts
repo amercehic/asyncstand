@@ -236,7 +236,7 @@ describe('AuthController (e2e)', () => {
         password: 'AnyPassword123!',
       };
 
-      await request(testBase.getHttpServer()).post('/auth/login').send(loginData).expect(400);
+      await request(testBase.getHttpServer()).post('/auth/login').send(loginData).expect(401);
     });
   });
 
