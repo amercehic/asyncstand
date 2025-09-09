@@ -12,13 +12,16 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
 import * as argon2 from '@node-rs/argon2';
+import { DataIsolation } from '@/test/utils/isolation/data-isolation';
 
 describe('Auth Integration', () => {
   let authService: AuthService;
   let prisma: PrismaService;
   let module: TestingModule;
+  let isolation: DataIsolation;
 
   beforeAll(async () => {
+    isolation = new DataIsolation();
     module = await Test.createTestingModule({
       providers: [
         AuthService,
@@ -96,20 +99,14 @@ describe('Auth Integration', () => {
   });
 
   afterEach(async () => {
-    // Clean up test data
-    await prisma.user.deleteMany({
-      where: {
-        email: {
-          contains: 'test',
-        },
-      },
-    });
+    // Clean up test data using proper isolation
+    await isolation.cleanup(prisma);
   });
 
   describe('User Registration and Login Flow', () => {
     it('should register a new user and allow login', async () => {
       const signupData = {
-        email: 'integration-test@example.com',
+        email: isolation.generateEmail('integration-test'),
         password: 'Password123!',
         firstName: 'Test',
         lastName: 'User',
@@ -148,7 +145,7 @@ describe('Auth Integration', () => {
 
     it('should hash password correctly during registration', async () => {
       const signupData = {
-        email: 'hash-test@example.com',
+        email: isolation.generateEmail('hash-test'),
         password: 'TestPassword123!',
         firstName: 'Hash',
         lastName: 'Test',
@@ -176,7 +173,7 @@ describe('Auth Integration', () => {
 
     it('should prevent duplicate email registration', async () => {
       const signupData = {
-        email: 'duplicate-test@example.com',
+        email: isolation.generateEmail('duplicate-test'),
         password: 'Password123!',
         firstName: 'Test',
         lastName: 'User',
@@ -201,7 +198,7 @@ describe('Auth Integration', () => {
 
     it('should fail login with incorrect password', async () => {
       const signupData = {
-        email: 'login-fail-test@example.com',
+        email: isolation.generateEmail('login-fail-test'),
         password: 'CorrectPassword123!',
         firstName: 'Test',
         lastName: 'User',

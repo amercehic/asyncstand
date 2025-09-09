@@ -1,0 +1,253 @@
+/* Billing page specific styles */
+
+/* Shimmer animation for progress bars */
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* 3D Card flip animation */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.transform-style-preserve-3d {
+  transform-style: preserve-3d;
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
+}
+
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}
+
+/* Credit card chip shimmer */
+.chip-shimmer {
+  background: linear-gradient(
+    105deg,
+    #f59e0b 0%,
+    #f97316 25%,
+    #f59e0b 50%,
+    #f97316 75%,
+    #f59e0b 100%
+  );
+  background-size: 200% 100%;
+  animation: chip-shine 3s infinite;
+}
+
+@keyframes chip-shine {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* Usage bar gradient animations */
+.usage-bar-success {
+  background: linear-gradient(90deg, #10b981, #059669);
+}
+
+.usage-bar-warning {
+  background: linear-gradient(90deg, #f59e0b, #d97706);
+}
+
+.usage-bar-danger {
+  background: linear-gradient(90deg, #ef4444, #dc2626);
+}
+
+/* Card hover effects */
+.billing-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.billing-card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* Payment method card specific styles */
+.payment-card {
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.payment-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.5s;
+}
+
+.payment-card:hover::before {
+  left: 100%;
+}
+
+/* Billing table row animations */
+.billing-row {
+  transition: all 0.2s ease-in-out;
+}
+
+.billing-row:hover {
+  background-color: rgba(var(--accent), 0.5);
+}
+
+/* Status badge animations */
+.status-badge {
+  transition: all 0.2s ease-in-out;
+}
+
+.status-badge:hover {
+  transform: scale(1.05);
+}
+
+/* Loading skeleton animations */
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--accent)) 25%,
+    hsl(var(--accent) / 0.5) 50%,
+    hsl(var(--accent)) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 2s infinite;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Button ripple effect */
+.button-ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.button-ripple::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition:
+    width 0.3s,
+    height 0.3s;
+}
+
+.button-ripple:active::after {
+  width: 300px;
+  height: 300px;
+}
+
+/* Progress bar fill animation */
+.progress-fill {
+  transform-origin: left center;
+  animation: progress-fill 1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes progress-fill {
+  0% {
+    transform: scaleX(0);
+  }
+  100% {
+    transform: scaleX(1);
+  }
+}
+
+/* Usage warning pulse */
+.usage-warning {
+  animation: warning-pulse 2s infinite;
+}
+
+@keyframes warning-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Modal backdrop blur */
+.modal-backdrop {
+  backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.5);
+}
+
+/* Card number input animation */
+.card-input {
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+  letter-spacing: 0.1em;
+}
+
+/* Credit card brand logos positioning */
+.card-logo {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+/* Responsive design helpers */
+@media (max-width: 768px) {
+  .billing-card {
+    margin-bottom: 1rem;
+  }
+
+  .payment-methods-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .billing-table {
+    font-size: 0.875rem;
+  }
+}
+
+/* Dark mode specific adjustments */
+@media (prefers-color-scheme: dark) {
+  .payment-card {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  }
+
+  .skeleton-shimmer {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--accent)) 25%,
+      hsl(var(--accent) / 0.7) 50%,
+      hsl(var(--accent)) 75%
+    );
+  }
+}

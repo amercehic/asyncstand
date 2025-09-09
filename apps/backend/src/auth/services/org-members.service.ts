@@ -91,6 +91,15 @@ export class OrgMembersService {
       );
     }
 
+    // Role hierarchy validation - only owners can invite/assign owner role
+    if (dto.role === OrgRole.owner && actorMember.role !== OrgRole.owner) {
+      throw new ApiError(
+        ErrorCode.FORBIDDEN,
+        'Only owners can invite other owners',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
     // Check if user already exists and is already a member
     const existingUser = await this.prisma.user.findUnique({
       where: { email: dto.email },
@@ -233,6 +242,15 @@ export class OrgMembersService {
       throw new ApiError(
         ErrorCode.FORBIDDEN,
         'Only owners can modify admins',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    // Role hierarchy validation - only owners can assign owner role
+    if (dto.role === OrgRole.owner && actorMember.role !== OrgRole.owner) {
+      throw new ApiError(
+        ErrorCode.FORBIDDEN,
+        'Only owners can assign owner role',
         HttpStatus.FORBIDDEN,
       );
     }

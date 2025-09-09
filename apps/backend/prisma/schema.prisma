@@ -451,12 +451,19 @@ model BillingAccount {
 
   // Relations
   subscription         Subscription?
+  
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
 }
 enum SubscriptionStatus {
   trialing
   active
   past_due
   canceled
+  incomplete
+  incomplete_expired
+  unpaid
+  paused
 }
 
 model Plan {
@@ -472,11 +479,12 @@ model Plan {
   sortOrder     Int      @default(0)
   
   // Quotas and limits (null = unlimited)
-  memberLimit      Int?
-  teamLimit        Int?
-  standupLimit     Int?     // per month
-  storageLimit     Int?     // in MB
-  integrationLimit Int?
+  memberLimit        Int?
+  teamLimit          Int?
+  standupConfigLimit Int?     // standup configurations limit
+  standupLimit       Int?     // per month
+  storageLimit       Int?     // in MB
+  integrationLimit   Int?
   
   // Relations
   features      PlanFeature[]
@@ -561,15 +569,20 @@ model Subscription {
   plan                  Plan             @relation(fields: [planId], references: [id])
   planId                String
   status                SubscriptionStatus
-  renewsAt              DateTime
+  currentPeriodStart    DateTime
+  currentPeriodEnd      DateTime
+  cancelAtPeriodEnd     Boolean          @default(false)
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
 
   // Relations
   events                SubscriptionEvent[]
   planHistory           PlanHistory[]
 
   @@index([status])
-  @@index([renewsAt])
+  @@index([currentPeriodEnd])
   @@index([planId])
+  @@index([stripeSubscriptionId])
 }
 
 model SubscriptionEvent {
