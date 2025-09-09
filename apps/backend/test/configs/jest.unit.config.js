@@ -44,9 +44,7 @@ module.exports = {
     '^@/test/(.*)$': '<rootDir>/test/$1',
     '^@/(.*)$': '<rootDir>/src/$1',
   },
-  transformIgnorePatterns: [
-    'node_modules/(?!(@faker-js|uuid)/)',
-  ],
+  transformIgnorePatterns: ['node_modules/(?!(@faker-js|uuid)/)'],
 
   // Optimized timeouts for unit tests
   testTimeout: 10000,

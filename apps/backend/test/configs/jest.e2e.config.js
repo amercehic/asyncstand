@@ -14,9 +14,7 @@ module.exports = {
   transform: {
     '^.+\\.ts$': ['ts-jest', { useESM: true }],
   },
-  transformIgnorePatterns: [
-    'node_modules/(?!(@faker-js|uuid|.*\\.mjs$)/)',
-  ],
+  transformIgnorePatterns: ['node_modules/(?!(@faker-js|uuid|.*\\.mjs$)/)'],
 
   setupFilesAfterEnv: [
     '<rootDir>/test/setup/jest.setup.ts',

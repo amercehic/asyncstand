@@ -8,9 +8,7 @@ module.exports = {
   transform: {
     '^.+\\.ts$': ['ts-jest', { useESM: true }],
   },
-  transformIgnorePatterns: [
-    'node_modules/(?!(@faker-js|uuid)/)',
-  ],
+  transformIgnorePatterns: ['node_modules/(?!(@faker-js|uuid)/)'],
   setupFilesAfterEnv: ['<rootDir>/test/setup/jest.setup.ts'],
   moduleNameMapper: {
     '^shared$': '<rootDir>/../../packages/shared/src',
