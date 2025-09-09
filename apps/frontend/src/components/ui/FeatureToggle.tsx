@@ -28,6 +28,9 @@ export const FeatureToggle: React.FC<FeatureToggleProps> = ({
     setIsAnimating(true);
     try {
       await onToggle(!enabled);
+    } catch (error) {
+      // Handle toggle errors gracefully - just log and continue
+      console.warn('Toggle operation failed:', error);
     } finally {
       setTimeout(() => setIsAnimating(false), 300);
     }
