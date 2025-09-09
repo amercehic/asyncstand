@@ -146,7 +146,7 @@ export const StandupCard = React.memo<StandupCardProps>(
           {onToggleFavorite && (
             <motion.button
               whileTap={{ scale: 0.9 }}
-              onClick={e => {
+              onClick={(e: React.MouseEvent) => {
                 e.stopPropagation();
                 onToggleFavorite();
               }}

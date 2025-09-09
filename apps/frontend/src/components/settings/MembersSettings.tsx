@@ -615,7 +615,7 @@ export const MembersSettings = React.memo<MembersSettingsProps>(
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.95, opacity: 0 }}
                 className="bg-card rounded-2xl border border-border p-6 max-w-md w-full"
-                onClick={e => e.stopPropagation()}
+                onClick={(e: React.MouseEvent) => e.stopPropagation()}
               >
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                   <UserPlus className="w-5 h-5 text-primary" />

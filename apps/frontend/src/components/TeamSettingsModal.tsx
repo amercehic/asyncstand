@@ -190,7 +190,7 @@ export const TeamSettingsModal = React.memo<TeamSettingsModalProps>(
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ duration: 0.2 }}
             className="bg-card rounded-xl sm:rounded-2xl border border-border shadow-2xl w-full max-w-[95vw] sm:max-w-lg max-h-[95vh] flex flex-col"
-            onClick={e => e.stopPropagation()}
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
           >
             {/* Header */}
             <div className="p-4 sm:p-6 border-b border-border">

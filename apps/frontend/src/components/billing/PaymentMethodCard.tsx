@@ -174,7 +174,7 @@ export const PaymentMethodCard: React.FC<PaymentMethodCardProps> = ({
                 {/* Set as default button */}
                 {!method.isDefault && onSetDefault && (
                   <motion.button
-                    onClick={e => {
+                    onClick={(e: React.MouseEvent) => {
                       e.stopPropagation();
                       onSetDefault(method.id);
                       setShowActions(false);
@@ -191,7 +191,7 @@ export const PaymentMethodCard: React.FC<PaymentMethodCardProps> = ({
                 {/* Delete button */}
                 {onRemove && (
                   <motion.button
-                    onClick={e => {
+                    onClick={(e: React.MouseEvent) => {
                       e.stopPropagation();
                       onRemove(method.id);
                       setShowActions(false);
@@ -207,7 +207,7 @@ export const PaymentMethodCard: React.FC<PaymentMethodCardProps> = ({
 
                 {/* Close button */}
                 <motion.button
-                  onClick={e => {
+                  onClick={(e: React.MouseEvent) => {
                     e.stopPropagation();
                     setShowActions(false);
                   }}

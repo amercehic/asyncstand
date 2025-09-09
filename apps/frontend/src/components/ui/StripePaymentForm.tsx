@@ -8,6 +8,7 @@ import {
   CardExpiryElement,
   CardCvcElement,
 } from '@stripe/react-stripe-js';
+import type { StripeCardNumberElement } from '@stripe/stripe-js';
 import { motion } from 'framer-motion';
 import { CreditCard, Lock, AlertCircle, Loader2 } from 'lucide-react';
 import { ModernButton, toast } from '@/components/ui';
@@ -111,7 +112,9 @@ function PaymentForm({ plan, onSuccess, onCancel }: StripePaymentFormProps) {
     setError(null);
 
     try {
-      const cardNumberElement = elements.getElement(CardNumberElement);
+      const cardNumberElement = elements.getElement(
+        CardNumberElement
+      ) as unknown as StripeCardNumberElement;
 
       if (!cardNumberElement) {
         throw new Error('Card element not found');
