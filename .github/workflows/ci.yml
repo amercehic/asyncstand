@@ -154,6 +154,9 @@ jobs:
         env:
           NODE_ENV: test
           CI: true
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
 
       - name: Upload backend unit test results
         uses: actions/upload-artifact@v4
@@ -313,6 +316,9 @@ jobs:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
           JWT_SECRET: test_jwt_secret_for_ci
           CI: true
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
 
       - name: Upload integration test results
         uses: actions/upload-artifact@v4
@@ -403,6 +409,9 @@ jobs:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
           JWT_SECRET: test_jwt_secret_for_ci
           CI: true
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
 
       - name: Upload E2E test results
         uses: actions/upload-artifact@v4
