@@ -3,9 +3,14 @@ module.exports = {
   testEnvironment: 'node',
   rootDir: '../../',
   testMatch: ['<rootDir>/test/integration/**/*.test.ts'],
+  preset: 'ts-jest/presets/default-esm',
+  extensionsToTreatAsEsm: ['.ts'],
   transform: {
-    '^.+\\.ts$': 'ts-jest',
+    '^.+\\.ts$': ['ts-jest', { useESM: true }],
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!(@faker-js|uuid)/)',
+  ],
   setupFilesAfterEnv: ['<rootDir>/test/setup/jest.setup.ts'],
   moduleNameMapper: {
     '^shared$': '<rootDir>/../../packages/shared/src',

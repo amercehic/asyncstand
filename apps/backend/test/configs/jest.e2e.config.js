@@ -9,10 +9,14 @@ module.exports = {
 
   testMatch: ['<rootDir>/test/e2e/**/*.test.ts'],
 
+  preset: 'ts-jest/presets/default-esm',
+  extensionsToTreatAsEsm: ['.ts'],
   transform: {
-    '^.+\\.ts$': 'ts-jest',
+    '^.+\\.ts$': ['ts-jest', { useESM: true }],
   },
-  transformIgnorePatterns: ['node_modules/(?!.*\\.mjs$)'],
+  transformIgnorePatterns: [
+    'node_modules/(?!(@faker-js|uuid|.*\\.mjs$)/)',
+  ],
 
   setupFilesAfterEnv: [
     '<rootDir>/test/setup/jest.setup.ts',

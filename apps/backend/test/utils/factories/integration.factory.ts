@@ -90,7 +90,7 @@ export class IntegrationFactory {
   static createMockSlackUsersListResponse(overrides: Partial<Record<string, unknown>> = {}) {
     const members = Array.from({ length: 5 }, () => ({
       id: faker.string.alphanumeric(10),
-      name: faker.internet.userName(),
+      name: faker.internet.username(),
       real_name: faker.person.fullName(),
       profile: {
         email: faker.internet.email(),

@@ -36,12 +36,17 @@ module.exports = {
 
   setupFilesAfterEnv: ['<rootDir>/test/setup/jest.setup.ts'],
   moduleNameMapper: {
+    '^uuid$': require.resolve('uuid'),
+    '^@faker-js/faker$': require.resolve('@faker-js/faker'),
     '^shared$': '<rootDir>/../../packages/shared/src',
     '^shared/(.*)$': '<rootDir>/../../packages/shared/src/$1',
     '^@/prisma/prisma\\.service$': '<rootDir>/prisma/prisma.service',
     '^@/test/(.*)$': '<rootDir>/test/$1',
     '^@/(.*)$': '<rootDir>/src/$1',
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!(@faker-js|uuid)/)',
+  ],
 
   // Optimized timeouts for unit tests
   testTimeout: 10000,
