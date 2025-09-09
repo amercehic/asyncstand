@@ -45,7 +45,9 @@
     "db:seed": "ts-node src/scripts/seed.ts",
     "db:seed:features": "ts-node src/features/seeds/seed-features.ts",
     "db:reset-and-seed": "prisma migrate reset --force && ts-node src/scripts/seed.ts",
-    "super-admin": "ts-node src/scripts/promote-super-admin.ts"
+    "super-admin": "ts-node src/scripts/promote-super-admin.ts",
+    "validate:features": "ts-node scripts/validate-features.ts",
+    "validate:features:generate": "ts-node scripts/validate-features.ts --generate-sql"
   },
   "keywords": [
     "nestjs",

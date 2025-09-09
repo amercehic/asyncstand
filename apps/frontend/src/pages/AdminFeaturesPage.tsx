@@ -1,12 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Search, AlertCircle, CheckCircle2, ArrowLeft, Shield } from 'lucide-react';
+import {
+  Search,
+  AlertCircle,
+  CheckCircle2,
+  ArrowLeft,
+  Shield,
+  Plus,
+  Edit2,
+  Trash2,
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ModernButton } from '@/components/ui';
 import { FeatureToggle } from '@/components/ui/FeatureToggle';
 import { SuperAdminRoute } from '@/components/SuperAdminRoute';
 import { featuresApi, type Feature } from '@/lib/api-client';
 import { toast } from '@/components/ui';
+import { AddFeatureModal } from '@/components/AdminFeatures/AddFeatureModal';
+import { EditFeatureModal } from '@/components/AdminFeatures/EditFeatureModal';
+import { DeleteConfirmationModal } from '@/components/AdminFeatures/DeleteConfirmationModal';
 
 const AdminFeaturesPageContent = React.memo(() => {
   const navigate = useNavigate();
@@ -16,6 +28,10 @@ const AdminFeaturesPageContent = React.memo(() => {
   const [categoryFilter, setCategoryFilter] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>(''); // 'enabled', 'disabled'
   const [categories, setCategories] = useState<string[]>([]);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null);
 
   // Fetch features
   const fetchData = async () => {
@@ -61,6 +77,18 @@ const AdminFeaturesPageContent = React.memo(() => {
     }
   };
 
+  // Handle edit feature
+  const handleEditFeature = (feature: Feature) => {
+    setSelectedFeature(feature);
+    setShowEditModal(true);
+  };
+
+  // Handle delete feature
+  const handleDeleteFeature = (feature: Feature) => {
+    setSelectedFeature(feature);
+    setShowDeleteModal(true);
+  };
+
   // Filter features
   const filteredFeatures = features.filter(feature => {
     const matchesSearch =
@@ -82,19 +110,25 @@ const AdminFeaturesPageContent = React.memo(() => {
     <div className="container mx-auto px-6 py-8 max-w-7xl">
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-        <div className="flex items-center gap-4 mb-4">
-          <ModernButton variant="ghost" onClick={() => navigate('/admin')} className="p-2">
-            <ArrowLeft className="h-5 w-5" />
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-4">
+            <ModernButton variant="ghost" onClick={() => navigate('/admin')} className="p-2">
+              <ArrowLeft className="h-5 w-5" />
+            </ModernButton>
+            <div className="p-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg">
+              <Shield className="h-8 w-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">Feature Flags</h1>
+              <p className="text-muted-foreground">
+                Manage global feature flags for the entire application
+              </p>
+            </div>
+          </div>
+          <ModernButton onClick={() => setShowAddModal(true)} className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            Add Feature
           </ModernButton>
-          <div className="p-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg">
-            <Shield className="h-8 w-8 text-white" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Feature Flags</h1>
-            <p className="text-muted-foreground">
-              Manage global feature flags for the entire application
-            </p>
-          </div>
         </div>
       </motion.div>
 
@@ -215,11 +249,29 @@ const AdminFeaturesPageContent = React.memo(() => {
                       {feature.isEnabled ? 'Enabled' : 'Disabled'}
                     </span>
                   </div>
-                  <FeatureToggle
-                    enabled={feature.isEnabled}
-                    onToggle={enabled => handleFeatureToggle(feature.key, enabled)}
-                    disabled={false}
-                  />
+                  <div className="flex items-center gap-2">
+                    <ModernButton
+                      variant="ghost"
+                      onClick={() => handleEditFeature(feature)}
+                      className="p-2 text-muted-foreground hover:text-blue-600 hover:bg-muted/50 transition-colors"
+                      title="Edit feature"
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </ModernButton>
+                    <ModernButton
+                      variant="ghost"
+                      onClick={() => handleDeleteFeature(feature)}
+                      className="p-2 text-muted-foreground hover:text-red-600 hover:bg-muted/50 transition-colors"
+                      title="Delete feature"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </ModernButton>
+                    <FeatureToggle
+                      enabled={feature.isEnabled}
+                      onToggle={enabled => handleFeatureToggle(feature.key, enabled)}
+                      disabled={false}
+                    />
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -236,6 +288,41 @@ const AdminFeaturesPageContent = React.memo(() => {
           )}
         </motion.div>
       )}
+
+      {/* Add Feature Modal */}
+      <AddFeatureModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onFeatureAdded={() => {
+          fetchData(); // Refresh the features list
+        }}
+      />
+
+      {/* Edit Feature Modal */}
+      <EditFeatureModal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setSelectedFeature(null);
+        }}
+        onFeatureUpdated={() => {
+          fetchData(); // Refresh the features list
+        }}
+        feature={selectedFeature}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setSelectedFeature(null);
+        }}
+        onFeatureDeleted={() => {
+          fetchData(); // Refresh the features list
+        }}
+        feature={selectedFeature}
+      />
     </div>
   );
 });

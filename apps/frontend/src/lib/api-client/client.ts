@@ -245,6 +245,8 @@ api.interceptors.response.use(
       error.config?.url?.includes('/teams'),
       // Integration endpoints - handled by IntegrationsContext
       error.config?.url?.includes('/integrations'),
+      // Features endpoints - handled by AdminFeaturesPage modals
+      error.config?.url?.includes('/features/admin/'),
       // Organization endpoints - handled by SettingsPage and other components
       error.config?.url?.includes('/org/'),
       // Missing standup config is expected for new teams

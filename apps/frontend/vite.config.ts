@@ -89,7 +89,7 @@ export default defineConfig(({ mode }) => {
       // Increase performance with better compression
       reportCompressedSize: false,
       rollupOptions: {
-        external: (id) => {
+        external: id => {
           // Don't bundle React - treat it as external
           if (id === 'react' || id === 'react-dom') {
             return false; // Actually bundle them to avoid external dep issues
@@ -102,8 +102,13 @@ export default defineConfig(({ mode }) => {
             // Vendor chunks - more granular splitting
             if (id.includes('node_modules')) {
               // React core - ONLY core React packages, no routing
-              if (id.includes('react') || id.includes('react-dom') || id.includes('react-is') || 
-                  id.includes('react/') || id.includes('scheduler')) {
+              if (
+                id.includes('react') ||
+                id.includes('react-dom') ||
+                id.includes('react-is') ||
+                id.includes('react/') ||
+                id.includes('scheduler')
+              ) {
                 // Skip react-router to avoid conflicts
                 if (id.includes('react-router')) {
                   return 'router-vendor';
