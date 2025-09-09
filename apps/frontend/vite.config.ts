@@ -246,11 +246,11 @@ export default defineConfig(({ mode }) => {
     envDir: rootDir, // Look for .env files in the root directory
     envPrefix: 'VITE_', // Only variables with VITE_ prefix will be exposed
     define: {
-      // Force production mode for React
-      __DEV__: false,
-      'process.env.NODE_ENV': '"production"',
-      // Disable React development features completely
-      'process.env.__REACT_DEVTOOLS_GLOBAL_HOOK__': 'undefined',
+      // Force production mode for React only in production builds
+      __DEV__: !isProduction,
+      'process.env.NODE_ENV': isProduction ? '"production"' : '"development"',
+      // Disable React development features only in production
+      'process.env.__REACT_DEVTOOLS_GLOBAL_HOOK__': isProduction ? 'undefined' : '{}',
     },
     test: {
       globals: true,
