@@ -1,6 +1,5 @@
 /// <reference types="vitest" />
 import { defineConfig, loadEnv } from 'vite';
-import react from '@vitejs/plugin-react';
 import { visualizer } from 'rollup-plugin-visualizer';
 import path from 'path';
 
@@ -12,26 +11,12 @@ export default defineConfig(({ mode }) => {
   const isProduction = mode === 'production';
 
   return {
+    esbuild: {
+      jsx: 'automatic',
+      jsxImportSource: 'react',
+      jsxDev: false, // Force production JSX transforms
+    },
     plugins: [
-      react({
-        // Use classic JSX runtime for better React 18 compatibility in production builds
-        jsxRuntime: 'classic',
-        // Ensure React is properly imported in all files
-        jsxImportSource: undefined,
-        // Enable React optimization for production
-        babel: isProduction
-          ? {
-              plugins: [['babel-plugin-react-remove-properties', { properties: ['data-testid'] }]],
-              presets: [
-                ['@babel/preset-react', { runtime: 'classic' }]
-              ],
-            }
-          : {
-              presets: [
-                ['@babel/preset-react', { runtime: 'classic' }]
-              ],
-            },
-      }),
       // Bundle analyzer (only in production)
       ...(isProduction
         ? [
@@ -104,13 +89,25 @@ export default defineConfig(({ mode }) => {
       // Increase performance with better compression
       reportCompressedSize: false,
       rollupOptions: {
+        external: (id) => {
+          // Don't bundle React - treat it as external
+          if (id === 'react' || id === 'react-dom') {
+            return false; // Actually bundle them to avoid external dep issues
+          }
+          return false;
+        },
         output: {
           // Optimized chunk splitting for better caching and performance
           manualChunks: id => {
             // Vendor chunks - more granular splitting
             if (id.includes('node_modules')) {
-              // React core - keep together to avoid cross-chunk issues
-              if (id.includes('react') || id.includes('react-dom') || id.includes('react-is')) {
+              // React core - ONLY core React packages, no routing
+              if (id.includes('react') || id.includes('react-dom') || id.includes('react-is') || 
+                  id.includes('react/') || id.includes('scheduler')) {
+                // Skip react-router to avoid conflicts
+                if (id.includes('react-router')) {
+                  return 'router-vendor';
+                }
                 return 'react-vendor';
               }
               // Router
@@ -243,6 +240,13 @@ export default defineConfig(({ mode }) => {
     },
     envDir: rootDir, // Look for .env files in the root directory
     envPrefix: 'VITE_', // Only variables with VITE_ prefix will be exposed
+    define: {
+      // Force production mode for React
+      __DEV__: false,
+      'process.env.NODE_ENV': '"production"',
+      // Disable React development features completely
+      'process.env.__REACT_DEVTOOLS_GLOBAL_HOOK__': 'undefined',
+    },
     test: {
       globals: true,
       environment: 'jsdom',
