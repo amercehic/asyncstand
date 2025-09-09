@@ -512,7 +512,7 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
                             onChange={event => {
                               // Track if user has started entering card info
                               setHasCardInput(!event.empty);
-                              
+
                               if (event.brand) {
                                 setCardType(
                                   event.brand as
@@ -972,7 +972,8 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
                 <div>
                   <h3 className="font-semibold text-lg mb-2">Discard Changes?</h3>
                   <p className="text-muted-foreground text-sm">
-                    You have unsaved payment information. Are you sure you want to close without saving?
+                    You have unsaved payment information. Are you sure you want to close without
+                    saving?
                   </p>
                 </div>
               </div>
