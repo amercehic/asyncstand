@@ -14,8 +14,9 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [
       react({
-        // Use classic JSX runtime for React 18 compatibility
-        jsxRuntime: 'classic',
+        // Use the modern automatic JSX runtime (React 17+)
+        // This avoids legacy interop paths that can trigger odd React globals
+        jsxRuntime: 'automatic',
         // Enable React optimization for production
         babel: isProduction
           ? {
