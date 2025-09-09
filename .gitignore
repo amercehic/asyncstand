@@ -145,6 +145,6 @@ vite.config.ts.timestamp-*
 .turbo
 
 # pnpm
-pnpm-lock.yaml
+# pnpm-lock.yaml - removed to fix deployment lockfile issues
 apps/backend/junit.xml
 apps/frontend/e2e-results/
