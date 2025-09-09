@@ -103,7 +103,7 @@
     "rxjs": "^7.8.2",
     "shared": "workspace:*",
     "stripe": "^18.5.0",
-    "uuid": "^13.0.0",
+    "uuid": "^9.0.1",
     "validator": "^13.15.15"
   },
   "devDependencies": {
