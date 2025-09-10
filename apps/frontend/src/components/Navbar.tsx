@@ -15,8 +15,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts';
 import { toast } from '@/components/ui';
-import { useEnabledFeatures } from '@/hooks/useFeatureFlag';
-import { shouldShowBeforeAPI } from '@/config/features';
+import { useFlag } from '@/contexts/FlagsProvider';
 
 // Safe auth hook that handles context errors
 function useSafeAuth() {
@@ -39,10 +38,14 @@ function useSafeAuth() {
 const NavbarContentSafe = React.memo(() => {
   const location = useLocation();
   const { user, logout, isAuthenticated, isLoading: authLoading } = useSafeAuth();
-  const { features: enabledFeatures, loading: featuresLoading } = useEnabledFeatures(
-    isAuthenticated && !user?.isSuperAdmin,
-    authLoading
-  );
+
+  // Zero-flicker feature flags
+  const dashboardEnabled = useFlag('dashboard');
+  const teamsEnabled = useFlag('teams');
+  const standupsEnabled = useFlag('standups');
+  const integrationsEnabled = useFlag('integrations');
+  const reportsEnabled = useFlag('reports');
+  const settingsEnabled = useFlag('settings');
 
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -184,15 +187,16 @@ const NavbarContentSafe = React.memo(() => {
                   return false;
                 }
 
-                // Handle feature flags with smart defaults
+                // Handle feature flags - zero flicker!
                 if ('featureKey' in item && item.featureKey && !user.isSuperAdmin) {
-                  if (featuresLoading) {
-                    // While loading, show if it's safe to show before API
-                    return shouldShowBeforeAPI(item.featureKey);
-                  } else {
-                    // After loading, check if feature is actually enabled
-                    return enabledFeatures.includes(item.featureKey);
-                  }
+                  const flagKey = item.featureKey;
+                  if (flagKey === 'dashboard') return dashboardEnabled;
+                  if (flagKey === 'teams') return teamsEnabled;
+                  if (flagKey === 'standups') return standupsEnabled;
+                  if (flagKey === 'integrations') return integrationsEnabled;
+                  if (flagKey === 'reports') return reportsEnabled;
+                  if (flagKey === 'settings') return settingsEnabled;
+                  return false; // Unknown flag, disable by default
                 }
 
                 return true;
@@ -268,20 +272,17 @@ const NavbarContentSafe = React.memo(() => {
                   </div>
 
                   <div className="p-2">
-                    {!user?.isSuperAdmin &&
-                      (featuresLoading
-                        ? shouldShowBeforeAPI('settings')
-                        : enabledFeatures.includes('settings')) && (
-                        <Link
-                          to="/settings"
-                          onClick={() => setIsUserMenuOpen(false)}
-                          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted/50 transition-colors text-left"
-                          data-testid="nav-settings-button"
-                        >
-                          <Settings className="w-4 h-4" />
-                          <span className="text-sm">Settings</span>
-                        </Link>
-                      )}
+                    {!user?.isSuperAdmin && settingsEnabled && (
+                      <Link
+                        to="/settings"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted/50 transition-colors text-left"
+                        data-testid="nav-settings-button"
+                      >
+                        <Settings className="w-4 h-4" />
+                        <span className="text-sm">Settings</span>
+                      </Link>
+                    )}
 
                     <button
                       onClick={() => {
@@ -347,15 +348,16 @@ const NavbarContentSafe = React.memo(() => {
                     return false;
                   }
 
-                  // Handle feature flags with smart defaults
+                  // Handle feature flags - zero flicker!
                   if ('featureKey' in item && item.featureKey && !user.isSuperAdmin) {
-                    if (featuresLoading) {
-                      // While loading, show if it's safe to show before API
-                      return shouldShowBeforeAPI(item.featureKey);
-                    } else {
-                      // After loading, check if feature is actually enabled
-                      return enabledFeatures.includes(item.featureKey);
-                    }
+                    const flagKey = item.featureKey;
+                    if (flagKey === 'dashboard') return dashboardEnabled;
+                    if (flagKey === 'teams') return teamsEnabled;
+                    if (flagKey === 'standups') return standupsEnabled;
+                    if (flagKey === 'integrations') return integrationsEnabled;
+                    if (flagKey === 'reports') return reportsEnabled;
+                    if (flagKey === 'settings') return settingsEnabled;
+                    return false; // Unknown flag, disable by default
                   }
 
                   return true;
@@ -400,20 +402,17 @@ const NavbarContentSafe = React.memo(() => {
                 <p className="text-xs text-muted-foreground capitalize">{user?.role} Account</p>
               </div>
 
-              {!user?.isSuperAdmin &&
-                (featuresLoading
-                  ? shouldShowBeforeAPI('settings')
-                  : enabledFeatures.includes('settings')) && (
-                  <Link
-                    to="/settings"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-muted/50 transition-colors text-left"
-                    data-testid="nav-mobile-settings-button"
-                  >
-                    <Settings className="w-5 h-5" />
-                    <span className="font-medium">Settings</span>
-                  </Link>
-                )}
+              {!user?.isSuperAdmin && settingsEnabled && (
+                <Link
+                  to="/settings"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-muted/50 transition-colors text-left"
+                  data-testid="nav-mobile-settings-button"
+                >
+                  <Settings className="w-5 h-5" />
+                  <span className="font-medium">Settings</span>
+                </Link>
+              )}
 
               <button
                 onClick={() => {

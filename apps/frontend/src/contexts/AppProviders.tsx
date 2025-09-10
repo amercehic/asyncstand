@@ -8,6 +8,7 @@ import { StandupsProvider } from '@/contexts/StandupsContext';
 import { ModalProvider } from '@/contexts/ModalContext';
 import { FeatureProvider } from '@/contexts/FeatureContext';
 import { BillingProvider } from '@/contexts/BillingContext';
+import { FlagsProvider } from '@/contexts/FlagsProvider';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -47,15 +48,17 @@ export function AppProviders({ children }: AppProvidersProps) {
       <ThemeProvider>
         <ModalProvider>
           <AuthProvider>
-            <FeatureProvider>
-              <BillingProvider>
-                <IntegrationsProvider>
-                  <TeamsProvider>
-                    <StandupsProvider>{children}</StandupsProvider>
-                  </TeamsProvider>
-                </IntegrationsProvider>
-              </BillingProvider>
-            </FeatureProvider>
+            <FlagsProvider>
+              <FeatureProvider>
+                <BillingProvider>
+                  <IntegrationsProvider>
+                    <TeamsProvider>
+                      <StandupsProvider>{children}</StandupsProvider>
+                    </TeamsProvider>
+                  </IntegrationsProvider>
+                </BillingProvider>
+              </FeatureProvider>
+            </FlagsProvider>
           </AuthProvider>
         </ModalProvider>
       </ThemeProvider>

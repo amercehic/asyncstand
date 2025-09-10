@@ -15,16 +15,32 @@ export interface FeatureConfig {
 // Safe defaults per environment - these can be shown immediately but will be hidden if API says no
 const FEATURE_CONFIG: Record<string, FeatureConfig> = {
   development: {
-    safeDefaults: ['dashboard', 'standups'], // Always safe
+    safeDefaults: ['dashboard', 'standups', 'slack_integration'], // Always safe
     requireApiConfirmation: ['teams', 'integrations', 'settings', 'reports', 'admin'],
   },
   staging: {
-    safeDefaults: ['dashboard', 'standups', 'teams', 'integrations', 'settings'], // Usually enabled in staging
-    requireApiConfirmation: ['reports', 'admin'],
+    safeDefaults: [
+      'dashboard',
+      'standups',
+      'teams',
+      'integrations',
+      'settings',
+      'reports',
+      'slack_integration',
+    ], // Usually enabled in staging
+    requireApiConfirmation: ['admin'],
   },
   production: {
-    safeDefaults: ['dashboard', 'standups', 'teams', 'integrations', 'settings'], // Usually enabled in prod
-    requireApiConfirmation: ['reports', 'admin'],
+    safeDefaults: [
+      'dashboard',
+      'standups',
+      'teams',
+      'integrations',
+      'settings',
+      'reports',
+      'slack_integration',
+    ], // Usually enabled in prod
+    requireApiConfirmation: ['admin'],
   },
 };
 

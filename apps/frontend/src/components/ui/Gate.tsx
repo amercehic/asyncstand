@@ -1,5 +1,5 @@
 import React from 'react';
-import { useFlag } from '@/contexts/ZeroFlickerFlagsProvider';
+import { useFlag } from '@/contexts/FlagsProvider';
 
 interface GateProps {
   /**

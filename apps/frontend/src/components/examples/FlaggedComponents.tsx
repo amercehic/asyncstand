@@ -1,6 +1,6 @@
 import React from 'react';
 import { Gate, MultiGate, ExperimentGate, DevGate, RoleGate } from '@/components/ui/Gate';
-import { useFlag, useFlagsContext } from '@/contexts/ZeroFlickerFlagsProvider';
+import { useFlag, useFlagsContext } from '@/contexts/FlagsProvider';
 import { useAuth } from '@/contexts/AuthContext';
 
 /**

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts';
-import { useFeatureFlag } from '@/hooks/useFeatureFlag';
+import { useFlag } from '@/contexts/FlagsProvider';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 
 interface FeatureProtectedRouteProps {
@@ -21,10 +21,10 @@ export const FeatureProtectedRoute: React.FC<FeatureProtectedRouteProps> = ({
 }) => {
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const location = useLocation();
-  const { isEnabled: featureEnabled, loading: featureLoading } = useFeatureFlag(featureKey);
+  const featureEnabled = useFlag(featureKey);
 
-  // Show loading spinner while checking authentication or feature
-  if (authLoading || featureLoading) {
+  // Show loading spinner while checking authentication (no feature loading needed!)
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">

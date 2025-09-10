@@ -19,7 +19,7 @@ import {
 import { toast } from '@/components/ui';
 import { integrationsApi, type SlackIntegration } from '@/lib/api';
 import { useAuth, useIntegrations } from '@/contexts';
-import { useFeatureFlag } from '@/hooks';
+import { useFlag } from '@/contexts/FlagsProvider';
 import {
   SlackIcon,
   TeamsOutlineIcon,
@@ -40,7 +40,7 @@ export const IntegrationsPage = React.memo(() => {
     isIntegrationSyncing,
     refreshIntegrations,
   } = useIntegrations();
-  const { isEnabled: isSlackIntegrationEnabled } = useFeatureFlag('slack_integration');
+  const isSlackIntegrationEnabled = useFlag('slack_integration');
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [integrationToDelete, setIntegrationToDelete] = useState<SlackIntegration | null>(null);

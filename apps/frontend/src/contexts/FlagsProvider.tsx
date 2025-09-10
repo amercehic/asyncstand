@@ -34,7 +34,7 @@ interface FlagsProviderProps {
   userId?: string;
 }
 
-export function ZeroFlickerFlagsProvider({
+export function FlagsProvider({
   children,
   enableSSE = false,
   pollingInterval = 60000,
@@ -264,7 +264,7 @@ export function ZeroFlickerFlagsProvider({
 export function useFlag(key: string): boolean {
   const context = useContext(FlagsContext);
   if (!context) {
-    throw new Error('useFlag must be used within a ZeroFlickerFlagsProvider');
+    throw new Error('useFlag must be used within a FlagsProvider');
   }
 
   return context.flags[key] || false;
@@ -276,7 +276,7 @@ export function useFlag(key: string): boolean {
 export function useFlags(): Flags {
   const context = useContext(FlagsContext);
   if (!context) {
-    throw new Error('useFlags must be used within a ZeroFlickerFlagsProvider');
+    throw new Error('useFlags must be used within a FlagsProvider');
   }
 
   return context.flags;
@@ -288,7 +288,7 @@ export function useFlags(): Flags {
 export function useFlagsContext(): FlagsContextValue {
   const context = useContext(FlagsContext);
   if (!context) {
-    throw new Error('useFlagsContext must be used within a ZeroFlickerFlagsProvider');
+    throw new Error('useFlagsContext must be used within a FlagsProvider');
   }
 
   return context;
@@ -300,7 +300,7 @@ export function useFlagsContext(): FlagsContextValue {
 export function useFlags2(keys: string[]): Record<string, boolean> {
   const context = useContext(FlagsContext);
   if (!context) {
-    throw new Error('useFlags2 must be used within a ZeroFlickerFlagsProvider');
+    throw new Error('useFlags2 must be used within a FlagsProvider');
   }
 
   const result: Record<string, boolean> = {};
