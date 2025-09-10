@@ -1,15 +1,28 @@
-import { IsString, IsBoolean, IsOptional, IsArray, Length, ArrayMinSize } from 'class-validator';
+import {
+  IsString,
+  IsBoolean,
+  IsOptional,
+  IsArray,
+  Length,
+  ArrayMinSize,
+  IsIn,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { Prisma } from '@prisma/client';
+import { FEATURES } from '@/shared/feature-constants';
 
 export class CreateFeatureDto {
   @ApiProperty({
     description: 'Unique key identifier for the feature',
     example: 'advanced-analytics',
+    enum: Object.values(FEATURES),
   })
   @IsString()
   @Length(1, 100, { message: 'Feature key must be between 1-100 characters' })
+  @IsIn(Object.values(FEATURES), {
+    message: `Feature key must be one of the defined constants: ${Object.values(FEATURES).join(', ')}`,
+  })
   @Transform(({ value }) => (typeof value === 'string' ? value.trim().toLowerCase() : value))
   key: string;
 

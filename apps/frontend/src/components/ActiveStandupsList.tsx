@@ -65,7 +65,7 @@ const DeleteConfirmationModal: React.FC<DeleteModalProps> = ({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
         className="bg-card rounded-2xl p-6 border border-border max-w-md w-full mx-4"
-        onClick={e => e.stopPropagation()}
+        onClick={(e: React.MouseEvent) => e.stopPropagation()}
       >
         <div className="flex items-center gap-4 mb-6">
           <div className="w-12 h-12 bg-red-500/10 rounded-full flex items-center justify-center">

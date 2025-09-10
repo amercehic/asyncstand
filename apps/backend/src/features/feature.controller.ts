@@ -1,4 +1,15 @@
-import { Controller, Get, Post, Put, Body, Param, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  BadRequestException,
+} from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { FeatureService } from '@/features/feature.service';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
@@ -13,6 +24,7 @@ import {
   SwaggerListFeatures,
   SwaggerCreateFeature,
   SwaggerUpdateFeature,
+  SwaggerDeleteFeature,
 } from '@/swagger/features.swagger';
 
 interface AuthenticatedUser {
@@ -71,8 +83,21 @@ export class FeatureController {
   @UseGuards(SuperAdminGuard)
   @SwaggerCreateFeature()
   async createFeature(@Body() createFeatureDto: CreateFeatureDto) {
-    const feature = await this.featureService.createFeature(createFeatureDto);
-    return { feature };
+    try {
+      const feature = await this.featureService.createFeature(createFeatureDto);
+      return { feature };
+    } catch (error: unknown) {
+      if (
+        error &&
+        typeof error === 'object' &&
+        'message' in error &&
+        typeof error.message === 'string' &&
+        error.message.includes('already exists')
+      ) {
+        throw new BadRequestException(error.message);
+      }
+      throw error;
+    }
   }
 
   @Put('admin/:featureKey')
@@ -84,5 +109,13 @@ export class FeatureController {
   ) {
     const feature = await this.featureService.updateFeature(featureKey, updateFeatureDto);
     return { feature };
+  }
+
+  @Delete('admin/:featureKey')
+  @UseGuards(SuperAdminGuard)
+  @SwaggerDeleteFeature()
+  async deleteFeature(@Param('featureKey') featureKey: string) {
+    await this.featureService.deleteFeature(featureKey);
+    return { success: true };
   }
 }

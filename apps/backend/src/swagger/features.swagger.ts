@@ -313,3 +313,43 @@ export const SwaggerUpdateFeature = () =>
       description: 'Not found - feature does not exist',
     }),
   );
+
+export const SwaggerDeleteFeature = () =>
+  applyDecorators(
+    ApiOperation({
+      summary: 'Delete a feature flag (Super Admin Only)',
+      description:
+        'Permanently deletes a feature flag from the system. This action cannot be undone. ' +
+        'All associated plan features and feature overrides will also be removed.',
+    }),
+    ApiParam({
+      name: 'featureKey',
+      description: 'The unique key identifier of the feature to delete',
+      example: 'advanced-analytics',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Feature deleted successfully',
+      schema: {
+        type: 'object',
+        properties: {
+          success: {
+            type: 'boolean',
+            example: true,
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized - invalid or missing authentication token',
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden - requires super admin role',
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Not found - feature does not exist',
+    }),
+  );

@@ -281,15 +281,41 @@ export class FeatureService {
   }
 
   async createFeature(createFeatureDto: CreateFeatureDto) {
-    return this.prisma.feature.create({
-      data: createFeatureDto,
-    });
+    try {
+      return await this.prisma.feature.create({
+        data: createFeatureDto,
+      });
+    } catch (error: unknown) {
+      // Handle Prisma unique constraint violation
+      if (
+        error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        error.code === 'P2002' &&
+        'meta' in error &&
+        error.meta &&
+        typeof error.meta === 'object' &&
+        'target' in error.meta &&
+        Array.isArray(error.meta.target) &&
+        error.meta.target.includes('key')
+      ) {
+        throw new Error(`Feature with key '${createFeatureDto.key}' already exists`);
+      }
+      // Re-throw other errors
+      throw error;
+    }
   }
 
   async updateFeature(featureKey: string, updateFeatureDto: UpdateFeatureDto) {
     return this.prisma.feature.update({
       where: { key: featureKey },
       data: updateFeatureDto,
+    });
+  }
+
+  async deleteFeature(featureKey: string) {
+    return this.prisma.feature.delete({
+      where: { key: featureKey },
     });
   }
 }

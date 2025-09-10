@@ -214,7 +214,7 @@ export const CreateTeamModal = React.memo<CreateTeamModalProps>(
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ duration: 0.2 }}
             className="bg-card rounded-xl sm:rounded-2xl border border-border w-full max-w-[95vw] sm:max-w-md max-h-[95vh] overflow-auto shadow-xl"
-            onClick={e => e.stopPropagation()}
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
           >
             {/* Header */}
             <div className="flex items-center justify-between p-4 sm:p-6 border-b border-border">

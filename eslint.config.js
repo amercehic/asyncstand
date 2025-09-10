@@ -108,4 +108,12 @@ export default [
       'no-restricted-syntax': 'off',
     },
   },
+
+  // Feature system overrides - allow imports to shared feature constants
+  {
+    files: ['apps/backend/src/features/**/*.ts', 'apps/backend/scripts/**/*.ts'],
+    rules: {
+      'no-restricted-imports': 'off',
+    },
+  },
 ];

@@ -124,4 +124,12 @@ export const featuresApi = {
     );
     return response.data;
   },
+
+  /**
+   * Delete a feature (admin only)
+   */
+  deleteFeature: async (featureKey: string): Promise<{ success: boolean }> => {
+    const response = await api.delete<{ success: boolean }>(`/features/admin/${featureKey}`);
+    return response.data;
+  },
 };

@@ -10,6 +10,11 @@ import {
   CardExpiryElement,
   CardCvcElement,
 } from '@stripe/react-stripe-js';
+import type {
+  StripeCardNumberElement,
+  StripeCardNumberElementChangeEvent,
+  StripeCardExpiryElementChangeEvent,
+} from '@stripe/stripe-js';
 import {
   X,
   CreditCard,
@@ -336,7 +341,9 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
     setIsSubmitting(true);
     setErrorMessage(null); // Clear any previous errors
     try {
-      const cardNumberElement = elements.getElement(CardNumberElement);
+      const cardNumberElement = elements.getElement(
+        CardNumberElement
+      ) as unknown as StripeCardNumberElement;
       const cardExpiryElement = elements.getElement(CardExpiryElement);
       const cardCvcElement = elements.getElement(CardCvcElement);
 
@@ -509,7 +516,7 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
                         <div className="w-full">
                           <CardNumberElement
                             options={elementOptions}
-                            onChange={event => {
+                            onChange={(event: StripeCardNumberElementChangeEvent) => {
                               // Track if user has started entering card info
                               setHasCardInput(!event.empty);
 
@@ -569,7 +576,7 @@ const AddPaymentMethodForm: React.FC<AddPaymentMethodModalProps> = ({
                           <div className="w-full">
                             <CardExpiryElement
                               options={elementOptions}
-                              onChange={event => {
+                              onChange={(event: StripeCardExpiryElementChangeEvent) => {
                                 // Stripe Elements don't expose the actual values for security
                                 // We'll get the values from the payment method after creation
                                 if (event.complete) {
