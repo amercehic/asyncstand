@@ -269,7 +269,9 @@ const NavbarContentSafe = React.memo(() => {
 
                   <div className="p-2">
                     {!user?.isSuperAdmin &&
-                      (featuresLoading ? shouldShowBeforeAPI('settings') : enabledFeatures.includes('settings')) && (
+                      (featuresLoading
+                        ? shouldShowBeforeAPI('settings')
+                        : enabledFeatures.includes('settings')) && (
                         <Link
                           to="/settings"
                           onClick={() => setIsUserMenuOpen(false)}
@@ -398,17 +400,20 @@ const NavbarContentSafe = React.memo(() => {
                 <p className="text-xs text-muted-foreground capitalize">{user?.role} Account</p>
               </div>
 
-              {!user?.isSuperAdmin && (featuresLoading ? shouldShowBeforeAPI('settings') : enabledFeatures.includes('settings')) && (
-                <Link
-                  to="/settings"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-muted/50 transition-colors text-left"
-                  data-testid="nav-mobile-settings-button"
-                >
-                  <Settings className="w-5 h-5" />
-                  <span className="font-medium">Settings</span>
-                </Link>
-              )}
+              {!user?.isSuperAdmin &&
+                (featuresLoading
+                  ? shouldShowBeforeAPI('settings')
+                  : enabledFeatures.includes('settings')) && (
+                  <Link
+                    to="/settings"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-muted/50 transition-colors text-left"
+                    data-testid="nav-mobile-settings-button"
+                  >
+                    <Settings className="w-5 h-5" />
+                    <span className="font-medium">Settings</span>
+                  </Link>
+                )}
 
               <button
                 onClick={() => {

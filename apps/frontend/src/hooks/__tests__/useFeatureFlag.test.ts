@@ -25,6 +25,8 @@ vi.mocked(await import('@/lib/api-client/features')).featuresApi =
 describe('useFeatureFlag', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Clear localStorage to ensure clean test state
+    localStorage.clear();
   });
 
   it('should return initial state', () => {
@@ -247,6 +249,8 @@ describe('useFeatureFlag', () => {
 describe('useFeatureFlags', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Clear localStorage to ensure clean test state
+    localStorage.clear();
   });
 
   it('should return initial state', () => {
@@ -426,13 +430,15 @@ describe('useFeatureFlags', () => {
 describe('useEnabledFeatures', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Clear localStorage to ensure clean test state
+    localStorage.clear();
   });
 
   it('should return initial state', () => {
     const { result } = renderHook(() => useEnabledFeatures());
 
     expect(result.current).toEqual({
-      features: [],
+      features: ['dashboard', 'standups'], // Zero-flicker: start with safe defaults
       loading: true,
       error: null,
       refetch: expect.any(Function),
@@ -461,7 +467,7 @@ describe('useEnabledFeatures', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(result.current.features).toEqual([]);
+    expect(result.current.features).toEqual(['dashboard', 'standups']); // Zero-flicker: preserve initial features on error
     expect(mockFeaturesApi.getEnabledFeatures).not.toHaveBeenCalled();
   });
 
@@ -495,7 +501,7 @@ describe('useEnabledFeatures', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(result.current.features).toEqual([]);
+    expect(result.current.features).toEqual(['dashboard', 'standups']); // Zero-flicker: preserve initial features on error
     expect(result.current.error).toBe(error);
     expect(consoleSpy).toHaveBeenCalledWith('Failed to fetch enabled features:', 'API Error');
 
@@ -534,7 +540,7 @@ describe('useEnabledFeatures', () => {
 
     expect(result.current.error).toBeInstanceOf(Error);
     expect(result.current.error?.message).toBe('Failed to fetch enabled features');
-    expect(result.current.features).toEqual([]);
+    expect(result.current.features).toEqual(['dashboard', 'standups']); // Zero-flicker: preserve initial features on error
 
     consoleSpy.mockRestore();
   });
@@ -554,7 +560,7 @@ describe('useEnabledFeatures', () => {
     // User logs out
     rerender({ isAuthenticated: false, authLoading: false });
 
-    expect(result.current.features).toEqual([]);
+    expect(result.current.features).toEqual(['dashboard', 'standups']); // Zero-flicker: preserve initial features on error
     expect(result.current.loading).toBe(false);
     expect(result.current.error).toBeNull();
   });
@@ -584,7 +590,7 @@ describe('useEnabledFeatures', () => {
     // User logs out
     rerender({ isAuthenticated: false, authLoading: false });
 
-    expect(result.current.features).toEqual([]);
+    expect(result.current.features).toEqual(['dashboard', 'standups']); // Zero-flicker: preserve initial features on error
     expect(result.current.loading).toBe(false);
     expect(result.current.error).toBeNull();
   });

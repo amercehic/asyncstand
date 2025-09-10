@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AsyncStand</title>
+
+    <!-- Security headers -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="X-Frame-Options" content="DENY" />
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+
+    <!-- Preconnect to API domain for faster requests -->
+    <link rel="preconnect" href="https://asyncstand-backend-staging.onrender.com" />
+    <link rel="preconnect" href="https://asyncstand-backend.onrender.com" />
+
+    <!-- DNS prefetch for faster domain resolution -->
+    <link rel="dns-prefetch" href="//asyncstand-backend-staging.onrender.com" />
+    <link rel="dns-prefetch" href="//asyncstand-backend.onrender.com" />
+
+    <!-- Feature flags injection point - replaced by backend -->
+    <!--__FLAGS__-->
+
+    <!-- Favicon and app icons -->
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+
+    <!-- Theme color for mobile browsers -->
+    <meta name="theme-color" content="#000000" />
+
+    <!-- App manifest for PWA -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Critical CSS inlined here would improve first paint -->
+    <style>
+      /* Critical CSS for loading state */
+      #root {
+        min-height: 100vh;
+        font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+      }
+
+      /* Hide content until hydrated to prevent flicker */
+      .pre-hydration {
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out;
+      }
+
+      .hydrated {
+        opacity: 1;
+      }
+
+      /* Loading spinner for initial load */
+      .loading-spinner {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 40px;
+        height: 40px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #3498db;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: translate(-50%, -50%) rotate(0deg);
+        }
+        100% {
+          transform: translate(-50%, -50%) rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <!-- Fallback loading indicator -->
+      <div class="loading-spinner" id="initial-loader"></div>
+    </div>
+
+    <!-- Module script that handles the app loading -->
+    <script type="module" src="/src/main.tsx"></script>
+
+    <!-- Remove loading spinner once app loads -->
+    <script>
+      // Remove loading spinner once React takes over
+      window.addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => {
+          const loader = document.getElementById('initial-loader');
+          if (loader && document.querySelector('.hydrated')) {
+            loader.remove();
+          }
+        }, 1000);
+      });
+    </script>
+  </body>
+</html>

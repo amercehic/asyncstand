@@ -179,8 +179,10 @@ export const useFeatureFlags = (featureKeys: string[]): UseFeatureFlagsResult =>
  * Useful for bulk feature checking with localStorage caching
  */
 export const useEnabledFeatures = (isAuthenticated?: boolean, authLoading?: boolean) => {
-  // Start with initial features (safe defaults + cached)
-  const [features, setFeatures] = useState<string[]>(getInitialFeatures);
+  // Start with initial features (safe defaults + cached if potentially authenticated)
+  const [features, setFeatures] = useState<string[]>(() =>
+    getInitialFeatures(isAuthenticated !== false)
+  );
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -212,8 +214,8 @@ export const useEnabledFeatures = (isAuthenticated?: boolean, authLoading?: bool
     if (isAuthenticated && !authLoading) {
       fetchEnabledFeatures();
     } else if (isAuthenticated === false && !authLoading) {
-      // User is not authenticated, clear features and stop loading
-      setFeatures([]);
+      // User is not authenticated, use only safe defaults (no cached auth features)
+      setFeatures(getInitialFeatures(false));
       setLoading(false);
       setError(null);
     }

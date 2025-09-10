@@ -16,16 +16,16 @@ export interface FeatureConfig {
 const FEATURE_CONFIG: Record<string, FeatureConfig> = {
   development: {
     safeDefaults: ['dashboard', 'standups'], // Always safe
-    requireApiConfirmation: ['teams', 'integrations', 'settings', 'reports', 'admin']
+    requireApiConfirmation: ['teams', 'integrations', 'settings', 'reports', 'admin'],
   },
   staging: {
     safeDefaults: ['dashboard', 'standups', 'teams', 'integrations', 'settings'], // Usually enabled in staging
-    requireApiConfirmation: ['reports', 'admin']
+    requireApiConfirmation: ['reports', 'admin'],
   },
   production: {
     safeDefaults: ['dashboard', 'standups', 'teams', 'integrations', 'settings'], // Usually enabled in prod
-    requireApiConfirmation: ['reports', 'admin']
-  }
+    requireApiConfirmation: ['reports', 'admin'],
+  },
 };
 
 // Get current environment
@@ -34,16 +34,16 @@ const getEnvironment = (): string => {
   if (import.meta.env.VITE_APP_ENV) {
     return import.meta.env.VITE_APP_ENV;
   }
-  
+
   // Fallback to NODE_ENV or default
   if (import.meta.env.DEV) return 'development';
   if (import.meta.env.PROD) return 'production';
-  
+
   // Check hostname for staging
   if (typeof window !== 'undefined' && window.location.hostname.includes('staging')) {
     return 'staging';
   }
-  
+
   return 'production';
 };
 
@@ -66,10 +66,16 @@ const getCachedFeatures = (): string[] => {
  * Get features that should be shown immediately (before API loads)
  * Combines safe defaults with cached values from previous sessions
  */
-export const getInitialFeatures = (): string[] => {
+export const getInitialFeatures = (includeAuthFeatures: boolean = true): string[] => {
   const safeDefaults = featureConfig.safeDefaults;
+
+  if (!includeAuthFeatures) {
+    // For unauthenticated users, only return safe defaults
+    return [...safeDefaults];
+  }
+
   const cached = getCachedFeatures();
-  
+
   // Combine safe defaults with cached features (deduplicated)
   return [...new Set([...safeDefaults, ...cached])];
 };
