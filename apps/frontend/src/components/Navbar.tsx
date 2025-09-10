@@ -36,6 +36,7 @@ function useSafeAuth() {
 
 // Helper component that only renders when not on auth pages
 const NavbarContentSafe = React.memo(() => {
+  const location = useLocation();
   const { user, logout, isAuthenticated, isLoading: authLoading } = useSafeAuth();
   const { features: enabledFeatures, loading: featuresLoading } = useEnabledFeatures(
     isAuthenticated && !user?.isSuperAdmin,
@@ -98,6 +99,7 @@ const NavbarContentSafe = React.memo(() => {
       icon: Calendar,
       roles: ['owner', 'admin', 'member'] as const,
       featureKey: 'dashboard',
+      showByDefault: true, // Always show for basic functionality
     },
     {
       path: '/teams',
@@ -105,6 +107,7 @@ const NavbarContentSafe = React.memo(() => {
       icon: Users,
       roles: ['owner', 'admin'] as const,
       featureKey: 'teams',
+      showByDefault: false, // Don't show until confirmed enabled
     },
     {
       path: '/standups',
@@ -112,6 +115,7 @@ const NavbarContentSafe = React.memo(() => {
       icon: Calendar,
       roles: ['owner', 'admin', 'member'] as const,
       featureKey: 'standups',
+      showByDefault: true, // Core functionality
     },
     {
       path: '/integrations',
@@ -119,6 +123,7 @@ const NavbarContentSafe = React.memo(() => {
       icon: Zap,
       roles: ['owner', 'admin'] as const,
       featureKey: 'integrations',
+      showByDefault: false, // Don't show until confirmed enabled
     },
     {
       path: '/reports',
@@ -127,6 +132,7 @@ const NavbarContentSafe = React.memo(() => {
       roles: ['owner', 'admin'] as const,
       comingSoon: true,
       featureKey: 'reports',
+      showByDefault: false, // Don't show until confirmed enabled
     },
     {
       path: '/admin',
@@ -134,6 +140,7 @@ const NavbarContentSafe = React.memo(() => {
       icon: Shield,
       roles: ['owner', 'admin'] as const,
       superAdminOnly: true,
+      showByDefault: false, // Only for super admins
     },
   ] as const;
 
@@ -182,16 +189,14 @@ const NavbarContentSafe = React.memo(() => {
                   return false;
                 }
 
-                // Check if feature is enabled (skip for super admins)
-                // If features are still loading, show all navigation items optimistically
-                if (
-                  'featureKey' in item &&
-                  item.featureKey &&
-                  !user.isSuperAdmin &&
-                  !featuresLoading
-                ) {
-                  if (!enabledFeatures.includes(item.featureKey)) {
-                    return false;
+                // Handle feature flags more carefully to prevent flickering
+                if ('featureKey' in item && item.featureKey && !user.isSuperAdmin) {
+                  if (featuresLoading) {
+                    // While loading, only show items marked as showByDefault
+                    return item.showByDefault === true;
+                  } else {
+                    // After loading, check if feature is actually enabled
+                    return enabledFeatures.includes(item.featureKey);
                   }
                 }
 
@@ -269,7 +274,8 @@ const NavbarContentSafe = React.memo(() => {
 
                   <div className="p-2">
                     {!user?.isSuperAdmin &&
-                      (featuresLoading || enabledFeatures.includes('settings')) && (
+                      !featuresLoading &&
+                      enabledFeatures.includes('settings') && (
                         <Link
                           to="/settings"
                           onClick={() => setIsUserMenuOpen(false)}
@@ -345,16 +351,14 @@ const NavbarContentSafe = React.memo(() => {
                     return false;
                   }
 
-                  // Check if feature is enabled (skip for super admins)
-                  // If features are still loading, show all navigation items optimistically
-                  if (
-                    'featureKey' in item &&
-                    item.featureKey &&
-                    !user.isSuperAdmin &&
-                    !featuresLoading
-                  ) {
-                    if (!enabledFeatures.includes(item.featureKey)) {
-                      return false;
+                  // Handle feature flags more carefully to prevent flickering
+                  if ('featureKey' in item && item.featureKey && !user.isSuperAdmin) {
+                    if (featuresLoading) {
+                      // While loading, only show items marked as showByDefault
+                      return item.showByDefault === true;
+                    } else {
+                      // After loading, check if feature is actually enabled
+                      return enabledFeatures.includes(item.featureKey);
                     }
                   }
 
@@ -400,7 +404,7 @@ const NavbarContentSafe = React.memo(() => {
                 <p className="text-xs text-muted-foreground capitalize">{user?.role} Account</p>
               </div>
 
-              {!user?.isSuperAdmin && (featuresLoading || enabledFeatures.includes('settings')) && (
+              {!user?.isSuperAdmin && !featuresLoading && enabledFeatures.includes('settings') && (
                 <Link
                   to="/settings"
                   onClick={() => setIsMobileMenuOpen(false)}

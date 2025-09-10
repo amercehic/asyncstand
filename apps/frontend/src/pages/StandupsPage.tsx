@@ -859,12 +859,7 @@ export const StandupsPage = () => {
           id: `trigger-${config.id}`,
         });
 
-        // Log message results for debugging
-        if (result.messageResult) {
-          if (!result.messageResult.success) {
-            console.warn('Slack message failed:', result.messageResult.error);
-          }
-        }
+        // Slack message is now sent asynchronously in the background
 
         // Refresh data to show the new instance
         if (selectedTeam) {

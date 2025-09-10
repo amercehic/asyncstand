@@ -119,7 +119,7 @@ describe('Navbar', () => {
     expect(spinner).toBeInTheDocument();
   });
 
-  it('should show loading state when features are loading for regular users', () => {
+  it('should show default navigation items when features are loading for regular users', () => {
     mockUseAuth.mockReturnValue({
       user: {
         id: '1',
@@ -150,10 +150,11 @@ describe('Navbar', () => {
     renderNavbar();
 
     expect(screen.getByText('AsyncStand')).toBeInTheDocument();
-    expect(screen.getByText('AsyncStand')).toBeInTheDocument();
-    // Just check that the loading spinner is present
-    const spinner = document.querySelector('.animate-spin');
-    expect(spinner).toBeInTheDocument();
+    // Should show only default navigation items while loading
+    expect(screen.getByText('Dashboard')).toBeInTheDocument();
+    expect(screen.getByText('Standups')).toBeInTheDocument();
+    // Should not show non-default items like Teams while loading
+    expect(screen.queryByText('Teams')).not.toBeInTheDocument();
   });
 
   it('should render navbar for authenticated user', async () => {

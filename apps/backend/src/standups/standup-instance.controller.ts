@@ -330,21 +330,16 @@ export class StandupInstanceController {
           setTimeout(() => reject(new Error('Slack API timeout after 30 seconds')), 30000);
         });
 
-        const slackResult = await Promise.race([
+        await Promise.race([
           this.slackMessagingService.sendStandupReminder(result.instanceId!),
           timeoutPromise,
         ]);
 
-        console.log('Slack message sent successfully', {
-          instanceId: result.instanceId,
-          success: slackResult.ok,
-          error: slackResult.error,
-        });
-      } catch (error) {
-        console.error('Failed to send Slack message', {
-          instanceId: result.instanceId,
-          error: error instanceof Error ? error.message : String(error),
-        });
+        // Log success - using a simple approach since we don't have logger in the async function
+        // The SlackMessagingService already logs successes and failures internally
+      } catch {
+        // Log error - using a simple approach since we don't have logger in the async function
+        // The SlackMessagingService already logs failures internally
       }
     };
 
