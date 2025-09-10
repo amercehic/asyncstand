@@ -50,8 +50,8 @@ const NavbarContentSafe = React.memo(() => {
     return null;
   }
 
-  // Show loading state while auth is loading or features are loading (except for super admins)
-  if (authLoading || (!user?.isSuperAdmin && featuresLoading)) {
+  // Show loading state only while auth is loading
+  if (authLoading) {
     return (
       <header className="bg-card border-b border-border sticky top-0 z-40 backdrop-blur-sm bg-card/80">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -183,7 +183,13 @@ const NavbarContentSafe = React.memo(() => {
                 }
 
                 // Check if feature is enabled (skip for super admins)
-                if ('featureKey' in item && item.featureKey && !user.isSuperAdmin) {
+                // If features are still loading, show all navigation items optimistically
+                if (
+                  'featureKey' in item &&
+                  item.featureKey &&
+                  !user.isSuperAdmin &&
+                  !featuresLoading
+                ) {
                   if (!enabledFeatures.includes(item.featureKey)) {
                     return false;
                   }
@@ -262,17 +268,18 @@ const NavbarContentSafe = React.memo(() => {
                   </div>
 
                   <div className="p-2">
-                    {!user?.isSuperAdmin && enabledFeatures.includes('settings') && (
-                      <Link
-                        to="/settings"
-                        onClick={() => setIsUserMenuOpen(false)}
-                        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted/50 transition-colors text-left"
-                        data-testid="nav-settings-button"
-                      >
-                        <Settings className="w-4 h-4" />
-                        <span className="text-sm">Settings</span>
-                      </Link>
-                    )}
+                    {!user?.isSuperAdmin &&
+                      (featuresLoading || enabledFeatures.includes('settings')) && (
+                        <Link
+                          to="/settings"
+                          onClick={() => setIsUserMenuOpen(false)}
+                          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted/50 transition-colors text-left"
+                          data-testid="nav-settings-button"
+                        >
+                          <Settings className="w-4 h-4" />
+                          <span className="text-sm">Settings</span>
+                        </Link>
+                      )}
 
                     <button
                       onClick={() => {
@@ -339,7 +346,13 @@ const NavbarContentSafe = React.memo(() => {
                   }
 
                   // Check if feature is enabled (skip for super admins)
-                  if ('featureKey' in item && item.featureKey && !user.isSuperAdmin) {
+                  // If features are still loading, show all navigation items optimistically
+                  if (
+                    'featureKey' in item &&
+                    item.featureKey &&
+                    !user.isSuperAdmin &&
+                    !featuresLoading
+                  ) {
                     if (!enabledFeatures.includes(item.featureKey)) {
                       return false;
                     }
@@ -387,7 +400,7 @@ const NavbarContentSafe = React.memo(() => {
                 <p className="text-xs text-muted-foreground capitalize">{user?.role} Account</p>
               </div>
 
-              {!user?.isSuperAdmin && enabledFeatures.includes('settings') && (
+              {!user?.isSuperAdmin && (featuresLoading || enabledFeatures.includes('settings')) && (
                 <Link
                   to="/settings"
                   onClick={() => setIsMobileMenuOpen(false)}

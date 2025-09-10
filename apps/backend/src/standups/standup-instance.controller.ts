@@ -305,7 +305,6 @@ export class StandupInstanceController {
     instanceId?: string;
     success: boolean;
     message: string;
-    messageResult?: { success: boolean; error?: string };
   }> {
     const targetDate = new Date(body.targetDate);
     if (isNaN(targetDate.getTime())) {
@@ -323,26 +322,39 @@ export class StandupInstanceController {
       return result;
     }
 
-    // Send Slack message and wait for completion
-    let messageResult;
-    try {
-      const slackResult = await this.slackMessagingService.sendStandupReminder(result.instanceId);
-      messageResult = {
-        success: slackResult.ok,
-        error: slackResult.error,
-      };
-    } catch (error) {
-      messageResult = {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
+    // Send Slack message asynchronously with timeout to avoid blocking the response
+    const sendMessageAsync = async () => {
+      try {
+        // Set a 30-second timeout for Slack operations
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('Slack API timeout after 30 seconds')), 30000);
+        });
+
+        const slackResult = await Promise.race([
+          this.slackMessagingService.sendStandupReminder(result.instanceId!),
+          timeoutPromise,
+        ]);
+
+        console.log('Slack message sent successfully', {
+          instanceId: result.instanceId,
+          success: slackResult.ok,
+          error: slackResult.error,
+        });
+      } catch (error) {
+        console.error('Failed to send Slack message', {
+          instanceId: result.instanceId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    };
+
+    // Fire and forget - don't wait for Slack message completion
+    sendMessageAsync();
 
     return {
       instanceId: result.instanceId,
       success: true,
-      message: 'Standup instance created and notification sent',
-      messageResult,
+      message: 'Standup instance created, notification being sent asynchronously',
     };
   }
 
