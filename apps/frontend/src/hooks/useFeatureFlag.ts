@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { featuresApi, type FeatureCheckResult } from '@/lib/api-client/features';
+import { getInitialFeatures, cacheFeatures } from '@/config/features';
 
 interface UseFeatureFlagResult {
   isEnabled: boolean;
@@ -175,10 +176,11 @@ export const useFeatureFlags = (featureKeys: string[]): UseFeatureFlagsResult =>
 
 /**
  * Hook to get all enabled features for the current user's organization
- * Useful for bulk feature checking
+ * Useful for bulk feature checking with localStorage caching
  */
 export const useEnabledFeatures = (isAuthenticated?: boolean, authLoading?: boolean) => {
-  const [features, setFeatures] = useState<string[]>([]);
+  // Start with initial features (safe defaults + cached)
+  const [features, setFeatures] = useState<string[]>(getInitialFeatures);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -189,10 +191,12 @@ export const useEnabledFeatures = (isAuthenticated?: boolean, authLoading?: bool
     try {
       const result = await featuresApi.getEnabledFeatures();
       setFeatures(result);
+      // Cache the fresh results for next session
+      cacheFeatures(result);
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Failed to fetch enabled features');
       setError(error);
-      setFeatures([]);
+      // Keep the initial features (don't clear them on error)
       console.warn('Failed to fetch enabled features:', error.message);
     } finally {
       setLoading(false);

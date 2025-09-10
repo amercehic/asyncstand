@@ -16,6 +16,7 @@ import {
 import { useAuth } from '@/contexts';
 import { toast } from '@/components/ui';
 import { useEnabledFeatures } from '@/hooks/useFeatureFlag';
+import { shouldShowBeforeAPI } from '@/config/features';
 
 // Safe auth hook that handles context errors
 function useSafeAuth() {
@@ -99,7 +100,6 @@ const NavbarContentSafe = React.memo(() => {
       icon: Calendar,
       roles: ['owner', 'admin', 'member'] as const,
       featureKey: 'dashboard',
-      showByDefault: true, // Always show for basic functionality
     },
     {
       path: '/teams',
@@ -107,7 +107,6 @@ const NavbarContentSafe = React.memo(() => {
       icon: Users,
       roles: ['owner', 'admin'] as const,
       featureKey: 'teams',
-      showByDefault: false, // Don't show until confirmed enabled
     },
     {
       path: '/standups',
@@ -115,7 +114,6 @@ const NavbarContentSafe = React.memo(() => {
       icon: Calendar,
       roles: ['owner', 'admin', 'member'] as const,
       featureKey: 'standups',
-      showByDefault: true, // Core functionality
     },
     {
       path: '/integrations',
@@ -123,7 +121,6 @@ const NavbarContentSafe = React.memo(() => {
       icon: Zap,
       roles: ['owner', 'admin'] as const,
       featureKey: 'integrations',
-      showByDefault: false, // Don't show until confirmed enabled
     },
     {
       path: '/reports',
@@ -132,7 +129,6 @@ const NavbarContentSafe = React.memo(() => {
       roles: ['owner', 'admin'] as const,
       comingSoon: true,
       featureKey: 'reports',
-      showByDefault: false, // Don't show until confirmed enabled
     },
     {
       path: '/admin',
@@ -140,7 +136,6 @@ const NavbarContentSafe = React.memo(() => {
       icon: Shield,
       roles: ['owner', 'admin'] as const,
       superAdminOnly: true,
-      showByDefault: false, // Only for super admins
     },
   ] as const;
 
@@ -189,11 +184,11 @@ const NavbarContentSafe = React.memo(() => {
                   return false;
                 }
 
-                // Handle feature flags more carefully to prevent flickering
+                // Handle feature flags with smart defaults
                 if ('featureKey' in item && item.featureKey && !user.isSuperAdmin) {
                   if (featuresLoading) {
-                    // While loading, only show items marked as showByDefault
-                    return item.showByDefault === true;
+                    // While loading, show if it's safe to show before API
+                    return shouldShowBeforeAPI(item.featureKey);
                   } else {
                     // After loading, check if feature is actually enabled
                     return enabledFeatures.includes(item.featureKey);
@@ -274,8 +269,7 @@ const NavbarContentSafe = React.memo(() => {
 
                   <div className="p-2">
                     {!user?.isSuperAdmin &&
-                      !featuresLoading &&
-                      enabledFeatures.includes('settings') && (
+                      (featuresLoading ? shouldShowBeforeAPI('settings') : enabledFeatures.includes('settings')) && (
                         <Link
                           to="/settings"
                           onClick={() => setIsUserMenuOpen(false)}
@@ -351,11 +345,11 @@ const NavbarContentSafe = React.memo(() => {
                     return false;
                   }
 
-                  // Handle feature flags more carefully to prevent flickering
+                  // Handle feature flags with smart defaults
                   if ('featureKey' in item && item.featureKey && !user.isSuperAdmin) {
                     if (featuresLoading) {
-                      // While loading, only show items marked as showByDefault
-                      return item.showByDefault === true;
+                      // While loading, show if it's safe to show before API
+                      return shouldShowBeforeAPI(item.featureKey);
                     } else {
                       // After loading, check if feature is actually enabled
                       return enabledFeatures.includes(item.featureKey);
@@ -404,7 +398,7 @@ const NavbarContentSafe = React.memo(() => {
                 <p className="text-xs text-muted-foreground capitalize">{user?.role} Account</p>
               </div>
 
-              {!user?.isSuperAdmin && !featuresLoading && enabledFeatures.includes('settings') && (
+              {!user?.isSuperAdmin && (featuresLoading ? shouldShowBeforeAPI('settings') : enabledFeatures.includes('settings')) && (
                 <Link
                   to="/settings"
                   onClick={() => setIsMobileMenuOpen(false)}
