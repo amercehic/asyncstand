@@ -47,6 +47,7 @@ const NavbarContentSafe = React.memo(() => {
   const reportsEnabled = useFlag('reports');
   const settingsEnabled = useFlag('settings');
 
+
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);

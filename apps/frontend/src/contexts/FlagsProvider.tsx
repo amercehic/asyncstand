@@ -97,7 +97,24 @@ export function FlagsProvider({
           etag.current = newEtag;
         }
 
-        const newFlags: Flags = await response.json();
+        const responseData = await response.json();
+        console.log('Fetched flags from API:', responseData);
+
+        // Handle both formats: {flag: boolean} (new) and {features: string[]} (legacy)
+        let newFlags: Flags = {};
+        if (Array.isArray(responseData.features)) {
+          // Legacy format: {features: ["dashboard", "teams", ...]}
+          console.log('Converting legacy features array to flags object');
+          for (const feature of responseData.features) {
+            newFlags[feature] = true;
+          }
+        } else if (typeof responseData === 'object' && responseData !== null && !Array.isArray(responseData)) {
+          // New format: {dashboard: true, teams: true, ...}
+          newFlags = responseData as Flags;
+        } else {
+          console.warn('Unexpected API response format:', responseData);
+          newFlags = {};
+        }
 
         // Apply sticky variants for experiments
         const processedFlags: Flags = {};
@@ -117,7 +134,6 @@ export function FlagsProvider({
         // Cache the raw flags (before sticky processing)
         setCachedFlags(newFlags);
 
-        console.log('Flags updated:', Object.keys(processedFlags));
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to fetch flags';
         setError(errorMessage);

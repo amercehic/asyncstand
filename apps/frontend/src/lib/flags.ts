@@ -67,14 +67,29 @@ export function setCachedFlags(flags: Flags): void {
 }
 
 /**
+ * Get safe defaults for core navigation flags
+ */
+function getSafeDefaults(): Flags {
+  return {
+    dashboard: true,
+    teams: true,
+    standups: true,
+    integrations: true,
+    settings: true,
+    reports: false, // Coming soon
+  };
+}
+
+/**
  * Get initial flags (bootstrapped + cached, preferring bootstrapped)
  */
 export function getInitialFlags(): Flags {
   const bootstrapped = readBootstrappedFlags();
   const cached = getCachedFlags();
+  const safeDefaults = getSafeDefaults();
 
-  // Merge cached with bootstrapped, preferring bootstrapped
-  return { ...cached, ...bootstrapped };
+  // Merge: safe defaults -> cached -> bootstrapped (last wins)
+  return { ...safeDefaults, ...cached, ...bootstrapped };
 }
 
 /**

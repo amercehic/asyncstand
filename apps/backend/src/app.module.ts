@@ -15,6 +15,7 @@ import { IntegrationsModule } from '@/integrations/integrations.module';
 import { TeamsModule } from '@/teams/teams.module';
 import { StandupsModule } from '@/standups/standups.module';
 import { FeatureModule } from '@/features/feature.module';
+import { FeaturesEnhancedModule } from '@/features/features-enhanced.module';
 import { BillingModule } from '@/billing/billing.module';
 import { AdminModule } from '@/admin/admin.module';
 import { CacheModule } from '@/common/cache/cache.module';
@@ -90,6 +91,7 @@ import { RateLimitService } from '@/common/services/rate-limit.service';
     SecurityModule,
     AuthModule,
     FeatureModule,
+    FeaturesEnhancedModule,
     BillingModule,
     AdminModule,
     IntegrationsModule,
