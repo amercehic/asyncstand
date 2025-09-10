@@ -77,6 +77,7 @@ function getSafeDefaults(): Flags {
     integrations: true,
     settings: true,
     reports: false, // Coming soon
+    slack_integration: true, // Enable Slack integration
   };
 }
 
