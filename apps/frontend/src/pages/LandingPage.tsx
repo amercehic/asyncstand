@@ -2,45 +2,9 @@ import React, { useCallback, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ModernButton } from '@/components/ui';
-import { ArrowRight, Zap, Shield, TrendingUp } from 'lucide-react';
+import { ArrowRight, Zap, Clock, Users, BarChart3 } from 'lucide-react';
 import { usePerformanceMonitor } from '@/hooks';
 import { useAuth } from '@/contexts';
-import type { FeatureItem, StatItem } from '@/types';
-
-interface FeatureCardProps extends FeatureItem {
-  index: number;
-}
-
-const FeatureCard = React.memo<FeatureCardProps>(({ icon: Icon, title, description, index }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 30 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.5, delay: 0.2 + index * 0.1 }}
-    className="bg-card rounded-2xl p-8 shadow-card border border-border group hover:shadow-[0_8px_40px_rgba(0,0,0,0.25)] transition-all duration-300"
-  >
-    <div className="gradient-primary w-12 h-12 rounded-xl flex items-center justify-center mb-6 mx-auto group-hover:scale-110 transition-transform duration-300">
-      <Icon className="w-6 h-6 text-white" />
-    </div>
-    <h3 className="text-xl mb-4">{title}</h3>
-    <p className="text-muted-foreground leading-relaxed">{description}</p>
-  </motion.div>
-));
-
-interface StatCardProps extends StatItem {
-  index: number;
-}
-
-const StatCard = React.memo<StatCardProps>(({ value, label, index }) => (
-  <motion.div
-    initial={{ opacity: 0, scale: 0.8 }}
-    animate={{ opacity: 1, scale: 1 }}
-    transition={{ duration: 0.5, delay: 0.1 + index * 0.1 }}
-    className="text-center"
-  >
-    <div className="text-3xl lg:text-4xl font-semibold gradient-text mb-2">{value}</div>
-    <div className="text-muted-foreground">{label}</div>
-  </motion.div>
-));
 
 export const LandingPage = React.memo(() => {
   const navigate = useNavigate();
@@ -60,40 +24,12 @@ export const LandingPage = React.memo(() => {
       if (isNavigatingRef.current) return;
       isNavigatingRef.current = true;
       navigate(path);
-      // Reset after a delay to prevent double clicks
       setTimeout(() => {
         isNavigatingRef.current = false;
       }, 1000);
     },
     [navigate]
   );
-  const features = [
-    {
-      icon: Zap,
-      title: 'Lightning Fast',
-      description:
-        'Instant updates and real-time collaboration without the overhead of traditional meetings.',
-    },
-    {
-      icon: Shield,
-      title: 'Enterprise Security',
-      description:
-        'Bank-level encryption and compliance with SOC 2, GDPR, and enterprise security standards.',
-    },
-    {
-      icon: TrendingUp,
-      title: 'Scale Effortlessly',
-      description:
-        'From small teams to enterprise organizations, AsyncStand grows with your needs.',
-    },
-  ];
-
-  const stats = [
-    { value: '50K+', label: 'Active Teams' },
-    { value: '99.9%', label: 'Uptime' },
-    { value: '40%', label: 'Time Saved' },
-    { value: '150+', label: 'Countries' },
-  ];
 
   return (
     <div className="min-h-screen">
@@ -105,41 +41,67 @@ export const LandingPage = React.memo(() => {
         className="flex items-center justify-between px-6 lg:px-8 py-6 max-w-7xl mx-auto"
       >
         <motion.div
-          className="text-2xl font-semibold gradient-text"
+          className="text-2xl font-semibold gradient-text cursor-pointer"
           whileHover={{ scale: 1.05 }}
           transition={{ duration: 0.2 }}
+          onClick={() => handleNavigation('/')}
         >
           AsyncStand
         </motion.div>
-        <div className="flex items-center gap-4">
-          <ModernButton
-            variant="ghost"
-            onClick={() => handleNavigation('/login')}
-            data-testid="login-button"
+        <div className="hidden md:flex items-center gap-8">
+          <a
+            onClick={() => handleNavigation('/features')}
+            className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
           >
-            Log In
-          </ModernButton>
-          <ModernButton
-            variant="primary"
-            onClick={() => handleNavigation('/signup')}
-            data-testid="get-started-button"
+            Features
+          </a>
+          <a
+            onClick={() => handleNavigation('/integrations')}
+            className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
           >
+            Integrations
+          </a>
+          <a
+            onClick={() => handleNavigation('/pricing')}
+            className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+          >
+            Pricing
+          </a>
+          <div className="flex items-center gap-4 ml-4">
+            <ModernButton
+              variant="ghost"
+              onClick={() => handleNavigation('/login')}
+              data-testid="login-button"
+            >
+              Log In
+            </ModernButton>
+            <ModernButton
+              variant="primary"
+              onClick={() => handleNavigation('/signup')}
+              data-testid="get-started-button"
+            >
+              Get Started
+            </ModernButton>
+          </div>
+        </div>
+        <div className="md:hidden">
+          <ModernButton variant="primary" size="sm" onClick={() => handleNavigation('/signup')}>
             Get Started
           </ModernButton>
         </div>
       </motion.nav>
 
       {/* Hero Section */}
-      <main className="max-w-7xl mx-auto px-6 lg:px-8 py-12 lg:py-20">
+      <main className="max-w-7xl mx-auto px-6 lg:px-8 py-12 lg:py-24">
         <div className="text-center max-w-5xl mx-auto">
           <motion.h1
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="text-4xl sm:text-5xl lg:text-7xl mb-8 leading-tight font-extralight tracking-tight"
+            className="text-5xl sm:text-6xl lg:text-7xl mb-8 leading-tight font-extralight tracking-tight"
           >
-            Async collaboration
-            <span className="gradient-text"> reimagined</span>
+            Async standups that
+            <span className="gradient-text block">actually work</span>
           </motion.h1>
 
           <motion.p
@@ -148,48 +110,91 @@ export const LandingPage = React.memo(() => {
             transition={{ duration: 0.6, delay: 0.1 }}
             className="text-xl lg:text-2xl text-muted-foreground mb-12 max-w-3xl mx-auto leading-relaxed"
           >
-            Transform your team's productivity with intelligent async workflows. No more endless
-            meetings, just seamless collaboration that works around your schedule.
+            Replace time-consuming standup meetings with automated async check-ins. Keep your
+            distributed team aligned without the scheduling hassle.
           </motion.p>
 
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-20"
+            className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16"
           >
             <ModernButton
               size="lg"
               onClick={() => handleNavigation('/signup')}
-              className="group"
+              className="group min-w-[200px]"
               data-testid="start-trial-button"
             >
               Start Free Trial
               <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform duration-200" />
             </ModernButton>
-            <ModernButton variant="secondary" size="lg" data-testid="watch-demo-button">
-              Watch Demo
+            <ModernButton
+              variant="secondary"
+              size="lg"
+              onClick={() => handleNavigation('/features')}
+              className="min-w-[200px]"
+              data-testid="explore-features-button"
+            >
+              Explore Features
             </ModernButton>
           </motion.div>
 
-          {/* Feature Grid */}
-          <div className="grid md:grid-cols-3 gap-8 mt-24">
-            {features.map((feature, index) => (
-              <FeatureCard key={feature.title} {...feature} index={index} />
-            ))}
-          </div>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="text-sm text-muted-foreground mb-16"
+          >
+            No credit card required · 14-day free trial · Setup in 5 minutes
+          </motion.p>
 
-          {/* Stats Section */}
+          {/* Quick Value Props */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+            className="grid grid-cols-2 md:grid-cols-4 gap-8 py-12 border-t border-border"
+          >
+            <div className="text-center">
+              <Zap className="w-8 h-8 text-primary mx-auto mb-3" />
+              <h3 className="font-medium mb-1">Automated</h3>
+              <p className="text-sm text-muted-foreground">Runs on autopilot</p>
+            </div>
+            <div className="text-center">
+              <Clock className="w-8 h-8 text-primary mx-auto mb-3" />
+              <h3 className="font-medium mb-1">Async-First</h3>
+              <p className="text-sm text-muted-foreground">Work across timezones</p>
+            </div>
+            <div className="text-center">
+              <Users className="w-8 h-8 text-primary mx-auto mb-3" />
+              <h3 className="font-medium mb-1">Team Insights</h3>
+              <p className="text-sm text-muted-foreground">Track participation</p>
+            </div>
+            <div className="text-center">
+              <BarChart3 className="w-8 h-8 text-primary mx-auto mb-3" />
+              <h3 className="font-medium mb-1">Analytics</h3>
+              <p className="text-sm text-muted-foreground">Data-driven decisions</p>
+            </div>
+          </motion.div>
+
+          {/* Social Proof */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.5 }}
-            className="mt-24 py-16 border-t border-border"
+            className="mt-16 p-8 bg-card rounded-2xl border border-border"
           >
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-              {stats.map((stat, index) => (
-                <StatCard key={stat.label} {...stat} index={index} />
-              ))}
+            <p className="text-lg text-muted-foreground mb-6">
+              "AsyncStand transformed how our distributed team collaborates. We save 5+ hours per
+              week and our participation rate went from 60% to 95%."
+            </p>
+            <div className="flex items-center justify-center gap-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full" />
+              <div className="text-left">
+                <p className="font-medium">Sarah Chen</p>
+                <p className="text-sm text-muted-foreground">Engineering Manager at TechCorp</p>
+              </div>
             </div>
           </motion.div>
         </div>
@@ -199,37 +204,103 @@ export const LandingPage = React.memo(() => {
       <motion.footer
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 0.6, delay: 0.7 }}
+        transition={{ duration: 0.6, delay: 0.6 }}
         className="border-t border-border mt-24"
       >
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="text-muted-foreground mb-4 md:mb-0">
-              © 2025 AsyncStand. All rights reserved.
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-12">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+            <div>
+              <h4 className="font-medium mb-4">Product</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li>
+                  <a
+                    onClick={() => handleNavigation('/features')}
+                    className="hover:text-foreground transition-colors cursor-pointer"
+                  >
+                    Features
+                  </a>
+                </li>
+                <li>
+                  <a
+                    onClick={() => handleNavigation('/integrations')}
+                    className="hover:text-foreground transition-colors cursor-pointer"
+                  >
+                    Integrations
+                  </a>
+                </li>
+                <li>
+                  <a
+                    onClick={() => handleNavigation('/pricing')}
+                    className="hover:text-foreground transition-colors cursor-pointer"
+                  >
+                    Pricing
+                  </a>
+                </li>
+              </ul>
             </div>
-            <div className="flex gap-6 text-muted-foreground">
-              <a
-                href="#"
-                className="hover:text-foreground transition-smooth"
-                data-testid="privacy-link"
-              >
-                Privacy
-              </a>
-              <a
-                href="#"
-                className="hover:text-foreground transition-smooth"
-                data-testid="terms-link"
-              >
-                Terms
-              </a>
-              <a
-                href="#"
-                className="hover:text-foreground transition-smooth"
-                data-testid="support-link"
-              >
-                Support
-              </a>
+            <div>
+              <h4 className="font-medium mb-4">Company</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li>
+                  <a href="#" className="hover:text-foreground transition-colors">
+                    About
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-foreground transition-colors">
+                    Blog
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-foreground transition-colors">
+                    Careers
+                  </a>
+                </li>
+              </ul>
             </div>
+            <div>
+              <h4 className="font-medium mb-4">Resources</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li>
+                  <a href="#" className="hover:text-foreground transition-colors">
+                    Documentation
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-foreground transition-colors">
+                    API Reference
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-foreground transition-colors">
+                    Status
+                  </a>
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-medium mb-4">Legal</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li>
+                  <a href="#" className="hover:text-foreground transition-colors">
+                    Privacy
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-foreground transition-colors">
+                    Terms
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-foreground transition-colors">
+                    Security
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div className="mt-8 pt-8 border-t border-border text-center text-sm text-muted-foreground">
+            © 2025 AsyncStand. All rights reserved.
           </div>
         </div>
       </motion.footer>
