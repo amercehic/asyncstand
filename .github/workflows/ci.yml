@@ -156,7 +156,7 @@ jobs:
           CI: true
 
       - name: Upload backend unit test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: backend-unit-test-results
@@ -226,7 +226,7 @@ jobs:
           VITE_NODE_ENV: test
 
       - name: Upload frontend test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: frontend-test-results
@@ -315,7 +315,7 @@ jobs:
           CI: true
 
       - name: Upload integration test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: integration-test-results
@@ -405,7 +405,7 @@ jobs:
           CI: true
 
       - name: Upload E2E test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: e2e-test-results
@@ -513,7 +513,7 @@ jobs:
   #         VITE_NODE_ENV: test
 
   #     - name: Upload E2E test results
-  #       uses: actions/upload-artifact@v4
+  #       uses: actions/upload-artifact@v5
   #       if: always()
   #       with:
   #         name: frontend-e2e-test-results
@@ -522,7 +522,7 @@ jobs:
   #         retention-days: 7
 
   #     - name: Upload E2E screenshots
-  #       uses: actions/upload-artifact@v4
+  #       uses: actions/upload-artifact@v5
   #       if: failure()
   #       with:
   #         name: frontend-e2e-screenshots
@@ -566,7 +566,7 @@ jobs:
           cat test-summary.md
 
       - name: Upload test summary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: test-summary
           path: test-summary.md
